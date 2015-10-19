@@ -59,6 +59,9 @@ type LaAggPort struct {
 	// Version 2
 	partnerLacpPduVersionNumber int
 	enableLongPduXmit           bool
+	// packet is 1 byte, but spec says save as int.
+	// going to save as byte
+	partnerVersion uint8
 
 	// channels
 	delPortSignalChannel chan bool
