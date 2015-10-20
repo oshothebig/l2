@@ -27,6 +27,7 @@ type LaAggPort struct {
 	aggSelected    uint32
 	nttFlag        bool
 	operIndividual int
+	lacpEnabled    bool
 	// TRUE - Aggregation port is operable (MAC_Operational == True)
 	// FALSE - otherwise
 	portEnabled bool
@@ -40,21 +41,29 @@ type LaAggPort struct {
 	partnerOper  LacpPortInfo
 
 	// timers and configuration
+	// some are timeouts, some are intervals
+	// intervals need to have a cooresponding tick count
+	// to determine how many messages have been sent
 	periodicTxTimerInterval   time.Duration
+	peridicTxCnt              int
 	waitWhileTimerTimeout     time.Duration
 	currentWhileTimerTimeout  time.Duration
 	actorChurnTimerInterval   time.Duration
 	partnerChurnTimerInterval time.Duration
 
-	// Tickers for interval timers
+	// Interval timers
 	periodicTxTimer   *time.Timer
 	waitWhileTimer    *time.Timer
 	currentWhileTimer *time.Timer
 	actorChurnTimer   *time.Timer
 	partnerChurnTimer *time.Timer
+	// timer needed for 802.1ax-20014 section 6.4.16
+	txDelayTimer *time.Timer
 
 	// state machines
-	rxMachineFsm *LacpRxMachine
+	rxMachineFsm  *LacpRxMachine
+	ptxMachineFsm *LacpPtxMachine
+	txMachineFsm  *LacpTxMachine
 
 	// Version 2
 	partnerLacpPduVersionNumber int
@@ -77,10 +86,14 @@ func NewLaAggPort(portNum int, interval time.Duration) *LaAggPort {
 		waitWhileTimer:           time.NewTimer(time.Second * (interval * 3)),
 		currentWhileTimerTimeout: LacpLongTimeoutTime,
 		currentWhileTimer:        time.NewTimer(time.Second * (interval * 3)),
+		peridicTxCnt:             0,
 		delPortSignalChannel:     make(chan bool)}
+
+	port.txDelayTimer = time.AfterFunc(LacpFastPeriodicTime, port.LacpTxDeferTxEventGeneration)
 
 	port.WaitWhileTimerStop()
 	port.CurrentWhileTimerStop()
+	port.TxDelayTimerStop()
 	return port
 }
 

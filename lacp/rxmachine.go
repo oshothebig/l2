@@ -17,7 +17,7 @@ const LacpRxmDefaulted = "LacpRxmDefaulted"
 const LacpRxmCurrent = "LacpRxmCurrent"
 */
 const (
-	LacpRxmStateNone = iota
+	LacpRxmStateNone = iota + 1
 	LacpRxmStateInitialize
 	LacpRxmStatePortDisabled
 	LacpRxmStateExpired
@@ -37,15 +37,15 @@ const LacpRxmLacpPortDisabledEvent = "LacpRxmLacpPortDisabledEvent"
 const LacpRxmLacpPktRxEvent = "LacpRxmLacpPktRxEvent"
 */
 const (
-	LacpRxmBeginEvent = iota + 1
-	LacpRxmUnconditionalFallthroughEvent
-	LacpRxmNotPortEnabledAndNotPortMovedEvent
-	LacpRxmPortMovedEvent
-	LacpRxmPortEnabledAndLacpEnabledEvent
-	LacpRxmPortEnabledAndLacpDisabledEvent
-	LacpRxmCurrentWhileTimerExpiredEvent
-	LacpRxmLacpEnabledEvent
-	LacpRxmLacpPktRxEvent
+	LacpRxmEventBegin = iota + 1
+	LacpRxmEventUnconditionalFallthrough
+	LacpRxmEventNotPortEnabledAndNotPortMoved
+	LacpRxmEventPortMoved
+	LacpRxmEventPortEnabledAndLacpEnabled
+	LacpRxmEventPortEnabledAndLacpDisabled
+	LacpRxmEventCurrentWhileTimerExpired
+	LacpRxmEventLacpEnabled
+	LacpRxmEventLacpPktRx
 )
 
 // LacpRxMachine holds FSM and current state
@@ -134,8 +134,8 @@ func (p *LaAggPort) LacpRxMachineExpired(m fsm.Machine, data interface{}) fsm.St
 	// Short timeout
 	LacpStateSet(p.partnerOper.state, LacpStateTimeoutBit)
 
-	// Short timeout
-	p.currentWhileTimerTimeout = LacpShortTimeoutTime
+	// Set the Short timeout
+	p.CurrentWhileTimerTimeoutSet(LacpShortTimeoutTime)
 
 	// Start the Current While timer
 	p.CurrentWhileTimerStart()
@@ -225,30 +225,34 @@ func (p *LaAggPort) LacpRxMachineFSMBuild() *LacpRxMachine {
 	rules := fsm.Ruleset{}
 
 	//BEGIN -> INIT
-	rules.AddRule(LacpRxmStateNone, LacpRxmBeginEvent, p.LacpRxMachineInitialize)
+	rules.AddRule(LacpRxmStateNone, LacpRxmEventBegin, p.LacpRxMachineInitialize)
+	rules.AddRule(LacpRxmStatePortDisabled, LacpRxmEventBegin, p.LacpRxMachineInitialize)
+	rules.AddRule(LacpRxmStateLacpDisabled, LacpRxmEventBegin, p.LacpRxMachineInitialize)
+	rules.AddRule(LacpRxmStateDefaulted, LacpRxmEventBegin, p.LacpRxMachineInitialize)
+	rules.AddRule(LacpRxmStateCurrent, LacpRxmEventBegin, p.LacpRxMachineInitialize)
 	// INIT -> PORT_DISABLE
-	rules.AddRule(LacpRxmStateInitialize, LacpRxmUnconditionalFallthroughEvent, p.LacpRxMachinePortDisabled)
+	rules.AddRule(LacpRxmStateInitialize, LacpRxmEventUnconditionalFallthrough, p.LacpRxMachinePortDisabled)
 	// NOT PORT ENABLED  && NOT PORT MOVED
 	// All states transition to this state
-	rules.AddRule(LacpRxmStateExpired, LacpRxmNotPortEnabledAndNotPortMovedEvent, p.LacpRxMachinePortDisabled)
-	rules.AddRule(LacpRxmStateLacpDisabled, LacpRxmNotPortEnabledAndNotPortMovedEvent, p.LacpRxMachinePortDisabled)
-	rules.AddRule(LacpRxmStateDefaulted, LacpRxmNotPortEnabledAndNotPortMovedEvent, p.LacpRxMachinePortDisabled)
-	rules.AddRule(LacpRxmStateCurrent, LacpRxmNotPortEnabledAndNotPortMovedEvent, p.LacpRxMachinePortDisabled)
+	rules.AddRule(LacpRxmStateExpired, LacpRxmEventNotPortEnabledAndNotPortMoved, p.LacpRxMachinePortDisabled)
+	rules.AddRule(LacpRxmStateLacpDisabled, LacpRxmEventNotPortEnabledAndNotPortMoved, p.LacpRxMachinePortDisabled)
+	rules.AddRule(LacpRxmStateDefaulted, LacpRxmEventNotPortEnabledAndNotPortMoved, p.LacpRxMachinePortDisabled)
+	rules.AddRule(LacpRxmStateCurrent, LacpRxmEventNotPortEnabledAndNotPortMoved, p.LacpRxMachinePortDisabled)
 	// PORT MOVED
-	rules.AddRule(LacpRxmStatePortDisabled, LacpRxmPortMovedEvent, p.LacpRxMachineInitialize)
+	rules.AddRule(LacpRxmStatePortDisabled, LacpRxmEventPortMoved, p.LacpRxMachineInitialize)
 	// PORT ENABLED && LACP ENABLED
-	rules.AddRule(LacpRxmStatePortDisabled, LacpRxmPortEnabledAndLacpEnabledEvent, p.LacpRxMachineExpired)
+	rules.AddRule(LacpRxmStatePortDisabled, LacpRxmEventPortEnabledAndLacpEnabled, p.LacpRxMachineExpired)
 	// PORT ENABLED && LACP DISABLED
-	rules.AddRule(LacpRxmStatePortDisabled, LacpRxmPortEnabledAndLacpDisabledEvent, p.LacpRxMachineLacpDisabled)
+	rules.AddRule(LacpRxmStatePortDisabled, LacpRxmEventPortEnabledAndLacpDisabled, p.LacpRxMachineLacpDisabled)
 	// CURRENT WHILE TIMER EXPIRED
-	rules.AddRule(LacpRxmStateExpired, LacpRxmCurrentWhileTimerExpiredEvent, p.LacpRxMachineDefaulted)
-	rules.AddRule(LacpRxmStateCurrent, LacpRxmCurrentWhileTimerExpiredEvent, p.LacpRxMachineExpired)
+	rules.AddRule(LacpRxmStateExpired, LacpRxmEventCurrentWhileTimerExpired, p.LacpRxMachineDefaulted)
+	rules.AddRule(LacpRxmStateCurrent, LacpRxmEventCurrentWhileTimerExpired, p.LacpRxMachineExpired)
 	// LACP ENABLED
-	rules.AddRule(LacpRxmStateLacpDisabled, LacpRxmLacpEnabledEvent, p.LacpRxMachinePortDisabled)
+	rules.AddRule(LacpRxmStateLacpDisabled, LacpRxmEventLacpEnabled, p.LacpRxMachinePortDisabled)
 	// PKT RX
-	rules.AddRule(LacpRxmStateExpired, LacpRxmLacpPktRxEvent, p.LacpRxMachineCurrent)
-	rules.AddRule(LacpRxmStateDefaulted, LacpRxmLacpPktRxEvent, p.LacpRxMachineCurrent)
-	rules.AddRule(LacpRxmStateCurrent, LacpRxmLacpPktRxEvent, p.LacpRxMachineCurrent)
+	rules.AddRule(LacpRxmStateExpired, LacpRxmEventLacpPktRx, p.LacpRxMachineCurrent)
+	rules.AddRule(LacpRxmStateDefaulted, LacpRxmEventLacpPktRx, p.LacpRxMachineCurrent)
+	rules.AddRule(LacpRxmStateCurrent, LacpRxmEventLacpPktRx, p.LacpRxMachineCurrent)
 
 	// Instantiate a new LacpRxMachine
 	// Initial state will be a psuedo state known as "begin" so that
@@ -288,7 +292,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 			m.Machine.ProcessEvent(event, nil)
 			/* special case */
 			if m.Machine.Curr.CurrentState() == LacpRxmStateInitialize {
-				m.Machine.ProcessEvent(LacpRxmUnconditionalFallthroughEvent, nil)
+				m.Machine.ProcessEvent(LacpRxmEventUnconditionalFallthrough, nil)
 			}
 
 		case pkt := <-rxm.RxmPktRxEvent:
@@ -299,7 +303,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 			// state will transition to current
 			// all other states should be ignored.
 
-			m.Machine.ProcessEvent(LacpRxmLacpPktRxEvent, pkt)
+			m.Machine.ProcessEvent(LacpRxmEventLacpPktRx, pkt)
 
 		}
 	}(rxm)

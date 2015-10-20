@@ -45,6 +45,12 @@ const (
 	LacpStateExpiredBit
 )
 
+const (
+	LacpModeOn = iota + 1
+	LacpModePassive
+	LacpModeActive
+)
+
 func LacpStateSet(currState uint8, stateBits uint8) uint8 {
 	return currState | stateBits
 }
@@ -55,4 +61,15 @@ func LacpStateClear(currState uint8, stateBits uint8) uint8 {
 
 func LacpStateIsSet(currState uint8, stateBits uint8) bool {
 	return (currState & stateBits) == stateBits
+}
+
+func LacpModeGet(currState uint8, lacpDisabled bool) int {
+	mode := LacpModeOn
+	if !lacpDisabled {
+		mode = LacpModePassive
+		if LacpStateIsSet(currState, LacpStateActivityBit) {
+			mode = LacpModeActive
+		}
+	}
+	return mode
 }
