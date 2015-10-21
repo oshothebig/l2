@@ -21,11 +21,13 @@ type LacpPortInfo struct {
 // 802.1ax Section 6.4.7
 // Port attributes associated with aggregator
 type LaAggPort struct {
-	portNum        int
+	portNum int
+	// string id of port
+	intfNum string
+
 	portPriority   int
 	aggId          int
 	aggSelected    uint32
-	nttFlag        bool
 	operIndividual int
 	lacpEnabled    bool
 	// TRUE - Aggregation port is operable (MAC_Operational == True)
@@ -33,6 +35,7 @@ type LaAggPort struct {
 	portEnabled bool
 	portMoved   bool
 	begin       bool
+	actorChurn  bool
 
 	// administrative values for state described in 6.4.2.3
 	actorAdmin   LacpPortInfo
@@ -44,26 +47,21 @@ type LaAggPort struct {
 	// some are timeouts, some are intervals
 	// intervals need to have a cooresponding tick count
 	// to determine how many messages have been sent
-	periodicTxTimerInterval   time.Duration
-	peridicTxCnt              int
-	waitWhileTimerTimeout     time.Duration
-	currentWhileTimerTimeout  time.Duration
 	actorChurnTimerInterval   time.Duration
 	partnerChurnTimerInterval time.Duration
 
 	// Interval timers
-	periodicTxTimer   *time.Timer
-	waitWhileTimer    *time.Timer
-	currentWhileTimer *time.Timer
 	actorChurnTimer   *time.Timer
 	partnerChurnTimer *time.Timer
-	// timer needed for 802.1ax-20014 section 6.4.16
-	txDelayTimer *time.Timer
 
 	// state machines
 	rxMachineFsm  *LacpRxMachine
 	ptxMachineFsm *LacpPtxMachine
 	txMachineFsm  *LacpTxMachine
+	cdMachineFsm  *LacpCdMachine
+
+	// will serialize state transition logging per port
+	LacpDebug *LacpDebug
 
 	// Version 2
 	partnerLacpPduVersionNumber int
@@ -78,22 +76,12 @@ type LaAggPort struct {
 
 // NewLaAggPort
 // Allocate a new lag port, creating appropriate timers
-func NewLaAggPort(portNum int, interval time.Duration) *LaAggPort {
+func NewLaAggPort(portNum int, intfNum string) *LaAggPort {
 	port := &LaAggPort{portNum: portNum,
-		begin:                    true,
-		portMoved:                false,
-		waitWhileTimerTimeout:    LacpLongTimeoutTime,
-		waitWhileTimer:           time.NewTimer(time.Second * (interval * 3)),
-		currentWhileTimerTimeout: LacpLongTimeoutTime,
-		currentWhileTimer:        time.NewTimer(time.Second * (interval * 3)),
-		peridicTxCnt:             0,
-		delPortSignalChannel:     make(chan bool)}
+		begin:                true,
+		portMoved:            false,
+		delPortSignalChannel: make(chan bool)}
 
-	port.txDelayTimer = time.AfterFunc(LacpFastPeriodicTime, port.LacpTxDeferTxEventGeneration)
-
-	port.WaitWhileTimerStop()
-	port.CurrentWhileTimerStop()
-	port.TxDelayTimerStop()
 	return port
 }
 
@@ -105,8 +93,12 @@ func DelLaAggPort(p *LaAggPort) {
 }
 
 func (p *LaAggPort) Stop() {
-	// stop the timers
-	p.WaitWhileTimerStop()
+	// stop the state machines
+	p.rxMachineFsm.Stop()
+	p.ptxMachineFsm.Stop()
+	p.txMachineFsm.Stop()
+	p.cdMachineFsm.Stop()
+
 	// kill the port go routine
 	p.delPortSignalChannel <- true
 

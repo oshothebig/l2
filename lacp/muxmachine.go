@@ -1,10 +1,14 @@
-// muxmachine
+// MUX MACHINE 802.1ax-2014 Section 6.4.15
 package lacp
 
-import ()
+import (
+//	"fmt"
+//	"utils/fsm"
+)
 
 const (
-	LacpMuxStateDetached = iota
+	LacpMuxStateNone = iota
+	LacpMuxStateDetached
 	LacpMuxStateWaiting
 	LacpMuxStateAttached
 	LacpMuxStateCollecting

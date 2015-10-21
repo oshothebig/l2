@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	"fmt"
+	"time"
 	"utils/fsm"
 )
 
@@ -33,6 +33,15 @@ type LacpPtxMachine struct {
 
 	Machine *fsm.Machine
 
+	// Reference to LaAggPort
+	p *LaAggPort
+
+	// current tx interval LONG/SHORT
+	PeriodicTxTimerInterval time.Duration
+
+	// timer
+	periodicTxTimer *time.Timer
+
 	// machine specific events
 	PtxmEvents          chan fsm.Event
 	PtxmKillSignalEvent chan bool
@@ -40,12 +49,25 @@ type LacpPtxMachine struct {
 
 func (ptxm *LacpPtxMachine) PrevState() fsm.State { return ptxm.PreviousState }
 
+func (ptxm *LacpPtxMachine) Stop() {
+	ptxm.PeriodicTimerStop()
+
+	ptxm.PtxmKillSignalEvent <- true
+
+	close(ptxm.PtxmEvents)
+	close(ptxm.PtxmKillSignalEvent)
+}
+
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
-func NewLacpPtxMachine() *LacpPtxMachine {
+func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 	ptxm := &LacpPtxMachine{
-		PreviousState:       LacpPtxmStateNone,
-		PtxmEvents:          make(chan fsm.Event),
-		PtxmKillSignalEvent: make(chan bool)}
+		p:                       port,
+		PreviousState:           LacpPtxmStateNone,
+		PeriodicTxTimerInterval: LacpSlowPeriodicTime,
+		PtxmEvents:              make(chan fsm.Event),
+		PtxmKillSignalEvent:     make(chan bool)}
+
+	port.ptxMachineFsm = ptxm
 
 	return ptxm
 }
@@ -64,31 +86,33 @@ func (ptxm *LacpPtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 }
 
 // LacpPtxMachineNoPeriodic stops the periodic transmission of packets
-func (p *LaAggPort) LacpPtxMachineNoPeriodic(m fsm.Machine, data interface{}) fsm.State {
-	p.PeriodicTimerStop()
+func (ptxm *LacpPtxMachine) LacpPtxMachineNoPeriodic(m fsm.Machine, data interface{}) fsm.State {
+	ptxm.PeriodicTimerStop()
 	return LacpPtxmStateNoPeriodic
 }
 
 // LacpPtxMachineFastPeriodic sets the periodic transmission time to fast
 // and starts the timer
-func (p *LaAggPort) LacpPtxMachineFastPeriodic(m fsm.Machine, data interface{}) fsm.State {
-	p.PeriodicTimerIntervalSet(LacpFastPeriodicTime)
-	p.PeriodicTimerStart()
+func (ptxm *LacpPtxMachine) LacpPtxMachineFastPeriodic(m fsm.Machine, data interface{}) fsm.State {
+	ptxm.PeriodicTimerIntervalSet(LacpFastPeriodicTime)
+	ptxm.PeriodicTimerStart()
 	return LacpPtxmStateFastPeriodic
 }
 
 // LacpPtxMachineSlowPeriodic sets the periodic transmission time to slow
 // and starts the timer
-func (p *LaAggPort) LacpPtxMachineSlowPeriodic(m fsm.Machine, data interface{}) fsm.State {
-	p.PeriodicTimerIntervalSet(LacpSlowPeriodicTime)
-	p.PeriodicTimerStart()
+func (ptxm *LacpPtxMachine) LacpPtxMachineSlowPeriodic(m fsm.Machine, data interface{}) fsm.State {
+	ptxm.PeriodicTimerIntervalSet(LacpSlowPeriodicTime)
+	ptxm.PeriodicTimerStart()
 	return LacpPtxmStateSlowPeriodic
 }
 
-// LacpPtxMachinePeriodicTx changes the ntt flag to true
-func (p *LaAggPort) LacpPtxMachinePeriodicTx(m fsm.Machine, data interface{}) fsm.State {
-	p.nttFlag = true
-	// TODO SEND event to TX Machine
+// LacpPtxMachinePeriodicTx informs the tx machine that a packet should be transmitted by setting
+// ntt = true
+func (ptxm *LacpPtxMachine) LacpPtxMachinePeriodicTx(m fsm.Machine, data interface{}) fsm.State {
+	// inform the tx machine that ntt should change to true which should transmit a
+	// packet
+	ptxm.p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
 	return LacpPtxmStatePeriodicTx
 }
 
@@ -96,50 +120,50 @@ func (p *LaAggPort) LacpPtxMachineFSMBuild() *LacpPtxMachine {
 
 	rules := fsm.Ruleset{}
 
-	//BEGIN -> NO PERIODIC
-	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventBegin, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventBegin, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventBegin, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventBegin, p.LacpPtxMachineNoPeriodic)
-	// LACP DISABLED -> NO PERIODIC
-	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventLacpDisabled, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventLacpDisabled, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventLacpDisabled, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventLacpDisabled, p.LacpPtxMachineNoPeriodic)
-	// PORT DISABLED -> NO PERIODIC
-	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventPortDisabled, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventPortDisabled, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventPortDisabled, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventPortDisabled, p.LacpPtxMachineNoPeriodic)
-	// ACTOR/PARTNER OPER STATE ACTIVITY MODE == PASSIVE -> NO PERIODIC
-	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventActorPartnerOperActivityPassiveMode, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventActorPartnerOperActivityPassiveMode, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventActorPartnerOperActivityPassiveMode, p.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventActorPartnerOperActivityPassiveMode, p.LacpPtxMachineNoPeriodic)
-	// INTENTIONAL FALL THROUGH -> FAST PERIODIC
-	rules.AddRule(LacpPtxmStateNoPeriodic, LacpPtxmEventUnconditionalFallthrough, p.LacpPtxMachineFastPeriodic)
-	// PARTNER OPER STAT LACP TIMEOUT == LONG -> SLOW PERIODIC
-	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventPartnerOperStateTimeoutLong, p.LacpPtxMachineSlowPeriodic)
-	// PERIODIC TIMER EXPIRED -> PERIODIC TX
-	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventPeriodicTimerExpired, p.LacpPtxMachinePeriodicTx)
-	// PARTNER OPER STAT LACP TIMEOUT == SHORT ->  PERIODIC TX
-	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventPartnerOperStateTimeoutShort, p.LacpPtxMachinePeriodicTx)
-	// PERIODIC TIMER EXPIRED -> PERIODIC TX
-	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventPeriodicTimerExpired, p.LacpPtxMachinePeriodicTx)
-	// PARTNER OPER STAT LACP TIMEOUT == SHORT ->  FAST PERIODIC
-	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventPartnerOperStateTimeoutShort, p.LacpPtxMachineFastPeriodic)
-	// PARTNER OPER STAT LACP TIMEOUT == LONG -> SLOW PERIODIC
-	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventPartnerOperStateTimeoutLong, p.LacpPtxMachineSlowPeriodic)
-
-	// Instantiate a new LacpRxMachine
+	// Instantiate a new LacpPtxMachine
 	// Initial state will be a psuedo state known as "begin" so that
-	// we can transition to the initalize state
-	p.ptxMachineFsm = NewLacpPtxMachine()
+	// we can transition to the NO PERIODIC state
+	ptxm := NewLacpPtxMachine(p)
+
+	//BEGIN -> NO PERIODIC
+	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventBegin, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventBegin, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventBegin, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventBegin, ptxm.LacpPtxMachineNoPeriodic)
+	// LACP DISABLED -> NO PERIODIC
+	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventLacpDisabled, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventLacpDisabled, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventLacpDisabled, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventLacpDisabled, ptxm.LacpPtxMachineNoPeriodic)
+	// PORT DISABLED -> NO PERIODIC
+	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventPortDisabled, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventPortDisabled, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventPortDisabled, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventPortDisabled, ptxm.LacpPtxMachineNoPeriodic)
+	// ACTOR/PARTNER OPER STATE ACTIVITY MODE == PASSIVE -> NO PERIODIC
+	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventActorPartnerOperActivityPassiveMode, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventActorPartnerOperActivityPassiveMode, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventActorPartnerOperActivityPassiveMode, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventActorPartnerOperActivityPassiveMode, ptxm.LacpPtxMachineNoPeriodic)
+	// INTENTIONAL FALL THROUGH -> FAST PERIODIC
+	rules.AddRule(LacpPtxmStateNoPeriodic, LacpPtxmEventUnconditionalFallthrough, ptxm.LacpPtxMachineFastPeriodic)
+	// PARTNER OPER STAT LACP TIMEOUT == LONG -> SLOW PERIODIC
+	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventPartnerOperStateTimeoutLong, ptxm.LacpPtxMachineSlowPeriodic)
+	// PERIODIC TIMER EXPIRED -> PERIODIC TX
+	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventPeriodicTimerExpired, ptxm.LacpPtxMachinePeriodicTx)
+	// PARTNER OPER STAT LACP TIMEOUT == SHORT ->  PERIODIC TX
+	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventPartnerOperStateTimeoutShort, ptxm.LacpPtxMachinePeriodicTx)
+	// PERIODIC TIMER EXPIRED -> PERIODIC TX
+	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventPeriodicTimerExpired, ptxm.LacpPtxMachinePeriodicTx)
+	// PARTNER OPER STAT LACP TIMEOUT == SHORT ->  FAST PERIODIC
+	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventPartnerOperStateTimeoutShort, ptxm.LacpPtxMachineFastPeriodic)
+	// PARTNER OPER STAT LACP TIMEOUT == LONG -> SLOW PERIODIC
+	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventPartnerOperStateTimeoutLong, ptxm.LacpPtxMachineSlowPeriodic)
 
 	// Create a new FSM and apply the rules
-	p.ptxMachineFsm.Apply(&rules)
+	ptxm.Apply(&rules)
 
-	return p.ptxMachineFsm
+	return ptxm
 }
 
 // LacpRxMachineMain:  802.1ax-2014 Table 6-18
@@ -160,9 +184,10 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the RxMachine should handle.
 	go func(m *LacpPtxMachine) {
+		m.p.LacpDebug.LacpLogStateTransitionChan <- "PTXM: Machine Start"
 		select {
 		case <-m.PtxmKillSignalEvent:
-			fmt.Println("PTXM: Machine Killed")
+			m.p.LacpDebug.LacpLogStateTransitionChan <- "PTXM: Machine End"
 			return
 
 		case event := <-m.PtxmEvents:
@@ -171,10 +196,6 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 			if m.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic {
 				m.Machine.ProcessEvent(LacpPtxmEventUnconditionalFallthrough, nil)
 			}
-
-			//if event == LacpPtxEventPeriodicTimerExpired {
-			// TODO SEND PACKET OUT
-			//}
 		}
 	}(ptxm)
 }
