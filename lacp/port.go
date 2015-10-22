@@ -1,7 +1,15 @@
 // port
 package lacp
 
-import ()
+import (
+	"strings"
+)
+
+type PortProperties struct {
+	speed  int
+	duplex int
+	mtu    int
+}
 
 type LacpPortSystemInfo struct {
 	systemPriority uint16
@@ -52,6 +60,8 @@ type LaAggPort struct {
 	partnerChurn bool
 	readyN       bool
 
+	macProperties PortProperties
+
 	// administrative values for state described in 6.4.2.3
 	actorAdmin   LacpPortInfo
 	actorOper    LacpPortInfo
@@ -68,6 +78,9 @@ type LaAggPort struct {
 	// will serialize state transition logging per port
 	LacpDebug *LacpDebug
 
+	log    chan string
+	logEna bool
+
 	// Version 2
 	partnerLacpPduVersionNumber int
 	enableLongPduXmit           bool
@@ -79,6 +92,12 @@ type LaAggPort struct {
 // global port map representation of the LaAggPorts
 var portMap = make(map[int]*LaAggPort)
 
+func (p *LaAggPort) LaPortLog(msg string) {
+	if p.logEna {
+		p.log <- msg
+	}
+}
+
 // find a port from the global map table
 func LaFindPortById(pId int, p *LaAggPort) bool {
 	p, ok := portMap[pId]
@@ -89,8 +108,10 @@ func LaFindPortById(pId int, p *LaAggPort) bool {
 // Allocate a new lag port, creating appropriate timers
 func NewLaAggPort(portNum int, intfNum string) *LaAggPort {
 	port := &LaAggPort{portNum: portNum,
-		begin:     true,
-		portMoved: false}
+		begin:       true,
+		portMoved:   false,
+		lacpEnabled: false,
+		portEnabled: false}
 
 	// add port to port map
 	portMap[portNum] = port
@@ -113,15 +134,45 @@ func (p *LaAggPort) Stop() {
 	p.muxMachineFsm.Stop()
 }
 
+//  Start will initiate all the state machines
+// and will send an event back to this caller
+// to begin processing
 func (p *LaAggPort) Start() {
-	p.LacpDebugEventLogMain()
-	// start all the state machines
-	p.LacpRxMachineMain()
-	p.LacpTxMachineMain()
-	p.LacpPtxMachineMain()
-	p.LacpCdMachineMain()
-	p.LacpMuxMachineMain()
+	numMachines := 1
+	beginWaitChan := make(chan string)
 
+	// system in being initalized
+	p.begin = true
+
+	// MUST BE CALLED FIRST!!!
+	p.LacpDebugEventLogMain()
+
+	// save off a shortcut to the log chan
+	p.log = p.LacpDebug.LacpLogChan
+	p.logEna = true
+
+	// start all the state machines
+	p.LacpRxMachineMain(beginWaitChan)
+	numMachines++
+	p.LacpTxMachineMain(beginWaitChan)
+	numMachines++
+	p.LacpPtxMachineMain(beginWaitChan)
+	numMachines++
+	p.LacpCdMachineMain(beginWaitChan)
+	numMachines++
+	p.LacpMuxMachineMain(beginWaitChan)
+	numMachines++
+
+	// lets wait for all the machines to respond
+	for i := 0; i < numMachines; i++ {
+		select {
+		case mStr := <-beginWaitChan:
+			p.LaPortLog(strings.Join([]string{"LAPORT:", mStr, "running"}, " "))
+		}
+	}
+	close(beginWaitChan)
+
+	p.begin = false
 }
 
 // LacpCopyLacpPortInfo:

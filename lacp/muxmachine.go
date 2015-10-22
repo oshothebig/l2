@@ -376,10 +376,7 @@ func (p *LaAggPort) LacpMuxMachineFSMBuild() *LacpMuxMachine {
 // LacpMuxMachineMain:  802.1ax-2014 Figure 6-21 && 6-22
 // Creation of Rx State Machine state transitions and callbacks
 // and create go routine to pend on events
-func (p *LaAggPort) LacpMuxMachineMain() {
-
-	// initialize the port
-	p.begin = true
+func (p *LaAggPort) LacpMuxMachineMain(beginWaitChan chan string) {
 
 	// Build the state machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
@@ -396,6 +393,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 	// that the RxMachine should handle.
 	go func(m *LacpMuxMachine) {
 		m.LacpMuxmLog("MUXM: Machine Start")
+		beginWaitChan <- "Mux Machine"
 		select {
 		case <-m.MuxmKillSignalEvent:
 			m.LacpMuxmLog("MUXM: Machine End")
