@@ -70,6 +70,7 @@ func (txm *LacpTxMachine) PrevState() fsm.State { return txm.PreviousState }
 // PrevStateSet will set the previous state
 func (txm *LacpTxMachine) PrevStateSet(s fsm.State) { txm.PreviousState = s }
 
+// Stop will stop all timers and close all channels
 func (txm *LacpTxMachine) Stop() {
 	txm.TxGuardTimerStop()
 

@@ -69,8 +69,13 @@ var aggMap = make(map[int]*LaAggregator)
 // TODO add more defaults
 func NewLaAggregator(aggId int) *LaAggregator {
 	agg := &LaAggregator{
+		aggId: aggId,
 		ready: true,
 	}
+
+	// add agg to map
+	aggMap[aggId] = agg
+
 	return agg
 }
 

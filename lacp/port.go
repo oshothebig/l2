@@ -19,15 +19,28 @@ type LacpPortInfo struct {
 // 802.1ax Section 6.4.7
 // Port attributes associated with aggregator
 type LaAggPort struct {
-	portNum int
+	// 802.1ax-2014 Section 6.3.4:
+	// Link Aggregation Control uses a Port Identifier (Port ID), comprising
+	// the concatenation of a Port Priority (7.3.2.1.15) and a Port Number
+	// (7.3.2.1.14), to identify the Aggregation Port....
+	// The most significant and second most significant octets are the first
+	// and second most significant octets of the Port Priority, respectively.
+	// The third and fourth most significant octets are the first and second
+	// most significant octets of the Port Number, respectively.
+	portId int
+
 	// string id of port
 	intfNum string
 
+	// used to form portId
+	portNum      int
 	portPriority int
-	aggId        int
+
+	aggId int
 	// Once selected reference to agg group will be made
-	aggAttached    *LaAggregator
-	aggSelected    uint32
+	aggAttached *LaAggregator
+	aggSelected uint32
+	// unable to aggregate with other links in an agg
 	operIndividual int
 	lacpEnabled    bool
 	// TRUE - Aggregation port is operable (MAC_Operational == True)
@@ -61,9 +74,6 @@ type LaAggPort struct {
 	// packet is 1 byte, but spec says save as int.
 	// going to save as byte
 	partnerVersion uint8
-
-	// channels
-	delPortSignalChannel chan bool
 }
 
 // global port map representation of the LaAggPorts
@@ -79,18 +89,19 @@ func LaFindPortById(pId int, p *LaAggPort) bool {
 // Allocate a new lag port, creating appropriate timers
 func NewLaAggPort(portNum int, intfNum string) *LaAggPort {
 	port := &LaAggPort{portNum: portNum,
-		begin:                true,
-		portMoved:            false,
-		delPortSignalChannel: make(chan bool)}
+		begin:     true,
+		portMoved: false}
+
+	// add port to port map
+	portMap[portNum] = port
 
 	return port
 }
 
 func DelLaAggPort(p *LaAggPort) {
 	p.Stop()
-	// close all channels created on the port
-	//close(p.pktRxChannel)
-	close(p.delPortSignalChannel)
+	// remove the port from the port map
+	delete(portMap, p.portNum)
 }
 
 func (p *LaAggPort) Stop() {
@@ -100,10 +111,6 @@ func (p *LaAggPort) Stop() {
 	p.txMachineFsm.Stop()
 	p.cdMachineFsm.Stop()
 	p.muxMachineFsm.Stop()
-
-	// kill the port go routine
-	p.delPortSignalChannel <- true
-
 }
 
 func (p *LaAggPort) Start() {

@@ -14,10 +14,12 @@ const LacpSlowPeriodicTime time.Duration = (time.Second * 30)
 
 // number of seconds before invalidating received LACPDU info when using
 // Short Timeouts (3 x LacpFastPeriodicTime)
+// Lacp State Timeout == 1
 const LacpShortTimeoutTime time.Duration = (time.Second * 3)
 
 // number of seconds before invalidating received LACPDU info when using
 // Long Timeouts (3 x LacpSlowPeriodicTime)
+// Lacp State Timeout == 0
 const LacpLongTimeoutTime time.Duration = (time.Second * 90)
 
 // number of seconds that the Actor and Partner Churn state machines

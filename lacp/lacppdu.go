@@ -3,6 +3,17 @@ package lacp
 
 import ()
 
+const SlowProtocolDmacByte0 uint8 = 0x01
+const SlowProtocolDmacByte1 uint8 = 0x80
+const SlowProtocolDmacByte2 uint8 = 0xC2
+const SlowProtocolDmacByte3 uint8 = 0x00
+const SlowProtocolDmacByte4 uint8 = 0x00
+const SlowProtocolDmacByte5 uint8 = 0x02
+const SlowProtocolEtherType uint16 = 0x8809
+const LacpSubType uint8 = 1
+const LampSubType uint8 = 2
+const LampMarkerInformation uint8 = 1
+
 type LacpPduInfoTlv struct {
 	tlv_type uint8
 	len      uint8
