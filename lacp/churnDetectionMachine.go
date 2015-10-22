@@ -70,7 +70,7 @@ func (cdm *LacpCdMachine) PrevStateSet(s fsm.State) { cdm.PreviousState = s }
 func NewLacpCdMachine(port *LaAggPort) *LacpCdMachine {
 	cdm := &LacpCdMachine{
 		p:                         port,
-		log:                       port.LacpDebug.LacpLogStateTransitionChan,
+		log:                       port.LacpDebug.LacpLogChan,
 		logEna:                    true,
 		PreviousState:             LacpCdmStateNone,
 		actorChurnTimerInterval:   LacpChurnDetectionTime,
@@ -168,12 +168,11 @@ func (p *LaAggPort) LacpCdMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the RxMachine should handle.
 	go func(m *LacpCdMachine) {
-		m.p.LacpDebug.LacpLogStateTransitionChan <- "RXM: Machine Start"
+		m.LacpCdmLog("CDM: Machine Start")
 		select {
 		case <-m.CdmKillSignalEvent:
-			m.p.LacpDebug.LacpLogStateTransitionChan <- "CDM: Machine End"
+			m.LacpCdmLog("CDM: Machine End")
 			return
-
 		case event := <-m.CdmEvents:
 			m.Machine.ProcessEvent(event, nil)
 		case ena := <-m.CdmLogEnableEvent:

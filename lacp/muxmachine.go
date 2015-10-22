@@ -86,14 +86,15 @@ func (muxm *LacpMuxMachine) PrevStateSet(s fsm.State) { muxm.PreviousState = s }
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpMuxMachine(port *LaAggPort) *LacpMuxMachine {
 	muxm := &LacpMuxMachine{
-		p:                   port,
-		log:                 port.LacpDebug.LacpLogStateTransitionChan,
-		logEna:              true,
-		collDistCoupled:     false,
-		PreviousState:       LacpMuxmStateNone,
-		MuxmEvents:          make(chan fsm.Event),
-		MuxmKillSignalEvent: make(chan bool),
-		MuxmLogEnableEvent:  make(chan bool)}
+		p:                     port,
+		log:                   port.LacpDebug.LacpLogChan,
+		logEna:                true,
+		collDistCoupled:       false,
+		waitWhileTimerTimeout: LacpAggregateWaitTime,
+		PreviousState:         LacpMuxmStateNone,
+		MuxmEvents:            make(chan fsm.Event),
+		MuxmKillSignalEvent:   make(chan bool),
+		MuxmLogEnableEvent:    make(chan bool)}
 
 	port.muxMachineFsm = muxm
 
@@ -449,11 +450,13 @@ func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected() {
 		p.aggSelected == LacpAggStandby {
 		p.readyN = true
 		if LaFindAggById(p.aggId, agg) {
-			agg.LacpMuxCheckSelectionLogic()
+			agg.LacpMuxCheckSelectionLogic(p)
 		} else {
 			muxm.LacpMuxmLog(strings.Join([]string{"MUXM: Unable to find Aggrigator", string(p.aggId)}, ":"))
 		}
-
+	} else {
+		// NOTE:
+		muxm.Machine.ProcessEvent(LacpMuxmEventSelectedEqualUnselected, nil)
 	}
 
 }

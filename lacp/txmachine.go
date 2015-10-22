@@ -84,7 +84,7 @@ func (txm *LacpTxMachine) Stop() {
 func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 	txm := &LacpTxMachine{
 		p:                  port,
-		log:                port.LacpDebug.LacpLogStateTransitionChan,
+		log:                port.LacpDebug.LacpLogChan,
 		logEna:             true,
 		txPending:          0,
 		txPkts:             0,
@@ -247,10 +247,10 @@ func (p *LaAggPort) LacpTxMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the RxMachine should handle.
 	go func(m *LacpTxMachine) {
-		m.p.LacpDebug.LacpLogStateTransitionChan <- "PTXM: Machine Start"
+		m.LacpTxmLog("TXM: Machine Start")
 		select {
 		case <-m.TxmKillSignalEvent:
-			m.p.LacpDebug.LacpLogStateTransitionChan <- "TXM: Machine End"
+			m.LacpTxmLog("TXM: Machine End")
 			return
 
 		case event := <-m.TxmEvents:

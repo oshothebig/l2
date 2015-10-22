@@ -4,24 +4,23 @@ package lacp
 import (
 	"fmt"
 	"strings"
-)
-
-const (
-	LacpLogEventKillSignal = iota + 1
+	"time"
 )
 
 type LacpDebug struct {
-	LacpLogStateTransitionChan chan string
-	LacpLogKillEventSignal     chan bool
+	LacpLogChan chan string
 }
 
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpDebug() *LacpDebug {
 	lacpdebug := &LacpDebug{
-		LacpLogStateTransitionChan: make(chan string),
-		LacpLogKillEventSignal:     make(chan bool)}
+		LacpLogChan: make(chan string)}
 
 	return lacpdebug
+}
+
+func (l *LacpDebug) Stop() {
+	close(l.LacpLogChan)
 }
 
 func (p *LaAggPort) LacpDebugEventLogMain() {
@@ -31,11 +30,12 @@ func (p *LaAggPort) LacpDebugEventLogMain() {
 	go func(port *LaAggPort) {
 		select {
 
-		case <-port.LacpDebug.LacpLogKillEventSignal:
-			return
-
-		case msg := <-port.LacpDebug.LacpLogStateTransitionChan:
-			fmt.Println(strings.Join([]string{string(p.portNum), p.intfNum, msg}, "-"))
+		case msg, logEvent := <-port.LacpDebug.LacpLogChan:
+			if logEvent {
+				fmt.Println(strings.Join([]string{time.Now().Format("Mon Jan 2 15:04:05 -0700 MST 2006"), string(p.portNum), p.intfNum, msg}, "-"))
+			} else {
+				return
+			}
 		}
 	}(p)
 

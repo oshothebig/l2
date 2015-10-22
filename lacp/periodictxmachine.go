@@ -73,7 +73,7 @@ func (ptxm *LacpPtxMachine) Stop() {
 func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 	ptxm := &LacpPtxMachine{
 		p:                       port,
-		log:                     port.LacpDebug.LacpLogStateTransitionChan,
+		log:                     port.LacpDebug.LacpLogChan,
 		logEna:                  false,
 		PreviousState:           LacpPtxmStateNone,
 		PeriodicTxTimerInterval: LacpSlowPeriodicTime,

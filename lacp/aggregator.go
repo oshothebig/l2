@@ -11,7 +11,6 @@ const (
 	LacpAggSelected = iota + 1
 	LacpAggStandby
 	LacpAggUnSelected
-	LacpAggOutOfSync
 )
 
 type LacpAggrigatorStats struct {
@@ -80,21 +79,48 @@ func NewLaAggregator(aggId int) *LaAggregator {
 // port to have its wait while timer expire then
 // will transition the mux state from waiting to
 // attached
-func (agg *LaAggregator) LacpMuxCheckSelectionLogic() {
-	var p *LaAggPort
-	allPortsReady := true
+func (agg *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort) {
+
+	readyChan := make(chan bool)
+	// lets do a this work in parrallel
 	for _, pId := range agg.portNumList {
-		if LaFindPortById(pId, p) && !p.readyN {
-			allPortsReady = false
+
+		go func(id int) {
+			var port *LaAggPort
+			if LaFindPortById(id, port) {
+				readyChan <- port.readyN
+			}
+		}(pId)
+	}
+	close(readyChan)
+
+	// lets set the agg.ready flag to true
+	// until we know that at least one port
+	// is not ready
+	agg.ready = true
+	for range agg.portNumList {
+		select {
+		case readyN := <-readyChan:
+			if !readyN {
+				agg.ready = false
+			}
 		}
 	}
-	if allPortsReady {
-		agg.ready = true
+
+	// if agg is ready then lets attach the
+	// ports which are not already attached
+	if agg.ready {
+		// lets do this work in parrallel
 		for _, pId := range agg.portNumList {
-			if LaFindPortById(pId, p) && p.readyN {
-				// trigger event to mux
-				p.muxMachineFsm.MuxmEvents <- LacpMuxmEventSelectedEqualSelectedAndReady
-			}
+			go func(id int) {
+				var port *LaAggPort
+				if LaFindPortById(id, port) &&
+					port.readyN &&
+					port.aggAttached != nil {
+					// trigger event to mux
+					port.muxMachineFsm.MuxmEvents <- LacpMuxmEventSelectedEqualSelectedAndReady
+				}
+			}(pId)
 		}
 	}
 }

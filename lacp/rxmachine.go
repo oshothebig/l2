@@ -100,7 +100,7 @@ func (rxm *LacpRxMachine) Stop() {
 func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 	rxm := &LacpRxMachine{
 		p:                  port,
-		log:                port.LacpDebug.LacpLogStateTransitionChan,
+		log:                port.LacpDebug.LacpLogChan,
 		logEna:             true,
 		PreviousState:      LacpRxmStateNone,
 		RxmEvents:          make(chan fsm.Event),
@@ -464,6 +464,13 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *LacpPdu) {
 	if !LacpLacpPortInfoIsEqual(&lacpPduInfo.actor.info, &p.partnerOper, LacpStateAggregationBit) {
 
 		p.aggSelected = LacpAggUnSelected
+		// lets trigger the event only if mux is not in waiting state as
+		// the wait while timer expiration will trigger the unselected event
+		if p.muxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
+			p.muxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateWaiting {
+
+		}
+
 	}
 }
 
