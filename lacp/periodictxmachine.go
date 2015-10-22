@@ -33,6 +33,10 @@ type LacpPtxMachine struct {
 
 	Machine *fsm.Machine
 
+	// state transition log
+	log    chan string
+	logEna bool
+
 	// Reference to LaAggPort
 	p *LaAggPort
 
@@ -43,11 +47,17 @@ type LacpPtxMachine struct {
 	periodicTxTimer *time.Timer
 
 	// machine specific events
-	PtxmEvents          chan fsm.Event
+	PtxmEvents chan fsm.Event
+	// stop go routine
 	PtxmKillSignalEvent chan bool
+	// enable logging
+	PtxmLogEnableEvent chan bool
 }
 
 func (ptxm *LacpPtxMachine) PrevState() fsm.State { return ptxm.PreviousState }
+
+// PrevStateSet will set the previous state
+func (ptxm *LacpPtxMachine) PrevStateSet(s fsm.State) { ptxm.PreviousState = s }
 
 func (ptxm *LacpPtxMachine) Stop() {
 	ptxm.PeriodicTimerStop()
@@ -56,20 +66,30 @@ func (ptxm *LacpPtxMachine) Stop() {
 
 	close(ptxm.PtxmEvents)
 	close(ptxm.PtxmKillSignalEvent)
+	close(ptxm.PtxmLogEnableEvent)
 }
 
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 	ptxm := &LacpPtxMachine{
 		p:                       port,
+		log:                     port.LacpDebug.LacpLogStateTransitionChan,
+		logEna:                  false,
 		PreviousState:           LacpPtxmStateNone,
 		PeriodicTxTimerInterval: LacpSlowPeriodicTime,
 		PtxmEvents:              make(chan fsm.Event),
-		PtxmKillSignalEvent:     make(chan bool)}
+		PtxmKillSignalEvent:     make(chan bool),
+		PtxmLogEnableEvent:      make(chan bool)}
 
 	port.ptxMachineFsm = ptxm
 
 	return ptxm
+}
+
+func (ptxm *LacpPtxMachine) LacpPtxLog(msg string) {
+	if ptxm.logEna {
+		ptxm.log <- msg
+	}
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -87,6 +107,7 @@ func (ptxm *LacpPtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 // LacpPtxMachineNoPeriodic stops the periodic transmission of packets
 func (ptxm *LacpPtxMachine) LacpPtxMachineNoPeriodic(m fsm.Machine, data interface{}) fsm.State {
+	ptxm.LacpPtxLog("PTXM: No Periodic enter")
 	ptxm.PeriodicTimerStop()
 	return LacpPtxmStateNoPeriodic
 }
@@ -94,6 +115,7 @@ func (ptxm *LacpPtxMachine) LacpPtxMachineNoPeriodic(m fsm.Machine, data interfa
 // LacpPtxMachineFastPeriodic sets the periodic transmission time to fast
 // and starts the timer
 func (ptxm *LacpPtxMachine) LacpPtxMachineFastPeriodic(m fsm.Machine, data interface{}) fsm.State {
+	ptxm.LacpPtxLog("PTXM: Fast Periodic Enter")
 	ptxm.PeriodicTimerIntervalSet(LacpFastPeriodicTime)
 	ptxm.PeriodicTimerStart()
 	return LacpPtxmStateFastPeriodic
@@ -102,6 +124,7 @@ func (ptxm *LacpPtxMachine) LacpPtxMachineFastPeriodic(m fsm.Machine, data inter
 // LacpPtxMachineSlowPeriodic sets the periodic transmission time to slow
 // and starts the timer
 func (ptxm *LacpPtxMachine) LacpPtxMachineSlowPeriodic(m fsm.Machine, data interface{}) fsm.State {
+	ptxm.LacpPtxLog("PTXM: Slow Periodic Enter")
 	ptxm.PeriodicTimerIntervalSet(LacpSlowPeriodicTime)
 	ptxm.PeriodicTimerStart()
 	return LacpPtxmStateSlowPeriodic
@@ -110,13 +133,14 @@ func (ptxm *LacpPtxMachine) LacpPtxMachineSlowPeriodic(m fsm.Machine, data inter
 // LacpPtxMachinePeriodicTx informs the tx machine that a packet should be transmitted by setting
 // ntt = true
 func (ptxm *LacpPtxMachine) LacpPtxMachinePeriodicTx(m fsm.Machine, data interface{}) fsm.State {
+	ptxm.LacpPtxLog("PTXM: Periodic Tx Enter")
 	// inform the tx machine that ntt should change to true which should transmit a
 	// packet
 	ptxm.p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
 	return LacpPtxmStatePeriodicTx
 }
 
-func (p *LaAggPort) LacpPtxMachineFSMBuild() *LacpPtxMachine {
+func LacpPtxMachineFSMBuild(p *LaAggPort) *LacpPtxMachine {
 
 	rules := fsm.Ruleset{}
 
@@ -176,7 +200,7 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 
 	// Build the state machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
-	ptxm := p.LacpPtxMachineFSMBuild()
+	ptxm := LacpPtxMachineFSMBuild(p)
 
 	// set the inital state
 	ptxm.Machine.Start(ptxm.PrevState())
@@ -184,10 +208,10 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the RxMachine should handle.
 	go func(m *LacpPtxMachine) {
-		m.p.LacpDebug.LacpLogStateTransitionChan <- "PTXM: Machine Start"
+		ptxm.LacpPtxLog("PTXM: Machine Start")
 		select {
 		case <-m.PtxmKillSignalEvent:
-			m.p.LacpDebug.LacpLogStateTransitionChan <- "PTXM: Machine End"
+			ptxm.LacpPtxLog("PTXM: Machine End")
 			return
 
 		case event := <-m.PtxmEvents:
@@ -196,6 +220,8 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 			if m.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic {
 				m.Machine.ProcessEvent(LacpPtxmEventUnconditionalFallthrough, nil)
 			}
+		case ena := <-m.PtxmLogEnableEvent:
+			m.logEna = ena
 		}
 	}(ptxm)
 }

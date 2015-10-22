@@ -1,9 +1,7 @@
 // port
 package lacp
 
-import (
-	"time"
-)
+import ()
 
 type LacpPortSystemInfo struct {
 	systemPriority uint16
@@ -25,17 +23,21 @@ type LaAggPort struct {
 	// string id of port
 	intfNum string
 
-	portPriority   int
-	aggId          int
+	portPriority int
+	aggId        int
+	// Once selected reference to agg group will be made
+	aggAttached    *LaAggregator
 	aggSelected    uint32
 	operIndividual int
 	lacpEnabled    bool
 	// TRUE - Aggregation port is operable (MAC_Operational == True)
 	// FALSE - otherwise
-	portEnabled bool
-	portMoved   bool
-	begin       bool
-	actorChurn  bool
+	portEnabled  bool
+	portMoved    bool
+	begin        bool
+	actorChurn   bool
+	partnerChurn bool
+	readyN       bool
 
 	// administrative values for state described in 6.4.2.3
 	actorAdmin   LacpPortInfo
@@ -43,22 +45,12 @@ type LaAggPort struct {
 	partnerAdmin LacpPortInfo
 	partnerOper  LacpPortInfo
 
-	// timers and configuration
-	// some are timeouts, some are intervals
-	// intervals need to have a cooresponding tick count
-	// to determine how many messages have been sent
-	actorChurnTimerInterval   time.Duration
-	partnerChurnTimerInterval time.Duration
-
-	// Interval timers
-	actorChurnTimer   *time.Timer
-	partnerChurnTimer *time.Timer
-
 	// state machines
 	rxMachineFsm  *LacpRxMachine
 	ptxMachineFsm *LacpPtxMachine
 	txMachineFsm  *LacpTxMachine
 	cdMachineFsm  *LacpCdMachine
+	muxMachineFsm *LacpMuxMachine
 
 	// will serialize state transition logging per port
 	LacpDebug *LacpDebug
@@ -72,6 +64,15 @@ type LaAggPort struct {
 
 	// channels
 	delPortSignalChannel chan bool
+}
+
+// global port map representation of the LaAggPorts
+var portMap = make(map[int]*LaAggPort)
+
+// find a port from the global map table
+func LaFindPortById(pId int, p *LaAggPort) bool {
+	p, ok := portMap[pId]
+	return ok
 }
 
 // NewLaAggPort
@@ -98,6 +99,7 @@ func (p *LaAggPort) Stop() {
 	p.ptxMachineFsm.Stop()
 	p.txMachineFsm.Stop()
 	p.cdMachineFsm.Stop()
+	p.muxMachineFsm.Stop()
 
 	// kill the port go routine
 	p.delPortSignalChannel <- true
@@ -105,28 +107,14 @@ func (p *LaAggPort) Stop() {
 }
 
 func (p *LaAggPort) Start() {
-
+	p.LacpDebugEventLogMain()
+	// start all the state machines
 	p.LacpRxMachineMain()
-	/*
-		go func() {
+	p.LacpTxMachineMain()
+	p.LacpPtxMachineMain()
+	p.LacpCdMachineMain()
+	p.LacpMuxMachineMain()
 
-			fmt.Println("Start:              Time:", time.Now())
-			for {
-				select {
-				case delMsg := <-p.delPortSignalChannel:
-					if delMsg {
-						fmt.Println("Deleting port routing", p.portNum)
-						return
-					}
-				case msg1 := <-p.waitWhileTimer.C:
-					fmt.Println("RX: timeout         Time:", msg1)
-					//case msg2 := <-p.pktRxChannel:
-					//	fmt.Println("Rx:", msg2, "Time:", time.Now())
-					//	p.WaitWhileTimerStart()
-				}
-			}
-		}()
-	*/
 }
 
 // LacpCopyLacpPortInfo:

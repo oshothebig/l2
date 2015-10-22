@@ -45,12 +45,23 @@ type LacpTxMachine struct {
 	// the state machine will only clear
 	ntt bool
 
+	// debug log
+	log    chan string
+	logEna bool
+
 	// timer needed for 802.1ax-20014 section 6.4.16
 	txGuardTimer *time.Timer
 
 	// machine specific events
 	TxmEvents          chan fsm.Event
 	TxmKillSignalEvent chan bool
+	TxmLogEnableEvent  chan bool
+}
+
+func (txm *LacpTxMachine) LacpTxmLog(msg string) {
+	if txm.logEna {
+		txm.log <- msg
+	}
 }
 
 // PrevState will get the previous state from the state transitions
@@ -66,22 +77,32 @@ func (txm *LacpTxMachine) Stop() {
 
 	close(txm.TxmEvents)
 	close(txm.TxmKillSignalEvent)
+	close(txm.TxmLogEnableEvent)
 }
 
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 	txm := &LacpTxMachine{
 		p:                  port,
+		log:                port.LacpDebug.LacpLogStateTransitionChan,
+		logEna:             true,
 		txPending:          0,
 		txPkts:             0,
 		ntt:                false,
 		PreviousState:      LacpTxmStateNone,
 		TxmEvents:          make(chan fsm.Event),
-		TxmKillSignalEvent: make(chan bool)}
+		TxmKillSignalEvent: make(chan bool),
+		TxmLogEnableEvent:  make(chan bool)}
 
 	port.txMachineFsm = txm
 
 	return txm
+}
+
+func (txm *LacpTxMachine) LacpTxLog(msg string) {
+	if txm.logEna {
+		txm.log <- msg
+	}
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -179,7 +200,7 @@ func (txm *LacpTxMachine) LacpTxMachineGuard(m fsm.Machine, data interface{}) fs
 }
 
 // LacpTxMachineFSMBuild will build the state machine with callbacks
-func (p *LaAggPort) LacpTxMachineFSMBuild() *LacpTxMachine {
+func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 
 	rules := fsm.Ruleset{}
 
@@ -218,7 +239,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 
 	// Build the state machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
-	txm := p.LacpTxMachineFSMBuild()
+	txm := LacpTxMachineFSMBuild(p)
 
 	// set the inital state
 	txm.Machine.Start(txm.PrevState())
@@ -241,6 +262,8 @@ func (p *LaAggPort) LacpTxMachineMain() {
 			}
 
 			m.Machine.ProcessEvent(event, nil)
+		case ena := <-m.TxmLogEnableEvent:
+			m.logEna = ena
 		}
 	}(txm)
 }

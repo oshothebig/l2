@@ -7,25 +7,25 @@ import (
 
 // WaitWhileTimerStart
 // Start the timer
-func (rxm *LacpRxMachine) WaitWhileTimerStart() {
-	if rxm.waitWhileTimer == nil {
-		rxm.waitWhileTimer = time.NewTimer(rxm.waitWhileTimerTimeout)
+func (muxm *LacpMuxMachine) WaitWhileTimerStart() {
+	if muxm.waitWhileTimer == nil {
+		muxm.waitWhileTimer = time.NewTimer(muxm.waitWhileTimerTimeout)
 	} else {
-		rxm.waitWhileTimer.Reset(rxm.waitWhileTimerTimeout)
+		muxm.waitWhileTimer.Reset(muxm.waitWhileTimerTimeout)
 	}
 }
 
 // WaitWhileTimerStop
 // Stop the timer, which should only happen
 // on creation as well as when the lacp mode is "on"
-func (rxm *LacpRxMachine) WaitWhileTimerStop() {
-	if rxm.waitWhileTimer != nil {
-		rxm.waitWhileTimer.Stop()
+func (muxm *LacpMuxMachine) WaitWhileTimerStop() {
+	if muxm.waitWhileTimer != nil {
+		muxm.waitWhileTimer.Stop()
 	}
 }
 
-func (rxm *LacpRxMachine) WaitWhileTimerTimeoutSet(timeout time.Duration) {
-	rxm.waitWhileTimerTimeout = timeout
+func (muxm *LacpMuxMachine) WaitWhileTimerTimeoutSet(timeout time.Duration) {
+	muxm.waitWhileTimerTimeout = timeout
 }
 
 func (rxm *LacpRxMachine) CurrentWhileTimerStart() {
@@ -64,16 +64,16 @@ func (ptxm *LacpPtxMachine) PeriodicTimerIntervalSet(interval time.Duration) {
 	ptxm.PeriodicTxTimerInterval = interval
 }
 
-func (p *LaAggPort) ChurnDetectionTimerStart() {
-	p.actorChurnTimer.Reset(p.actorChurnTimerInterval)
+func (cdm *LacpCdMachine) ChurnDetectionTimerStart() {
+	cdm.actorChurnTimer.Reset(cdm.actorChurnTimerInterval)
 }
 
-func (p *LaAggPort) ChurnDetectionTimerStop() {
-	p.actorChurnTimer.Stop()
+func (cdm *LacpCdMachine) ChurnDetectionTimerStop() {
+	cdm.actorChurnTimer.Stop()
 }
 
-func (p *LaAggPort) ChurnDetectionTimerIntervalSet(interval time.Duration) {
-	p.actorChurnTimerInterval = interval
+func (cdm *LacpCdMachine) ChurnDetectionTimerIntervalSet(interval time.Duration) {
+	cdm.actorChurnTimerInterval = interval
 }
 
 // TxGuardTimerStart used by Tx Machine as described in

@@ -7,4 +7,10 @@ type LacpSystem struct {
 	actor_system [6]uint8
 	// System Priority
 	actor_system_priority int
+
+	// mux coupling
+	// false == NOT COUPLING, true == COUPLING
+	muxCoupling bool
 }
+
+var LacpSystemParams = LacpSystem{muxCoupling: false}
