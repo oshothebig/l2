@@ -15,7 +15,7 @@ const (
 
 const (
 	LacpCdmEventBegin = iota + 1
-	LacpCdmEventPortEnabled
+	LacpCdmEventNotPortEnabled
 	LacpCdmEventActorOperPortStateSyncOn
 	LacpCdmEventActorOperPortStateSyncOff
 	LacpCdmEventActorChurnTimerExpired
@@ -124,7 +124,7 @@ func (cdm *LacpCdMachine) LacpCdMachineActorChurnMonitor(m fsm.Machine, data int
 	cdm.ChurnDetectionTimerStart()
 	// let the port know we have initialized
 	if p.begin {
-		p.beginChan <- "Churn Detection Machine"
+		p.portChan <- "Churn Detection Machine"
 	}
 	return LacpTxmStateOff
 }
@@ -145,9 +145,19 @@ func LacpCdMachineFSMBuild(p *LaAggPort) *LacpCdMachine {
 	rules.AddRule(LacpCdmStateActorChurnMonitor, LacpCdmEventBegin, cdm.LacpCdMachineActorChurnMonitor)
 
 	// PORT ENABLED -> ACTOR CHURN MONITOR
-	rules.AddRule(LacpCdmStateActorChurn, LacpCdmEventPortEnabled, cdm.LacpCdMachineActorChurnMonitor)
-	rules.AddRule(LacpCdmStateNoActorChurn, LacpCdmEventPortEnabled, cdm.LacpCdMachineActorChurnMonitor)
-	rules.AddRule(LacpCdmStateActorChurnMonitor, LacpCdmEventPortEnabled, cdm.LacpCdMachineActorChurnMonitor)
+	rules.AddRule(LacpCdmStateActorChurn, LacpCdmEventNotPortEnabled, cdm.LacpCdMachineActorChurnMonitor)
+	rules.AddRule(LacpCdmStateNoActorChurn, LacpCdmEventNotPortEnabled, cdm.LacpCdMachineActorChurnMonitor)
+	rules.AddRule(LacpCdmStateActorChurnMonitor, LacpCdmEventNotPortEnabled, cdm.LacpCdMachineActorChurnMonitor)
+
+	// SYNC ON -> NO CHURN
+	rules.AddRule(LacpCdmStateActorChurnMonitor, LacpCdmEventActorOperPortStateSyncOn, cdm.LacpCdMachineNoActorChurn)
+	rules.AddRule(LacpCdmStateActorChurn, LacpCdmEventActorOperPortStateSyncOn, cdm.LacpCdMachineNoActorChurn)
+
+	// SYNC OFF -> ACTOR CHURN MONITOR
+	rules.AddRule(LacpCdmStateNoActorChurn, LacpCdmEventActorOperPortStateSyncOff, cdm.LacpCdMachineActorChurnMonitor)
+
+	// TIMEOUT -> CHURN
+	rules.AddRule(LacpCdmStateActorChurnMonitor, LacpCdmEventActorChurnTimerExpired, cdm.LacpCdMachineActorChurn)
 
 	// Create a new FSM and apply the rules
 	cdm.Apply(&rules)

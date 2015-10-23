@@ -142,7 +142,7 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 
 	// let the port know we have initialized
 	if p.begin {
-		p.beginChan <- "Mux Machine"
+		p.portChan <- "Mux Machine"
 	}
 	// NTT = TRUE
 	p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt

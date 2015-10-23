@@ -158,7 +158,7 @@ func (rxm *LacpRxMachine) LacpRxMachineInitialize(m fsm.Machine, data interface{
 
 	// let the port know we have initialized
 	if p.begin {
-		p.beginChan <- "Rx Machine"
+		p.portChan <- "Rx Machine"
 	}
 
 	// next state

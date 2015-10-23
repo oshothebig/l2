@@ -63,9 +63,6 @@ type LaAggregator struct {
 	portNumList []int
 }
 
-// stores are the actual LAGs
-var aggMap = make(map[int]*LaAggregator)
-
 // TODO add more defaults
 func NewLaAggregator(aggId int) *LaAggregator {
 	agg := &LaAggregator{
@@ -74,7 +71,7 @@ func NewLaAggregator(aggId int) *LaAggregator {
 	}
 
 	// add agg to map
-	aggMap[aggId] = agg
+	gLacpSysGlobalInfo.AggMap[aggId] = agg
 
 	return agg
 }
@@ -131,6 +128,6 @@ func (agg *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort) {
 }
 
 func LaFindAggById(aggId int, agg *LaAggregator) bool {
-	agg, ok := aggMap[aggId]
+	agg, ok := gLacpSysGlobalInfo.AggMap[aggId]
 	return ok
 }

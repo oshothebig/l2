@@ -10,9 +10,10 @@ import (
 
 func TestLaAggPortCreate(t *testing.T) {
 
-	p := lacp.NewLaAggPort(1, "eth1.1")
+	p := lacp.NewLaAggPort(1, 0x80, "eth1.1")
 
-	p.Start(false)
+	// lets start all the state machines
+	p.BEGIN(false)
 
 	fmt.Println("TEST: Port Enabled and Lacp Enabled -> RX Machine")
 	p.RxMachineFsm.RxmEvents <- lacp.LacpRxmEventPortEnabledAndLacpEnabled

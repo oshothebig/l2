@@ -17,7 +17,7 @@ const (
 const (
 	LacpPtxmEventBegin = iota + 1
 	LacpPtxmEventLacpDisabled
-	LacpPtxmEventPortDisabled
+	LacpPtxmEventNotPortEnabled
 	LacpPtxmEventActorPartnerOperActivityPassiveMode
 	LacpPtxmEventUnconditionalFallthrough
 	LacpPtxmEventPartnerOperStateTimeoutLong
@@ -121,7 +121,7 @@ func (ptxm *LacpPtxMachine) LacpPtxMachineNoPeriodic(m fsm.Machine, data interfa
 
 	// let the port know we have initialized
 	if p.begin {
-		p.beginChan <- "Churn Detection Machine"
+		p.portChan <- "Churn Detection Machine"
 	}
 
 	return LacpPtxmStateNoPeriodic
@@ -175,10 +175,10 @@ func LacpPtxMachineFSMBuild(p *LaAggPort) *LacpPtxMachine {
 	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventLacpDisabled, ptxm.LacpPtxMachineNoPeriodic)
 	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventLacpDisabled, ptxm.LacpPtxMachineNoPeriodic)
 	// PORT DISABLED -> NO PERIODIC
-	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventPortDisabled, ptxm.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventPortDisabled, ptxm.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventPortDisabled, ptxm.LacpPtxMachineNoPeriodic)
-	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventPortDisabled, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventNotPortEnabled, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventNotPortEnabled, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventNotPortEnabled, ptxm.LacpPtxMachineNoPeriodic)
+	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventNotPortEnabled, ptxm.LacpPtxMachineNoPeriodic)
 	// ACTOR/PARTNER OPER STATE ACTIVITY MODE == PASSIVE -> NO PERIODIC
 	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventActorPartnerOperActivityPassiveMode, ptxm.LacpPtxMachineNoPeriodic)
 	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventActorPartnerOperActivityPassiveMode, ptxm.LacpPtxMachineNoPeriodic)
@@ -230,7 +230,7 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 			case event := <-m.PtxmEvents:
 				m.Machine.ProcessEvent(event, nil)
 				/* special case */
-				if m.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic {
+				if m.LacpPtxIsNoPeriodicExitCondition() {
 					m.Machine.ProcessEvent(LacpPtxmEventUnconditionalFallthrough, nil)
 				}
 			case ena := <-m.PtxmLogEnableEvent:
@@ -238,4 +238,15 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 			}
 		}
 	}(ptxm)
+}
+
+// LacpPtxIsNoPeriodicExitCondition is meant to check if the UTC
+// condition has been met when the state is NO PERIODIC
+func (m *LacpPtxMachine) LacpPtxIsNoPeriodicExitCondition() bool {
+	p := m.p
+	return m.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic &&
+		p.lacpEnabled &&
+		p.portEnabled &&
+		(LacpModeGet(p.actorOper.state, p.lacpEnabled) == LacpModeActive ||
+			LacpModeGet(p.partnerOper.state, p.lacpEnabled) == LacpModeActive)
 }
