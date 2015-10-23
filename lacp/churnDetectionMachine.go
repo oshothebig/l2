@@ -79,7 +79,7 @@ func NewLacpCdMachine(port *LaAggPort) *LacpCdMachine {
 		CdmKillSignalEvent:        make(chan bool),
 		CdmLogEnableEvent:         make(chan bool)}
 
-	port.cdMachineFsm = cdm
+	port.CdMachineFsm = cdm
 
 	return cdm
 }

@@ -96,7 +96,7 @@ func NewLacpMuxMachine(port *LaAggPort) *LacpMuxMachine {
 		MuxmKillSignalEvent:   make(chan bool),
 		MuxmLogEnableEvent:    make(chan bool)}
 
-	port.muxMachineFsm = muxm
+	port.MuxMachineFsm = muxm
 
 	// start then stop
 	muxm.WaitWhileTimerStart()
@@ -145,7 +145,7 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 		p.beginChan <- "Mux Machine"
 	}
 	// NTT = TRUE
-	p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
+	p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
 
 	return LacpMuxmStateDetached
 }
@@ -196,7 +196,7 @@ func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fs
 	muxm.DisableCollecting()
 
 	// NTT = TRUE
-	p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
+	p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
 
 	return LacpMuxmStateWaiting
 }
@@ -219,7 +219,7 @@ func (muxm *LacpMuxMachine) LacpMuxmCollecting(m fsm.Machine, data interface{}) 
 	LacpStateClear(p.actorOper.state, LacpStateDistributingBit)
 
 	// NTT = TRUE
-	p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
+	p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
 
 	return LacpMuxmStateWaiting
 }
@@ -257,7 +257,7 @@ func (muxm *LacpMuxMachine) LacpMuxmCDetached(m fsm.Machine, data interface{}) f
 	LacpStateClear(p.actorOper.state, LacpStateDistributingBit)
 
 	// NTT = TRUE
-	p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
+	p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
 
 	return LacpMuxmStateDetached
 }
@@ -293,7 +293,7 @@ func (muxm *LacpMuxMachine) LacpMuxmCAttached(m fsm.Machine, data interface{}) f
 	LacpStateClear(p.actorOper.state, LacpStateDistributingBit)
 
 	// NTT = TRUE
-	p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
+	p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
 
 	return LacpMuxmStateWaiting
 }
@@ -313,7 +313,7 @@ func (muxm *LacpMuxMachine) LacpMuxmCCollectingDistributing(m fsm.Machine, data 
 	LacpStateSet(p.actorOper.state, LacpStateDistributingBit)
 
 	// NTT = TRUE
-	p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
+	p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
 
 	return LacpMuxmStateWaiting
 }
@@ -478,7 +478,7 @@ func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected() {
 // Aggregator, in preparation for collecting and distributing frames.
 func (muxm *LacpMuxMachine) AttachMuxToAggregator() {
 	// TODO send message to asic deamon  create
-	muxm.LacpMuxmLog("Attach Mux To Aggregator Enter")
+	muxm.LacpMuxmLog("MUXM: Attach Mux To Aggregator Enter")
 }
 
 // DetachMuxFromAggregator is a required function defined in 802.1ax-2014
@@ -488,7 +488,7 @@ func (muxm *LacpMuxMachine) AttachMuxToAggregator() {
 // to which the Aggregation Port is currently attached.
 func (muxm *LacpMuxMachine) DetachMuxFromAggregator() {
 	// TODO send message to asic deamon delete
-	muxm.LacpMuxmLog("Detach Mux From Aggregator Enter")
+	muxm.LacpMuxmLog("MUXM: Detach Mux From Aggregator Enter")
 }
 
 // EnableCollecting is a required function defined in 802.1ax-2014
@@ -498,7 +498,7 @@ func (muxm *LacpMuxMachine) DetachMuxFromAggregator() {
 // Aggregation Port.
 func (muxm *LacpMuxMachine) EnableCollecting() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("Sending Collection Enable to ASICD")
+	muxm.LacpMuxmLog("MUXM: Sending Collection Enable to ASICD")
 }
 
 // DisableCollecting is a required function defined in 802.1ax-2014
@@ -508,7 +508,7 @@ func (muxm *LacpMuxMachine) EnableCollecting() {
 // Aggregation Port.
 func (muxm *LacpMuxMachine) DisableCollecting() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("Sending Collection Disable to ASICD")
+	muxm.LacpMuxmLog("MUXM: Sending Collection Disable to ASICD")
 }
 
 // EnableDistributing is a required function defined in 802.1ax-2014
@@ -518,7 +518,7 @@ func (muxm *LacpMuxMachine) DisableCollecting() {
 // to the Aggregation Port.
 func (muxm *LacpMuxMachine) EnableDistributing() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("Sending Distributing Enable to ASICD")
+	muxm.LacpMuxmLog("MUXM: Sending Distributing Enable to ASICD")
 }
 
 // DisableDistributing is a required function defined in 802.1ax-2014
@@ -528,7 +528,7 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 // to the Aggregation Port.
 func (muxm *LacpMuxMachine) DisableDistributing() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("Sending Distributing Disable to ASICD")
+	muxm.LacpMuxmLog("MUXM: Sending Distributing Disable to ASICD")
 }
 
 // EnableCollectingDistributing is a required function defined in 802.1ax-2014
@@ -539,7 +539,7 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 // frames to the Aggregation Port.
 func (muxm *LacpMuxMachine) EnableCollectingDistributing() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("Sending Collection-Distributing Enable to ASICD")
+	muxm.LacpMuxmLog("MUXM: Sending Collection-Distributing Enable to ASICD")
 }
 
 // DisableCollectingDistributing is a required function defined in 802.1ax-2014
@@ -550,5 +550,5 @@ func (muxm *LacpMuxMachine) EnableCollectingDistributing() {
 // Aggregation Port.
 func (muxm *LacpMuxMachine) DisableCollectingDistributing() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("Sending Collection-Distributing Disable to ASICD")
+	muxm.LacpMuxmLog("MUXM: Sending Collection-Distributing Disable to ASICD")
 }

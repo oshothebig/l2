@@ -81,7 +81,7 @@ func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 		PtxmKillSignalEvent:     make(chan bool),
 		PtxmLogEnableEvent:      make(chan bool)}
 
-	port.ptxMachineFsm = ptxm
+	port.PtxMachineFsm = ptxm
 
 	// start then stop
 	ptxm.PeriodicTimerStart()
@@ -151,7 +151,7 @@ func (ptxm *LacpPtxMachine) LacpPtxMachinePeriodicTx(m fsm.Machine, data interfa
 	ptxm.LacpPtxLog("PTXM: Periodic Tx Enter")
 	// inform the tx machine that ntt should change to true which should transmit a
 	// packet
-	ptxm.p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
+	ptxm.p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
 	return LacpPtxmStatePeriodicTx
 }
 

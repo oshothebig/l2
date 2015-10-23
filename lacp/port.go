@@ -70,11 +70,11 @@ type LaAggPort struct {
 	partnerOper  LacpPortInfo
 
 	// state machines
-	rxMachineFsm  *LacpRxMachine
-	ptxMachineFsm *LacpPtxMachine
-	txMachineFsm  *LacpTxMachine
-	cdMachineFsm  *LacpCdMachine
-	muxMachineFsm *LacpMuxMachine
+	RxMachineFsm  *LacpRxMachine
+	PtxMachineFsm *LacpPtxMachine
+	TxMachineFsm  *LacpTxMachine
+	CdMachineFsm  *LacpCdMachine
+	MuxMachineFsm *LacpMuxMachine
 
 	// will serialize state transition logging per port
 	LacpDebug *LacpDebug
@@ -131,11 +131,11 @@ func DelLaAggPort(p *LaAggPort) {
 
 func (p *LaAggPort) Stop() {
 	// stop the state machines
-	p.rxMachineFsm.Stop()
-	p.ptxMachineFsm.Stop()
-	p.txMachineFsm.Stop()
-	p.cdMachineFsm.Stop()
-	p.muxMachineFsm.Stop()
+	p.RxMachineFsm.Stop()
+	p.PtxMachineFsm.Stop()
+	p.TxMachineFsm.Stop()
+	p.CdMachineFsm.Stop()
+	p.MuxMachineFsm.Stop()
 	close(p.beginChan)
 }
 
@@ -175,16 +175,16 @@ func (p *LaAggPort) Start(restart bool) {
 		p.LacpMuxMachineMain()
 	}
 	// Rxm
-	mEvtChan = append(mEvtChan, p.rxMachineFsm.RxmEvents)
+	mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
 	evt = append(evt, LacpRxmEventBegin)
 	// Ptxm
-	mEvtChan = append(mEvtChan, p.ptxMachineFsm.PtxmEvents)
+	mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
 	evt = append(evt, LacpPtxmEventBegin)
 	// Cdm
-	mEvtChan = append(mEvtChan, p.cdMachineFsm.CdmEvents)
+	mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
 	evt = append(evt, LacpCdmEventBegin)
 	// Muxm
-	mEvtChan = append(mEvtChan, p.muxMachineFsm.MuxmEvents)
+	mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
 	evt = append(evt, LacpMuxmEventBegin)
 
 	// call the begin event for each

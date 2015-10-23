@@ -108,7 +108,7 @@ func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 		RxmKillSignalEvent: make(chan bool),
 		RxmLogEnableEvent:  make(chan bool)}
 
-	port.rxMachineFsm = rxm
+	port.RxMachineFsm = rxm
 
 	// create then stop
 	rxm.CurrentWhileTimerStart()
@@ -281,7 +281,7 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 
 	if ntt == true {
 		// update ntt, which should trigger a packet transmit
-		p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
+		p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
 	}
 
 	return LacpRxmStateCurrent
@@ -353,7 +353,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the RxMachine should handle.
 	go func(m *LacpRxMachine) {
-		m.LacpRxmLog("PTXM: Machine Start")
+		m.LacpRxmLog("RXM: Machine Start")
 		for {
 			select {
 			case <-m.RxmKillSignalEvent:
@@ -494,9 +494,9 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *LacpPdu) {
 		p.aggSelected = LacpAggUnSelected
 		// lets trigger the event only if mux is not in waiting state as
 		// the wait while timer expiration will trigger the unselected event
-		if p.muxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
-			p.muxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
-			p.muxMachineFsm.MuxmEvents <- LacpMuxmEventSelectedEqualUnselected
+		if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
+			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
+			p.MuxMachineFsm.MuxmEvents <- LacpMuxmEventSelectedEqualUnselected
 		}
 	}
 }

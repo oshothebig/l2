@@ -98,7 +98,7 @@ func ProcessLacpFrame(metadata *RxPacketMetaData, lacppdu *LacpPdu) {
 	// begin state has been met
 	if LaFindPortById(metadata.port, p) && p.begin {
 		// lets offload the packet to another thread
-		p.rxMachineFsm.RxmPktRxEvent <- *lacppdu
+		p.RxMachineFsm.RxmPktRxEvent <- *lacppdu
 	}
 }
 

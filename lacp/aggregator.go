@@ -123,7 +123,7 @@ func (agg *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort) {
 					port.readyN &&
 					port.aggAttached != nil {
 					// trigger event to mux
-					port.muxMachineFsm.MuxmEvents <- LacpMuxmEventSelectedEqualSelectedAndReady
+					port.MuxMachineFsm.MuxmEvents <- LacpMuxmEventSelectedEqualSelectedAndReady
 				}
 			}(pId)
 		}

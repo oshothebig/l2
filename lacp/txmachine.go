@@ -95,7 +95,7 @@ func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 		TxmKillSignalEvent: make(chan bool),
 		TxmLogEnableEvent:  make(chan bool)}
 
-	port.txMachineFsm = txm
+	port.TxMachineFsm = txm
 
 	// start then stop
 	txm.TxGuardTimerStart()
