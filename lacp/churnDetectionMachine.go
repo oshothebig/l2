@@ -121,6 +121,10 @@ func (cdm *LacpCdMachine) LacpCdMachineActorChurnMonitor(m fsm.Machine, data int
 	p := cdm.p
 	p.actorChurn = true
 	cdm.ChurnDetectionTimerStart()
+	// let the port know we have initialized
+	if p.begin {
+		p.beginChan <- "Churn Detection Machine"
+	}
 	return LacpTxmStateOff
 }
 
@@ -153,7 +157,7 @@ func LacpCdMachineFSMBuild(p *LaAggPort) *LacpCdMachine {
 // LacpCdMachineMain:  802.1ax-2014 Figure 6.23
 // Creation of Rx State Machine state transitions and callbacks
 // and create go routine to pend on events
-func (p *LaAggPort) LacpCdMachineMain(beginWaitChan chan string) {
+func (p *LaAggPort) LacpCdMachineMain() {
 
 	// Build the state machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
@@ -166,7 +170,6 @@ func (p *LaAggPort) LacpCdMachineMain(beginWaitChan chan string) {
 	// that the RxMachine should handle.
 	go func(m *LacpCdMachine) {
 		m.LacpCdmLog("CDM: Machine Start")
-		beginWaitChan <- "Churn Detection Machine"
 		select {
 		case <-m.CdmKillSignalEvent:
 			m.LacpCdmLog("CDM: Machine End")

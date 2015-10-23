@@ -3,6 +3,7 @@ package lacp
 
 import (
 	"strings"
+	"utils/fsm"
 )
 
 type PortProperties struct {
@@ -78,8 +79,9 @@ type LaAggPort struct {
 	// will serialize state transition logging per port
 	LacpDebug *LacpDebug
 
-	log    chan string
-	logEna bool
+	beginChan chan string
+	log       chan string
+	logEna    bool
 
 	// Version 2
 	partnerLacpPduVersionNumber int
@@ -111,7 +113,8 @@ func NewLaAggPort(portNum int, intfNum string) *LaAggPort {
 		begin:       true,
 		portMoved:   false,
 		lacpEnabled: false,
-		portEnabled: false}
+		portEnabled: false,
+		beginChan:   make(chan string)}
 
 	// add port to port map
 	portMap[portNum] = port
@@ -132,45 +135,71 @@ func (p *LaAggPort) Stop() {
 	p.txMachineFsm.Stop()
 	p.cdMachineFsm.Stop()
 	p.muxMachineFsm.Stop()
+	close(p.beginChan)
+}
+
+type MachineEventChanAndBegingEvent struct {
+	mEvt chan string
+	evt  int
 }
 
 //  Start will initiate all the state machines
 // and will send an event back to this caller
-// to begin processing
-func (p *LaAggPort) Start() {
-	numMachines := 1
-	beginWaitChan := make(chan string)
+// to begin processing.
+func (p *LaAggPort) Start(restart bool) {
+	mEvtChan := make([]chan fsm.Event, 0)
+	evt := make([]fsm.Event, 0)
 
 	// system in being initalized
 	p.begin = true
 
-	// MUST BE CALLED FIRST!!!
-	p.LacpDebugEventLogMain()
+	if !restart {
+		// MUST BE CALLED FIRST!!!
+		p.LacpDebugEventLogMain()
 
-	// save off a shortcut to the log chan
-	p.log = p.LacpDebug.LacpLogChan
-	p.logEna = true
+		// save off a shortcut to the log chan
+		p.log = p.LacpDebug.LacpLogChan
+		p.logEna = true
 
-	// start all the state machines
-	p.LacpRxMachineMain(beginWaitChan)
-	numMachines++
-	p.LacpTxMachineMain(beginWaitChan)
-	numMachines++
-	p.LacpPtxMachineMain(beginWaitChan)
-	numMachines++
-	p.LacpCdMachineMain(beginWaitChan)
-	numMachines++
-	p.LacpMuxMachineMain(beginWaitChan)
-	numMachines++
+		// start all the state machines
+		p.LacpRxMachineMain()
+
+		// No begin event
+		p.LacpTxMachineMain()
+
+		p.LacpPtxMachineMain()
+
+		p.LacpCdMachineMain()
+
+		p.LacpMuxMachineMain()
+	}
+	// Rxm
+	mEvtChan = append(mEvtChan, p.rxMachineFsm.RxmEvents)
+	evt = append(evt, LacpRxmEventBegin)
+	// Ptxm
+	mEvtChan = append(mEvtChan, p.ptxMachineFsm.PtxmEvents)
+	evt = append(evt, LacpPtxmEventBegin)
+	// Cdm
+	mEvtChan = append(mEvtChan, p.cdMachineFsm.CdmEvents)
+	evt = append(evt, LacpCdmEventBegin)
+	// Muxm
+	mEvtChan = append(mEvtChan, p.muxMachineFsm.MuxmEvents)
+	evt = append(evt, LacpMuxmEventBegin)
+
+	// call the begin event for each
+	for j := 0; j < len(mEvtChan); j++ {
+		go func(evtChannel []chan fsm.Event) {
+			evtChannel[j] <- evt[j]
+		}(mEvtChan)
+	}
 
 	// lets wait for all the machines to respond
-	for i := 0; i < numMachines; i++ {
+	for i := 0; i < len(mEvtChan); i++ {
 		select {
-		case mStr := <-beginWaitChan:
+		case mStr := <-p.beginChan:
 			p.LaPortLog(strings.Join([]string{"LAPORT:", mStr, "running"}, " "))
 		}
 	}
-	close(beginWaitChan)
 
 	p.begin = false
 }

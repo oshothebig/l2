@@ -135,6 +135,10 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 	// Disable Collecting
 	muxm.DisableCollecting()
 
+	// let the port know we have initialized
+	if p.begin {
+		p.beginChan <- "Mux Machine"
+	}
 	// NTT = TRUE
 	p.txMachineFsm.TxmEvents <- LacpTxmEventNtt
 
@@ -376,7 +380,7 @@ func (p *LaAggPort) LacpMuxMachineFSMBuild() *LacpMuxMachine {
 // LacpMuxMachineMain:  802.1ax-2014 Figure 6-21 && 6-22
 // Creation of Rx State Machine state transitions and callbacks
 // and create go routine to pend on events
-func (p *LaAggPort) LacpMuxMachineMain(beginWaitChan chan string) {
+func (p *LaAggPort) LacpMuxMachineMain() {
 
 	// Build the state machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
@@ -393,7 +397,6 @@ func (p *LaAggPort) LacpMuxMachineMain(beginWaitChan chan string) {
 	// that the RxMachine should handle.
 	go func(m *LacpMuxMachine) {
 		m.LacpMuxmLog("MUXM: Machine Start")
-		beginWaitChan <- "Mux Machine"
 		select {
 		case <-m.MuxmKillSignalEvent:
 			m.LacpMuxmLog("MUXM: Machine End")

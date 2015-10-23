@@ -107,8 +107,17 @@ func (ptxm *LacpPtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 // LacpPtxMachineNoPeriodic stops the periodic transmission of packets
 func (ptxm *LacpPtxMachine) LacpPtxMachineNoPeriodic(m fsm.Machine, data interface{}) fsm.State {
+
+	p := ptxm.p
+
 	ptxm.LacpPtxLog("PTXM: No Periodic enter")
 	ptxm.PeriodicTimerStop()
+
+	// let the port know we have initialized
+	if p.begin {
+		p.beginChan <- "Churn Detection Machine"
+	}
+
 	return LacpPtxmStateNoPeriodic
 }
 
@@ -193,7 +202,7 @@ func LacpPtxMachineFSMBuild(p *LaAggPort) *LacpPtxMachine {
 // LacpRxMachineMain:  802.1ax-2014 Table 6-18
 // Creation of Rx State Machine state transitions and callbacks
 // and create go routine to pend on events
-func (p *LaAggPort) LacpPtxMachineMain(beginWaitChan chan string) {
+func (p *LaAggPort) LacpPtxMachineMain() {
 
 	// Build the state machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
@@ -206,7 +215,6 @@ func (p *LaAggPort) LacpPtxMachineMain(beginWaitChan chan string) {
 	// that the RxMachine should handle.
 	go func(m *LacpPtxMachine) {
 		ptxm.LacpPtxLog("PTXM: Machine Start")
-		beginWaitChan <- "Periodic Tx Machine"
 		select {
 		case <-m.PtxmKillSignalEvent:
 			ptxm.LacpPtxLog("PTXM: Machine End")
