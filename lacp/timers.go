@@ -65,11 +65,17 @@ func (ptxm *LacpPtxMachine) PeriodicTimerIntervalSet(interval time.Duration) {
 }
 
 func (cdm *LacpCdMachine) ChurnDetectionTimerStart() {
-	cdm.actorChurnTimer.Reset(cdm.actorChurnTimerInterval)
+	if cdm.actorChurnTimer == nil {
+		cdm.actorChurnTimer = time.NewTimer(cdm.actorChurnTimerInterval)
+	} else {
+		cdm.actorChurnTimer.Reset(cdm.actorChurnTimerInterval)
+	}
 }
 
 func (cdm *LacpCdMachine) ChurnDetectionTimerStop() {
-	cdm.actorChurnTimer.Stop()
+	if cdm.actorChurnTimer != nil {
+		cdm.actorChurnTimer.Stop()
+	}
 }
 
 func (cdm *LacpCdMachine) ChurnDetectionTimerIntervalSet(interval time.Duration) {
@@ -90,5 +96,7 @@ func (txm *LacpTxMachine) TxGuardTimerStart() {
 // TxDelayTimerStop to stop the Delay timer
 // in case a port is deleted or initialized
 func (txm *LacpTxMachine) TxGuardTimerStop() {
-	txm.txGuardTimer.Stop()
+	if txm.txGuardTimer != nil {
+		txm.txGuardTimer.Stop()
+	}
 }

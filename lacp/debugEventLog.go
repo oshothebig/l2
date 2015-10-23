@@ -28,13 +28,17 @@ func (p *LaAggPort) LacpDebugEventLogMain() {
 	p.LacpDebug = NewLacpDebug()
 
 	go func(port *LaAggPort) {
-		select {
 
-		case msg, logEvent := <-port.LacpDebug.LacpLogChan:
-			if logEvent {
-				fmt.Println(strings.Join([]string{time.Now().Format("Mon Jan 2 15:04:05 -0700 MST 2006"), string(p.portNum), p.intfNum, msg}, "-"))
-			} else {
-				return
+		for {
+			select {
+
+			case msg, logEvent := <-port.LacpDebug.LacpLogChan:
+				if logEvent {
+					//fmt.Println(msg)
+					fmt.Println(strings.Join([]string{time.Now().Format("Mon Jan 2 15:04:05 -0700 MST 2006"), p.intfNum, msg}, "-"))
+				} else {
+					return
+				}
 			}
 		}
 	}(p)

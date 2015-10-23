@@ -83,10 +83,15 @@ func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 
 	port.ptxMachineFsm = ptxm
 
+	// start then stop
+	ptxm.PeriodicTimerStart()
+	ptxm.PeriodicTimerStop()
+
 	return ptxm
 }
 
 func (ptxm *LacpPtxMachine) LacpPtxLog(msg string) {
+
 	if ptxm.logEna {
 		ptxm.log <- msg
 	}
@@ -101,6 +106,7 @@ func (ptxm *LacpPtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	ptxm.Machine.Rules = r
+	ptxm.Machine.Curr = &LacpStateEvent{}
 
 	return ptxm.Machine
 }
@@ -214,20 +220,22 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the RxMachine should handle.
 	go func(m *LacpPtxMachine) {
-		ptxm.LacpPtxLog("PTXM: Machine Start")
-		select {
-		case <-m.PtxmKillSignalEvent:
-			ptxm.LacpPtxLog("PTXM: Machine End")
-			return
+		m.LacpPtxLog("PTXM: Machine Start")
+		for {
+			select {
+			case <-m.PtxmKillSignalEvent:
+				m.LacpPtxLog("PTXM: Machine End")
+				return
 
-		case event := <-m.PtxmEvents:
-			m.Machine.ProcessEvent(event, nil)
-			/* special case */
-			if m.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic {
-				m.Machine.ProcessEvent(LacpPtxmEventUnconditionalFallthrough, nil)
+			case event := <-m.PtxmEvents:
+				m.Machine.ProcessEvent(event, nil)
+				/* special case */
+				if m.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic {
+					m.Machine.ProcessEvent(LacpPtxmEventUnconditionalFallthrough, nil)
+				}
+			case ena := <-m.PtxmLogEnableEvent:
+				m.logEna = ena
 			}
-		case ena := <-m.PtxmLogEnableEvent:
-			m.logEna = ena
 		}
 	}(ptxm)
 }

@@ -110,6 +110,7 @@ func LaFindPortById(pId int, p *LaAggPort) bool {
 // Allocate a new lag port, creating appropriate timers
 func NewLaAggPort(portNum int, intfNum string) *LaAggPort {
 	port := &LaAggPort{portNum: portNum,
+		intfNum:     intfNum,
 		begin:       true,
 		portMoved:   false,
 		lacpEnabled: false,
@@ -188,9 +189,9 @@ func (p *LaAggPort) Start(restart bool) {
 
 	// call the begin event for each
 	for j := 0; j < len(mEvtChan); j++ {
-		go func(evtChannel []chan fsm.Event) {
-			evtChannel[j] <- evt[j]
-		}(mEvtChan)
+		go func(idx int, evtChannel []chan fsm.Event) {
+			evtChannel[idx] <- evt[idx]
+		}(j, mEvtChan)
 	}
 
 	// lets wait for all the machines to respond

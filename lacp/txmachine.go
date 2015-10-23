@@ -97,6 +97,10 @@ func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 
 	port.txMachineFsm = txm
 
+	// start then stop
+	txm.TxGuardTimerStart()
+	txm.TxGuardTimerStop()
+
 	return txm
 }
 
@@ -115,6 +119,7 @@ func (txm *LacpTxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	txm.Machine.Rules = r
+	txm.Machine.Curr = &LacpStateEvent{}
 
 	return txm.Machine
 }
@@ -246,22 +251,24 @@ func (p *LaAggPort) LacpTxMachineMain() {
 	// that the RxMachine should handle.
 	go func(m *LacpTxMachine) {
 		m.LacpTxmLog("TXM: Machine Start")
-		select {
-		case <-m.TxmKillSignalEvent:
-			m.LacpTxmLog("TXM: Machine End")
-			return
+		for {
+			select {
+			case <-m.TxmKillSignalEvent:
+				m.LacpTxmLog("TXM: Machine End")
+				return
 
-		case event := <-m.TxmEvents:
+			case event := <-m.TxmEvents:
 
-			// special case, another machine has a need to
-			// transmit a packet
-			if event == LacpTxmEventNtt {
-				m.ntt = true
+				// special case, another machine has a need to
+				// transmit a packet
+				if event == LacpTxmEventNtt {
+					m.ntt = true
+				}
+
+				m.Machine.ProcessEvent(event, nil)
+			case ena := <-m.TxmLogEnableEvent:
+				m.logEna = ena
 			}
-
-			m.Machine.ProcessEvent(event, nil)
-		case ena := <-m.TxmLogEnableEvent:
-			m.logEna = ena
 		}
 	}(txm)
 }

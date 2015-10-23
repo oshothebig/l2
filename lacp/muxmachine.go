@@ -98,6 +98,10 @@ func NewLacpMuxMachine(port *LaAggPort) *LacpMuxMachine {
 
 	port.muxMachineFsm = muxm
 
+	// start then stop
+	muxm.WaitWhileTimerStart()
+	muxm.WaitWhileTimerStop()
+
 	return muxm
 }
 
@@ -110,6 +114,7 @@ func (muxm *LacpMuxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	muxm.Machine.Rules = r
+	muxm.Machine.Curr = &LacpStateEvent{}
 
 	return muxm.Machine
 }
@@ -397,22 +402,26 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 	// that the RxMachine should handle.
 	go func(m *LacpMuxMachine) {
 		m.LacpMuxmLog("MUXM: Machine Start")
-		select {
-		case <-m.MuxmKillSignalEvent:
-			m.LacpMuxmLog("MUXM: Machine End")
-			return
-		case <-m.waitWhileTimer.C:
+		for {
+			select {
+			case <-m.MuxmKillSignalEvent:
+				m.LacpMuxmLog("MUXM: Machine End")
+				return
 
-			m.LacpMuxmLog("MUXM: Wait While Timer Expired")
-			// lets evaluate selection
-			if m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
-				m.Machine.Curr.CurrentState() == LacpMuxmStateCWaiting {
-				m.LacpMuxmWaitingEvaluateSelected()
+			case <-m.waitWhileTimer.C:
+				m.LacpMuxmLog("MUXM: Wait While Timer Expired")
+				// lets evaluate selection
+				if m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
+					m.Machine.Curr.CurrentState() == LacpMuxmStateCWaiting {
+					m.LacpMuxmWaitingEvaluateSelected()
+				}
+
+			case event := <-m.MuxmEvents:
+				m.Machine.ProcessEvent(event, nil)
+
+			case ena := <-m.MuxmLogEnableEvent:
+				m.logEna = ena
 			}
-		case event := <-m.MuxmEvents:
-			m.Machine.ProcessEvent(event, nil)
-		case ena := <-m.MuxmLogEnableEvent:
-			m.logEna = ena
 		}
 	}(muxm)
 }

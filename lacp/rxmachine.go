@@ -110,6 +110,10 @@ func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 
 	port.rxMachineFsm = rxm
 
+	// create then stop
+	rxm.CurrentWhileTimerStart()
+	rxm.CurrentWhileTimerStop()
+
 	return rxm
 }
 
@@ -128,6 +132,7 @@ func (rxm *LacpRxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	rxm.Machine.Rules = r
+	rxm.Machine.Curr = &LacpStateEvent{}
 
 	return rxm.Machine
 }
@@ -348,40 +353,42 @@ func (p *LaAggPort) LacpRxMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the RxMachine should handle.
 	go func(m *LacpRxMachine) {
-		rxm.LacpRxmLog("PTXM: Machine Start")
-		select {
-		case <-m.RxmKillSignalEvent:
-			rxm.LacpRxmLog("RXM: Machine End")
-			return
+		m.LacpRxmLog("PTXM: Machine Start")
+		for {
+			select {
+			case <-m.RxmKillSignalEvent:
+				m.LacpRxmLog("RXM: Machine End")
+				return
 
-		case <-m.currentWhileTimer.C:
-			rxm.LacpRxmLog("RXM: Current While Timer Expired")
-			m.Machine.ProcessEvent(LacpRxmEventCurrentWhileTimerExpired, nil)
+			case <-m.currentWhileTimer.C:
+				m.LacpRxmLog("RXM: Current While Timer Expired")
+				m.Machine.ProcessEvent(LacpRxmEventCurrentWhileTimerExpired, nil)
 
-		case event := <-m.RxmEvents:
-			m.Machine.ProcessEvent(event, nil)
-			/* special case */
-			if m.Machine.Curr.CurrentState() == LacpRxmStateInitialize {
-				m.Machine.ProcessEvent(LacpRxmEventUnconditionalFallthrough, nil)
+			case event := <-m.RxmEvents:
+				m.Machine.ProcessEvent(event, nil)
+				/* special case */
+				if m.Machine.Curr.CurrentState() == LacpRxmStateInitialize {
+					m.Machine.ProcessEvent(LacpRxmEventUnconditionalFallthrough, nil)
+				}
+
+			case pkt := <-m.RxmPktRxEvent:
+				fmt.Println(pkt)
+				// lets check if the port has moved
+				if m.CheckPortMoved(&p.partnerOper, &pkt.actor.info) {
+					m.RxmEvents <- LacpRxmEventPortMoved
+				} else {
+					// If you rx a packet must be in one
+					// of 3 states
+					// Expired/Defaulted/Current. each
+					// state will transition to current
+					// all other states should be ignored.
+					m.Machine.ProcessEvent(LacpRxmEventLacpPktRx, pkt)
+				}
+
+			case ena := <-m.RxmLogEnableEvent:
+				m.logEna = ena
+
 			}
-
-		case pkt := <-rxm.RxmPktRxEvent:
-			fmt.Println(pkt)
-			// lets check if the port has moved
-			if rxm.CheckPortMoved(&p.partnerOper, &pkt.actor.info) {
-				rxm.RxmEvents <- LacpRxmEventPortMoved
-			} else {
-				// If you rx a packet must be in one
-				// of 3 states
-				// Expired/Defaulted/Current. each
-				// state will transition to current
-				// all other states should be ignored.
-				m.Machine.ProcessEvent(LacpRxmEventLacpPktRx, pkt)
-			}
-
-		case ena := <-m.RxmLogEnableEvent:
-			m.logEna = ena
-
 		}
 	}(rxm)
 }

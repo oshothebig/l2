@@ -3,6 +3,7 @@ package lacp
 
 import (
 	"time"
+	"utils/fsm"
 )
 
 // 6.4.4 Constants
@@ -52,6 +53,22 @@ const (
 	LacpModePassive
 	LacpModeActive
 )
+
+type LacpStateEvent struct {
+	// current state
+	s fsm.State
+	// previous state
+	ps fsm.State
+	// current event
+	e fsm.Event
+	// previous event
+	pe fsm.Event
+}
+
+func (se *LacpStateEvent) CurrentState() fsm.State { return se.s }
+func (se *LacpStateEvent) CurrentEvent() fsm.Event { return se.e }
+func (se *LacpStateEvent) SetState(s fsm.State)    { se.s = s }
+func (se *LacpStateEvent) SetEvent(e fsm.Event)    { se.e = e }
 
 func LacpStateSet(currState uint8, stateBits uint8) uint8 {
 	return currState | stateBits

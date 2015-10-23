@@ -93,6 +93,7 @@ func (cdm *LacpCdMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	cdm.Machine.Rules = r
+	cdm.Machine.Curr = &LacpStateEvent{}
 
 	return cdm.Machine
 }
@@ -170,14 +171,18 @@ func (p *LaAggPort) LacpCdMachineMain() {
 	// that the RxMachine should handle.
 	go func(m *LacpCdMachine) {
 		m.LacpCdmLog("CDM: Machine Start")
-		select {
-		case <-m.CdmKillSignalEvent:
-			m.LacpCdmLog("CDM: Machine End")
-			return
-		case event := <-m.CdmEvents:
-			m.Machine.ProcessEvent(event, nil)
-		case ena := <-m.CdmLogEnableEvent:
-			m.logEna = ena
+		for {
+			select {
+			case <-m.CdmKillSignalEvent:
+				m.LacpCdmLog("CDM: Machine End")
+				return
+
+			case event := <-m.CdmEvents:
+				m.Machine.ProcessEvent(event, nil)
+
+			case ena := <-m.CdmLogEnableEvent:
+				m.logEna = ena
+			}
 		}
 	}(cdm)
 }
