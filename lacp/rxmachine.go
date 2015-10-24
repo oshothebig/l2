@@ -179,12 +179,6 @@ func (rxm *LacpRxMachine) LacpRxMachinePortDisabled(m fsm.Machine, data interfac
 	// Partner Port Oper State Sync = False
 	LacpStateClear(p.partnerOper.state, LacpStateSyncBit)
 
-	// let the port know we have initialized and are now in a disabled state due
-	// to intentional fall through
-	if p.begin {
-		defer rxm.SendBeginResponse()
-	}
-
 	return LacpRxmStatePortDisabled
 }
 
@@ -379,6 +373,9 @@ func (p *LaAggPort) LacpRxMachineMain() {
 					m.Machine.ProcessEvent(LacpRxmEventUnconditionalFallthrough, nil)
 				}
 
+				if event == LacpRxmEventBegin {
+					m.SendBeginResponse()
+				}
 			case pkt := <-m.RxmPktRxEvent:
 				fmt.Println(pkt)
 				// lets check if the port has moved

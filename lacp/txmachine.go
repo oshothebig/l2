@@ -192,13 +192,9 @@ func (txm *LacpTxMachine) SendBeginResponse() {
 // LacpTxMachineOff will ensure that no packets are transmitted, typically means that
 // lacp has been disabled
 func (txm *LacpTxMachine) LacpTxMachineOff(m fsm.Machine, data interface{}) fsm.State {
-	p := txm.p
 	txm.txPending = 0
 	txm.txPkts = 0
 	txm.ntt = false
-	if p.begin {
-		defer txm.SendBeginResponse()
-	}
 	return LacpTxmStateOff
 }
 
@@ -277,6 +273,10 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				}
 
 				m.Machine.ProcessEvent(event, nil)
+
+				if event == LacpTxmEventBegin {
+					m.SendBeginResponse()
+				}
 			case ena := <-m.TxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}

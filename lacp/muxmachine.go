@@ -165,13 +165,8 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 	//       set ntt to true based on NTT event
 	//p.TxMachineFsm.ntt = true
 
-	// let the port know we have initialized
-	if p.begin {
-		defer muxm.SendBeginResponse()
-	}
-
 	// indicate that NTT = TRUE
-	defer muxm.SendTxMachineNtt()
+	muxm.SendTxMachineNtt()
 
 	return LacpMuxmStateDetached
 }
@@ -438,6 +433,10 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 
 			case event := <-m.MuxmEvents:
 				m.Machine.ProcessEvent(event, nil)
+
+				if event == LacpMuxmEventBegin {
+					m.SendBeginResponse()
+				}
 
 			case ena := <-m.MuxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)

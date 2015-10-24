@@ -128,10 +128,6 @@ func (cdm *LacpCdMachine) LacpCdMachineActorChurnMonitor(m fsm.Machine, data int
 	p := cdm.p
 	p.actorChurn = true
 	cdm.ChurnDetectionTimerStart()
-	// let the port know we have initialized
-	if p.begin {
-		defer cdm.SendBeginResponse()
-	}
 	return LacpCdmStateActorChurnMonitor
 }
 
@@ -198,6 +194,9 @@ func (p *LaAggPort) LacpCdMachineMain() {
 			case event := <-m.CdmEvents:
 				m.Machine.ProcessEvent(event, nil)
 
+				if event == LacpCdmEventBegin {
+					m.SendBeginResponse()
+				}
 			case ena := <-m.CdmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}

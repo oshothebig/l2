@@ -123,14 +123,7 @@ func (ptxm *LacpPtxMachine) SendBeginResponse() {
 
 // LacpPtxMachineNoPeriodic stops the periodic transmission of packets
 func (ptxm *LacpPtxMachine) LacpPtxMachineNoPeriodic(m fsm.Machine, data interface{}) fsm.State {
-	p := ptxm.p
 	ptxm.PeriodicTimerStop()
-
-	// let the port know we have initialized
-	if p.begin {
-		defer ptxm.SendBeginResponse()
-	}
-
 	return LacpPtxmStateNoPeriodic
 }
 
@@ -238,6 +231,10 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 				/* special case */
 				if m.LacpPtxIsNoPeriodicExitCondition() {
 					m.Machine.ProcessEvent(LacpPtxmEventUnconditionalFallthrough, nil)
+				}
+
+				if event == LacpPtxmEventBegin {
+					m.SendBeginResponse()
 				}
 			case ena := <-m.PtxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)

@@ -4,7 +4,7 @@ package lacp
 import (
 	//"fmt"
 	"strings"
-	"time"
+	//"time"
 	"utils/fsm"
 )
 
@@ -122,6 +122,7 @@ func NewLaAggPort(port int, portPri int, intfNum string) *LaAggPort {
 		portMoved:    false,
 		lacpEnabled:  false,
 		portEnabled:  false,
+		logEna:       false,
 		portChan:     make(chan string)}
 
 	// default actor admin
@@ -172,7 +173,6 @@ func (p *LaAggPort) BEGIN(restart bool) {
 
 		// save off a shortcut to the log chan
 		p.log = p.LacpDebug.LacpLogChan
-		p.logEna = true
 
 		// start all the state machines
 		// Rx Machine
@@ -236,14 +236,17 @@ func (p *LaAggPort) DistributeMachineEvents(mec []chan fsm.Event, e []fsm.Event,
 				p.LaPortLog(strings.Join([]string{"LAPORT:", mStr, "running"}, " "))
 				//fmt.Println("LAPORT: Waiting for response Delayed", length, "curr", i, time.Now())
 				if i >= length {
+					// 10/24/15 fixed hack by sending response after Machine.ProcessEvent
 					// HACK, found that port is pre-empting the state machine callback return
 					// lets delay for a short period to allow for event to be received
 					// and other routines to process their events
-					if p.logEna {
-						time.Sleep(time.Millisecond * 3)
-					} else {
-						time.Sleep(time.Millisecond * 1)
-					}
+					/*
+						if p.logEna {
+							time.Sleep(time.Millisecond * 3)
+						} else {
+							time.Sleep(time.Millisecond * 1)
+						}
+					*/
 					return
 				}
 			}
