@@ -1,7 +1,9 @@
 // global
 package lacp
 
-import ()
+import (
+	"fmt"
+)
 
 type LacpSysGlobalInfo struct {
 	// global port map representation of the LaAggPorts
@@ -22,8 +24,9 @@ var gLacpSysGlobalInfo *LacpSysGlobalInfo
 // to setup each new port.
 //
 // NOTE: Only one instance should exist
-func NewLacpSysGlobalInfo() *LacpSysGlobalInfo {
+func LacpSysGlobalInfoInit() {
 	if gLacpSysGlobalInfo == nil {
+		fmt.Println("LASYS: global vars init")
 		gLacpSysGlobalInfo = &LacpSysGlobalInfo{
 			LacpEnabled:                true,
 			PortMap:                    make(map[int]*LaAggPort),
@@ -42,7 +45,6 @@ func NewLacpSysGlobalInfo() *LacpSysGlobalInfo {
 		const individual uint8 = (LacpStateDefaultedBit)
 		LacpStateSet(gLacpSysGlobalInfo.ActorStateDefaultParams.state, individual)
 	}
-	return gLacpSysGlobalInfo
 }
 
 func LacpSysGlobalDefaultSystemGet() *LacpSystem {

@@ -21,10 +21,26 @@ const (
 	LacpMuxmStateCDetached
 	LacpMuxmStateCWaiting
 	LacpMuxmStateCAttached
-	LacpMuxmStateCCollecting
-	LacpMuxmStateCDistributing
 	LacpMuxStateCCollectingDistributing
 )
+
+var MuxmStateStrMap map[fsm.State]string
+
+func MuxxMachineStrStateMapCreate() {
+
+	MuxmStateStrMap = make(map[fsm.State]string)
+	MuxmStateStrMap[LacpMuxmStateNone] = "LacpMuxmStateNone"
+	MuxmStateStrMap[LacpMuxmStateDetached] = "LacpMuxmStateDetached"
+	MuxmStateStrMap[LacpMuxmStateWaiting] = "LacpMuxmStateWaiting"
+	MuxmStateStrMap[LacpMuxmStateAttached] = "LacpMuxmStateAttached"
+	MuxmStateStrMap[LacpMuxmStateCollecting] = "LacpMuxmStateCollecting"
+	MuxmStateStrMap[LacpMuxmStateDistributing] = "LacpMuxmStateDistributing"
+	MuxmStateStrMap[LacpMuxmStateCNone] = "LacpMuxmStateCNone"
+	MuxmStateStrMap[LacpMuxmStateCDetached] = "LacpMuxmStateCDetached"
+	MuxmStateStrMap[LacpMuxmStateCWaiting] = "LacpMuxmStateCWaiting"
+	MuxmStateStrMap[LacpMuxmStateCAttached] = "LacpMuxmStateCAttached"
+	MuxmStateStrMap[LacpMuxStateCCollectingDistributing] = "LacpMuxStateCCollectingDistributing"
+}
 
 const (
 	LacpMuxmEventBegin = iota + 1
@@ -66,12 +82,6 @@ type LacpMuxMachine struct {
 	MuxmLogEnableEvent  chan bool
 }
 
-func (muxm *LacpMuxMachine) LacpMuxmLog(msg string) {
-	if muxm.logEna {
-		muxm.log <- msg
-	}
-}
-
 func (muxm *LacpMuxMachine) Stop() {
 	close(muxm.MuxmEvents)
 	close(muxm.MuxmKillSignalEvent)
@@ -88,7 +98,6 @@ func NewLacpMuxMachine(port *LaAggPort) *LacpMuxMachine {
 	muxm := &LacpMuxMachine{
 		p:                     port,
 		log:                   port.LacpDebug.LacpLogChan,
-		logEna:                true,
 		collDistCoupled:       false,
 		waitWhileTimerTimeout: LacpAggregateWaitTime,
 		PreviousState:         LacpMuxmStateNone,
@@ -114,14 +123,25 @@ func (muxm *LacpMuxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	muxm.Machine.Rules = r
-	muxm.Machine.Curr = &LacpStateEvent{}
+	muxm.Machine.Curr = &LacpStateEvent{
+		strStateMap: MuxmStateStrMap,
+		logEna:      muxm.p.logEna,
+		logger:      muxm.LacpMuxmLog,
+	}
 
 	return muxm.Machine
 }
 
+func (muxm *LacpMuxMachine) SendBeginResponse() {
+	muxm.p.portChan <- "Mux Machine"
+}
+
+func (muxm *LacpMuxMachine) SendTxMachineNtt() {
+	muxm.p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
+}
+
 // LacpMuxmDetached
 func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fsm.State {
-	muxm.LacpMuxmLog("MUXM: Detached Enter")
 	p := muxm.p
 
 	// DETACH MUX FROM AGGREGATOR
@@ -140,19 +160,24 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 	// Disable Collecting
 	muxm.DisableCollecting()
 
+	// NTT = TRUE
+	// TODO: is this necessary? May only want to let TxMachine
+	//       set ntt to true based on NTT event
+	//p.TxMachineFsm.ntt = true
+
 	// let the port know we have initialized
 	if p.begin {
-		p.portChan <- "Mux Machine"
+		defer muxm.SendBeginResponse()
 	}
-	// NTT = TRUE
-	p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
+
+	// indicate that NTT = TRUE
+	defer muxm.SendTxMachineNtt()
 
 	return LacpMuxmStateDetached
 }
 
 // LacpMuxmWaiting
 func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm.State {
-	muxm.LacpMuxmLog("MUXM: Waiting Enter")
 	var agg *LaAggregator
 	p := muxm.p
 
@@ -180,7 +205,6 @@ func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm
 
 // LacpMuxmAttached
 func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fsm.State {
-	muxm.LacpMuxmLog("MUXM: Attached Enter")
 	p := muxm.p
 
 	// Attach Mux to Aggregator
@@ -203,7 +227,6 @@ func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fs
 
 // LacpMuxmCollecting
 func (muxm *LacpMuxMachine) LacpMuxmCollecting(m fsm.Machine, data interface{}) fsm.State {
-	muxm.LacpMuxmLog("MUXM: Collecting Enter")
 	p := muxm.p
 
 	// Enabled Collecting
@@ -226,7 +249,6 @@ func (muxm *LacpMuxMachine) LacpMuxmCollecting(m fsm.Machine, data interface{}) 
 
 // LacpMuxmDistributing
 func (muxm *LacpMuxMachine) LacpMuxmDistributing(m fsm.Machine, data interface{}) fsm.State {
-	muxm.LacpMuxmLog("MUXM: Distributing Enter")
 	p := muxm.p
 
 	// Actor Oper State Sync == TRUE
@@ -240,7 +262,6 @@ func (muxm *LacpMuxMachine) LacpMuxmDistributing(m fsm.Machine, data interface{}
 
 // LacpMuxmCDetached
 func (muxm *LacpMuxMachine) LacpMuxmCDetached(m fsm.Machine, data interface{}) fsm.State {
-	muxm.LacpMuxmLog("MUXM: Coupling Detached Enter")
 	p := muxm.p
 
 	// DETACH MUX FROM AGGREGATOR
@@ -264,7 +285,6 @@ func (muxm *LacpMuxMachine) LacpMuxmCDetached(m fsm.Machine, data interface{}) f
 
 // LacpMuxmCWaiting
 func (muxm *LacpMuxMachine) LacpMuxmCWaiting(m fsm.Machine, data interface{}) fsm.State {
-	muxm.LacpMuxmLog("MUXM: Waiting Enter")
 	//p := muxm.p
 
 	muxm.WaitWhileTimerStart()
@@ -274,7 +294,6 @@ func (muxm *LacpMuxMachine) LacpMuxmCWaiting(m fsm.Machine, data interface{}) fs
 
 // LacpMuxmAttached
 func (muxm *LacpMuxMachine) LacpMuxmCAttached(m fsm.Machine, data interface{}) fsm.State {
-	muxm.LacpMuxmLog("MUXM: Coupling Attached Enter")
 	p := muxm.p
 
 	// Attach Mux to Aggregator
@@ -300,7 +319,6 @@ func (muxm *LacpMuxMachine) LacpMuxmCAttached(m fsm.Machine, data interface{}) f
 
 // LacpMuxmCollecting
 func (muxm *LacpMuxMachine) LacpMuxmCCollectingDistributing(m fsm.Machine, data interface{}) fsm.State {
-	muxm.LacpMuxmLog("MUXM: Coupling Collecting-Distributing Enter")
 	p := muxm.p
 
 	// Actor Oper State Distributing = TRUE
@@ -322,6 +340,8 @@ func (muxm *LacpMuxMachine) LacpMuxmCCollectingDistributing(m fsm.Machine, data 
 func (p *LaAggPort) LacpMuxMachineFSMBuild() *LacpMuxMachine {
 
 	rules := fsm.Ruleset{}
+
+	MuxxMachineStrStateMapCreate()
 
 	// Instantiate a new LacpRxMachine
 	// Initial state will be a psuedo state known as "begin" so that
@@ -401,11 +421,11 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the RxMachine should handle.
 	go func(m *LacpMuxMachine) {
-		m.LacpMuxmLog("MUXM: Machine Start")
+		m.LacpMuxmLog("Machine Start")
 		for {
 			select {
 			case <-m.MuxmKillSignalEvent:
-				m.LacpMuxmLog("MUXM: Machine End")
+				m.LacpMuxmLog("Machine End")
 				return
 
 			case <-m.waitWhileTimer.C:
@@ -420,7 +440,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 				m.Machine.ProcessEvent(event, nil)
 
 			case ena := <-m.MuxmLogEnableEvent:
-				m.logEna = ena
+				m.Machine.Curr.EnableLogging(ena)
 			}
 		}
 	}(muxm)
@@ -478,7 +498,7 @@ func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected() {
 // Aggregator, in preparation for collecting and distributing frames.
 func (muxm *LacpMuxMachine) AttachMuxToAggregator() {
 	// TODO send message to asic deamon  create
-	muxm.LacpMuxmLog("MUXM: Attach Mux To Aggregator Enter")
+	muxm.LacpMuxmLog("Attach Mux To Aggregator Enter")
 }
 
 // DetachMuxFromAggregator is a required function defined in 802.1ax-2014
@@ -488,7 +508,7 @@ func (muxm *LacpMuxMachine) AttachMuxToAggregator() {
 // to which the Aggregation Port is currently attached.
 func (muxm *LacpMuxMachine) DetachMuxFromAggregator() {
 	// TODO send message to asic deamon delete
-	muxm.LacpMuxmLog("MUXM: Detach Mux From Aggregator Enter")
+	muxm.LacpMuxmLog("Detach Mux From Aggregator Enter")
 }
 
 // EnableCollecting is a required function defined in 802.1ax-2014
@@ -498,7 +518,7 @@ func (muxm *LacpMuxMachine) DetachMuxFromAggregator() {
 // Aggregation Port.
 func (muxm *LacpMuxMachine) EnableCollecting() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("MUXM: Sending Collection Enable to ASICD")
+	muxm.LacpMuxmLog("Sending Collection Enable to ASICD")
 }
 
 // DisableCollecting is a required function defined in 802.1ax-2014
@@ -508,7 +528,7 @@ func (muxm *LacpMuxMachine) EnableCollecting() {
 // Aggregation Port.
 func (muxm *LacpMuxMachine) DisableCollecting() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("MUXM: Sending Collection Disable to ASICD")
+	muxm.LacpMuxmLog("Sending Collection Disable to ASICD")
 }
 
 // EnableDistributing is a required function defined in 802.1ax-2014
@@ -518,7 +538,7 @@ func (muxm *LacpMuxMachine) DisableCollecting() {
 // to the Aggregation Port.
 func (muxm *LacpMuxMachine) EnableDistributing() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("MUXM: Sending Distributing Enable to ASICD")
+	muxm.LacpMuxmLog("Sending Distributing Enable to ASICD")
 }
 
 // DisableDistributing is a required function defined in 802.1ax-2014
@@ -528,7 +548,7 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 // to the Aggregation Port.
 func (muxm *LacpMuxMachine) DisableDistributing() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("MUXM: Sending Distributing Disable to ASICD")
+	muxm.LacpMuxmLog("Sending Distributing Disable to ASICD")
 }
 
 // EnableCollectingDistributing is a required function defined in 802.1ax-2014
@@ -539,7 +559,7 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 // frames to the Aggregation Port.
 func (muxm *LacpMuxMachine) EnableCollectingDistributing() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("MUXM: Sending Collection-Distributing Enable to ASICD")
+	muxm.LacpMuxmLog("Sending Collection-Distributing Enable to ASICD")
 }
 
 // DisableCollectingDistributing is a required function defined in 802.1ax-2014
@@ -550,5 +570,5 @@ func (muxm *LacpMuxMachine) EnableCollectingDistributing() {
 // Aggregation Port.
 func (muxm *LacpMuxMachine) DisableCollectingDistributing() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("MUXM: Sending Collection-Distributing Disable to ASICD")
+	muxm.LacpMuxmLog("Sending Collection-Distributing Disable to ASICD")
 }

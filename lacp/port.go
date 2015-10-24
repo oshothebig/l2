@@ -2,7 +2,9 @@
 package lacp
 
 import (
+	//"fmt"
 	"strings"
+	"time"
 	"utils/fsm"
 )
 
@@ -173,15 +175,15 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		p.logEna = true
 
 		// start all the state machines
+		// Rx Machine
 		p.LacpRxMachineMain()
-
-		// No begin event
+		// Tx Machine
 		p.LacpTxMachineMain()
-
+		// Periodic Tx Machine
 		p.LacpPtxMachineMain()
-
+		// Churn Detection Machine
 		p.LacpCdMachineMain()
-
+		// Mux Machine
 		p.LacpMuxMachineMain()
 	}
 	// Rxm
@@ -196,6 +198,9 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	// Muxm
 	mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
 	evt = append(evt, LacpMuxmEventBegin)
+	// Txm
+	mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
+	evt = append(evt, LacpTxmEventBegin)
 
 	// call the begin event for each
 	// distribute the port disable event to various machines
@@ -214,6 +219,7 @@ func (p *LaAggPort) DistributeMachineEvents(mec []chan fsm.Event, e []fsm.Event,
 		return
 	}
 
+	// send all begin events to each machine in parrallel
 	for j := 0; j < length; j++ {
 		go func(idx int, machineEventChannel []chan fsm.Event, event []fsm.Event) {
 			machineEventChannel[idx] <- event[idx]
@@ -221,11 +227,25 @@ func (p *LaAggPort) DistributeMachineEvents(mec []chan fsm.Event, e []fsm.Event,
 	}
 
 	if waitForResponse {
+		i := 0
 		// lets wait for all the machines to respond
-		for i := 0; i < length; i++ {
+		for {
 			select {
 			case mStr := <-p.portChan:
+				i++
 				p.LaPortLog(strings.Join([]string{"LAPORT:", mStr, "running"}, " "))
+				//fmt.Println("LAPORT: Waiting for response Delayed", length, "curr", i, time.Now())
+				if i >= length {
+					// HACK, found that port is pre-empting the state machine callback return
+					// lets delay for a short period to allow for event to be received
+					// and other routines to process their events
+					if p.logEna {
+						time.Sleep(time.Millisecond * 3)
+					} else {
+						time.Sleep(time.Millisecond * 1)
+					}
+					return
+				}
 			}
 		}
 	}

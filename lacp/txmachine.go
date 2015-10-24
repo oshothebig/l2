@@ -15,8 +15,20 @@ const (
 	LacpTxmStateDelayed
 )
 
+var TxmStateStrMap map[fsm.State]string
+
+func TxMachineStrStateMapCreate() {
+
+	TxmStateStrMap = make(map[fsm.State]string)
+	TxmStateStrMap[LacpTxmStateNone] = "LacpTxmStateNone"
+	TxmStateStrMap[LacpTxmStateOn] = "LacpTxmStateOn"
+	TxmStateStrMap[LacpTxmStateOff] = "LacpTxmStateOff"
+	TxmStateStrMap[LacpTxmStateDelayed] = "LacpTxmStateDelayed"
+}
+
 const (
-	LacpTxmEventNtt = iota + 1
+	LacpTxmEventBegin = iota + 1
+	LacpTxmEventNtt
 	LacpTxmEventGuardTimer
 	LacpTxmEventDelayTx
 	LacpTxmEventLacpDisabled
@@ -46,8 +58,7 @@ type LacpTxMachine struct {
 	ntt bool
 
 	// debug log
-	log    chan string
-	logEna bool
+	log chan string
 
 	// timer needed for 802.1ax-20014 section 6.4.16
 	txGuardTimer *time.Timer
@@ -56,12 +67,6 @@ type LacpTxMachine struct {
 	TxmEvents          chan fsm.Event
 	TxmKillSignalEvent chan bool
 	TxmLogEnableEvent  chan bool
-}
-
-func (txm *LacpTxMachine) LacpTxmLog(msg string) {
-	if txm.logEna {
-		txm.log <- msg
-	}
 }
 
 // PrevState will get the previous state from the state transitions
@@ -86,7 +91,6 @@ func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 	txm := &LacpTxMachine{
 		p:                  port,
 		log:                port.LacpDebug.LacpLogChan,
-		logEna:             true,
 		txPending:          0,
 		txPkts:             0,
 		ntt:                false,
@@ -104,12 +108,6 @@ func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 	return txm
 }
 
-func (txm *LacpTxMachine) LacpTxLog(msg string) {
-	if txm.logEna {
-		txm.log <- msg
-	}
-}
-
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances state machine without reallocating the machine.
 func (txm *LacpTxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -119,7 +117,11 @@ func (txm *LacpTxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	txm.Machine.Rules = r
-	txm.Machine.Curr = &LacpStateEvent{}
+	txm.Machine.Curr = &LacpStateEvent{
+		strStateMap: TxmStateStrMap,
+		logEna:      txm.p.logEna,
+		logger:      txm.LacpTxmLog,
+	}
 
 	return txm.Machine
 }
@@ -128,11 +130,11 @@ func (txm *LacpTxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // packet
 func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.State {
 
-	var state fsm.State
+	var nextState fsm.State
 
 	txm.PrevStateSet(txm.Machine.Curr.CurrentState())
 
-	state = LacpTxmStateOn
+	nextState = LacpTxmStateOn
 
 	// NTT must be set to tx
 	if txm.ntt == true {
@@ -151,16 +153,15 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 			txm.ntt = false
 		} else {
 			txm.txPending++
-			state = LacpTxmStateDelayed
+			nextState = LacpTxmStateDelayed
 		}
 	}
-	return state
+	return nextState
 }
 
 // LacpTxMachineDelayed is a state in which a packet is forced to transmit
 // regardless of the ntt state
 func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) fsm.State {
-
 	var state fsm.State
 
 	txm.PrevStateSet(txm.Machine.Curr.CurrentState())
@@ -184,12 +185,20 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 	return state
 }
 
+func (txm *LacpTxMachine) SendBeginResponse() {
+	txm.p.portChan <- "TX Machine"
+}
+
 // LacpTxMachineOff will ensure that no packets are transmitted, typically means that
 // lacp has been disabled
 func (txm *LacpTxMachine) LacpTxMachineOff(m fsm.Machine, data interface{}) fsm.State {
+	p := txm.p
 	txm.txPending = 0
 	txm.txPkts = 0
 	txm.ntt = false
+	if p.begin {
+		defer txm.SendBeginResponse()
+	}
 	return LacpTxmStateOff
 }
 
@@ -210,13 +219,15 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 
 	rules := fsm.Ruleset{}
 
+	TxMachineStrStateMapCreate()
+
 	// Instantiate a new LacpRxMachine
 	// Initial state will be a psuedo state known as "begin" so that
 	// we can transition to the initalize state
 	txm := NewLacpTxMachine(p)
 
-	//NONE -> TX ON
-	rules.AddRule(LacpTxmStateNone, LacpTxmEventNtt, txm.LacpTxMachineOn)
+	//BEGIN -> TX OFF
+	rules.AddRule(LacpTxmStateNone, LacpTxmEventBegin, txm.LacpTxMachineOff)
 	// NTT -> TX ON
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventNtt, txm.LacpTxMachineOn)
 	// DELAY -> TX DELAY
@@ -267,7 +278,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 
 				m.Machine.ProcessEvent(event, nil)
 			case ena := <-m.TxmLogEnableEvent:
-				m.logEna = ena
+				m.Machine.Curr.EnableLogging(ena)
 			}
 		}
 	}(txm)

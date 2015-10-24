@@ -27,6 +27,19 @@ const (
 	LacpRxmStateCurrent
 )
 
+var RxmStateStrMap map[fsm.State]string
+
+func RxMachineStrStateMapCreate() {
+	RxmStateStrMap = make(map[fsm.State]string)
+	RxmStateStrMap[LacpRxmStateNone] = "LacmRxmNone"
+	RxmStateStrMap[LacpRxmStateInitialize] = "LacpRxmStateInitialize"
+	RxmStateStrMap[LacpRxmStatePortDisabled] = "LacpRxmStatePortDisabled"
+	RxmStateStrMap[LacpRxmStateExpired] = "LacpRxmStateExpired"
+	RxmStateStrMap[LacpRxmStateLacpDisabled] = "LacpRxmStateLacpDisabled"
+	RxmStateStrMap[LacpRxmStateDefaulted] = "LacpRxmStateDefaulted"
+	RxmStateStrMap[LacpRxmStateCurrent] = "LacpRxmStateCurrent"
+}
+
 // rxm events
 /*
 const LacpRxmBeginEvent = "LacpRxmBeginEvent"
@@ -61,8 +74,7 @@ type LacpRxMachine struct {
 	p *LaAggPort
 
 	// debug log
-	log    chan string
-	logEna bool
+	log chan string
 
 	// timer interval
 	currentWhileTimerTimeout time.Duration
@@ -101,7 +113,6 @@ func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 	rxm := &LacpRxMachine{
 		p:                  port,
 		log:                port.LacpDebug.LacpLogChan,
-		logEna:             true,
 		PreviousState:      LacpRxmStateNone,
 		RxmEvents:          make(chan fsm.Event),
 		RxmPktRxEvent:      make(chan LacpPdu),
@@ -117,12 +128,6 @@ func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 	return rxm
 }
 
-func (rxm *LacpRxMachine) LacpRxmLog(msg string) {
-	if rxm.logEna {
-		rxm.log <- msg
-	}
-}
-
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances state machine without reallocating the machine.
 func (rxm *LacpRxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -132,7 +137,11 @@ func (rxm *LacpRxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	rxm.Machine.Rules = r
-	rxm.Machine.Curr = &LacpStateEvent{}
+	rxm.Machine.Curr = &LacpStateEvent{
+		strStateMap: RxmStateStrMap,
+		logEna:      rxm.p.logEna,
+		logger:      rxm.LacpRxmLog,
+	}
 
 	return rxm.Machine
 }
@@ -140,8 +149,6 @@ func (rxm *LacpRxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // LacpRxMachineInitialize function to be called after
 // state transition to INITIALIZE
 func (rxm *LacpRxMachine) LacpRxMachineInitialize(m fsm.Machine, data interface{}) fsm.State {
-	rxm.LacpRxmLog("RXM: Initialize Enter")
-
 	p := rxm.p
 
 	// set the agg as being unselected
@@ -156,23 +163,27 @@ func (rxm *LacpRxMachine) LacpRxMachineInitialize(m fsm.Machine, data interface{
 	// set the port moved to false
 	p.portMoved = false
 
-	// let the port know we have initialized
-	if p.begin {
-		p.portChan <- "Rx Machine"
-	}
-
 	// next state
 	return LacpRxmStateInitialize
+}
+
+func (rxm *LacpRxMachine) SendBeginResponse() {
+	rxm.p.portChan <- "Rx Machine"
 }
 
 // LacpRxMachineExpired function to be called after
 // state transition to PORT_DISABLED
 func (rxm *LacpRxMachine) LacpRxMachinePortDisabled(m fsm.Machine, data interface{}) fsm.State {
-	rxm.LacpRxmLog("RXM: Port Disable Enter")
 	p := rxm.p
 
 	// Partner Port Oper State Sync = False
 	LacpStateClear(p.partnerOper.state, LacpStateSyncBit)
+
+	// let the port know we have initialized and are now in a disabled state due
+	// to intentional fall through
+	if p.begin {
+		defer rxm.SendBeginResponse()
+	}
 
 	return LacpRxmStatePortDisabled
 }
@@ -180,7 +191,6 @@ func (rxm *LacpRxMachine) LacpRxMachinePortDisabled(m fsm.Machine, data interfac
 // LacpRxMachineExpired function to be called after
 // state transition to EXPIRED
 func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) fsm.State {
-	rxm.LacpRxmLog("RXM: Expired Enter")
 	p := rxm.p
 
 	// Partner Port Oper State Sync = FALSE
@@ -204,7 +214,6 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 // LacpRxMachineLacpDisabled function to be called after
 // state transition to LACP_DISABLED
 func (rxm *LacpRxMachine) LacpRxMachineLacpDisabled(m fsm.Machine, data interface{}) fsm.State {
-	rxm.LacpRxmLog("RXM: Lacp Disabled Enter")
 	p := rxm.p
 
 	// Unselect the aggregator
@@ -225,7 +234,6 @@ func (rxm *LacpRxMachine) LacpRxMachineLacpDisabled(m fsm.Machine, data interfac
 // LacpRxMachineDefaulted function to be called after
 // state transition to DEFAULTED
 func (rxm *LacpRxMachine) LacpRxMachineDefaulted(m fsm.Machine, data interface{}) fsm.State {
-	rxm.LacpRxmLog("RXM: Defaulted Enter")
 	p := rxm.p
 
 	//lacpPduInfo := data.(LacpPdu)
@@ -245,8 +253,6 @@ func (rxm *LacpRxMachine) LacpRxMachineDefaulted(m fsm.Machine, data interface{}
 // LacpRxMachineCurrent function to be called after
 // state transition to CURRENT
 func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) fsm.State {
-	rxm.LacpRxmLog("RXM: Current Enter")
-
 	p := rxm.p
 
 	// Version 1, V2 will require a serialize/deserialize routine since TLV's are involved
@@ -288,6 +294,8 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 }
 
 func LacpRxMachineFSMBuild(p *LaAggPort) *LacpRxMachine {
+
+	RxMachineStrStateMapCreate()
 
 	rules := fsm.Ruleset{}
 
@@ -386,7 +394,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 				}
 
 			case ena := <-m.RxmLogEnableEvent:
-				m.logEna = ena
+				m.Machine.Curr.EnableLogging(ena)
 
 			}
 		}

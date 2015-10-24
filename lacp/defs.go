@@ -2,6 +2,7 @@
 package lacp
 
 import (
+	//"fmt"
 	"time"
 	"utils/fsm"
 )
@@ -68,12 +69,26 @@ type LacpStateEvent struct {
 	e fsm.Event
 	// previous event
 	pe fsm.Event
+
+	strStateMap map[fsm.State]string
+	logEna      bool
+	logger      func(string)
 }
 
-func (se *LacpStateEvent) CurrentState() fsm.State { return se.s }
-func (se *LacpStateEvent) CurrentEvent() fsm.Event { return se.e }
-func (se *LacpStateEvent) SetState(s fsm.State)    { se.s = s }
-func (se *LacpStateEvent) SetEvent(e fsm.Event)    { se.e = e }
+func (se *LacpStateEvent) LoggerSet(log func(string))                 { se.logger = log }
+func (se *LacpStateEvent) EnableLogging(ena bool)                     { se.logEna = ena }
+func (se *LacpStateEvent) IsLoggerEna() bool                          { return se.logEna }
+func (se *LacpStateEvent) StateStrMapSet(strMap map[fsm.State]string) { se.strStateMap = strMap }
+func (se *LacpStateEvent) CurrentState() fsm.State                    { return se.s }
+func (se *LacpStateEvent) CurrentEvent() fsm.Event                    { return se.e }
+func (se *LacpStateEvent) SetEvent(e fsm.Event)                       { se.e = e }
+func (se *LacpStateEvent) SetState(s fsm.State) {
+	se.s = s
+	//fmt.Println(s)
+	if se.IsLoggerEna() {
+		se.logger(se.strStateMap[s])
+	}
+}
 
 func LacpStateSet(currState uint8, stateBits uint8) uint8 {
 	return currState | stateBits

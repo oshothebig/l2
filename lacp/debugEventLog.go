@@ -35,12 +35,41 @@ func (p *LaAggPort) LacpDebugEventLogMain() {
 			case msg, logEvent := <-port.LacpDebug.LacpLogChan:
 				if logEvent {
 					//fmt.Println(msg)
-					fmt.Println(strings.Join([]string{time.Now().Format("Mon Jan 2 15:04:05 -0700 MST 2006"), p.intfNum, msg}, "-"))
+					fmt.Println(strings.Join([]string{time.Now().Format("Mon Jan 2 15:04:05.99999999 -0700 MST 2006"), p.intfNum, msg}, "-"))
 				} else {
 					return
 				}
 			}
 		}
 	}(p)
+}
 
+func (txm *LacpTxMachine) LacpTxmLog(msg string) {
+	if txm.Machine.Curr.IsLoggerEna() {
+		txm.log <- strings.Join([]string{"TXM", msg}, ":")
+	}
+}
+
+func (cdm *LacpCdMachine) LacpCdmLog(msg string) {
+	if cdm.Machine.Curr.IsLoggerEna() {
+		cdm.log <- strings.Join([]string{"CDM", msg}, ":")
+	}
+}
+
+func (ptxm *LacpPtxMachine) LacpPtxmLog(msg string) {
+	if ptxm.Machine.Curr.IsLoggerEna() {
+		ptxm.log <- strings.Join([]string{"PTXM", msg}, ":")
+	}
+}
+
+func (rxm *LacpRxMachine) LacpRxmLog(msg string) {
+	if rxm.Machine.Curr.IsLoggerEna() {
+		rxm.log <- strings.Join([]string{"RXM", msg}, ":")
+	}
+}
+
+func (muxm *LacpMuxMachine) LacpMuxmLog(msg string) {
+	if muxm.Machine.Curr.IsLoggerEna() {
+		muxm.log <- strings.Join([]string{"MUXM", msg}, ":")
+	}
 }
