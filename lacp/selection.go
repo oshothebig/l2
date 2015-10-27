@@ -107,7 +107,7 @@ func (agg *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort) {
 	// lets do a this work in parrallel
 	for _, pId := range agg.portNumList {
 
-		go func(id int) {
+		go func(id uint16) {
 			var port *LaAggPort
 			if LaFindPortById(id, port) {
 				readyChan <- port.readyN
@@ -134,7 +134,7 @@ func (agg *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort) {
 	if agg.ready {
 		// lets do this work in parrallel
 		for _, pId := range agg.portNumList {
-			go func(id int) {
+			go func(id uint16) {
 				var port *LaAggPort
 				if LaFindPortById(id, port) &&
 					port.readyN &&

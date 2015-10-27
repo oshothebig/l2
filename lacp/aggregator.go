@@ -60,7 +60,7 @@ type LaAggregator struct {
 	ready bool
 
 	// Port number from LaAggPort
-	portNumList []int
+	portNumList []uint16
 }
 
 // TODO add more defaults

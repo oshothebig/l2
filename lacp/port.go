@@ -43,11 +43,11 @@ type LaAggPort struct {
 	intfNum string
 
 	// key
-	key int
+	key uint16
 
 	// used to form portId
-	portNum      int
-	portPriority int
+	portNum      uint16
+	portPriority uint16
 
 	aggId int
 
@@ -108,7 +108,7 @@ func (p *LaAggPort) LaPortLog(msg string) {
 }
 
 // find a port from the global map table
-func LaFindPortById(pId int, p *LaAggPort) bool {
+func LaFindPortById(pId uint16, p *LaAggPort) bool {
 	p, ok := gLacpSysGlobalInfo.PortMap[pId]
 	return ok
 }
@@ -117,7 +117,7 @@ func LaFindPortById(pId int, p *LaAggPort) bool {
 // Allocate a new lag port, creating appropriate timers
 func NewLaAggPort(config *LaAggConfig) *LaAggPort {
 	p := &LaAggPort{
-		portId:       (config.Id | config.Prio<<16),
+		portId:       int(config.Id | config.Prio<<16),
 		portNum:      config.Id,
 		portPriority: config.Prio,
 		intfNum:      config.IntfId,

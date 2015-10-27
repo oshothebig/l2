@@ -9,9 +9,9 @@ const PortConfigModuleStr = "Port Config"
 
 type LaAggConfig struct {
 	Mac     [6]uint8
-	Id      int
-	Prio    int
-	Key     int
+	Id      uint16
+	Prio    uint16
+	Key     uint16
 	Operkey int
 	IntfId  string
 }

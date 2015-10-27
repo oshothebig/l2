@@ -4,6 +4,7 @@ package lacp
 import (
 	//	"fmt"
 	"testing"
+	"time"
 )
 
 func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
@@ -343,11 +344,37 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		t.Error("Expected response from", RxMachineModuleStr)
 	}
 
-	// send invalid pdu
+	// lets adjust the actorOper timeout state
+	// TODO Assume a method was called to adjust this
+	LacpStateSet(&p.actorAdmin.state, LacpStateTimeoutBit)
+	LacpStateSet(&p.actorOper.state, LacpStateTimeoutBit)
+
+	// send valid pdu
 	lacppdu := &LacpPdu{
-		subType: 1,
+		subType: LacpSubType,
 		version: 1,
+		actor: LacpPduInfoTlv{tlv_type: 1,
+			len: 0x14,
+			info: LacpPortInfo{
+				system: LacpPortSystemInfo{systemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+					systemPriority: 1},
+				key:      100,
+				port_pri: 0x80,
+				port:     10,
+				state:    LacpStateActivityBit | LacpStateAggregationBit | LacpStateTimeoutBit},
+		},
+		partner: LacpPduInfoTlv{tlv_type: 1,
+			len: 0x14,
+			info: LacpPortInfo{
+				system: LacpPortSystemInfo{systemId: p.actorOper.system.systemId,
+					systemPriority: p.actorOper.system.systemPriority},
+				key:      p.key,
+				port_pri: p.portPriority,
+				port:     p.portNum,
+				state:    p.actorOper.state},
+		},
 	}
+
 	rx := LacpRxLacpPdu{
 		pdu:          lacppdu,
 		responseChan: portchan,
@@ -362,6 +389,132 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	// port was enabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateExpired &&
+		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateCurrent {
+		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+			LacpRxmStateExpired,
+			LacpRxmStateCurrent,
+			"actual",
+			p.RxMachineFsm.Machine.Curr.PreviousState(),
+			p.RxMachineFsm.Machine.Curr.CurrentState())
+	}
+
+	// allow for current while timer to expire
+	time.Sleep(time.Second * 4)
+
+	// port was enabled and lacp is disabled
+	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateCurrent &&
+		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateExpired {
+		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+			LacpRxmStateCurrent,
+			LacpRxmStateExpired,
+			"actual",
+			p.RxMachineFsm.Machine.Curr.PreviousState(),
+			p.RxMachineFsm.Machine.Curr.CurrentState())
+	}
+
+	// allow for current while timer to expire
+	time.Sleep(time.Second * 4)
+
+	// port was enabled and lacp is disabled
+	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateExpired &&
+		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateDefaulted {
+		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+			LacpRxmStateExpired,
+			LacpRxmStateDefaulted,
+			"actual",
+			p.RxMachineFsm.Machine.Curr.PreviousState(),
+			p.RxMachineFsm.Machine.Curr.CurrentState())
+	}
+
+	// send valid pdu
+	lacppdu = &LacpPdu{
+		subType: LacpSubType,
+		version: 1,
+		actor: LacpPduInfoTlv{tlv_type: 1,
+			len: 0x14,
+			info: LacpPortInfo{
+				system: LacpPortSystemInfo{systemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+					systemPriority: 1},
+				key:      100,
+				port_pri: 0x80,
+				port:     10,
+				state:    LacpStateActivityBit | LacpStateAggregationBit | LacpStateTimeoutBit},
+		},
+		partner: LacpPduInfoTlv{tlv_type: 1,
+			len: 0x14,
+			info: LacpPortInfo{
+				system: LacpPortSystemInfo{systemId: p.actorOper.system.systemId,
+					systemPriority: p.actorOper.system.systemPriority},
+				key:      p.key,
+				port_pri: p.portPriority,
+				port:     p.portNum,
+				state:    p.actorOper.state},
+		},
+	}
+
+	rx = LacpRxLacpPdu{
+		pdu:          lacppdu,
+		responseChan: portchan,
+		src:          "TEST"}
+	p.RxMachineFsm.RxmPktRxEvent <- rx
+
+	// wait for response
+	msg = <-portchan
+	if msg != RxMachineModuleStr {
+		t.Error("Expected response from", RxMachineModuleStr)
+	}
+
+	// port was enabled and lacp is disabled
+	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateDefaulted &&
+		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateCurrent {
+		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+			LacpRxmStateExpired,
+			LacpRxmStateCurrent,
+			"actual",
+			p.RxMachineFsm.Machine.Curr.PreviousState(),
+			p.RxMachineFsm.Machine.Curr.CurrentState())
+	}
+
+	// send valid pdu
+	lacppdu = &LacpPdu{
+		subType: LacpSubType,
+		version: 1,
+		actor: LacpPduInfoTlv{tlv_type: 1,
+			len: 0x14,
+			info: LacpPortInfo{
+				system: LacpPortSystemInfo{systemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+					systemPriority: 1},
+				key:      100,
+				port_pri: 0x80,
+				port:     10,
+				state:    LacpStateActivityBit | LacpStateAggregationBit | LacpStateTimeoutBit},
+		},
+		partner: LacpPduInfoTlv{tlv_type: 1,
+			len: 0x14,
+			info: LacpPortInfo{
+				system: LacpPortSystemInfo{systemId: p.actorOper.system.systemId,
+					systemPriority: p.actorOper.system.systemPriority},
+				key:      p.key,
+				port_pri: p.portPriority,
+				port:     p.portNum,
+				state:    p.actorOper.state},
+		},
+	}
+
+	rx = LacpRxLacpPdu{
+		pdu:          lacppdu,
+		responseChan: portchan,
+		src:          "TEST"}
+	p.RxMachineFsm.RxmPktRxEvent <- rx
+
+	// wait for response
+	msg = <-portchan
+	if msg != RxMachineModuleStr {
+		t.Error("Expected response from", RxMachineModuleStr)
+	}
+
+	// port was enabled and lacp is disabled
+	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateCurrent &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateCurrent {
 		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
 			LacpRxmStateExpired,

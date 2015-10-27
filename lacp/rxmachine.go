@@ -283,7 +283,6 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	// Actors Oper value of Timeout, lets check
 	// anyways
 	if timeoutTime, ok := rxm.CurrentWhileTimerValid(); !ok {
-		rxm.LacpRxmLog("RXM: Current While Timer invalid adjusting")
 		rxm.CurrentWhileTimerTimeoutSet(timeoutTime)
 	}
 	// lets kick off the Current While Timer
@@ -551,10 +550,12 @@ func (rxm *LacpRxMachine) CurrentWhileTimerValid() (time.Duration, bool) {
 	p := rxm.p
 	if rxm.currentWhileTimerTimeout == LacpShortTimeoutTime &&
 		!LacpStateIsSet(p.actorOper.state, LacpStateTimeoutBit) {
+		rxm.LacpRxmLog("Current While Timer invalid adjusting to LONG TIMEOUT")
 		return LacpLongTimeoutTime, false
 	}
 	if rxm.currentWhileTimerTimeout == LacpLongTimeoutTime &&
 		LacpStateIsSet(p.actorOper.state, LacpStateTimeoutBit) {
+		rxm.LacpRxmLog("Current While Timer invalid adjusting to SHORT TIMEOUT")
 		return LacpShortTimeoutTime, false
 	}
 	return 0, true

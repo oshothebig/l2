@@ -8,7 +8,7 @@ import (
 type LacpSysGlobalInfo struct {
 	// global port map representation of the LaAggPorts
 	LacpEnabled                bool
-	PortMap                    map[int]*LaAggPort
+	PortMap                    map[uint16]*LaAggPort
 	AggMap                     map[int]*LaAggregator
 	SystemDefaultParams        LacpSystem
 	PartnerSystemDefaultParams LacpSystem
@@ -29,7 +29,7 @@ func LacpSysGlobalInfoInit() {
 		fmt.Println("LASYS: global vars init")
 		gLacpSysGlobalInfo = &LacpSysGlobalInfo{
 			LacpEnabled:                true,
-			PortMap:                    make(map[int]*LaAggPort),
+			PortMap:                    make(map[uint16]*LaAggPort),
 			AggMap:                     make(map[int]*LaAggregator),
 			SystemDefaultParams:        LacpSystem{actor_system_priority: 0x8000},
 			PartnerSystemDefaultParams: LacpSystem{actor_system_priority: 0x0},

@@ -10,7 +10,7 @@ import (
 const RxModuleStr = "Rx Module"
 
 type RxPacketMetaData struct {
-	port int
+	port uint16
 	intf string
 }
 
