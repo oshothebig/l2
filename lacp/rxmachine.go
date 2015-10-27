@@ -3,9 +3,13 @@ package lacp
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 	"utils/fsm"
 )
+
+const RxMachineModuleStr = "Rx Machine"
 
 // rxm states
 /*
@@ -63,6 +67,12 @@ const (
 	LacpRxmEventKillSignal
 )
 
+type LacpRxLacpPdu struct {
+	pdu          *LacpPdu
+	src          string
+	responseChan chan string
+}
+
 // LacpRxMachine holds FSM and current state
 // and event channels for state transitions
 type LacpRxMachine struct {
@@ -83,8 +93,8 @@ type LacpRxMachine struct {
 	currentWhileTimer *time.Timer
 
 	// machine specific events
-	RxmEvents          chan fsm.Event
-	RxmPktRxEvent      chan LacpPdu
+	RxmEvents          chan LacpMachineEvent
+	RxmPktRxEvent      chan LacpRxLacpPdu
 	RxmKillSignalEvent chan bool
 	RxmLogEnableEvent  chan bool
 }
@@ -114,8 +124,8 @@ func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 		p:                  port,
 		log:                port.LacpDebug.LacpLogChan,
 		PreviousState:      LacpRxmStateNone,
-		RxmEvents:          make(chan fsm.Event),
-		RxmPktRxEvent:      make(chan LacpPdu),
+		RxmEvents:          make(chan LacpMachineEvent),
+		RxmPktRxEvent:      make(chan LacpRxLacpPdu),
 		RxmKillSignalEvent: make(chan bool),
 		RxmLogEnableEvent:  make(chan bool)}
 
@@ -141,6 +151,7 @@ func (rxm *LacpRxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: RxmStateStrMap,
 		logEna:      rxm.p.logEna,
 		logger:      rxm.LacpRxmLog,
+		owner:       RxMachineModuleStr,
 	}
 
 	return rxm.Machine
@@ -152,13 +163,16 @@ func (rxm *LacpRxMachine) LacpRxMachineInitialize(m fsm.Machine, data interface{
 	p := rxm.p
 
 	// set the agg as being unselected
-	p.aggSelected = LacpAggUnSelected
+	//p.aggSelected = LacpAggUnSelected
+	if p.MuxMachineFsm != nil {
+		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected}
+	}
 
 	// Record default params
 	rxm.recordDefault()
 
 	// Actor Port Oper State Expired = False
-	LacpStateClear(p.actorOper.state, LacpStateExpiredBit)
+	LacpStateClear(&p.actorOper.state, LacpStateExpiredBit)
 
 	// set the port moved to false
 	p.portMoved = false
@@ -167,17 +181,13 @@ func (rxm *LacpRxMachine) LacpRxMachineInitialize(m fsm.Machine, data interface{
 	return LacpRxmStateInitialize
 }
 
-func (rxm *LacpRxMachine) SendBeginResponse() {
-	rxm.p.portChan <- "Rx Machine"
-}
-
 // LacpRxMachineExpired function to be called after
 // state transition to PORT_DISABLED
 func (rxm *LacpRxMachine) LacpRxMachinePortDisabled(m fsm.Machine, data interface{}) fsm.State {
 	p := rxm.p
 
 	// Partner Port Oper State Sync = False
-	LacpStateClear(p.partnerOper.state, LacpStateSyncBit)
+	LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
 
 	return LacpRxmStatePortDisabled
 }
@@ -188,10 +198,10 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	p := rxm.p
 
 	// Partner Port Oper State Sync = FALSE
-	LacpStateClear(p.partnerOper.state, LacpStateSyncBit)
+	LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
 
 	// Short timeout
-	LacpStateSet(p.partnerOper.state, LacpStateTimeoutBit)
+	LacpStateSet(&p.partnerOper.state, LacpStateTimeoutBit)
 
 	// Set the Short timeout
 	rxm.CurrentWhileTimerTimeoutSet(LacpShortTimeoutTime)
@@ -200,7 +210,7 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	rxm.CurrentWhileTimerStart()
 
 	// Actor Port Oper State Expired = TRUE
-	LacpStateSet(p.actorOper.state, LacpStateExpiredBit)
+	LacpStateSet(&p.actorOper.state, LacpStateExpiredBit)
 
 	return LacpRxmStateExpired
 }
@@ -211,16 +221,19 @@ func (rxm *LacpRxMachine) LacpRxMachineLacpDisabled(m fsm.Machine, data interfac
 	p := rxm.p
 
 	// Unselect the aggregator
-	p.aggSelected = LacpAggUnSelected
+	//p.aggSelected = LacpAggUnSelected
+	if p.MuxMachineFsm != nil {
+		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected}
+	}
 
 	// setup the default params
 	rxm.recordDefault()
 
 	// Partner Port Oper State Aggregation = FALSE
-	LacpStateClear(p.partnerOper.state, LacpStateAggregationBit)
+	LacpStateClear(&p.partnerOper.state, LacpStateAggregationBit)
 
 	// Actor Port Oper State Expired = FALSE
-	LacpStateClear(p.actorOper.state, LacpStateExpiredBit)
+	LacpStateClear(&p.actorOper.state, LacpStateExpiredBit)
 
 	return LacpRxmStateLacpDisabled
 }
@@ -239,7 +252,7 @@ func (rxm *LacpRxMachine) LacpRxMachineDefaulted(m fsm.Machine, data interface{}
 	rxm.recordDefault()
 
 	// Actor Port Oper State Expired = FALSE
-	LacpStateClear(p.actorOper.state, LacpStateExpiredBit)
+	LacpStateClear(&p.actorOper.state, LacpStateExpiredBit)
 
 	return LacpRxmStateDefaulted
 }
@@ -250,21 +263,21 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	p := rxm.p
 
 	// Version 1, V2 will require a serialize/deserialize routine since TLV's are involved
-	lacpPduInfo := data.(LacpPdu)
+	lacpPduInfo := data.(*LacpPdu)
 
 	// update selection logic
-	rxm.updateSelected(&lacpPduInfo)
+	rxm.updateSelected(lacpPduInfo)
 
 	// update the ntt
-	ntt := rxm.updateNTT(&lacpPduInfo)
+	ntt := rxm.updateNTT(lacpPduInfo)
 
 	// Version 2 or higher check
 	if LacpActorSystemLacpVersion >= 0x2 {
-		rxm.recordVersionNumber(&lacpPduInfo)
+		rxm.recordVersionNumber(lacpPduInfo)
 	}
 
 	// record the current packet state
-	rxm.recordPDU(&lacpPduInfo)
+	rxm.recordPDU(lacpPduInfo)
 
 	// Current while should already be set to
 	// Actors Oper value of Timeout, lets check
@@ -277,11 +290,11 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	rxm.CurrentWhileTimerStart()
 
 	// Actor_Oper_Port_Sate.Expired = FALSE
-	LacpStateClear(p.actorOper.state, LacpStateExpiredBit)
+	LacpStateClear(&p.actorOper.state, LacpStateExpiredBit)
 
-	if ntt == true {
+	if ntt == true && p.TxMachineFsm != nil {
 		// update ntt, which should trigger a packet transmit
-		p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
+		p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt}
 	}
 
 	return LacpRxmStateCurrent
@@ -316,10 +329,6 @@ func LacpRxMachineFSMBuild(p *LaAggPort) *LacpRxMachine {
 	rules.AddRule(LacpRxmStateCurrent, LacpRxmEventNotPortEnabledAndNotPortMoved, rxm.LacpRxMachinePortDisabled)
 	// PORT MOVED -> INIT
 	rules.AddRule(LacpRxmStatePortDisabled, LacpRxmEventPortMoved, rxm.LacpRxMachineInitialize)
-	rules.AddRule(LacpRxmStateExpired, LacpRxmEventPortMoved, rxm.LacpRxMachineInitialize)
-	rules.AddRule(LacpRxmStateLacpDisabled, LacpRxmEventPortMoved, rxm.LacpRxMachineInitialize)
-	rules.AddRule(LacpRxmStateDefaulted, LacpRxmEventPortMoved, rxm.LacpRxMachineInitialize)
-	rules.AddRule(LacpRxmStateCurrent, LacpRxmEventPortMoved, rxm.LacpRxMachineInitialize)
 	// PORT ENABLED && LACP ENABLED
 	rules.AddRule(LacpRxmStatePortDisabled, LacpRxmEventPortEnabledAndLacpEnabled, rxm.LacpRxMachineExpired)
 	// PORT ENABLED && LACP DISABLED
@@ -364,30 +373,56 @@ func (p *LaAggPort) LacpRxMachineMain() {
 
 			case <-m.currentWhileTimer.C:
 				m.LacpRxmLog("RXM: Current While Timer Expired")
-				m.Machine.ProcessEvent(LacpRxmEventCurrentWhileTimerExpired, nil)
+				m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventCurrentWhileTimerExpired, nil)
 
 			case event := <-m.RxmEvents:
-				m.Machine.ProcessEvent(event, nil)
-				/* special case */
-				if m.Machine.Curr.CurrentState() == LacpRxmStateInitialize {
-					m.Machine.ProcessEvent(LacpRxmEventUnconditionalFallthrough, nil)
+				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+				if rv == nil {
+					p := m.p
+					/* continue state transition */
+					if m.Machine.Curr.CurrentState() == LacpRxmStateInitialize {
+						rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventUnconditionalFallthrough, nil)
+					}
+					if rv == nil &&
+						m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled &&
+						p.lacpEnabled == true &&
+						p.portEnabled == true {
+						rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpEnabled, nil)
+					}
+					if rv == nil &&
+						m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled &&
+						p.lacpEnabled == false &&
+						p.portEnabled == true {
+						rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpDisabled, nil)
+					}
 				}
 
-				if event == LacpRxmEventBegin {
-					m.SendBeginResponse()
+				if rv != nil {
+					m.LacpRxmLog(strings.Join([]string{error.Error(rv), event.src, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
 				}
-			case pkt := <-m.RxmPktRxEvent:
-				fmt.Println(pkt)
+
+				// respond to caller if necessary so that we don't have a deadlock
+				if event.responseChan != nil {
+					SendResponse(RxMachineModuleStr, event.responseChan)
+				}
+			case rx := <-m.RxmPktRxEvent:
+				fmt.Println(*(rx.pdu))
 				// lets check if the port has moved
-				if m.CheckPortMoved(&p.partnerOper, &pkt.actor.info) {
-					m.RxmEvents <- LacpRxmEventPortMoved
+				if m.CheckPortMoved(&p.partnerOper, &(rx.pdu.actor.info)) {
+					m.p.portMoved = true
+					m.Machine.ProcessEvent(RxModuleStr, LacpRxmEventPortMoved, nil)
 				} else {
 					// If you rx a packet must be in one
 					// of 3 states
 					// Expired/Defaulted/Current. each
 					// state will transition to current
 					// all other states should be ignored.
-					m.Machine.ProcessEvent(LacpRxmEventLacpPktRx, pkt)
+					m.Machine.ProcessEvent(RxModuleStr, LacpRxmEventLacpPktRx, rx.pdu)
+				}
+
+				// respond to caller if necessary so that we don't have a deadlock
+				if rx.responseChan != nil {
+					SendResponse(RxMachineModuleStr, rx.responseChan)
 				}
 
 			case ena := <-m.RxmLogEnableEvent:
@@ -425,7 +460,7 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *LacpPdu) {
 	LacpCopyLacpPortInfo(&lacpPduInfo.actor.info, &p.partnerOper)
 
 	// Set Actor Oper port state Defaulted to FALSE
-	LacpStateClear(p.actorOper.state, LacpStateDefaultedBit)
+	LacpStateClear(&p.actorOper.state, LacpStateDefaultedBit)
 
 	// Set Partner Oper port state Sync state to
 	// TRUE if the (1) or (2) is true:
@@ -454,9 +489,9 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *LacpPdu) {
 			(LacpStateIsSet(p.actorOper.state, LacpStateActivityBit) &&
 				LacpStateIsSet(lacpPduInfo.partner.info.state, LacpStateActivityBit))) {
 
-		LacpStateSet(p.partnerOper.state, LacpStateSyncBit)
+		LacpStateSet(&p.partnerOper.state, LacpStateSyncBit)
 	} else {
-		LacpStateClear(p.partnerOper.state, LacpStateSyncBit)
+		LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
 	}
 
 	// Optional to validate length of the following:
@@ -478,49 +513,8 @@ func (rxm *LacpRxMachine) recordDefault() {
 	p := rxm.p
 
 	LacpCopyLacpPortInfo(&p.partnerAdmin, &p.partnerOper)
-	LacpStateSet(p.actorOper.state, LacpStateDefaultedBit)
-	LacpStateSet(p.partnerOper.state, LacpStateSyncBit)
-}
-
-// updateSelected:  802.1ax Section 6.4.9
-// Sets the value of the Selected variable based on the following:
-//
-// Rx pdu: (Actor: Port, Priority, System, System Priority, Key
-// and State Aggregation) vs (Partner Oper: Port, Priority,
-// System, System Priority, Key, State Aggregation).  If values
-// have changed then Selected is set to UNSELECTED, othewise
-// SELECTED
-func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *LacpPdu) {
-
-	p := rxm.p
-
-	if !LacpLacpPortInfoIsEqual(&lacpPduInfo.actor.info, &p.partnerOper, LacpStateAggregationBit) {
-
-		p.aggSelected = LacpAggUnSelected
-		// lets trigger the event only if mux is not in waiting state as
-		// the wait while timer expiration will trigger the unselected event
-		if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
-			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
-			p.MuxMachineFsm.MuxmEvents <- LacpMuxmEventSelectedEqualUnselected
-		}
-	}
-}
-
-// updateDefaultedSelected: 802.1ax Section 6.4.9
-//
-// Update the value of the Selected variable comparing
-// the Partner admin info based with the partner
-// operational info
-// (port num, port priority, system, system priority,
-//  key, stat.Aggregation)
-func (rxm *LacpRxMachine) updateDefaultSelected() {
-
-	p := rxm.p
-
-	if !LacpLacpPortInfoIsEqual(&p.partnerAdmin, &p.partnerOper, LacpStateAggregationBit) {
-
-		p.aggSelected = LacpAggUnSelected
-	}
+	LacpStateSet(&p.actorOper.state, LacpStateDefaultedBit)
+	LacpStateSet(&p.partnerOper.state, LacpStateSyncBit)
 }
 
 // updateNTT: 802.1ax Section 6.4.9
@@ -567,7 +561,8 @@ func (rxm *LacpRxMachine) CurrentWhileTimerValid() (time.Duration, bool) {
 }
 
 func (rxm *LacpRxMachine) CheckPortMoved(partnerOper *LacpPortInfo, pktActor *LacpPortInfo) bool {
-	return partnerOper.port == pktActor.port &&
+	return rxm.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled &&
+		partnerOper.port == pktActor.port &&
 		partnerOper.system.systemId == pktActor.system.systemId &&
 		partnerOper.system.systemPriority == pktActor.system.systemPriority
 }

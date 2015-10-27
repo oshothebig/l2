@@ -6,6 +6,8 @@ import (
 	"utils/fsm"
 )
 
+const PtxMachineModuleStr = "Periodic TX Machine"
+
 const (
 	LacpPtxmStateNone = iota + 1
 	LacpPtxmStateNoPeriodic
@@ -57,7 +59,7 @@ type LacpPtxMachine struct {
 	periodicTxTimer *time.Timer
 
 	// machine specific events
-	PtxmEvents chan fsm.Event
+	PtxmEvents chan LacpMachineEvent
 	// stop go routine
 	PtxmKillSignalEvent chan bool
 	// enable logging
@@ -86,7 +88,7 @@ func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 		log:                     port.LacpDebug.LacpLogChan,
 		PreviousState:           LacpPtxmStateNone,
 		PeriodicTxTimerInterval: LacpSlowPeriodicTime,
-		PtxmEvents:              make(chan fsm.Event),
+		PtxmEvents:              make(chan LacpMachineEvent),
 		PtxmKillSignalEvent:     make(chan bool),
 		PtxmLogEnableEvent:      make(chan bool)}
 
@@ -112,13 +114,10 @@ func (ptxm *LacpPtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PtxmStateStrMap,
 		logEna:      ptxm.p.logEna,
 		logger:      ptxm.LacpPtxmLog,
+		owner:       PtxMachineModuleStr,
 	}
 
 	return ptxm.Machine
-}
-
-func (ptxm *LacpPtxMachine) SendBeginResponse() {
-	ptxm.p.portChan <- "Periodic Tx Machine"
 }
 
 // LacpPtxMachineNoPeriodic stops the periodic transmission of packets
@@ -148,7 +147,7 @@ func (ptxm *LacpPtxMachine) LacpPtxMachineSlowPeriodic(m fsm.Machine, data inter
 func (ptxm *LacpPtxMachine) LacpPtxMachinePeriodicTx(m fsm.Machine, data interface{}) fsm.State {
 	// inform the tx machine that ntt should change to true which should transmit a
 	// packet
-	ptxm.p.TxMachineFsm.TxmEvents <- LacpTxmEventNtt
+	ptxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt}
 	return LacpPtxmStatePeriodicTx
 }
 
@@ -227,14 +226,14 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 				return
 
 			case event := <-m.PtxmEvents:
-				m.Machine.ProcessEvent(event, nil)
+				m.Machine.ProcessEvent(event.src, event.e, nil)
 				/* special case */
 				if m.LacpPtxIsNoPeriodicExitCondition() {
-					m.Machine.ProcessEvent(LacpPtxmEventUnconditionalFallthrough, nil)
+					m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventUnconditionalFallthrough, nil)
 				}
 
-				if event == LacpPtxmEventBegin {
-					m.SendBeginResponse()
+				if event.e == LacpPtxmEventBegin && event.responseChan != nil {
+					SendResponse("Periodic TX Machine", event.responseChan)
 				}
 			case ena := <-m.PtxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)

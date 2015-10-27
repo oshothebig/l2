@@ -34,7 +34,6 @@ func (p *LaAggPort) LacpDebugEventLogMain() {
 
 			case msg, logEvent := <-port.LacpDebug.LacpLogChan:
 				if logEvent {
-					//fmt.Println(msg)
 					fmt.Println(strings.Join([]string{time.Now().Format("Mon Jan 2 15:04:05.99999999 -0700 MST 2006"), p.intfNum, msg}, "-"))
 				} else {
 					return

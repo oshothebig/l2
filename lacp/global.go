@@ -39,11 +39,11 @@ func LacpSysGlobalInfoInit() {
 		const aggregatible uint8 = (LacpStateAggregationBit | LacpStateSyncBit |
 			LacpStateCollectingBit | LacpStateDistributingBit |
 			LacpStateDefaultedBit)
-		LacpStateSet(gLacpSysGlobalInfo.PartnerStateDefaultParams.state, aggregatible)
+		LacpStateSet(&gLacpSysGlobalInfo.PartnerStateDefaultParams.state, aggregatible)
 
 		// Actor is brought up as individual
 		const individual uint8 = (LacpStateDefaultedBit)
-		LacpStateSet(gLacpSysGlobalInfo.ActorStateDefaultParams.state, individual)
+		LacpStateSet(&gLacpSysGlobalInfo.ActorStateDefaultParams.state, individual)
 	}
 }
 

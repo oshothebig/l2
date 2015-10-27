@@ -8,6 +8,8 @@ import (
 	"utils/fsm"
 )
 
+const TxMachineModuleStr = "Tx Machine"
+
 const (
 	LacpTxmStateNone = iota + 1
 	LacpTxmStateOn
@@ -64,7 +66,7 @@ type LacpTxMachine struct {
 	txGuardTimer *time.Timer
 
 	// machine specific events
-	TxmEvents          chan fsm.Event
+	TxmEvents          chan LacpMachineEvent
 	TxmKillSignalEvent chan bool
 	TxmLogEnableEvent  chan bool
 }
@@ -95,7 +97,7 @@ func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 		txPkts:             0,
 		ntt:                false,
 		PreviousState:      LacpTxmStateNone,
-		TxmEvents:          make(chan fsm.Event),
+		TxmEvents:          make(chan LacpMachineEvent),
 		TxmKillSignalEvent: make(chan bool),
 		TxmLogEnableEvent:  make(chan bool)}
 
@@ -121,6 +123,7 @@ func (txm *LacpTxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: TxmStateStrMap,
 		logEna:      txm.p.logEna,
 		logger:      txm.LacpTxmLog,
+		owner:       TxMachineModuleStr,
 	}
 
 	return txm.Machine
@@ -179,14 +182,10 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 	txm.ntt = false
 	if txm.txPending > 0 {
 		state = LacpTxmStateDelayed
-		txm.TxmEvents <- LacpTxmEventDelayTx
+		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx}
 	}
 
 	return state
-}
-
-func (txm *LacpTxMachine) SendBeginResponse() {
-	txm.p.portChan <- "TX Machine"
 }
 
 // LacpTxMachineOff will ensure that no packets are transmitted, typically means that
@@ -204,7 +203,7 @@ func (txm *LacpTxMachine) LacpTxMachineGuard(m fsm.Machine, data interface{}) fs
 	txm.txPkts = 0
 
 	if txm.txPending > 0 {
-		txm.TxmEvents <- LacpTxmEventDelayTx
+		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx}
 	}
 	// no state transition just need to clear the txPkts
 	return txm.Machine.Curr.CurrentState()
@@ -265,17 +264,16 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				return
 
 			case event := <-m.TxmEvents:
-
 				// special case, another machine has a need to
 				// transmit a packet
-				if event == LacpTxmEventNtt {
+				if event.e == LacpTxmEventNtt {
 					m.ntt = true
 				}
 
-				m.Machine.ProcessEvent(event, nil)
+				m.Machine.ProcessEvent(event.src, event.e, nil)
 
-				if event == LacpTxmEventBegin {
-					m.SendBeginResponse()
+				if event.e == LacpTxmEventBegin && event.responseChan != nil {
+					SendResponse(TxMachineModuleStr, event.responseChan)
 				}
 			case ena := <-m.TxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
@@ -287,5 +285,5 @@ func (p *LaAggPort) LacpTxMachineMain() {
 // LacpTxGuardGeneration will generate an event to the Tx Machine
 // in order to clear the txPkts count
 func (txm *LacpTxMachine) LacpTxGuardGeneration() {
-	txm.TxmEvents <- LacpTxmEventGuardTimer
+	txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventGuardTimer}
 }

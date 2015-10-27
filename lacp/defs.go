@@ -2,7 +2,8 @@
 package lacp
 
 import (
-	//"fmt"
+	"strconv"
+	"strings"
 	"time"
 	"utils/fsm"
 )
@@ -60,6 +61,20 @@ const (
 	LacpModePassive
 )
 
+// LacpMachineEvent machine events will be sent
+// with this struct and will provide extra data
+// in order to provide async communication between
+// sender and receiver
+type LacpMachineEvent struct {
+	e            fsm.Event
+	src          string
+	responseChan chan string
+}
+
+func SendResponse(msg string, responseChan chan string) {
+	responseChan <- msg
+}
+
 type LacpStateEvent struct {
 	// current state
 	s fsm.State
@@ -70,6 +85,9 @@ type LacpStateEvent struct {
 	// previous event
 	pe fsm.Event
 
+	// event src
+	esrc        string
+	owner       string
 	strStateMap map[fsm.State]string
 	logEna      bool
 	logger      func(string)
@@ -79,23 +97,29 @@ func (se *LacpStateEvent) LoggerSet(log func(string))                 { se.logge
 func (se *LacpStateEvent) EnableLogging(ena bool)                     { se.logEna = ena }
 func (se *LacpStateEvent) IsLoggerEna() bool                          { return se.logEna }
 func (se *LacpStateEvent) StateStrMapSet(strMap map[fsm.State]string) { se.strStateMap = strMap }
+func (se *LacpStateEvent) PreviousState() fsm.State                   { return se.ps }
 func (se *LacpStateEvent) CurrentState() fsm.State                    { return se.s }
+func (se *LacpStateEvent) PreviousEvent() fsm.Event                   { return se.pe }
 func (se *LacpStateEvent) CurrentEvent() fsm.Event                    { return se.e }
-func (se *LacpStateEvent) SetEvent(e fsm.Event)                       { se.e = e }
+func (se *LacpStateEvent) SetEvent(es string, e fsm.Event) {
+	se.esrc = es
+	se.pe = se.e
+	se.e = e
+}
 func (se *LacpStateEvent) SetState(s fsm.State) {
+	se.ps = se.s
 	se.s = s
-	//fmt.Println(s)
 	if se.IsLoggerEna() {
-		se.logger(se.strStateMap[s])
+		se.logger((strings.Join([]string{"Src", se.esrc, "Evt", strconv.Itoa(int(se.e)), "State", se.strStateMap[s]}, ":")))
 	}
 }
 
-func LacpStateSet(currState uint8, stateBits uint8) uint8 {
-	return currState | stateBits
+func LacpStateSet(currState *uint8, stateBits uint8) {
+	*currState |= stateBits
 }
 
-func LacpStateClear(currState uint8, stateBits uint8) uint8 {
-	return currState & ^(stateBits)
+func LacpStateClear(currState *uint8, stateBits uint8) {
+	*currState &= ^(stateBits)
 }
 
 func LacpStateIsSet(currState uint8, stateBits uint8) bool {

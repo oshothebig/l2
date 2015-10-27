@@ -5,8 +5,9 @@ package lacp
 
 import (
 	"fmt"
-	"unsafe"
 )
+
+const RxModuleStr = "Rx Module"
 
 type RxPacketMetaData struct {
 	port int
@@ -32,7 +33,9 @@ type RxPacket struct {
 func LaRxMain(rxPktChan chan RxPacket) {
 
 	go func() {
-		// TODO wait on socket
+		// TODO add logic to either wait on a socket or wait on a channel,
+		// maybe both?  Can spawn a seperate go thread to wait on a socket
+		// and send the packet to this thread
 		for {
 			select {
 			case packet, ok := <-rxPktChan:
@@ -42,10 +45,10 @@ func LaRxMain(rxPktChan chan RxPacket) {
 					if marker, lacp := IsControlFrame(&packet); lacp || marker {
 
 						if lacp {
-							ProcessLacpFrame(&packet.metadata, &packet.lacp)
+							ProcessLacpFrame(&packet.metadata, packet.lacp)
 						} else if marker {
 							// marker protocol
-							ProcessLampFrame(&packet.metadata, &packet.lacp)
+							ProcessLampFrame(&packet.metadata, packet.lacp)
 						} else {
 							// discard packet
 						}
@@ -91,29 +94,30 @@ func IsControlFrame(pdu *RxPacket) (bool, bool) {
 
 // ProcessLacpFrame will lookup the cooresponding port from which the
 // packet arrived and forward the packet to the Rx Machine for processing
-func ProcessLacpFrame(metadata *RxPacketMetaData, lacppdu *LacpPdu) {
-
+func ProcessLacpFrame(metadata *RxPacketMetaData, pdu interface{}) {
 	var p *LaAggPort
+	lacppdu := pdu.(*LacpPdu)
+
 	// lets find the port and only process it if the
 	// begin state has been met
 	if LaFindPortById(metadata.port, p) && p.begin {
 		// lets offload the packet to another thread
-		p.RxMachineFsm.RxmPktRxEvent <- *lacppdu
+		p.RxMachineFsm.RxmPktRxEvent <- LacpRxLacpPdu{
+			pdu: lacppdu,
+			src: RxModuleStr}
 	}
 }
 
-func ProcessLampFrame(metadata *RxPacketMetaData, lacppdu *LacpPdu) {
+func ProcessLampFrame(metadata *RxPacketMetaData, pdu interface{}) {
+	var p *LaAggPort
+
 	// copying data over to an array, then cast it back
-	placppdu := unsafe.Pointer(lacppdu)
-	placppdu_arr := *((*[110]uint8)(placppdu))
+	lamppdu := pdu.(*LaMarkerPdu)
 
-	var lampdu LaMarkerPdu
-	plamppdu := unsafe.Pointer(&lampdu)
-	plamppdu_arr := *((*[110]uint8)(plamppdu))
-	copy(plamppdu_arr[:], placppdu_arr[:])
-
-	plamp := (*LaMarkerPdu)(unsafe.Pointer(plamppdu))
-	fmt.Println(plamp)
-	// TODO send packet to marker responder
-
+	if LaFindPortById(metadata.port, p) && p.begin {
+		// lets offload the packet to another thread
+		//p.RxMachineFsm.RxmPktRxEvent <- *lacppdu
+		// TODO send packet to marker responder
+		fmt.Println(lamppdu)
+	}
 }

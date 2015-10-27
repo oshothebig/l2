@@ -6,6 +6,8 @@ import (
 	"utils/fsm"
 )
 
+const CdMachineModuleStr = "Churn Detection Machine"
+
 const (
 	LacpCdmStateNone = iota + 1
 	LacpCdmStateNoActorChurn
@@ -53,7 +55,7 @@ type LacpCdMachine struct {
 	partnerChurnTimer *time.Timer
 
 	// machine specific events
-	CdmEvents          chan fsm.Event
+	CdmEvents          chan LacpMachineEvent
 	CdmKillSignalEvent chan bool
 	CdmLogEnableEvent  chan bool
 }
@@ -77,7 +79,7 @@ func NewLacpCdMachine(port *LaAggPort) *LacpCdMachine {
 		PreviousState:             LacpCdmStateNone,
 		actorChurnTimerInterval:   LacpChurnDetectionTime,
 		partnerChurnTimerInterval: LacpChurnDetectionTime,
-		CdmEvents:                 make(chan fsm.Event),
+		CdmEvents:                 make(chan LacpMachineEvent),
 		CdmKillSignalEvent:        make(chan bool),
 		CdmLogEnableEvent:         make(chan bool)}
 
@@ -99,6 +101,7 @@ func (cdm *LacpCdMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: CdmStateStrMap,
 		logEna:      cdm.p.logEna,
 		logger:      cdm.LacpCdmLog,
+		owner:       CdMachineModuleStr,
 	}
 
 	return cdm.Machine
@@ -116,10 +119,6 @@ func (cdm *LacpCdMachine) LacpCdMachineActorChurn(m fsm.Machine, data interface{
 	p := cdm.p
 	p.actorChurn = true
 	return LacpCdmStateActorChurn
-}
-
-func (cdm *LacpCdMachine) SendBeginResponse() {
-	cdm.p.portChan <- "Churn Detection Machine"
 }
 
 // LacpCdMachineActorChurnMonitor will set the churn state to true
@@ -192,10 +191,10 @@ func (p *LaAggPort) LacpCdMachineMain() {
 				return
 
 			case event := <-m.CdmEvents:
-				m.Machine.ProcessEvent(event, nil)
+				m.Machine.ProcessEvent(event.src, event.e, nil)
 
-				if event == LacpCdmEventBegin {
-					m.SendBeginResponse()
+				if event.responseChan != nil {
+					SendResponse(CdMachineModuleStr, event.responseChan)
 				}
 			case ena := <-m.CdmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
