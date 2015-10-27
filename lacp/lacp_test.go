@@ -7,15 +7,24 @@ import (
 	"time"
 )
 
+func TestLaAggPortCreateWithoutKeySetWithAgg(t *testing.T) {
+
+}
+
+func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
+
+}
+
 func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 
 	// must be called to initialize the global
 	LacpSysGlobalInfoInit()
 
-	pconf := &LaAggConfig{
+	pconf := &LaAggPortConfig{
 		Id:     1,
 		Prio:   0x80,
 		IntfId: "eth1.1",
+		Key:    100,
 	}
 
 	p := NewLaAggPort(pconf)
@@ -69,10 +78,11 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// must be called to initialize the global
 	LacpSysGlobalInfoInit()
 
-	pconf := &LaAggConfig{
+	pconf := &LaAggPortConfig{
 		Id:     1,
 		Prio:   0x80,
 		IntfId: "eth1.1",
+		Key:    100,
 	}
 
 	p := NewLaAggPort(pconf)

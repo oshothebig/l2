@@ -64,15 +64,15 @@ type LaAggregator struct {
 }
 
 // TODO add more defaults
-func NewLaAggregator(aggId int) *LaAggregator {
+func NewLaAggregator(a *LaAggConfig) *LaAggregator {
 	agg := &LaAggregator{
-		aggId:           aggId,
+		aggId:           a.Id,
 		partnerSystemId: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		ready:           true,
 	}
 
 	// add agg to map
-	gLacpSysGlobalInfo.AggMap[aggId] = agg
+	gLacpSysGlobalInfo.AggMap[a.Id] = agg
 
 	return agg
 }

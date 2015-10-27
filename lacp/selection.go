@@ -163,12 +163,13 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *LacpPdu) {
 	if !LacpLacpPortInfoIsEqual(&lacpPduInfo.actor.info, &p.partnerOper, LacpStateAggregationBit) {
 
 		rxm.LacpRxmLog("PDU and Oper states do not agree, moving port to LacpAggUnSelected")
-		//p.aggSelected = LacpAggUnSelected
+
 		// lets trigger the event only if mux is not in waiting state as
 		// the wait while timer expiration will trigger the unselected event
 		if p.MuxMachineFsm != nil &&
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
+			p.aggSelected = LacpAggUnSelected
 			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected}
 		}
 	}
@@ -193,8 +194,22 @@ func (rxm *LacpRxMachine) updateDefaultSelected() {
 		if p.MuxMachineFsm != nil &&
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
+			p.aggSelected = LacpAggUnSelected
 			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected}
 		}
 
+	}
+}
+
+func (p *LaAggPort) checkConfigForSelection() {
+	var a LaAggregator
+
+	// check to see if aggrigator exists
+	if p.aggId != 0 && LaFindAggById(p.aggId, &a) {
+		// set port as selected
+		p.aggSelected = LacpAggSelected
+		// inform mux that port has been selected
+		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelected,
+			src: PortConfigModuleStr}
 	}
 }

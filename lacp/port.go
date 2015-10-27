@@ -8,6 +8,7 @@ import (
 )
 
 type PortProperties struct {
+	Mac    [6]uint8
 	speed  int
 	duplex int
 	mtu    int
@@ -115,13 +116,13 @@ func LaFindPortById(pId uint16, p *LaAggPort) bool {
 
 // NewLaAggPort
 // Allocate a new lag port, creating appropriate timers
-func NewLaAggPort(config *LaAggConfig) *LaAggPort {
+func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	p := &LaAggPort{
 		portId:       int(config.Id | config.Prio<<16),
 		portNum:      config.Id,
 		portPriority: config.Prio,
 		intfNum:      config.IntfId,
-		mac:          config.Mac,
+		mac:          config.Properties.Mac,
 		key:          config.Key,
 		aggSelected:  LacpAggUnSelected,
 		begin:        true,

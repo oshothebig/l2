@@ -523,7 +523,10 @@ func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected() {
 // Aggregator, in preparation for collecting and distributing frames.
 func (muxm *LacpMuxMachine) AttachMuxToAggregator() {
 	// TODO send message to asic deamon  create
-	muxm.LacpMuxmLog("Attach Mux To Aggregator Enter")
+	p := muxm.p
+	if LaFindAggById(p.aggId, p.aggAttached) {
+		muxm.LacpMuxmLog("Attach Mux To Aggregator Enter")
+	}
 }
 
 // DetachMuxFromAggregator is a required function defined in 802.1ax-2014
@@ -535,9 +538,7 @@ func (muxm *LacpMuxMachine) DetachMuxFromAggregator() {
 	// TODO send message to asic deamon delete
 	muxm.LacpMuxmLog("Detach Mux From Aggregator Enter")
 	p := muxm.p
-	p.aggId = 0
-	p.aggSelected = LacpAggUnSelected
-
+	p.aggAttached = nil
 }
 
 // EnableCollecting is a required function defined in 802.1ax-2014
