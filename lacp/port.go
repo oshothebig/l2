@@ -52,9 +52,6 @@ type LaAggPort struct {
 
 	aggId int
 
-	// src mac address used in tx pkt
-	mac [6]uint8
-
 	// Once selected reference to agg group will be made
 	aggAttached *LaAggregator
 	aggSelected uint32
@@ -71,6 +68,9 @@ type LaAggPort struct {
 	readyN       bool
 
 	macProperties PortProperties
+
+	// determine whether a port is up or down
+	linkOperStatus bool
 
 	// administrative values for state described in 6.4.2.3
 	actorAdmin   LacpPortInfo
@@ -109,8 +109,11 @@ func (p *LaAggPort) LaPortLog(msg string) {
 }
 
 // find a port from the global map table
-func LaFindPortById(pId uint16, p *LaAggPort) bool {
-	p, ok := gLacpSysGlobalInfo.PortMap[pId]
+func LaFindPortById(pId uint16, p **LaAggPort) bool {
+	port, ok := gLacpSysGlobalInfo.PortMap[pId]
+	if ok {
+		*p = port
+	}
 	return ok
 }
 
@@ -118,19 +121,19 @@ func LaFindPortById(pId uint16, p *LaAggPort) bool {
 // Allocate a new lag port, creating appropriate timers
 func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	p := &LaAggPort{
-		portId:       int(config.Id | config.Prio<<16),
-		portNum:      config.Id,
-		portPriority: config.Prio,
-		intfNum:      config.IntfId,
-		mac:          config.Properties.Mac,
-		key:          config.Key,
-		aggSelected:  LacpAggUnSelected,
-		begin:        true,
-		portMoved:    false,
-		lacpEnabled:  false,
-		portEnabled:  false,
-		logEna:       true,
-		portChan:     make(chan string)}
+		portId:        int(config.Id | config.Prio<<16),
+		portNum:       config.Id,
+		portPriority:  config.Prio,
+		intfNum:       config.IntfId,
+		macProperties: config.Properties,
+		key:           config.Key,
+		aggSelected:   LacpAggUnSelected,
+		begin:         true,
+		portMoved:     false,
+		lacpEnabled:   false,
+		portEnabled:   config.Enable,
+		logEna:        false,
+		portChan:      make(chan string)}
 
 	// default actor admin
 	p.actorAdmin.state = gLacpSysGlobalInfo.ActorStateDefaultParams.state
@@ -141,6 +144,10 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	p.partnerAdmin.state = gLacpSysGlobalInfo.PartnerStateDefaultParams.state
 	// default partner oper same as admin
 	p.partnerOper = p.partnerAdmin
+
+	if config.Mode != LacpModeOn {
+		p.lacpEnabled = true
+	}
 
 	// add port to port map
 	gLacpSysGlobalInfo.PortMap[p.portNum] = p
@@ -327,6 +334,9 @@ func (p *LaAggPort) LaAggPortEnabled() {
 
 	p.LaPortLog("LAPORT: Port Enabled")
 
+	// port is enabled
+	p.portEnabled = true
+
 	// restart state machines, LACP has been enabled
 	// TODO: is this necessary all states should be in defaulted mode
 	// if run into problems then check states of all machines
@@ -367,9 +377,6 @@ func (p *LaAggPort) LaAggPortEnabled() {
 
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, false)
-
-	// port is disabled
-	p.portEnabled = true
 }
 
 // LaAggPortLacpDisable will update the status on the port
@@ -389,20 +396,20 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
 		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpDisabled,
 			src: PortConfigModuleStr})
+
+		// Ptxm
+		mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpPtxmEventLacpDisabled,
+			src: PortConfigModuleStr})
+
+		// Txm, if lacp is disabled then should not transmit packets
+		mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpDisabled,
+			src: PortConfigModuleStr})
+
+		// distribute the port disable event to various machines
+		p.DistributeMachineEvents(mEvtChan, evt, false)
 	}
-
-	// Ptxm
-	mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpPtxmEventLacpDisabled,
-		src: PortConfigModuleStr})
-
-	// Txm, if lacp is disabled then should not transmit packets
-	mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpDisabled,
-		src: PortConfigModuleStr})
-
-	// distribute the port disable event to various machines
-	p.DistributeMachineEvents(mEvtChan, evt, false)
 
 	// port is no longer controlling lacp state
 	p.actorAdmin.state = gLacpSysGlobalInfo.ActorStateDefaultParams.state

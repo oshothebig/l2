@@ -100,7 +100,7 @@ func ProcessLacpFrame(metadata *RxPacketMetaData, pdu interface{}) {
 
 	// lets find the port and only process it if the
 	// begin state has been met
-	if LaFindPortById(metadata.port, p) && p.begin {
+	if LaFindPortById(metadata.port, &p) && p.begin {
 		// lets offload the packet to another thread
 		p.RxMachineFsm.RxmPktRxEvent <- LacpRxLacpPdu{
 			pdu: lacppdu,
@@ -114,7 +114,7 @@ func ProcessLampFrame(metadata *RxPacketMetaData, pdu interface{}) {
 	// copying data over to an array, then cast it back
 	lamppdu := pdu.(*LaMarkerPdu)
 
-	if LaFindPortById(metadata.port, p) && p.begin {
+	if LaFindPortById(metadata.port, &p) && p.begin {
 		// lets offload the packet to another thread
 		//p.RxMachineFsm.RxmPktRxEvent <- *lacppdu
 		// TODO send packet to marker responder

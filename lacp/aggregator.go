@@ -37,8 +37,8 @@ type LaAggregator struct {
 	// FALSE - port attached to this aggregator is able of
 	//         aggregation to any other aggregator
 	aggOrIndividual bool
-	actorAdminKey   int
-	actorOperKey    int
+	actorAdminKey   uint16
+	actorOperKey    uint16
 	aggMacAddr      [6]uint
 	// remote system
 	partnerSystemId       [6]uint8
@@ -60,21 +60,27 @@ type LaAggregator struct {
 	ready bool
 
 	// Port number from LaAggPort
-	portNumList []uint16
+	PortNumList []uint16
 }
 
 // TODO add more defaults
-func NewLaAggregator(a *LaAggConfig) *LaAggregator {
-	agg := &LaAggregator{
-		aggId:           a.Id,
+func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
+	a := &LaAggregator{
+		aggId:           ac.Id,
+		actorAdminKey:   ac.Key,
 		partnerSystemId: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		ready:           true,
+		PortNumList:     make([]uint16, 0),
 	}
 
 	// add agg to map
-	gLacpSysGlobalInfo.AggMap[a.Id] = agg
+	gLacpSysGlobalInfo.AggMap[ac.Id] = a
 
-	return agg
+	for _, pId := range ac.LagMembers {
+		a.PortNumList = append(a.PortNumList, pId)
+	}
+
+	return a
 }
 
 func LaFindAggById(aggId int, agg *LaAggregator) bool {

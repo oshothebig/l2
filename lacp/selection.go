@@ -105,11 +105,11 @@ func (agg *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort) {
 
 	readyChan := make(chan bool)
 	// lets do a this work in parrallel
-	for _, pId := range agg.portNumList {
+	for _, pId := range agg.PortNumList {
 
 		go func(id uint16) {
 			var port *LaAggPort
-			if LaFindPortById(id, port) {
+			if LaFindPortById(id, &port) {
 				readyChan <- port.readyN
 			}
 		}(pId)
@@ -120,7 +120,7 @@ func (agg *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort) {
 	// until we know that at least one port
 	// is not ready
 	agg.ready = true
-	for range agg.portNumList {
+	for range agg.PortNumList {
 		select {
 		case readyN := <-readyChan:
 			if !readyN {
@@ -133,10 +133,10 @@ func (agg *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort) {
 	// ports which are not already attached
 	if agg.ready {
 		// lets do this work in parrallel
-		for _, pId := range agg.portNumList {
+		for _, pId := range agg.PortNumList {
 			go func(id uint16) {
 				var port *LaAggPort
-				if LaFindPortById(id, port) &&
+				if LaFindPortById(id, &port) &&
 					port.readyN &&
 					port.aggAttached != nil {
 					// trigger event to mux
@@ -201,15 +201,26 @@ func (rxm *LacpRxMachine) updateDefaultSelected() {
 	}
 }
 
-func (p *LaAggPort) checkConfigForSelection() {
+// checkConfigForSelection will send selection bit to state machine
+// and return to the user true
+func (p *LaAggPort) checkConfigForSelection() bool {
 	var a LaAggregator
 
 	// check to see if aggrigator exists
-	if p.aggId != 0 && LaFindAggById(p.aggId, &a) {
+	// and that the keys match
+	if p.aggId != 0 && LaFindAggById(p.aggId, &a) &&
+		(p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
+			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
+		p.key == a.actorAdminKey {
 		// set port as selected
 		p.aggSelected = LacpAggSelected
 		// inform mux that port has been selected
 		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelected,
-			src: PortConfigModuleStr}
+			src:          PortConfigModuleStr,
+			responseChan: p.portChan}
+		// wait for response
+		<-p.portChan
+		return true
 	}
+	return false
 }

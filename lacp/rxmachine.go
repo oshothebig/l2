@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	"fmt"
+	//"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -405,7 +405,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 					SendResponse(RxMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.RxmPktRxEvent:
-				fmt.Println(*(rx.pdu))
+				//fmt.Println(*(rx.pdu))
 				// lets check if the port has moved
 				if m.CheckPortMoved(&p.partnerOper, &(rx.pdu.actor.info)) {
 					m.p.portMoved = true

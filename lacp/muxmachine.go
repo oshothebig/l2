@@ -509,7 +509,6 @@ func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected() {
 			muxm.LacpMuxmLog(strings.Join([]string{"MUXM: Unable to find Aggrigator", string(p.aggId)}, ":"))
 		}
 	} else {
-		// NOTE:
 		muxm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
 			src: MuxMachineModuleStr}
 	}
@@ -539,6 +538,10 @@ func (muxm *LacpMuxMachine) DetachMuxFromAggregator() {
 	muxm.LacpMuxmLog("Detach Mux From Aggregator Enter")
 	p := muxm.p
 	p.aggAttached = nil
+	// should already be in unselected state
+	//p.aggSelected = LacpAggUnSelected
+
+	// Remove port from HW lag group
 }
 
 // EnableCollecting is a required function defined in 802.1ax-2014

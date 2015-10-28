@@ -36,6 +36,9 @@ const LacpAggregateWaitTime time.Duration = (time.Second * 2)
 // the version number of the Actor LACP implementation
 const LacpActorSystemLacpVersion int = 0x01
 
+const LacpPortDuplexFull int = 1
+const LacpPortDuplexHalf int = 2
+
 const LacpIsEnabled bool = true
 const LacpIsDisabled bool = false
 
