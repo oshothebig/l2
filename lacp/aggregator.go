@@ -92,3 +92,15 @@ func LaFindAggById(aggId int, agg **LaAggregator) bool {
 	}
 	return ok
 }
+
+func LaAggPortNumListPortIdExist(aggId int, portId uint16) bool {
+	var a *LaAggregator
+	if LaFindAggById(aggId, &a) {
+		for _, pId := range a.PortNumList {
+			if pId == portId {
+				return true
+			}
+		}
+	}
+	return false
+}

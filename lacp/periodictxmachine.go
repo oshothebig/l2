@@ -232,9 +232,10 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 					m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventUnconditionalFallthrough, nil)
 				}
 
-				if event.e == LacpPtxmEventBegin && event.responseChan != nil {
+				if event.responseChan != nil {
 					SendResponse("Periodic TX Machine", event.responseChan)
 				}
+
 			case ena := <-m.PtxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}

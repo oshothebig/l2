@@ -4,6 +4,8 @@
 package lacp
 
 import (
+	//"fmt"
+	"strconv"
 	"strings"
 	"time"
 	"utils/fsm"
@@ -31,17 +33,17 @@ var MuxmStateStrMap map[fsm.State]string
 func MuxxMachineStrStateMapCreate() {
 
 	MuxmStateStrMap = make(map[fsm.State]string)
-	MuxmStateStrMap[LacpMuxmStateNone] = "LacpMuxmStateNone"
-	MuxmStateStrMap[LacpMuxmStateDetached] = "LacpMuxmStateDetached"
-	MuxmStateStrMap[LacpMuxmStateWaiting] = "LacpMuxmStateWaiting"
-	MuxmStateStrMap[LacpMuxmStateAttached] = "LacpMuxmStateAttached"
-	MuxmStateStrMap[LacpMuxmStateCollecting] = "LacpMuxmStateCollecting"
-	MuxmStateStrMap[LacpMuxmStateDistributing] = "LacpMuxmStateDistributing"
+	MuxmStateStrMap[LacpMuxmStateNone] = "None"
+	MuxmStateStrMap[LacpMuxmStateDetached] = "Detached"
+	MuxmStateStrMap[LacpMuxmStateWaiting] = "Waiting"
+	MuxmStateStrMap[LacpMuxmStateAttached] = "Attached"
+	MuxmStateStrMap[LacpMuxmStateCollecting] = "Collecting"
+	MuxmStateStrMap[LacpMuxmStateDistributing] = "Distributing"
 	MuxmStateStrMap[LacpMuxmStateCNone] = "LacpMuxmStateCNone"
-	MuxmStateStrMap[LacpMuxmStateCDetached] = "LacpMuxmStateCDetached"
-	MuxmStateStrMap[LacpMuxmStateCWaiting] = "LacpMuxmStateCWaiting"
-	MuxmStateStrMap[LacpMuxmStateCAttached] = "LacpMuxmStateCAttached"
-	MuxmStateStrMap[LacpMuxStateCCollectingDistributing] = "LacpMuxStateCCollectingDistributing"
+	MuxmStateStrMap[LacpMuxmStateCDetached] = "CDetached"
+	MuxmStateStrMap[LacpMuxmStateCWaiting] = "CWaiting"
+	MuxmStateStrMap[LacpMuxmStateCAttached] = "CAttached"
+	MuxmStateStrMap[LacpMuxStateCCollectingDistributing] = "CCollectingDistributing"
 }
 
 const (
@@ -74,6 +76,7 @@ type LacpMuxMachine struct {
 
 	// timer interval
 	waitWhileTimerTimeout time.Duration
+	waitWhileTimerRunning bool
 
 	// timers
 	waitWhileTimer *time.Timer
@@ -137,7 +140,8 @@ func (muxm *LacpMuxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 func (muxm *LacpMuxMachine) SendTxMachineNtt() {
 
-	muxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt}
+	muxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+		src: MuxMachineModuleStr}
 }
 
 // LacpMuxmDetached
@@ -174,6 +178,7 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 // LacpMuxmWaiting
 func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm.State {
 	var a *LaAggregator
+	//var state fsm.State
 	p := muxm.p
 
 	skipWaitWhileTimer := false
@@ -181,18 +186,22 @@ func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm
 	// only need to kick off the timer if ready is not true
 	// ready will be true if all other ports are attached
 	// or this is the the first
+	// or lacp is not enabled
 	if LaFindAggById(p.aggId, &a) {
-		if a.ready {
+		if a.ready || LacpModeGet(p.actorAdmin.state, p.lacpEnabled) == LacpModeOn {
 			skipWaitWhileTimer = true
 			a.ready = false
 		}
 	}
 
-	if skipWaitWhileTimer {
+	//state = LacpMuxmStateWaiting
+	if !skipWaitWhileTimer {
 		muxm.WaitWhileTimerStart()
 	} else {
+		muxm.WaitWhileTimerStop()
 		// force the the next state to attach
-		muxm.LacpMuxmWaitingEvaluateSelected()
+		muxm.LacpMuxmWaitingEvaluateSelected(true)
+		//muxm.Machine.Curr.CurrentState()
 	}
 
 	return LacpMuxmStateWaiting
@@ -201,7 +210,7 @@ func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm
 // LacpMuxmAttached
 func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fsm.State {
 	p := muxm.p
-
+	muxm.LacpMuxmLog("LacpMuxmAttached enter")
 	// Attach Mux to Aggregator
 	muxm.AttachMuxToAggregator()
 
@@ -215,9 +224,10 @@ func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fs
 	muxm.DisableCollecting()
 
 	// NTT = TRUE
-	muxm.SendTxMachineNtt()
+	defer muxm.SendTxMachineNtt()
+	muxm.LacpMuxmLog("LacpMuxmAttached end")
 
-	return LacpMuxmStateWaiting
+	return LacpMuxmStateAttached
 }
 
 // LacpMuxmCollecting
@@ -428,38 +438,47 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 				// lets evaluate selection
 				if m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
 					m.Machine.Curr.CurrentState() == LacpMuxmStateCWaiting {
-					m.LacpMuxmWaitingEvaluateSelected()
+					m.LacpMuxmWaitingEvaluateSelected(false)
 				}
 
 			case event := <-m.MuxmEvents:
+				p := m.p
 				// set the aggSelected based on event
-				if event.e == LacpMuxmEventSelectedEqualSelected {
-					p.aggSelected = LacpAggSelected
-				} else if event.e == LacpMuxmEventSelectedEqualUnselected {
-					p.aggSelected = LacpAggUnSelected
-				}
-
+				/*
+					if event.e == LacpMuxmEventSelectedEqualSelected {
+						p.aggSelected = LacpAggSelected
+					} else if event.e == LacpMuxmEventSelectedEqualUnselected {
+						p.aggSelected = LacpAggUnSelected
+					}
+				*/
 				m.Machine.ProcessEvent(event.src, event.e, nil)
-
 				// continuation events
-				if m.Machine.Curr.CurrentState() == LacpMuxmStateDetached {
+				if m.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
+					m.Machine.Curr.CurrentState() == LacpMuxmStateCAttached {
 					if p.aggSelected == LacpAggSelected {
 						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelected, nil)
 
 					} else if p.aggSelected == LacpAggUnSelected {
 						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualUnselected, nil)
 					}
-				} else if m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting &&
-					p.aggAttached.ready == true &&
-					p.aggSelected == LacpAggSelected {
-					m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedAndReady, nil)
-				} else if m.Machine.Curr.CurrentState() == LacpMuxmStateAttached &&
+				} else if event.e == LacpMuxmEventSelectedEqualSelected &&
+					(m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
+						m.Machine.Curr.CurrentState() == LacpMuxmStateCWaiting) &&
+					p.aggSelected == LacpAggSelected &&
+					!m.waitWhileTimerRunning {
+					// special case we may have a delayed event which will do a fast transition to next state
+					// Attached
+					// delay the response to port
+					event.responseChan = nil
+				} else if (m.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
+					m.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
 					p.aggSelected == LacpAggSelected &&
 					LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit|LacpStateCollectingBit) {
 					m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting, nil)
 				}
 
 				if event.responseChan != nil {
+					m.LacpMuxmLog("Sending response")
 					SendResponse(MuxMachineModuleStr, event.responseChan)
 				}
 
@@ -496,22 +515,23 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 // then the operation is as described in item d). The latter case allows an
 // Aggregation Port to be brought into operation from STANDBY with minimum
 // delay once Selected becomes SELECTED.
-func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected() {
+func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected(sendResponse bool) {
 	var a *LaAggregator
 	p := muxm.p
+	muxm.LacpMuxmLog(strings.Join([]string{"Selected", strconv.Itoa(LacpAggSelected), "actual", strconv.Itoa(p.aggSelected)}, "="))
 	// current port should be in selected state
 	if p.aggSelected == LacpAggSelected ||
 		p.aggSelected == LacpAggStandby {
 		p.readyN = true
 		if LaFindAggById(p.aggId, &a) {
-			a.LacpMuxCheckSelectionLogic(p)
+			a.LacpMuxCheckSelectionLogic(p, sendResponse)
 		} else {
 			muxm.LacpMuxmLog(strings.Join([]string{"MUXM: Unable to find Aggrigator", string(p.aggId)}, ":"))
 		}
-	} else {
-		muxm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
-			src: MuxMachineModuleStr}
 	}
+	//else {
+	//	muxm.Machine.processEvent(LacpMuxmEventSelectedEqualUnselected, nil)
+	//}
 
 }
 
@@ -524,7 +544,7 @@ func (muxm *LacpMuxMachine) AttachMuxToAggregator() {
 	// TODO send message to asic deamon  create
 	p := muxm.p
 	if LaFindAggById(p.aggId, &p.aggAttached) {
-		muxm.LacpMuxmLog("Attach Mux To Aggregator Enter")
+		muxm.LacpMuxmLog("Attach Mux To Aggregator Enter, send Add PORT to ASICD")
 	}
 }
 
@@ -561,7 +581,10 @@ func (muxm *LacpMuxMachine) EnableCollecting() {
 // Aggregation Port.
 func (muxm *LacpMuxMachine) DisableCollecting() {
 	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("Sending Collection Disable to ASICD")
+	p := muxm.p
+	if LacpStateIsSet(p.actorOper.state, LacpStateCollectingBit) {
+		muxm.LacpMuxmLog("Sending Collection Disable to ASICD")
+	}
 }
 
 // EnableDistributing is a required function defined in 802.1ax-2014

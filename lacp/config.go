@@ -45,7 +45,8 @@ type LaAggPortConfig struct {
 	Properties PortProperties
 
 	// Linux If
-	IntfId string
+	traceEna bool
+	IntfId   string
 }
 
 func CreateLaAgg(agg *LaAggConfig) {
@@ -119,6 +120,8 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 
 		if p.linkOperStatus {
 
+			p.portEnabled = true
+
 			// if aggregation has been provided then lets kick off the process
 			p.checkConfigForSelection()
 
@@ -146,13 +149,19 @@ func AddLaAggPortToAgg(aggId int, pId uint16) {
 
 	// both add and port must have existed
 	if LaFindAggById(aggId, &a) && LaFindPortById(pId, &p) &&
-		p.aggSelected == LacpAggUnSelected {
+		p.aggSelected == LacpAggUnSelected &&
+		!LaAggPortNumListPortIdExist(aggId, pId) {
 
 		// add port to port number list
 		a.PortNumList = append(a.PortNumList, p.portNum)
 		// add reference to aggId
 		p.aggId = aggId
+
 		// well obviously this should pass
 		p.checkConfigForSelection()
+		if p.aggSelected == LacpAggSelected {
+			// if port is enabled and lacp is enabled
+			p.LaAggPortEnabled()
+		}
 	}
 }

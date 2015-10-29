@@ -272,7 +272,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 
 				m.Machine.ProcessEvent(event.src, event.e, nil)
 
-				if event.e == LacpTxmEventBegin && event.responseChan != nil {
+				if event.responseChan != nil {
 					SendResponse(TxMachineModuleStr, event.responseChan)
 				}
 			case ena := <-m.TxmLogEnableEvent:

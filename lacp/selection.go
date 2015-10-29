@@ -1,7 +1,9 @@
 // selection
 package lacp
 
-import ()
+import (
+	"fmt"
+)
 
 /*
 Aggregation is represented by an Aggregation Port selecting an appropriate Aggregator, and then attaching
@@ -101,11 +103,11 @@ func (p *LaAggPort) LacpSelectAggrigator() bool {
 // port to have its wait while timer expire then
 // will transition the mux state from waiting to
 // attached
-func (agg *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort) {
+func (a *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort, sendResponse bool) {
 
 	readyChan := make(chan bool)
 	// lets do a this work in parrallel
-	for _, pId := range agg.PortNumList {
+	for _, pId := range a.PortNumList {
 
 		go func(id uint16) {
 			var port *LaAggPort
@@ -114,34 +116,43 @@ func (agg *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort) {
 			}
 		}(pId)
 	}
-	close(readyChan)
 
 	// lets set the agg.ready flag to true
 	// until we know that at least one port
 	// is not ready
-	agg.ready = true
-	for range agg.PortNumList {
+	a.ready = true
+	for range a.PortNumList {
 		select {
 		case readyN := <-readyChan:
 			if !readyN {
-				agg.ready = false
+				fmt.Println("LacpMuxCheckSelectionLogic:Setting ready to false ")
+				a.ready = false
 			}
 		}
 	}
 
+	close(readyChan)
+
 	// if agg is ready then lets attach the
 	// ports which are not already attached
-	if agg.ready {
+	if a.ready {
 		// lets do this work in parrallel
-		for _, pId := range agg.PortNumList {
+		for _, pId := range a.PortNumList {
 			go func(id uint16) {
 				var port *LaAggPort
 				if LaFindPortById(id, &port) &&
-					port.readyN &&
-					port.aggAttached != nil {
+					port.readyN {
 					// trigger event to mux
-					port.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndReady,
-						src: MuxMachineModuleStr}
+					//fmt.Println("SEL: sending LacpMuxmEventSelectedEqualSelectedAndReady")
+					// event should be defered in the processing
+					if sendResponse {
+						port.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndReady,
+							src:          MuxMachineModuleStr,
+							responseChan: port.portChan}
+					} else {
+						port.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndReady,
+							src: MuxMachineModuleStr}
+					}
 				}
 			}(pId)
 		}
@@ -211,15 +222,22 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 	if p.aggId != 0 && LaFindAggById(p.aggId, &a) &&
 		(p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
-		p.key == a.actorAdminKey {
+		p.key == a.actorAdminKey &&
+		p.portEnabled {
 		// set port as selected
 		p.aggSelected = LacpAggSelected
+		// attach the agg to the port
+		//p.aggAttached = a
+
+		mEvtChan := make([]chan LacpMachineEvent, 0)
+		evt := make([]LacpMachineEvent, 0)
+
+		mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelected})
 		// inform mux that port has been selected
-		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelected,
-			src:          PortConfigModuleStr,
-			responseChan: p.portChan}
 		// wait for response
-		<-p.portChan
+		p.DistributeMachineEvents(mEvtChan, evt, true)
+		//msg := <-p.portChan
 		return true
 	}
 	return false

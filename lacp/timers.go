@@ -13,6 +13,7 @@ func (muxm *LacpMuxMachine) WaitWhileTimerStart() {
 	} else {
 		muxm.waitWhileTimer.Reset(muxm.waitWhileTimerTimeout)
 	}
+	muxm.waitWhileTimerRunning = true
 }
 
 // WaitWhileTimerStop
@@ -21,6 +22,7 @@ func (muxm *LacpMuxMachine) WaitWhileTimerStart() {
 func (muxm *LacpMuxMachine) WaitWhileTimerStop() {
 	if muxm.waitWhileTimer != nil {
 		muxm.waitWhileTimer.Stop()
+		muxm.waitWhileTimerRunning = false
 	}
 }
 

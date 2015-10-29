@@ -98,6 +98,12 @@ func ProcessLacpFrame(metadata *RxPacketMetaData, pdu interface{}) {
 	var p *LaAggPort
 	lacppdu := pdu.(*LacpPdu)
 
+	// sanity check
+	if metadata.port != lacppdu.partner.info.port &&
+		lacppdu.partner.info.port != 0 {
+		fmt.Println("RX: WARNING port", metadata, "LAPort", lacppdu.partner.info.port, "do not agree")
+	}
+
 	// lets find the port and only process it if the
 	// begin state has been met
 	if LaFindPortById(metadata.port, &p) && p.begin {
@@ -113,6 +119,12 @@ func ProcessLampFrame(metadata *RxPacketMetaData, pdu interface{}) {
 
 	// copying data over to an array, then cast it back
 	lamppdu := pdu.(*LaMarkerPdu)
+
+	// sanity check
+	if metadata.port != lamppdu.requestor_port &&
+		lamppdu.requestor_port != 0 {
+		fmt.Println("RX: WARNING port", metadata, "LAPort", lamppdu.requestor_port, "do not agree")
+	}
 
 	if LaFindPortById(metadata.port, &p) && p.begin {
 		// lets offload the packet to another thread

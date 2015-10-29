@@ -11,6 +11,48 @@ import (
 	"utils/fsm"
 )
 
+func InvalidStateCheck(p *LaAggPort, invalidStates []fsm.Event, prevState fsm.State, currState fsm.State) (string, bool) {
+
+	var s string
+	rc := true
+
+	portchan := p.PortChannelGet()
+
+	// force what state transition should have been
+	p.RxMachineFsm.Machine.Curr.SetState(prevState)
+	p.RxMachineFsm.Machine.Curr.SetState(currState)
+
+	for _, e := range invalidStates {
+		// send PORT MOVED event to Rx Machine
+		p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
+			e:            e,
+			responseChan: portchan,
+			src:          "TEST"}
+
+		// wait for response
+		if msg := <-portchan; msg != RxMachineModuleStr {
+			s = fmt.Sprintf("Expected response from", RxMachineModuleStr)
+			rc = false
+			return s, rc
+		}
+
+		// PORT MOVED
+		if p.RxMachineFsm.Machine.Curr.PreviousState() != prevState &&
+			p.RxMachineFsm.Machine.Curr.CurrentState() != currState {
+			s = fmt.Sprintf("ERROR RX Machine state incorrect expected (prev/curr)",
+				prevState,
+				currState,
+				"actual",
+				p.RxMachineFsm.Machine.Curr.PreviousState(),
+				p.RxMachineFsm.Machine.Curr.CurrentState())
+			rc = false
+			return s, rc
+		}
+	}
+
+	return "", rc
+}
+
 func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 	var p *LaAggPort
 
@@ -93,46 +135,63 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 	DeleteLaAggPort(pconf.Id)
 }
 
-func InvalidStateCheck(p *LaAggPort, invalidStates []fsm.Event, prevState fsm.State, currState fsm.State) (string, bool) {
+func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 
-	var s string
-	rc := true
+	var p *LaAggPort
 
-	portchan := p.PortChannelGet()
+	pconf := &LaAggPortConfig{
+		Id:    3,
+		Prio:  0x80,
+		Key:   100,
+		AggId: 2000,
+		Mode:  LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId:   "eth1.1",
+		traceEna: false,
+	}
 
-	// force what state transition should have been
-	p.RxMachineFsm.Machine.Curr.SetState(prevState)
-	p.RxMachineFsm.Machine.Curr.SetState(currState)
+	// lets create a port and start the machines
+	CreateLaAggPort(pconf)
 
-	for _, e := range invalidStates {
-		// send PORT MOVED event to Rx Machine
-		p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-			e:            e,
-			responseChan: portchan,
-			src:          "TEST"}
-
-		// wait for response
-		if msg := <-portchan; msg != RxMachineModuleStr {
-			s = fmt.Sprintf("Expected response from", RxMachineModuleStr)
-			rc = false
-			return s, rc
-		}
-
-		// PORT MOVED
-		if p.RxMachineFsm.Machine.Curr.PreviousState() != prevState &&
-			p.RxMachineFsm.Machine.Curr.CurrentState() != currState {
-			s = fmt.Sprintf("ERROR RX Machine state incorrect expected (prev/curr)",
-				prevState,
-				currState,
-				"actual",
-				p.RxMachineFsm.Machine.Curr.PreviousState(),
-				p.RxMachineFsm.Machine.Curr.CurrentState())
-			rc = false
-			return s, rc
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if LaFindPortById(pconf.Id, &p) {
+		if p.aggSelected == LacpAggSelected {
+			t.Error("Port is in SELECTED mode")
 		}
 	}
 
-	return "", rc
+	aconf := &LaAggConfig{
+		mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:  2000,
+		Key: 100,
+	}
+
+	// Create Aggregation
+	CreateLaAgg(aconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if p.aggSelected == LacpAggSelected {
+		t.Error("Port is in SELECTED mode")
+	}
+
+	// Add port to agg
+	AddLaAggPortToAgg(aconf.Id, pconf.Id)
+
+	if p.aggSelected != LacpAggSelected {
+		t.Error("Port is in NOT in SELECTED mode")
+	}
+	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
+		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
+	}
+	// Delete port
+	DeleteLaAggPort(pconf.Id)
 }
 
 func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
@@ -269,6 +328,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	}
 	// TODO check actor oper state
 
+	p.portMoved = true
 	// send PORT MOVED event to Rx Machine
 	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
 		e:            LacpRxmEventPortMoved,
@@ -281,7 +341,6 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		t.Error("Expected response from", RxMachineModuleStr)
 	}
 
-	p.portMoved = true
 	// PORT MOVED
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateInitialize &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStatePortDisabled {
@@ -293,6 +352,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
 
+	p.aggSelected = LacpAggSelected
 	p.portMoved = false
 	p.portEnabled = true
 	p.lacpEnabled = false
