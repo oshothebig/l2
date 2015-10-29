@@ -54,7 +54,7 @@ func CreateLaAgg(agg *LaAggConfig) {
 	var wg sync.WaitGroup
 
 	a := NewLaAggregator(agg)
-	fmt.Printf("%#v\n", a)
+	//fmt.Printf("%#v\n", a)
 
 	for _, pId := range a.PortNumList {
 		wg.Add(1)
@@ -67,6 +67,22 @@ func CreateLaAgg(agg *LaAggConfig) {
 		}(pId)
 	}
 	wg.Wait()
+}
+
+func DeleteLaAgg(Id int) {
+	var a *LaAggregator
+	if LaFindAggById(Id, &a) {
+
+		for idx, pId := range a.PortNumList {
+			DeleteLaAggPort(pId)
+			a.PortNumList = append(a.PortNumList[:idx], a.PortNumList[idx+1:]...)
+		}
+
+		a.aggId = 0
+		a.actorAdminKey = 0
+		a.partnerSystemId = [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+		a.ready = false
+	}
 }
 
 func CreateLaAggPort(port *LaAggPortConfig) {
@@ -116,9 +132,16 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 	}
 }
 
+func DeleteLaAggPort(pId uint16) {
+	var p *LaAggPort
+	if LaFindPortById(pId, &p) {
+		p.DelLaAggPort()
+	}
+}
+
 func AddLaAggPortToAgg(aggId int, pId uint16) {
 
-	var a LaAggregator
+	var a *LaAggregator
 	var p *LaAggPort
 
 	// both add and port must have existed

@@ -11,12 +11,86 @@ import (
 	"utils/fsm"
 )
 
-func TestLaAggPortCreateWithoutKeySetWithAgg(t *testing.T) {
+func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
+	var p *LaAggPort
 
+	// must be called to initialize the global
+	LacpSysGlobalInfoInit()
+
+	aconf := &LaAggConfig{
+		mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:  2000,
+		Key: 50,
+	}
+
+	// Create Aggregation
+	CreateLaAgg(aconf)
+
+	pconf := &LaAggPortConfig{
+		Id:     2,
+		Prio:   0x80,
+		Key:    100, // INVALID
+		AggId:  2000,
+		Enable: true,
+		Mode:   LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, 0x02, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId: "eth1.1",
+	}
+
+	// lets create a port and start the machines
+	CreateLaAggPort(pconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if LaFindPortById(pconf.Id, &p) {
+		if p.aggSelected == LacpAggSelected {
+			t.Error("Port is in SELECTED mode")
+		}
+	}
+
+	// Delete the port and agg
+	DeleteLaAggPort(pconf.Id)
+	DeleteLaAgg(aconf.Id)
 }
 
 func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 
+	var p *LaAggPort
+
+	pconf := &LaAggPortConfig{
+		Id:     3,
+		Prio:   0x80,
+		Key:    100,
+		AggId:  2000,
+		Enable: true,
+		Mode:   LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId: "eth1.1",
+	}
+
+	// lets create a port and start the machines
+	CreateLaAggPort(pconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if LaFindPortById(pconf.Id, &p) {
+		if p.aggSelected == LacpAggSelected {
+			t.Error("Port is in SELECTED mode")
+		}
+	}
+
+	// Delete port
+	DeleteLaAggPort(pconf.Id)
 }
 
 func InvalidStateCheck(p *LaAggPort, invalidStates []fsm.Event, prevState fsm.State, currState fsm.State) (string, bool) {
@@ -129,6 +203,7 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 				p.TxMachineFsm.Machine.Curr.CurrentState())
 		}
 	}
+	DeleteLaAggPort(pconf.Id)
 }
 
 func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
@@ -594,7 +669,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.PreviousState(),
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
-
+	p.DelLaAggPort()
 }
 
 func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
@@ -696,6 +771,7 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 		t.Error(str)
 	}
 
+	p.DelLaAggPort()
 }
 
 //

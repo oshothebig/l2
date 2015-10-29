@@ -173,7 +173,7 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 
 // LacpMuxmWaiting
 func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm.State {
-	var agg *LaAggregator
+	var a *LaAggregator
 	p := muxm.p
 
 	skipWaitWhileTimer := false
@@ -181,10 +181,10 @@ func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm
 	// only need to kick off the timer if ready is not true
 	// ready will be true if all other ports are attached
 	// or this is the the first
-	if LaFindAggById(p.aggId, agg) {
-		if agg.ready {
+	if LaFindAggById(p.aggId, &a) {
+		if a.ready {
 			skipWaitWhileTimer = true
-			agg.ready = false
+			a.ready = false
 		}
 	}
 
@@ -497,14 +497,14 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 // Aggregation Port to be brought into operation from STANDBY with minimum
 // delay once Selected becomes SELECTED.
 func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected() {
-	var agg *LaAggregator
+	var a *LaAggregator
 	p := muxm.p
 	// current port should be in selected state
 	if p.aggSelected == LacpAggSelected ||
 		p.aggSelected == LacpAggStandby {
 		p.readyN = true
-		if LaFindAggById(p.aggId, agg) {
-			agg.LacpMuxCheckSelectionLogic(p)
+		if LaFindAggById(p.aggId, &a) {
+			a.LacpMuxCheckSelectionLogic(p)
 		} else {
 			muxm.LacpMuxmLog(strings.Join([]string{"MUXM: Unable to find Aggrigator", string(p.aggId)}, ":"))
 		}
@@ -523,7 +523,7 @@ func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected() {
 func (muxm *LacpMuxMachine) AttachMuxToAggregator() {
 	// TODO send message to asic deamon  create
 	p := muxm.p
-	if LaFindAggById(p.aggId, p.aggAttached) {
+	if LaFindAggById(p.aggId, &p.aggAttached) {
 		muxm.LacpMuxmLog("Attach Mux To Aggregator Enter")
 	}
 }

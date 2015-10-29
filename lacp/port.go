@@ -108,13 +108,24 @@ func (p *LaAggPort) LaPortLog(msg string) {
 	}
 }
 
-// find a port from the global map table
-func LaFindPortById(pId uint16, p **LaAggPort) bool {
-	port, ok := gLacpSysGlobalInfo.PortMap[pId]
+// find a port from the global map table by portNum
+func LaFindPortById(pId uint16, port **LaAggPort) bool {
+	p, ok := gLacpSysGlobalInfo.PortMap[pId]
 	if ok {
-		*p = port
+		*port = p
 	}
 	return ok
+}
+
+// find a port form the global map table by key
+func LaFindPortByKey(key uint16, port **LaAggPort) bool {
+	for _, p := range gLacpSysGlobalInfo.PortMap {
+		if p.key == key {
+			*port = p
+			return true
+		}
+	}
+	return false
 }
 
 // NewLaAggPort
@@ -166,7 +177,7 @@ func (p *LaAggPort) PortChannelGet() chan string {
 	return p.portChan
 }
 
-func DelLaAggPort(p *LaAggPort) {
+func (p *LaAggPort) DelLaAggPort() {
 	p.Stop()
 	// remove the port from the port map
 	delete(gLacpSysGlobalInfo.PortMap, p.portNum)
@@ -174,11 +185,21 @@ func DelLaAggPort(p *LaAggPort) {
 
 func (p *LaAggPort) Stop() {
 	// stop the state machines
-	p.RxMachineFsm.Stop()
-	p.PtxMachineFsm.Stop()
-	p.TxMachineFsm.Stop()
-	p.CdMachineFsm.Stop()
-	p.MuxMachineFsm.Stop()
+	if p.RxMachineFsm != nil {
+		p.RxMachineFsm.Stop()
+	}
+	if p.PtxMachineFsm != nil {
+		p.PtxMachineFsm.Stop()
+	}
+	if p.TxMachineFsm != nil {
+		p.TxMachineFsm.Stop()
+	}
+	if p.CdMachineFsm != nil {
+		p.CdMachineFsm.Stop()
+	}
+	if p.MuxMachineFsm != nil {
+		p.MuxMachineFsm.Stop()
+	}
 	close(p.portChan)
 }
 

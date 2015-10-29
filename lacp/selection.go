@@ -204,7 +204,7 @@ func (rxm *LacpRxMachine) updateDefaultSelected() {
 // checkConfigForSelection will send selection bit to state machine
 // and return to the user true
 func (p *LaAggPort) checkConfigForSelection() bool {
-	var a LaAggregator
+	var a *LaAggregator
 
 	// check to see if aggrigator exists
 	// and that the keys match

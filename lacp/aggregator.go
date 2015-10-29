@@ -66,11 +66,13 @@ type LaAggregator struct {
 // TODO add more defaults
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	a := &LaAggregator{
-		aggId:           ac.Id,
-		actorAdminKey:   ac.Key,
-		partnerSystemId: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-		ready:           true,
-		PortNumList:     make([]uint16, 0),
+		aggId:               ac.Id,
+		actorAdminKey:       ac.Key,
+		actorSystemId:       gLacpSysGlobalInfo.SystemDefaultParams.actor_system,
+		actorSystemPriority: gLacpSysGlobalInfo.SystemDefaultParams.actor_system_priority,
+		partnerSystemId:     [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		ready:               true,
+		PortNumList:         make([]uint16, 0),
 	}
 
 	// add agg to map
@@ -83,7 +85,10 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	return a
 }
 
-func LaFindAggById(aggId int, agg *LaAggregator) bool {
-	agg, ok := gLacpSysGlobalInfo.AggMap[aggId]
+func LaFindAggById(aggId int, agg **LaAggregator) bool {
+	a, ok := gLacpSysGlobalInfo.AggMap[aggId]
+	if ok {
+		*agg = a
+	}
 	return ok
 }
