@@ -218,16 +218,20 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		p.log = p.LacpDebug.LacpLogChan
 
 		// start all the state machines
-		// Rx Machine
-		p.LacpRxMachineMain()
-		// Tx Machine
-		p.LacpTxMachineMain()
+		// Order here matters as Rx machine
+		// will send event to Mux machine
+		// thus machine must be up and
+		// running first
+		// Mux Machine
+		p.LacpMuxMachineMain()
 		// Periodic Tx Machine
 		p.LacpPtxMachineMain()
 		// Churn Detection Machine
 		p.LacpCdMachineMain()
-		// Mux Machine
-		p.LacpMuxMachineMain()
+		// Rx Machine
+		p.LacpRxMachineMain()
+		// Tx Machine
+		p.LacpTxMachineMain()
 	}
 	// Rxm
 	mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
@@ -347,12 +351,6 @@ func (p *LaAggPort) LaAggPortEnabled() {
 
 	// port is enabled
 	p.portEnabled = true
-
-	// restart state machines, LACP has been enabled
-	// TODO: is this necessary all states should be in defaulted mode
-	// if run into problems then check states of all machines
-	// may need to run BEGIN again
-	//p.BEGIN(true)
 
 	// Rxm
 	if p.lacpEnabled {

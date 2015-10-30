@@ -2,7 +2,8 @@
 package lacp
 
 import (
-	"fmt"
+	//"fmt"
+	"sync"
 )
 
 /*
@@ -125,7 +126,7 @@ func (a *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort, sendResponse boo
 		select {
 		case readyN := <-readyChan:
 			if !readyN {
-				fmt.Println("LacpMuxCheckSelectionLogic:Setting ready to false ")
+				//fmt.Println("LacpMuxCheckSelectionLogic:Setting ready to false ")
 				a.ready = false
 			}
 		}
@@ -136,26 +137,22 @@ func (a *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort, sendResponse boo
 	// if agg is ready then lets attach the
 	// ports which are not already attached
 	if a.ready {
+		var wg sync.WaitGroup
 		// lets do this work in parrallel
 		for _, pId := range a.PortNumList {
+			wg.Add(1)
 			go func(id uint16) {
+				defer wg.Done()
 				var port *LaAggPort
-				if LaFindPortById(id, &port) &&
+				if LaFindPortById(pId, &port) &&
 					port.readyN {
 					// trigger event to mux
-					//fmt.Println("SEL: sending LacpMuxmEventSelectedEqualSelectedAndReady")
 					// event should be defered in the processing
-					if sendResponse {
-						port.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndReady,
-							src:          MuxMachineModuleStr,
-							responseChan: port.portChan}
-					} else {
-						port.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndReady,
-							src: MuxMachineModuleStr}
-					}
+					port.MuxMachineFsm.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedAndReady, nil)
 				}
 			}(pId)
 		}
+		wg.Wait()
 	}
 }
 
@@ -181,7 +178,8 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *LacpPdu) {
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
 			p.aggSelected = LacpAggUnSelected
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected}
+			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
+				src: RxMachineModuleStr}
 		}
 	}
 }
@@ -206,7 +204,8 @@ func (rxm *LacpRxMachine) updateDefaultSelected() {
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
 			p.aggSelected = LacpAggUnSelected
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected}
+			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
+				src: RxMachineModuleStr}
 		}
 
 	}
@@ -239,6 +238,25 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 		p.DistributeMachineEvents(mEvtChan, evt, true)
 		//msg := <-p.portChan
 		return true
+	} else if p.aggId != 0 && LaFindAggById(p.aggId, &a) &&
+		(p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached ||
+			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCDetached) {
+
+		p.LaPortLog("checkConfigForSelection: unselected")
+		// set port as selected
+		p.aggSelected = LacpAggUnSelected
+		// attach the agg to the port
+		//p.aggAttached = a
+
+		mEvtChan := make([]chan LacpMachineEvent, 0)
+		evt := make([]LacpMachineEvent, 0)
+
+		mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected})
+		// inform mux that port has been selected
+		// wait for response
+		p.DistributeMachineEvents(mEvtChan, evt, true)
+
 	}
 	return false
 }

@@ -81,7 +81,8 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 			duplex: LacpPortDuplexFull,
 			mtu:    1500,
 		},
-		IntfId: "eth1.1",
+		IntfId:   "eth1.1",
+		traceEna: false,
 	}
 
 	// lets create a port and start the machines
@@ -103,6 +104,7 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 
 	var p *LaAggPort
+	//LacpSysGlobalInfoInit()
 
 	pconf := &LaAggPortConfig{
 		Id:     3,
@@ -117,7 +119,8 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 			duplex: LacpPortDuplexFull,
 			mtu:    1500,
 		},
-		IntfId: "eth1.1",
+		IntfId:   "eth1.1",
+		traceEna: false,
 	}
 
 	// lets create a port and start the machines
@@ -136,6 +139,71 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 }
 
 func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
+
+	var p *LaAggPort
+	//LacpSysGlobalInfoInit()
+
+	pconf := &LaAggPortConfig{
+		Id:     3,
+		Prio:   0x80,
+		Key:    100,
+		AggId:  2000,
+		Enable: true,
+		Mode:   LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId:   "eth1.1",
+		traceEna: false,
+	}
+
+	// lets create a port and start the machines
+	CreateLaAggPort(pconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if LaFindPortById(pconf.Id, &p) {
+		if p.aggSelected == LacpAggSelected {
+			t.Error("Port is in SELECTED mode")
+		}
+	}
+
+	aconf := &LaAggConfig{
+		mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:  2000,
+		Key: 100,
+	}
+
+	// Create Aggregation
+	CreateLaAgg(aconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if p.aggSelected == LacpAggSelected {
+		t.Error("Port is in SELECTED mode")
+	}
+
+	// Add port to agg
+	AddLaAggPortToAgg(aconf.Id, pconf.Id)
+
+	if p.aggSelected != LacpAggSelected {
+		t.Error("Port is in NOT in SELECTED mode")
+	}
+
+	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
+		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
+	}
+
+	// TODO Check states of other state machines
+
+	// Delete agg
+	DeleteLaAgg(aconf.Id)
+}
+
+func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 
 	var p *LaAggPort
 
@@ -184,13 +252,21 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	// Add port to agg
 	AddLaAggPortToAgg(aconf.Id, pconf.Id)
 
+	if p.aggSelected == LacpAggSelected {
+		t.Error("Port is in SELECTED mode")
+	}
+
+	EnableLaAggPort(pconf.Id)
+
 	if p.aggSelected != LacpAggSelected {
 		t.Error("Port is in NOT in SELECTED mode")
 	}
+
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
 		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
 	}
 	// Delete port
+	DeleteLaAggPortFromAgg(pconf.AggId, pconf.Id)
 	DeleteLaAggPort(pconf.Id)
 }
 
@@ -214,7 +290,8 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 			duplex: LacpPortDuplexFull,
 			mtu:    1500,
 		},
-		IntfId: "eth1.1",
+		IntfId:   "eth1.1",
+		traceEna: false,
 	}
 
 	// lets create a port and start the machines

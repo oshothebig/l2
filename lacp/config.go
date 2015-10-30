@@ -33,7 +33,7 @@ type LaAggPortConfig struct {
 	// Actor Oper Key
 	//OperKey uint16
 	// Actor_Port_Aggregator_Identifier
-	AggId uint16
+	AggId int
 
 	// Admin Enable/Disable
 	Enable bool
@@ -74,9 +74,9 @@ func DeleteLaAgg(Id int) {
 	var a *LaAggregator
 	if LaFindAggById(Id, &a) {
 
-		for idx, pId := range a.PortNumList {
+		for _, pId := range a.PortNumList {
+			DeleteLaAggPortFromAgg(Id, pId)
 			DeleteLaAggPort(pId)
-			a.PortNumList = append(a.PortNumList[:idx], a.PortNumList[idx+1:]...)
 		}
 
 		a.aggId = 0
@@ -118,17 +118,13 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 		// TODO: need logic to check link status
 		p.linkOperStatus = true
 
-		if p.linkOperStatus {
+		if p.linkOperStatus && port.Enable {
 
-			p.portEnabled = true
+			// if port is enabled and lacp is enabled
+			p.LaAggPortEnabled()
 
 			// if aggregation has been provided then lets kick off the process
 			p.checkConfigForSelection()
-
-			if p.aggSelected == LacpAggSelected {
-				// if port is enabled and lacp is enabled
-				p.LaAggPortEnabled()
-			}
 		}
 	} else {
 		fmt.Println("CONF: ERROR PORT ALREADY EXISTS")
@@ -138,7 +134,33 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 func DeleteLaAggPort(pId uint16) {
 	var p *LaAggPort
 	if LaFindPortById(pId, &p) {
+		if LaAggPortNumListPortIdExist(p.aggId, pId) {
+			fmt.Println("CONF: ERROR Must detach p", pId, "from agg", p.aggId, "before deletion")
+			return
+		}
+
 		p.DelLaAggPort()
+	}
+}
+
+func EnableLaAggPort(pId uint16) {
+	var p *LaAggPort
+
+	// port exists
+	// port is unselected
+	// agg exists
+	if LaFindPortById(pId, &p) &&
+		p.aggSelected == LacpAggUnSelected &&
+		LaAggPortNumListPortIdExist(p.aggId, pId) {
+		p.LaAggPortEnabled()
+
+		// TODO: NEED METHOD to get link status
+		p.linkOperStatus = true
+
+		if p.linkOperStatus &&
+			p.aggSelected == LacpAggUnSelected {
+			p.checkConfigForSelection()
+		}
 	}
 }
 
@@ -159,9 +181,28 @@ func AddLaAggPortToAgg(aggId int, pId uint16) {
 
 		// well obviously this should pass
 		p.checkConfigForSelection()
-		if p.aggSelected == LacpAggSelected {
-			// if port is enabled and lacp is enabled
-			p.LaAggPortEnabled()
+	}
+}
+
+func DeleteLaAggPortFromAgg(aggId int, pId uint16) {
+
+	var a *LaAggregator
+	var p *LaAggPort
+
+	// both add and port must have existed
+	if LaFindAggById(aggId, &a) && LaFindPortById(pId, &p) &&
+		p.aggSelected == LacpAggSelected &&
+		LaAggPortNumListPortIdExist(aggId, pId) {
+
+		// detach the port from the agg port list
+		for idx, portNum := range a.PortNumList {
+			if portNum == pId {
+				a.PortNumList = append(a.PortNumList[:idx], a.PortNumList[idx+1:]...)
+			}
 		}
+
+		// if port is enabled and lacp is enabled
+		p.LaAggPortDisable()
+		p.checkConfigForSelection()
 	}
 }

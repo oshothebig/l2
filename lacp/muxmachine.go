@@ -170,7 +170,9 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 	//p.TxMachineFsm.ntt = true
 
 	// indicate that NTT = TRUE
-	muxm.SendTxMachineNtt()
+	if muxm.Machine.Curr.CurrentState() != LacpMuxmStateNone {
+		defer muxm.SendTxMachineNtt()
+	}
 
 	return LacpMuxmStateDetached
 }
@@ -200,7 +202,7 @@ func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm
 	} else {
 		muxm.WaitWhileTimerStop()
 		// force the the next state to attach
-		muxm.LacpMuxmWaitingEvaluateSelected(true)
+		//muxm.LacpMuxmWaitingEvaluateSelected(true)
 		//muxm.Machine.Curr.CurrentState()
 	}
 
@@ -210,7 +212,6 @@ func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm
 // LacpMuxmAttached
 func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fsm.State {
 	p := muxm.p
-	muxm.LacpMuxmLog("LacpMuxmAttached enter")
 	// Attach Mux to Aggregator
 	muxm.AttachMuxToAggregator()
 
@@ -225,7 +226,6 @@ func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fs
 
 	// NTT = TRUE
 	defer muxm.SendTxMachineNtt()
-	muxm.LacpMuxmLog("LacpMuxmAttached end")
 
 	return LacpMuxmStateAttached
 }
@@ -247,7 +247,7 @@ func (muxm *LacpMuxMachine) LacpMuxmCollecting(m fsm.Machine, data interface{}) 
 	LacpStateClear(&p.actorOper.state, LacpStateDistributingBit)
 
 	// indicate that NTT = TRUE
-	muxm.SendTxMachineNtt()
+	defer muxm.SendTxMachineNtt()
 
 	return LacpMuxmStateWaiting
 }
@@ -283,7 +283,7 @@ func (muxm *LacpMuxMachine) LacpMuxmCDetached(m fsm.Machine, data interface{}) f
 	LacpStateClear(&p.actorOper.state, LacpStateDistributingBit)
 
 	// indicate that NTT = TRUE
-	muxm.SendTxMachineNtt()
+	defer muxm.SendTxMachineNtt()
 
 	return LacpMuxmStateDetached
 }
@@ -317,7 +317,7 @@ func (muxm *LacpMuxMachine) LacpMuxmCAttached(m fsm.Machine, data interface{}) f
 	LacpStateClear(&p.actorOper.state, LacpStateDistributingBit)
 
 	// indicate that NTT = TRUE
-	muxm.SendTxMachineNtt()
+	defer muxm.SendTxMachineNtt()
 
 	return LacpMuxmStateWaiting
 }
@@ -336,7 +336,7 @@ func (muxm *LacpMuxMachine) LacpMuxmCCollectingDistributing(m fsm.Machine, data 
 	LacpStateSet(&p.actorOper.state, LacpStateDistributingBit)
 
 	// indicate that NTT = TRUE
-	muxm.SendTxMachineNtt()
+	defer muxm.SendTxMachineNtt()
 
 	return LacpMuxmStateWaiting
 }
@@ -442,43 +442,50 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 				}
 
 			case event := <-m.MuxmEvents:
+
 				p := m.p
-				// set the aggSelected based on event
-				/*
-					if event.e == LacpMuxmEventSelectedEqualSelected {
-						p.aggSelected = LacpAggSelected
-					} else if event.e == LacpMuxmEventSelectedEqualUnselected {
-						p.aggSelected = LacpAggUnSelected
-					}
-				*/
+				//m.LacpMuxmLog(strings.Join([]string{"Event received", strconv.Itoa(int(event.e))}, ":"))
+
+				// process the event
 				m.Machine.ProcessEvent(event.src, event.e, nil)
+
 				// continuation events
 				if m.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
-					m.Machine.Curr.CurrentState() == LacpMuxmStateCAttached {
+					m.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
 					if p.aggSelected == LacpAggSelected {
+						//contEvt = LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelected,
+						//	src: MuxMachineModuleStr}
+						//event.responseChan = nil
 						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelected, nil)
-
-					} else if p.aggSelected == LacpAggUnSelected {
-						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualUnselected, nil)
 					}
 				} else if event.e == LacpMuxmEventSelectedEqualSelected &&
 					(m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
 						m.Machine.Curr.CurrentState() == LacpMuxmStateCWaiting) &&
-					p.aggSelected == LacpAggSelected &&
 					!m.waitWhileTimerRunning {
 					// special case we may have a delayed event which will do a fast transition to next state
-					// Attached
-					// delay the response to port
-					event.responseChan = nil
+					// Attached, trigger is the fact that the timer is not running
+					m.LacpMuxmWaitingEvaluateSelected(true)
 				} else if (m.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
 					m.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
 					p.aggSelected == LacpAggSelected &&
 					LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit|LacpStateCollectingBit) {
 					m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting, nil)
+				} else if event.e == LacpMuxmEventSelectedEqualUnselected &&
+					(m.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
+						m.Machine.Curr.CurrentState() != LacpMuxmStateCDetached) {
+					// Unselected state will cause a downward transition to detached state
+					state := m.Machine.Curr.CurrentState()
+					endState := fsm.State(LacpMuxmStateDetached)
+					if m.Machine.Curr.CurrentState() > LacpMuxmStateDistributing {
+						endState = LacpMuxmStateCDetached
+					}
+					for ; state > endState; state-- {
+						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualUnselected, nil)
+					}
 				}
 
 				if event.responseChan != nil {
-					m.LacpMuxmLog("Sending response")
+					//m.LacpMuxmLog("Sending response")
 					SendResponse(MuxMachineModuleStr, event.responseChan)
 				}
 
