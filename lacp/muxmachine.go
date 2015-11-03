@@ -217,11 +217,11 @@ func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fs
 	muxm.AttachMuxToAggregator()
 
 	// Actor Oper State Sync = TRUE
-	muxm.LacpMuxmLog("Setting Actor Sync Bit")
+	//muxm.LacpMuxmLog("Setting Actor Sync Bit")
 	LacpStateSet(&p.actorOper.state, LacpStateSyncBit)
 
 	// Actor Oper State Collecting = FALSE
-	muxm.LacpMuxmLog("Clearing Actor Collecting Bit")
+	//muxm.LacpMuxmLog("Clearing Actor Collecting Bit")
 	LacpStateClear(&p.actorOper.state, LacpStateCollectingBit)
 
 	// Disable Collecting
@@ -241,14 +241,14 @@ func (muxm *LacpMuxMachine) LacpMuxmCollecting(m fsm.Machine, data interface{}) 
 	muxm.EnableCollecting()
 
 	// Actor Oper State Sync == TRUE
-	muxm.LacpMuxmLog("Setting Actor Collecting Bit")
+	//muxm.LacpMuxmLog("Setting Actor Collecting Bit")
 	LacpStateSet(&p.actorOper.state, LacpStateCollectingBit)
 
 	// Disable Distributing
 	muxm.DisableDistributing()
 
 	// Actor Oper State Distributing = FALSE
-	muxm.LacpMuxmLog("Clearing Actor Distributing Bit")
+	//muxm.LacpMuxmLog("Clearing Actor Distributing Bit")
 	LacpStateClear(&p.actorOper.state, LacpStateDistributingBit)
 
 	// indicate that NTT = TRUE
@@ -262,7 +262,7 @@ func (muxm *LacpMuxMachine) LacpMuxmDistributing(m fsm.Machine, data interface{}
 	p := muxm.p
 
 	// Actor Oper State Sync == TRUE
-	muxm.LacpMuxmLog("Setting Actor Distributing Bit")
+	//muxm.LacpMuxmLog("Setting Actor Distributing Bit")
 	LacpStateSet(&p.actorOper.state, LacpStateDistributingBit)
 
 	// Enabled Distributing
@@ -472,7 +472,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 					if p.aggAttached != nil {
 						// change the selection to be Selected
 						p.aggSelected = LacpAggSelected
-						muxm.LacpMuxmLog("Setting Actor Aggregation Bit")
+						//muxm.LacpMuxmLog("Setting Actor Aggregation Bit")
 						LacpStateSet(&p.actorOper.state, LacpStateAggregationBit)
 
 						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelected, nil)

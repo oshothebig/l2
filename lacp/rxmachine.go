@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	"fmt"
+	//"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -198,11 +198,11 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	p := rxm.p
 
 	// Partner Port Oper State Sync = FALSE
-	rxm.LacpRxmLog("Clearing Partner Sync Bit")
+	//rxm.LacpRxmLog("Clearing Partner Sync Bit")
 	LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
 
 	// Short timeout
-	rxm.LacpRxmLog("Setting Partner Timeout Bit")
+	//rxm.LacpRxmLog("Setting Partner Timeout Bit")
 	LacpStateSet(&p.partnerOper.state, LacpStateTimeoutBit)
 
 	// Set the Short timeout
@@ -212,7 +212,7 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	rxm.CurrentWhileTimerStart()
 
 	// Actor Port Oper State Expired = TRUE
-	rxm.LacpRxmLog("Setting Actor Expired Bit")
+	//rxm.LacpRxmLog("Setting Actor Expired Bit")
 	LacpStateSet(&p.actorOper.state, LacpStateExpiredBit)
 
 	return LacpRxmStateExpired
@@ -282,7 +282,7 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	// record the current packet state
 	rxm.recordPDU(lacpPduInfo)
 
-	rxm.LacpRxmLog(fmt.Sprintf("Partner Oper %#v", p.partnerOper))
+	//rxm.LacpRxmLog(fmt.Sprintf("Partner Oper %#v", p.partnerOper))
 
 	// Current while should already be set to
 	// Actors Oper value of Timeout, lets check
@@ -474,14 +474,14 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *LacpPdu) {
 
 	p := rxm.p
 
-	rxm.LacpRxmLog(fmt.Sprintf("recordPDU: %#v", lacpPduInfo))
+	//rxm.LacpRxmLog(fmt.Sprintf("recordPDU: %#v", lacpPduInfo))
 	// Record Actor info from packet - store in parter operational
 	// Port Number, Port Priority, System, System Priority
 	// Key, state variables
 	LacpCopyLacpPortInfo(&lacpPduInfo.actor.info, &p.partnerOper)
 
 	// Set Actor Oper port state Defaulted to FALSE
-	rxm.LacpRxmLog("Clearing Defaulted Bit")
+	//rxm.LacpRxmLog("Clearing Defaulted Bit")
 	LacpStateClear(&p.actorOper.state, LacpStateDefaultedBit)
 
 	// Set Partner Oper port state Sync state to
@@ -510,7 +510,9 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *LacpPdu) {
 		(LacpStateIsSet(lacpPduInfo.actor.info.state, LacpStateActivityBit) ||
 			(LacpStateIsSet(p.actorOper.state, LacpStateActivityBit) &&
 				LacpStateIsSet(lacpPduInfo.partner.info.state, LacpStateActivityBit))) {
-		rxm.LacpRxmLog("Setting Partner Sync Bit")
+		//if !LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
+		//	rxm.LacpRxmLog("Setting Partner Sync Bit")
+		//}
 		LacpStateSet(&p.partnerOper.state, LacpStateSyncBit)
 
 	} else {
@@ -542,9 +544,9 @@ func (rxm *LacpRxMachine) recordDefault() {
 	p := rxm.p
 
 	LacpCopyLacpPortInfo(&p.partnerAdmin, &p.partnerOper)
-	rxm.LacpRxmLog("Setting Actor Defaulted Bit")
+	//rxm.LacpRxmLog("Setting Actor Defaulted Bit")
 	LacpStateSet(&p.actorOper.state, LacpStateDefaultedBit)
-	rxm.LacpRxmLog("Setting Partner Sync Bit")
+	//rxm.LacpRxmLog("Setting Partner Sync Bit")
 	LacpStateSet(&p.partnerOper.state, LacpStateSyncBit)
 }
 

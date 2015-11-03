@@ -1044,7 +1044,7 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 			mtu:    1500,
 		},
 		IntfId:   "eth1.1",
-		traceEna: false,
+		traceEna: true,
 		sysId:    LaSystemActor,
 	}
 

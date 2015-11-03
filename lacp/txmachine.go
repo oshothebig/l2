@@ -168,8 +168,8 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 				txm.TxGuardTimerStart()
 			}
 			txm.txPkts++
-			txm.LacpTxmLog(fmt.Sprintf("ON: Curr pkt cnt %d", txm.txPkts))
-			// TODO send packet
+			//txm.LacpTxmLog(fmt.Sprintf("ON: Curr pkt cnt %d", txm.txPkts))
+			// send packet
 			pdu := &EthernetLacpFrame{
 				dmac:    [6]uint8{0x01, 0x80, 0xC2, 0x00, 0x00, 0x02},
 				smac:    txm.p.macProperties.Mac,
@@ -209,7 +209,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 
 			// transmit the packet
 			for _, ftx := range LaSysGlobalTxCallbackListGet(p) {
-				txm.LacpTxmLog("Sending Tx packet")
+				//txm.LacpTxmLog("Sending Tx packet")
 				ftx(p.portNum, pdu)
 			}
 			// Version 2 consideration if enable_long_pdu_xmit and
@@ -219,7 +219,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 			txm.ntt = false
 		} else {
 			txm.txPending++
-			txm.LacpTxmLog(fmt.Sprintf("ON: Delay packets %d", txm.txPending))
+			//txm.LacpTxmLog(fmt.Sprintf("ON: Delay packets %d", txm.txPending))
 			nextState = LacpTxmStateDelayed
 		}
 	}
@@ -332,7 +332,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 
 			case event := <-m.TxmEvents:
 
-				m.LacpTxmLog(fmt.Sprintf("Event rx %d", event.e))
+				//m.LacpTxmLog(fmt.Sprintf("Event rx %d", event.e))
 				// special case, another machine has a need to
 				// transmit a packet
 				if event.e == LacpTxmEventNtt {

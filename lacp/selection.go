@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	"fmt"
+	//	"fmt"
 	"sync"
 )
 
@@ -168,8 +168,8 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *LacpPdu) {
 
 	p := rxm.p
 
-	rxm.LacpRxmLog(fmt.Sprintf("PDU actor info %#v", lacpPduInfo.actor.info))
-	rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.partnerOper))
+	//rxm.LacpRxmLog(fmt.Sprintf("PDU actor info %#v", lacpPduInfo.actor.info))
+	//rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.partnerOper))
 
 	if !LacpLacpPortInfoIsEqual(&lacpPduInfo.actor.info, &p.partnerOper, LacpStateAggregationBit) {
 
