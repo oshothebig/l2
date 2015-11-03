@@ -30,7 +30,7 @@ type LaAggregator struct {
 	aggDescription      string   // 255 max chars
 	aggName             string   // 255 max chars
 	actorSystemId       [6]uint8 // mac address
-	actorSystemPriority int
+	actorSystemPriority uint16
 	// aggregation capability
 	// TRUE - port attached to this aggregetor is not capable
 	//        of aggregation to any other aggregator
@@ -68,15 +68,15 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	a := &LaAggregator{
 		aggId:               ac.Id,
 		actorAdminKey:       ac.Key,
-		actorSystemId:       gLacpSysGlobalInfo.SystemDefaultParams.actor_system,
-		actorSystemPriority: gLacpSysGlobalInfo.SystemDefaultParams.actor_system_priority,
+		actorSystemId:       gLacpSysGlobalInfo[ac.sysId].SystemDefaultParams.actor_system,
+		actorSystemPriority: gLacpSysGlobalInfo[ac.sysId].SystemDefaultParams.actor_system_priority,
 		partnerSystemId:     [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		ready:               true,
 		PortNumList:         make([]uint16, 0),
 	}
 
 	// add agg to map
-	gLacpSysGlobalInfo.AggMap[ac.Id] = a
+	gLacpSysGlobalInfo[ac.sysId].AggMap[ac.Id] = a
 
 	for _, pId := range ac.LagMembers {
 		a.PortNumList = append(a.PortNumList, pId)
@@ -86,11 +86,13 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 }
 
 func LaFindAggById(aggId int, agg **LaAggregator) bool {
-	a, ok := gLacpSysGlobalInfo.AggMap[aggId]
-	if ok {
-		*agg = a
+	for _, sgi := range gLacpSysGlobalInfo {
+		if a, ok := sgi.AggMap[aggId]; ok {
+			*agg = a
+			return ok
+		}
 	}
-	return ok
+	return false
 }
 
 func LaAggPortNumListPortIdExist(aggId int, portId uint16) bool {

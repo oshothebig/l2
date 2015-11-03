@@ -3,8 +3,8 @@ package lacp
 
 import (
 	"fmt"
-	//	"time"
 	"sync"
+	"time"
 )
 
 const PortConfigModuleStr = "Port Config"
@@ -18,6 +18,9 @@ type LaAggConfig struct {
 	Key uint16
 	// LAG_ports
 	LagMembers []uint16
+
+	// system to attach this agg to
+	sysId [6]uint8
 
 	// TODO hash config
 }
@@ -41,8 +44,14 @@ type LaAggPortConfig struct {
 	// lacp mode On/Active/Passive
 	Mode int
 
+	// lacp timeout SHORT/LONG
+	Timeout time.Duration
+
 	// Port capabilities and attributes
 	Properties PortProperties
+
+	// system to attach this agg to
+	sysId [6]uint8
 
 	// Linux If
 	traceEna bool
@@ -112,6 +121,12 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 			p.lacpEnabled = false
 		}
 
+		if port.Timeout == LacpShortTimeoutTime {
+			LacpStateSet(&p.actorAdmin.state, LacpStateTimeoutBit)
+		} else {
+			LacpStateClear(&p.actorAdmin.state, LacpStateTimeoutBit)
+		}
+
 		// lets start all the state machines
 		p.BEGIN(false)
 
@@ -143,6 +158,17 @@ func DeleteLaAggPort(pId uint16) {
 	}
 }
 
+func DisableLaAggPort(pId uint16) {
+	var p *LaAggPort
+
+	// port exists
+	// port exists in agg exists
+	if LaFindPortById(pId, &p) &&
+		LaAggPortNumListPortIdExist(p.aggId, pId) {
+		p.LaAggPortDisable()
+	}
+}
+
 func EnableLaAggPort(pId uint16) {
 	var p *LaAggPort
 
@@ -164,6 +190,24 @@ func EnableLaAggPort(pId uint16) {
 	}
 }
 
+// SetLaAggPortLacpMode will set the various
+// lacp modes, On, Active, Passive
+func SetLaAggPortLacpMode(pId uint16, mode int) {
+
+	var p *LaAggPort
+
+	// port exists
+	// port is unselected
+	// agg exists
+	if LaFindPortById(pId, &p) {
+		prevMode := LacpModeGet(p.actorOper.state, p.lacpEnabled)
+
+		if mode != prevMode {
+			p.LaAggPortLacpEnabled()
+		}
+	}
+}
+
 func AddLaAggPortToAgg(aggId int, pId uint16) {
 
 	var a *LaAggregator
@@ -178,6 +222,9 @@ func AddLaAggPortToAgg(aggId int, pId uint16) {
 		a.PortNumList = append(a.PortNumList, p.portNum)
 		// add reference to aggId
 		p.aggId = aggId
+
+		// Port is now aggregatible
+		//LacpStateSet(&p.actorOper.state, LacpStateAggregationBit)
 
 		// well obviously this should pass
 		p.checkConfigForSelection()
@@ -203,6 +250,27 @@ func DeleteLaAggPortFromAgg(aggId int, pId uint16) {
 
 		// if port is enabled and lacp is enabled
 		p.LaAggPortDisable()
-		p.checkConfigForSelection()
+
+		// Port is now aggregatible
+		//LacpStateClear(&p.actorOper.state, LacpStateAggregationBit)
+		// inform mux machine of change of state
+		// unnecessary as rx machine should set unselected to mux
+		//p.checkConfigForSelection()
 	}
+}
+
+func GetLaAggPortActorOperState(pId uint16) uint8 {
+	var p *LaAggPort
+	if LaFindPortById(pId, &p) {
+		return p.actorOper.state
+	}
+	return 0
+}
+
+func GetLaAggPortPartnerOperState(pId uint16) uint8 {
+	var p *LaAggPort
+	if LaFindPortById(pId, &p) {
+		return p.partnerOper.state
+	}
+	return 0
 }

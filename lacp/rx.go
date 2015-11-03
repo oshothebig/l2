@@ -17,14 +17,8 @@ type RxPacketMetaData struct {
 // These are the only parameters we care about at this time
 // Parameters accomidate
 type RxPacket struct {
-	metadata  RxPacketMetaData
-	dmac      [6]uint8
-	smac      [6]uint8
-	etherType uint16
-	// total size should be 110
-	// version 2 lacp not supported "yet"
-	lacp     LacpPdu
-	reserved [52]uint8
+	metadata RxPacketMetaData
+	pdu      EthernetLacpFrame
 }
 
 // LaRxMain will process incomming packets from
@@ -39,16 +33,17 @@ func LaRxMain(rxPktChan chan RxPacket) {
 		for {
 			select {
 			case packet, ok := <-rxPktChan:
-
+				//fmt.Println("RX PACKET", packet)
 				if ok {
 					// check if this is a valid frame to process
 					if marker, lacp := IsControlFrame(&packet); lacp || marker {
-
+						//fmt.Println("Control Frame found", lacp, marker)
 						if lacp {
-							ProcessLacpFrame(&packet.metadata, packet.lacp)
+							//fmt.Println("ProcessLacpFrame")
+							ProcessLacpFrame(&packet.metadata, &packet.pdu.lacp)
 						} else if marker {
 							// marker protocol
-							ProcessLampFrame(&packet.metadata, packet.lacp)
+							ProcessLampFrame(&packet.metadata, &packet.pdu.lacp)
 						} else {
 							// discard packet
 						}
@@ -67,25 +62,25 @@ func IsControlFrame(pdu *RxPacket) (bool, bool) {
 	lacp := false
 	marker := false
 
-	if pdu.dmac[0] == SlowProtocolDmacByte0 &&
-		pdu.dmac[1] == SlowProtocolDmacByte1 &&
-		pdu.dmac[2] == SlowProtocolDmacByte2 &&
-		pdu.dmac[3] == SlowProtocolDmacByte3 &&
-		pdu.dmac[4] == SlowProtocolDmacByte4 &&
-		pdu.dmac[5] == SlowProtocolDmacByte5 &&
-		pdu.etherType == SlowProtocolEtherType &&
-		pdu.lacp.subType == LacpSubType {
+	if pdu.pdu.dmac[0] == SlowProtocolDmacByte0 &&
+		pdu.pdu.dmac[1] == SlowProtocolDmacByte1 &&
+		pdu.pdu.dmac[2] == SlowProtocolDmacByte2 &&
+		pdu.pdu.dmac[3] == SlowProtocolDmacByte3 &&
+		pdu.pdu.dmac[4] == SlowProtocolDmacByte4 &&
+		pdu.pdu.dmac[5] == SlowProtocolDmacByte5 &&
+		pdu.pdu.ethType == SlowProtocolEtherType &&
+		pdu.pdu.lacp.subType == LacpSubType {
 		lacp = true
 		// only supporting marker information
-	} else if pdu.dmac[0] == SlowProtocolDmacByte0 &&
-		pdu.dmac[1] == SlowProtocolDmacByte1 &&
-		pdu.dmac[2] == SlowProtocolDmacByte2 &&
-		pdu.dmac[3] == SlowProtocolDmacByte3 &&
-		pdu.dmac[4] == SlowProtocolDmacByte4 &&
-		pdu.dmac[5] == SlowProtocolDmacByte5 &&
-		pdu.etherType == SlowProtocolEtherType &&
-		pdu.lacp.subType == LampSubType &&
-		pdu.lacp.actor.tlv_type == LampMarkerInformation {
+	} else if pdu.pdu.dmac[0] == SlowProtocolDmacByte0 &&
+		pdu.pdu.dmac[1] == SlowProtocolDmacByte1 &&
+		pdu.pdu.dmac[2] == SlowProtocolDmacByte2 &&
+		pdu.pdu.dmac[3] == SlowProtocolDmacByte3 &&
+		pdu.pdu.dmac[4] == SlowProtocolDmacByte4 &&
+		pdu.pdu.dmac[5] == SlowProtocolDmacByte5 &&
+		pdu.pdu.ethType == SlowProtocolEtherType &&
+		pdu.pdu.lacp.subType == LampSubType &&
+		pdu.pdu.lacp.actor.tlv_type == LampMarkerInformation {
 		marker = true
 	}
 
@@ -106,12 +101,16 @@ func ProcessLacpFrame(metadata *RxPacketMetaData, pdu interface{}) {
 
 	// lets find the port and only process it if the
 	// begin state has been met
-	if LaFindPortById(metadata.port, &p) && p.begin {
+	if LaFindPortById(metadata.port, &p) {
+		//fmt.Println("Sending Pkt to Rx Machine")
 		// lets offload the packet to another thread
 		p.RxMachineFsm.RxmPktRxEvent <- LacpRxLacpPdu{
 			pdu: lacppdu,
 			src: RxModuleStr}
+	} else {
+		fmt.Println("Unable to find port", metadata.port)
 	}
+
 }
 
 func ProcessLampFrame(metadata *RxPacketMetaData, pdu interface{}) {
@@ -130,6 +129,6 @@ func ProcessLampFrame(metadata *RxPacketMetaData, pdu interface{}) {
 		// lets offload the packet to another thread
 		//p.RxMachineFsm.RxmPktRxEvent <- *lacppdu
 		// TODO send packet to marker responder
-		fmt.Println(lamppdu)
+		//fmt.Println(lamppdu)
 	}
 }

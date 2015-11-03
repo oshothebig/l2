@@ -23,8 +23,8 @@ type LacpPduInfoTlv struct {
 
 // 6.4.3.2
 type LacpPduCollectorInfoTlv struct {
-	tlv_type uint8
-	len      uint8
+	tlv_type uint8 // 0x03
+	len      uint8 // 0x10
 	maxDelay uint16
 	reserved [12]uint8
 }

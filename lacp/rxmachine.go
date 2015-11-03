@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	//"fmt"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -198,9 +198,11 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	p := rxm.p
 
 	// Partner Port Oper State Sync = FALSE
+	rxm.LacpRxmLog("Clearing Partner Sync Bit")
 	LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
 
 	// Short timeout
+	rxm.LacpRxmLog("Setting Partner Timeout Bit")
 	LacpStateSet(&p.partnerOper.state, LacpStateTimeoutBit)
 
 	// Set the Short timeout
@@ -210,6 +212,7 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	rxm.CurrentWhileTimerStart()
 
 	// Actor Port Oper State Expired = TRUE
+	rxm.LacpRxmLog("Setting Actor Expired Bit")
 	LacpStateSet(&p.actorOper.state, LacpStateExpiredBit)
 
 	return LacpRxmStateExpired
@@ -279,6 +282,8 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	// record the current packet state
 	rxm.recordPDU(lacpPduInfo)
 
+	rxm.LacpRxmLog(fmt.Sprintf("Partner Oper %#v", p.partnerOper))
+
 	// Current while should already be set to
 	// Actors Oper value of Timeout, lets check
 	// anyways
@@ -290,6 +295,19 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 
 	// Actor_Oper_Port_Sate.Expired = FALSE
 	LacpStateClear(&p.actorOper.state, LacpStateExpiredBit)
+
+	// lets inform the MUX of a possible state change
+	if LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
+		if p.aggSelected == LacpAggSelected && p.MuxMachineFsm != nil {
+			if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached {
+				p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
+					src: RxMachineModuleStr}
+			} else if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting {
+				p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting,
+					src: RxMachineModuleStr}
+			}
+		}
+	}
 
 	if ntt == true && p.TxMachineFsm != nil {
 		// update ntt, which should trigger a packet transmit
@@ -408,7 +426,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 					SendResponse(RxMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.RxmPktRxEvent:
-				//fmt.Println(*(rx.pdu))
+				//fmt.Printf("%#v", *(rx.pdu))
 				// lets check if the port has moved
 				if m.CheckPortMoved(&p.partnerOper, &(rx.pdu.actor.info)) {
 					m.p.portMoved = true
@@ -456,12 +474,14 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *LacpPdu) {
 
 	p := rxm.p
 
+	rxm.LacpRxmLog(fmt.Sprintf("recordPDU: %#v", lacpPduInfo))
 	// Record Actor info from packet - store in parter operational
 	// Port Number, Port Priority, System, System Priority
 	// Key, state variables
 	LacpCopyLacpPortInfo(&lacpPduInfo.actor.info, &p.partnerOper)
 
 	// Set Actor Oper port state Defaulted to FALSE
+	rxm.LacpRxmLog("Clearing Defaulted Bit")
 	LacpStateClear(&p.actorOper.state, LacpStateDefaultedBit)
 
 	// Set Partner Oper port state Sync state to
@@ -490,10 +510,17 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *LacpPdu) {
 		(LacpStateIsSet(lacpPduInfo.actor.info.state, LacpStateActivityBit) ||
 			(LacpStateIsSet(p.actorOper.state, LacpStateActivityBit) &&
 				LacpStateIsSet(lacpPduInfo.partner.info.state, LacpStateActivityBit))) {
-
+		rxm.LacpRxmLog("Setting Partner Sync Bit")
 		LacpStateSet(&p.partnerOper.state, LacpStateSyncBit)
+
 	} else {
+		rxm.LacpRxmLog("Clearing Sync Bit")
 		LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
+		// inform mux of state change
+		if p.MuxMachineFsm != nil {
+			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
+				src: RxMachineModuleStr}
+		}
 	}
 
 	// Optional to validate length of the following:
@@ -515,7 +542,9 @@ func (rxm *LacpRxMachine) recordDefault() {
 	p := rxm.p
 
 	LacpCopyLacpPortInfo(&p.partnerAdmin, &p.partnerOper)
+	rxm.LacpRxmLog("Setting Actor Defaulted Bit")
 	LacpStateSet(&p.actorOper.state, LacpStateDefaultedBit)
+	rxm.LacpRxmLog("Setting Partner Sync Bit")
 	LacpStateSet(&p.partnerOper.state, LacpStateSyncBit)
 }
 
@@ -532,7 +561,7 @@ func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *LacpPdu) bool {
 	const nttStateCompare uint8 = (LacpStateActivityBit | LacpStateTimeoutBit |
 		LacpStateAggregationBit | LacpStateSyncBit)
 
-	if !LacpLacpPortInfoIsEqual(&lacpPduInfo.partner.info, &p.partnerOper, nttStateCompare) {
+	if !LacpLacpPortInfoIsEqual(&lacpPduInfo.partner.info, &p.actorOper, nttStateCompare) {
 
 		return true
 	}
@@ -567,6 +596,11 @@ func (rxm *LacpRxMachine) CurrentWhileTimerValid() (time.Duration, bool) {
 func (rxm *LacpRxMachine) CheckPortMoved(partnerOper *LacpPortInfo, pktActor *LacpPortInfo) bool {
 	return rxm.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled &&
 		partnerOper.port == pktActor.port &&
-		partnerOper.system.systemId == pktActor.system.systemId &&
-		partnerOper.system.systemPriority == pktActor.system.systemPriority
+		partnerOper.system.actor_system[0] == pktActor.system.actor_system[0] &&
+		partnerOper.system.actor_system[1] == pktActor.system.actor_system[1] &&
+		partnerOper.system.actor_system[2] == pktActor.system.actor_system[2] &&
+		partnerOper.system.actor_system[3] == pktActor.system.actor_system[3] &&
+		partnerOper.system.actor_system[4] == pktActor.system.actor_system[4] &&
+		partnerOper.system.actor_system[5] == pktActor.system.actor_system[5] &&
+		partnerOper.system.actor_system_priority == pktActor.system.actor_system_priority
 }

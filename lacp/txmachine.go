@@ -4,6 +4,7 @@
 package lacp
 
 import (
+	"fmt"
 	"time"
 	"utils/fsm"
 )
@@ -15,6 +16,7 @@ const (
 	LacpTxmStateOn
 	LacpTxmStateOff
 	LacpTxmStateDelayed
+	LacpTxmStateGuardTimerExpire
 )
 
 var TxmStateStrMap map[fsm.State]string
@@ -26,6 +28,7 @@ func TxMachineStrStateMapCreate() {
 	TxmStateStrMap[LacpTxmStateOn] = "LacpTxmStateOn"
 	TxmStateStrMap[LacpTxmStateOff] = "LacpTxmStateOff"
 	TxmStateStrMap[LacpTxmStateDelayed] = "LacpTxmStateDelayed"
+	TxmStateStrMap[LacpTxmStateGuardTimerExpire] = "LacpTxmStateGuardTimerExpire"
 }
 
 const (
@@ -36,6 +39,22 @@ const (
 	LacpTxmEventLacpDisabled
 	LacpTxmEventLacpEnabled
 )
+
+type EthernetLacpFrame struct {
+	dmac     [6]uint8
+	smac     [6]uint8
+	ethType  uint16
+	lacp     LacpPdu
+	reserved [52]uint8
+}
+
+type EthernetLampFrame struct {
+	dmac     [6]uint8
+	smac     [6]uint8
+	ethType  uint16
+	lamp     LaMarkerPdu
+	reserved [52]uint8
+}
 
 // LacpRxMachine holds FSM and current state
 // and event channels for state transitions
@@ -134,6 +153,7 @@ func (txm *LacpTxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.State {
 
 	var nextState fsm.State
+	p := txm.p
 
 	txm.PrevStateSet(txm.Machine.Curr.CurrentState())
 
@@ -148,7 +168,50 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 				txm.TxGuardTimerStart()
 			}
 			txm.txPkts++
-			// TODO send packet to MUX
+			txm.LacpTxmLog(fmt.Sprintf("ON: Curr pkt cnt %d", txm.txPkts))
+			// TODO send packet
+			pdu := &EthernetLacpFrame{
+				dmac:    [6]uint8{0x01, 0x80, 0xC2, 0x00, 0x00, 0x02},
+				smac:    txm.p.macProperties.Mac,
+				ethType: SlowProtocolEtherType,
+				lacp: LacpPdu{
+					version: 1,
+					subType: LacpSubType,
+					actor: LacpPduInfoTlv{
+						tlv_type: 0x01,
+						len:      0x14,
+						info: LacpPortInfo{
+							system: LacpSystem{actor_system: p.actorOper.system.actor_system,
+								actor_system_priority: p.actorOper.system.actor_system_priority},
+							key:      p.actorOper.key,
+							port:     p.actorOper.port,
+							port_pri: p.actorOper.port_pri,
+							state:    p.actorOper.state},
+					},
+					partner: LacpPduInfoTlv{
+						tlv_type: 0x01,
+						len:      0x14,
+						info: LacpPortInfo{
+							system: LacpSystem{actor_system: p.partnerOper.system.actor_system,
+								actor_system_priority: p.partnerOper.system.actor_system_priority},
+							key:      p.partnerOper.key,
+							port:     p.partnerOper.port,
+							port_pri: p.partnerOper.port_pri,
+							state:    p.partnerOper.state},
+					},
+					collector: LacpPduCollectorInfoTlv{
+						tlv_type: 0x03,
+						len:      0x10,
+						maxDelay: 1000,
+					},
+				},
+			}
+
+			// transmit the packet
+			for _, ftx := range LaSysGlobalTxCallbackListGet(p) {
+				txm.LacpTxmLog("Sending Tx packet")
+				ftx(p.portNum, pdu)
+			}
 			// Version 2 consideration if enable_long_pdu_xmit and
 			// LongLACPPDUTransmit are True:
 			// LACPDU will be a Long LACPDU formatted by 802.1ax-2014 Section
@@ -156,6 +219,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 			txm.ntt = false
 		} else {
 			txm.txPending++
+			txm.LacpTxmLog(fmt.Sprintf("ON: Delay packets %d", txm.txPending))
 			nextState = LacpTxmStateDelayed
 		}
 	}
@@ -172,17 +236,19 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 	state = LacpTxmStateOn
 
 	// if more than 3 packets are being transmitted within time interval
-	// delay transmission
-	txm.txPending--
 	// TODO send packet to MUX
 	// Version 2 consideration if enable_long_pdu_xmit and
 	// LongLACPPDUTransmit are True:
 	// LACPDU will be a Long LACPDU formatted by 802.1ax-2014 Section
 	// 6.4.2 and including Port Conversation Mask TLV 6.4.2.4.3
-	txm.ntt = false
-	if txm.txPending > 0 {
+	txm.LacpTxmLog(fmt.Sprintf("Delayed: txPending %d txPkts %d delaying tx", txm.txPending, txm.txPkts))
+	if txm.txPending > 0 && txm.txPkts > 3 {
 		state = LacpTxmStateDelayed
 		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx}
+	} else {
+		// transmit packet
+		txm.txPending--
+		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt}
 	}
 
 	return state
@@ -202,11 +268,8 @@ func (txm *LacpTxMachine) LacpTxMachineOff(m fsm.Machine, data interface{}) fsm.
 func (txm *LacpTxMachine) LacpTxMachineGuard(m fsm.Machine, data interface{}) fsm.State {
 	txm.txPkts = 0
 
-	if txm.txPending > 0 {
-		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx}
-	}
 	// no state transition just need to clear the txPkts
-	return txm.Machine.Curr.CurrentState()
+	return LacpTxmStateGuardTimerExpire
 }
 
 // LacpTxMachineFSMBuild will build the state machine with callbacks
@@ -225,6 +288,7 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 	rules.AddRule(LacpTxmStateNone, LacpTxmEventBegin, txm.LacpTxMachineOff)
 	// NTT -> TX ON
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventNtt, txm.LacpTxMachineOn)
+	rules.AddRule(LacpTxmStateGuardTimerExpire, LacpTxmEventNtt, txm.LacpTxMachineOn)
 	// DELAY -> TX DELAY
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventNtt, txm.LacpTxMachineDelayed)
 	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
@@ -234,6 +298,9 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 	rules.AddRule(LacpTxmStateNone, LacpTxmEventLacpDisabled, txm.LacpTxMachineOff)
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventLacpDisabled, txm.LacpTxMachineOff)
 	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventLacpDisabled, txm.LacpTxMachineOff)
+	// GUARD TIMER -> TX ON
+	rules.AddRule(LacpTxmStateOn, LacpTxmEventGuardTimer, txm.LacpTxMachineGuard)
+	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventGuardTimer, txm.LacpTxMachineGuard)
 
 	// Create a new FSM and apply the rules
 	txm.Apply(&rules)
@@ -264,6 +331,8 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				return
 
 			case event := <-m.TxmEvents:
+
+				m.LacpTxmLog(fmt.Sprintf("Event rx %d", event.e))
 				// special case, another machine has a need to
 				// transmit a packet
 				if event.e == LacpTxmEventNtt {
@@ -271,6 +340,13 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				}
 
 				m.Machine.ProcessEvent(event.src, event.e, nil)
+
+				if m.Machine.Curr.CurrentState() == LacpTxmStateGuardTimerExpire &&
+					m.txPending > 0 && m.txPkts == 0 {
+					m.txPending--
+					m.ntt = true
+					m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
+				}
 
 				if event.responseChan != nil {
 					SendResponse(TxMachineModuleStr, event.responseChan)

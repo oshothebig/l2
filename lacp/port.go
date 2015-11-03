@@ -14,13 +14,8 @@ type PortProperties struct {
 	mtu    int
 }
 
-type LacpPortSystemInfo struct {
-	systemPriority uint16
-	systemId       [6]uint8
-}
-
 type LacpPortInfo struct {
-	system   LacpPortSystemInfo
+	system   LacpSystem
 	key      uint16
 	port_pri uint16
 	port     uint16
@@ -100,6 +95,8 @@ type LaAggPort struct {
 	// packet is 1 byte, but spec says save as int.
 	// going to save as byte
 	partnerVersion uint8
+
+	sysId [6]uint8
 }
 
 func (p *LaAggPort) LaPortLog(msg string) {
@@ -110,19 +107,25 @@ func (p *LaAggPort) LaPortLog(msg string) {
 
 // find a port from the global map table by portNum
 func LaFindPortById(pId uint16, port **LaAggPort) bool {
-	p, ok := gLacpSysGlobalInfo.PortMap[pId]
-	if ok {
-		*port = p
+	for _, sgi := range gLacpSysGlobalInfo {
+		for _, p := range sgi.PortMap {
+			if p.portNum == pId {
+				*port = p
+				return true
+			}
+		}
 	}
-	return ok
+	return false
 }
 
 // find a port form the global map table by key
 func LaFindPortByKey(key uint16, port **LaAggPort) bool {
-	for _, p := range gLacpSysGlobalInfo.PortMap {
-		if p.key == key {
-			*port = p
-			return true
+	for _, sgi := range gLacpSysGlobalInfo {
+		for _, p := range sgi.PortMap {
+			if p.key == key {
+				*port = p
+				return true
+			}
 		}
 	}
 	return false
@@ -139,6 +142,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		macProperties: config.Properties,
 		key:           config.Key,
 		aggSelected:   LacpAggUnSelected,
+		sysId:         config.sysId,
 		begin:         true,
 		portMoved:     false,
 		lacpEnabled:   false,
@@ -147,12 +151,19 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		portChan:      make(chan string)}
 
 	// default actor admin
-	p.actorAdmin.state = gLacpSysGlobalInfo.ActorStateDefaultParams.state
+	//fmt.Println(config.sysId, gLacpSysGlobalInfo[config.sysId])
+	p.actorAdmin.state = gLacpSysGlobalInfo[config.sysId].ActorStateDefaultParams.state
+	p.actorAdmin.system.LacpSystemActorSystemIdSet(gLacpSysGlobalInfo[config.sysId].SystemDefaultParams.actor_system)
+	p.actorAdmin.system.LacpSystemActorSystemPrioritySet(gLacpSysGlobalInfo[config.sysId].SystemDefaultParams.actor_system_priority)
+	p.actorAdmin.key = p.key
+	p.actorAdmin.port = p.portNum
+	p.actorAdmin.port_pri = p.portPriority
+
 	// default actor oper same as admin
 	p.actorOper = p.actorAdmin
 
 	// default partner admin
-	p.partnerAdmin.state = gLacpSysGlobalInfo.PartnerStateDefaultParams.state
+	p.partnerAdmin.state = gLacpSysGlobalInfo[config.sysId].PartnerStateDefaultParams.state
 	// default partner oper same as admin
 	p.partnerOper = p.partnerAdmin
 
@@ -161,10 +172,12 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	}
 
 	// add port to port map
-	gLacpSysGlobalInfo.PortMap[p.portNum] = p
+	gLacpSysGlobalInfo[config.sysId].PortMap[p.portNum] = p
 
 	// Start Port Logger
 	p.LacpDebugEventLogMain()
+
+	//fmt.Printf("%#v", *p)
 
 	return p
 }
@@ -179,8 +192,15 @@ func (p *LaAggPort) PortChannelGet() chan string {
 
 func (p *LaAggPort) DelLaAggPort() {
 	p.Stop()
-	// remove the port from the port map
-	delete(gLacpSysGlobalInfo.PortMap, p.portNum)
+	for _, sgi := range gLacpSysGlobalInfo {
+		for pId, p := range sgi.PortMap {
+			if pId == p.portNum {
+				// remove the port from the port map
+				delete(gLacpSysGlobalInfo[p.sysId].PortMap, p.portNum)
+				return
+			}
+		}
+	}
 }
 
 func (p *LaAggPort) Stop() {
@@ -413,8 +433,8 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 	}
 
 	// port is no longer controlling lacp state
-	p.actorAdmin.state = gLacpSysGlobalInfo.ActorStateDefaultParams.state
-	p.actorOper.state = gLacpSysGlobalInfo.ActorStateDefaultParams.state
+	p.actorAdmin.state = gLacpSysGlobalInfo[p.sysId].ActorStateDefaultParams.state
+	p.actorOper.state = gLacpSysGlobalInfo[p.sysId].ActorStateDefaultParams.state
 }
 
 // LaAggPortEnabled will update the status on the port
@@ -429,13 +449,8 @@ func (p *LaAggPort) LaAggPortLacpEnabled() {
 	// port can be added to aggregator
 	LacpStateSet(&p.actorAdmin.state, LacpStateActivityBit)
 
-	// restart state machines, LACP has been enabled
-	// TODO: is this necessary all states should be in defaulted mode
-	// if run into problems then check states of all machines
-	// may need to run BEGIN again
-	//p.BEGIN(true)
-
-	if p.portEnabled {
+	if p.portEnabled &&
+		p.aggSelected == LacpAggSelected {
 		// Rxm
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
 		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpEnabled})
@@ -460,8 +475,8 @@ func LacpCopyLacpPortInfo(fromPortInfoPtr *LacpPortInfo, toPortInfoPtr *LacpPort
 	toPortInfoPtr.port = fromPortInfoPtr.port
 	toPortInfoPtr.port_pri = fromPortInfoPtr.port_pri
 	toPortInfoPtr.state = fromPortInfoPtr.state
-	toPortInfoPtr.system.systemId = fromPortInfoPtr.system.systemId
-	toPortInfoPtr.system.systemPriority = fromPortInfoPtr.system.systemPriority
+	toPortInfoPtr.system.LacpSystemActorSystemIdSet(fromPortInfoPtr.system.actor_system)
+	toPortInfoPtr.system.LacpSystemActorSystemPrioritySet(fromPortInfoPtr.system.actor_system_priority)
 }
 
 // LacpLacpPortInfoIsEqual:
@@ -469,13 +484,13 @@ func LacpCopyLacpPortInfo(fromPortInfoPtr *LacpPortInfo, toPortInfoPtr *LacpPort
 // about the state bits that is being compared against
 func LacpLacpPortInfoIsEqual(aPortInfoPtr *LacpPortInfo, bPortInfoPtr *LacpPortInfo, stateBits uint8) bool {
 
-	return aPortInfoPtr.system.systemId[0] == bPortInfoPtr.system.systemId[0] &&
-		aPortInfoPtr.system.systemId[0] == bPortInfoPtr.system.systemId[1] &&
-		aPortInfoPtr.system.systemId[0] == bPortInfoPtr.system.systemId[2] &&
-		aPortInfoPtr.system.systemId[0] == bPortInfoPtr.system.systemId[3] &&
-		aPortInfoPtr.system.systemId[0] == bPortInfoPtr.system.systemId[4] &&
-		aPortInfoPtr.system.systemId[0] == bPortInfoPtr.system.systemId[5] &&
-		aPortInfoPtr.system.systemPriority == bPortInfoPtr.system.systemPriority &&
+	return aPortInfoPtr.system.actor_system[0] == bPortInfoPtr.system.actor_system[0] &&
+		aPortInfoPtr.system.actor_system[1] == bPortInfoPtr.system.actor_system[1] &&
+		aPortInfoPtr.system.actor_system[2] == bPortInfoPtr.system.actor_system[2] &&
+		aPortInfoPtr.system.actor_system[3] == bPortInfoPtr.system.actor_system[3] &&
+		aPortInfoPtr.system.actor_system[4] == bPortInfoPtr.system.actor_system[4] &&
+		aPortInfoPtr.system.actor_system[5] == bPortInfoPtr.system.actor_system[5] &&
+		aPortInfoPtr.system.actor_system_priority == bPortInfoPtr.system.actor_system_priority &&
 		aPortInfoPtr.port == bPortInfoPtr.port &&
 		aPortInfoPtr.port_pri == bPortInfoPtr.port_pri &&
 		aPortInfoPtr.key == bPortInfoPtr.key &&

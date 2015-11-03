@@ -56,10 +56,10 @@ const (
 const (
 	// also known as manual mode
 	LacpModeOn = iota + 1
-	// lacp state Activity == FALSE
+	// lacp state Activity == TRUE
 	// considered lacp enabled
 	LacpModeActive
-	// lacp state Activity == TRUE
+	// lacp state Activity == FALSE
 	// considered lacp enabled
 	LacpModePassive
 )

@@ -53,229 +53,13 @@ func InvalidStateCheck(p *LaAggPort, invalidStates []fsm.Event, prevState fsm.St
 	return "", rc
 }
 
-func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
-	var p *LaAggPort
-
-	// must be called to initialize the global
-	LacpSysGlobalInfoInit()
-
-	aconf := &LaAggConfig{
-		mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:  2000,
-		Key: 50,
-	}
-
-	// Create Aggregation
-	CreateLaAgg(aconf)
-
-	pconf := &LaAggPortConfig{
-		Id:     2,
-		Prio:   0x80,
-		Key:    100, // INVALID
-		AggId:  2000,
-		Enable: true,
-		Mode:   LacpModeActive,
-		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, 0x02, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
-		},
-		IntfId:   "eth1.1",
-		traceEna: false,
-	}
-
-	// lets create a port and start the machines
-	CreateLaAggPort(pconf)
-
-	// if the port is found verify the initial state after begin event
-	// which was called as part of create
-	if LaFindPortById(pconf.Id, &p) {
-		if p.aggSelected == LacpAggSelected {
-			t.Error("Port is in SELECTED mode")
-		}
-	}
-
-	// Delete the port and agg
-	DeleteLaAggPort(pconf.Id)
-	DeleteLaAgg(aconf.Id)
-}
-
-func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
-
-	var p *LaAggPort
-	//LacpSysGlobalInfoInit()
-
-	pconf := &LaAggPortConfig{
-		Id:     3,
-		Prio:   0x80,
-		Key:    100,
-		AggId:  2000,
-		Enable: true,
-		Mode:   LacpModeActive,
-		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
-		},
-		IntfId:   "eth1.1",
-		traceEna: false,
-	}
-
-	// lets create a port and start the machines
-	CreateLaAggPort(pconf)
-
-	// if the port is found verify the initial state after begin event
-	// which was called as part of create
-	if LaFindPortById(pconf.Id, &p) {
-		if p.aggSelected == LacpAggSelected {
-			t.Error("Port is in SELECTED mode")
-		}
-	}
-
-	// Delete port
-	DeleteLaAggPort(pconf.Id)
-}
-
-func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
-
-	var p *LaAggPort
-	//LacpSysGlobalInfoInit()
-
-	pconf := &LaAggPortConfig{
-		Id:     3,
-		Prio:   0x80,
-		Key:    100,
-		AggId:  2000,
-		Enable: true,
-		Mode:   LacpModeActive,
-		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
-		},
-		IntfId:   "eth1.1",
-		traceEna: false,
-	}
-
-	// lets create a port and start the machines
-	CreateLaAggPort(pconf)
-
-	// if the port is found verify the initial state after begin event
-	// which was called as part of create
-	if LaFindPortById(pconf.Id, &p) {
-		if p.aggSelected == LacpAggSelected {
-			t.Error("Port is in SELECTED mode")
-		}
-	}
-
-	aconf := &LaAggConfig{
-		mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:  2000,
-		Key: 100,
-	}
-
-	// Create Aggregation
-	CreateLaAgg(aconf)
-
-	// if the port is found verify the initial state after begin event
-	// which was called as part of create
-	if p.aggSelected == LacpAggSelected {
-		t.Error("Port is in SELECTED mode")
-	}
-
-	// Add port to agg
-	AddLaAggPortToAgg(aconf.Id, pconf.Id)
-
-	if p.aggSelected != LacpAggSelected {
-		t.Error("Port is in NOT in SELECTED mode")
-	}
-
-	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
-		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
-	}
-
-	// TODO Check states of other state machines
-
-	// Delete agg
-	DeleteLaAgg(aconf.Id)
-}
-
-func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
-
-	var p *LaAggPort
-
-	pconf := &LaAggPortConfig{
-		Id:    3,
-		Prio:  0x80,
-		Key:   100,
-		AggId: 2000,
-		Mode:  LacpModeActive,
-		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
-		},
-		IntfId:   "eth1.1",
-		traceEna: false,
-	}
-
-	// lets create a port and start the machines
-	CreateLaAggPort(pconf)
-
-	// if the port is found verify the initial state after begin event
-	// which was called as part of create
-	if LaFindPortById(pconf.Id, &p) {
-		if p.aggSelected == LacpAggSelected {
-			t.Error("Port is in SELECTED mode")
-		}
-	}
-
-	aconf := &LaAggConfig{
-		mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:  2000,
-		Key: 100,
-	}
-
-	// Create Aggregation
-	CreateLaAgg(aconf)
-
-	// if the port is found verify the initial state after begin event
-	// which was called as part of create
-	if p.aggSelected == LacpAggSelected {
-		t.Error("Port is in SELECTED mode")
-	}
-
-	// Add port to agg
-	AddLaAggPortToAgg(aconf.Id, pconf.Id)
-
-	if p.aggSelected == LacpAggSelected {
-		t.Error("Port is in SELECTED mode")
-	}
-
-	EnableLaAggPort(pconf.Id)
-
-	if p.aggSelected != LacpAggSelected {
-		t.Error("Port is in NOT in SELECTED mode")
-	}
-
-	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
-		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
-	}
-	// Delete port
-	DeleteLaAggPortFromAgg(pconf.AggId, pconf.Id)
-	DeleteLaAggPort(pconf.Id)
-}
-
 func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 
 	var p *LaAggPort
 
 	// must be called to initialize the global
-	LacpSysGlobalInfoInit()
+	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
 		Id:     1,
@@ -292,6 +76,7 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 		},
 		IntfId:   "eth1.1",
 		traceEna: false,
+		sysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -342,18 +127,325 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 	DeleteLaAggPort(pconf.Id)
 }
 
+func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
+	var p *LaAggPort
+
+	// must be called to initialize the global
+	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	LacpSysGlobalInfoInit(sysId)
+
+	aconf := &LaAggConfig{
+		mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:    2000,
+		Key:   50,
+		sysId: sysId,
+	}
+
+	// Create Aggregation
+	CreateLaAgg(aconf)
+
+	pconf := &LaAggPortConfig{
+		Id:     2,
+		Prio:   0x80,
+		Key:    100, // INVALID
+		AggId:  2000,
+		Enable: true,
+		Mode:   LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, 0x02, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId:   "eth1.1",
+		traceEna: false,
+		sysId:    sysId,
+	}
+
+	// lets create a port and start the machines
+	CreateLaAggPort(pconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if LaFindPortById(pconf.Id, &p) {
+		if p.aggSelected == LacpAggSelected {
+			t.Error("Port is in SELECTED mode")
+		}
+	}
+
+	// Delete the port and agg
+	DeleteLaAggPort(pconf.Id)
+	DeleteLaAgg(aconf.Id)
+}
+
+func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
+
+	var p *LaAggPort
+	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	LacpSysGlobalInfoInit(sysId)
+
+	pconf := &LaAggPortConfig{
+		Id:     3,
+		Prio:   0x80,
+		Key:    100,
+		AggId:  2000,
+		Enable: true,
+		Mode:   LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId:   "eth1.1",
+		traceEna: false,
+		sysId:    sysId,
+	}
+
+	// lets create a port and start the machines
+	CreateLaAggPort(pconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if LaFindPortById(pconf.Id, &p) {
+		if p.aggSelected == LacpAggSelected {
+			t.Error("Port is in SELECTED mode")
+		}
+	}
+
+	// Delete port
+	DeleteLaAggPort(pconf.Id)
+}
+
+func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
+
+	var p *LaAggPort
+	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	LacpSysGlobalInfoInit(sysId)
+
+	pconf := &LaAggPortConfig{
+		Id:     3,
+		Prio:   0x80,
+		Key:    100,
+		AggId:  2000,
+		Enable: true,
+		Mode:   LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId:   "eth1.1",
+		traceEna: false,
+		sysId:    sysId,
+	}
+
+	// lets create a port and start the machines
+	CreateLaAggPort(pconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if LaFindPortById(pconf.Id, &p) {
+		if p.aggSelected == LacpAggSelected {
+			t.Error("Port is in SELECTED mode")
+		}
+	}
+
+	aconf := &LaAggConfig{
+		mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:    2000,
+		Key:   100,
+		sysId: sysId,
+	}
+
+	// Create Aggregation
+	CreateLaAgg(aconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if p.aggSelected == LacpAggSelected {
+		t.Error("Port is in SELECTED mode")
+	}
+
+	// Add port to agg
+	AddLaAggPortToAgg(aconf.Id, pconf.Id)
+
+	if p.aggSelected != LacpAggSelected {
+		t.Error("Port is in NOT in SELECTED mode")
+	}
+
+	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
+		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
+	}
+
+	// TODO Check states of other state machines
+
+	// Delete agg
+	DeleteLaAgg(aconf.Id)
+}
+
+// TestLaAggPortCreateThenCorrectAggCreateThenDetach:
+// - create port
+// - create lag
+// - attach port
+// - enable port
+func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
+
+	var p *LaAggPort
+	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	LacpSysGlobalInfoInit(sysId)
+
+	pconf := &LaAggPortConfig{
+		Id:    3,
+		Prio:  0x80,
+		Key:   100,
+		AggId: 2000,
+		Mode:  LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId:   "eth1.1",
+		traceEna: false,
+		sysId:    sysId,
+	}
+
+	// lets create a port and start the machines
+	CreateLaAggPort(pconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if LaFindPortById(pconf.Id, &p) {
+		if p.aggSelected == LacpAggSelected {
+			t.Error("Port is in SELECTED mode")
+		}
+	}
+
+	aconf := &LaAggConfig{
+		mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:    2000,
+		Key:   100,
+		sysId: sysId,
+	}
+
+	// Create Aggregation
+	CreateLaAgg(aconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if p.aggSelected == LacpAggSelected {
+		t.Error("Port is in SELECTED mode")
+	}
+
+	// Add port to agg
+	AddLaAggPortToAgg(aconf.Id, pconf.Id)
+
+	if p.aggSelected == LacpAggSelected {
+		t.Error("Port is in SELECTED mode")
+	}
+
+	EnableLaAggPort(pconf.Id)
+
+	if p.aggSelected != LacpAggSelected {
+		t.Error("Port is in NOT in SELECTED mode")
+	}
+
+	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
+		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
+	}
+	// Delete port
+	DeleteLaAggPortFromAgg(pconf.AggId, pconf.Id)
+	DeleteLaAggPort(pconf.Id)
+}
+
+// Enable port post creation
+func TestLaAggPortEnable(t *testing.T) {
+	var p *LaAggPort
+	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	LacpSysGlobalInfoInit(sysId)
+
+	pconf := &LaAggPortConfig{
+		Id:    3,
+		Prio:  0x80,
+		Key:   100,
+		AggId: 2000,
+		Mode:  LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId:   "eth1.1",
+		traceEna: false,
+		sysId:    sysId,
+	}
+
+	// lets create a port and start the machines
+	CreateLaAggPort(pconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if LaFindPortById(pconf.Id, &p) {
+		if p.aggSelected == LacpAggSelected {
+			t.Error("Port is in SELECTED mode")
+		}
+	}
+
+	aconf := &LaAggConfig{
+		mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:    2000,
+		Key:   100,
+		sysId: sysId,
+	}
+
+	// Create Aggregation
+	CreateLaAgg(aconf)
+
+	// if the port is found verify the initial state after begin event
+	// which was called as part of create
+	if p.aggSelected == LacpAggSelected {
+		t.Error("Port is in SELECTED mode")
+	}
+
+	// Add port to agg
+	AddLaAggPortToAgg(aconf.Id, pconf.Id)
+
+	if p.aggSelected == LacpAggSelected {
+		t.Error("Port is in SELECTED mode")
+	}
+
+	EnableLaAggPort(pconf.Id)
+
+	if p.aggSelected != LacpAggSelected {
+		t.Error("Port is in NOT in SELECTED mode")
+	}
+
+	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
+		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
+	}
+	// Delete port
+	DeleteLaAggPortFromAgg(pconf.AggId, pconf.Id)
+	DeleteLaAggPort(pconf.Id)
+
+}
+
 func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	var msg string
 	var portchan chan string
-	// must be called to initialize the global
-	LacpSysGlobalInfoInit()
+	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
 		Id:     1,
 		Prio:   0x80,
 		IntfId: "eth1.1",
 		Key:    100,
+		sysId:  sysId,
 	}
 
 	// not calling Create because we don't want to launch all state machines
@@ -639,8 +731,8 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		actor: LacpPduInfoTlv{tlv_type: 1,
 			len: 0x14,
 			info: LacpPortInfo{
-				system: LacpPortSystemInfo{systemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
-					systemPriority: 1},
+				system: LacpSystem{actor_system: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+					actor_system_priority: 1},
 				key:      100,
 				port_pri: 0x80,
 				port:     10,
@@ -649,8 +741,8 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		partner: LacpPduInfoTlv{tlv_type: 1,
 			len: 0x14,
 			info: LacpPortInfo{
-				system: LacpPortSystemInfo{systemId: p.actorOper.system.systemId,
-					systemPriority: p.actorOper.system.systemPriority},
+				system: LacpSystem{actor_system: p.actorOper.system.actor_system,
+					actor_system_priority: p.actorOper.system.actor_system_priority},
 				key:      p.key,
 				port_pri: p.portPriority,
 				port:     p.portNum,
@@ -716,8 +808,8 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		actor: LacpPduInfoTlv{tlv_type: 1,
 			len: 0x14,
 			info: LacpPortInfo{
-				system: LacpPortSystemInfo{systemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
-					systemPriority: 1},
+				system: LacpSystem{actor_system: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+					actor_system_priority: 1},
 				key:      100,
 				port_pri: 0x80,
 				port:     10,
@@ -726,8 +818,8 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		partner: LacpPduInfoTlv{tlv_type: 1,
 			len: 0x14,
 			info: LacpPortInfo{
-				system: LacpPortSystemInfo{systemId: p.actorOper.system.systemId,
-					systemPriority: p.actorOper.system.systemPriority},
+				system: LacpSystem{actor_system: p.actorOper.system.actor_system,
+					actor_system_priority: p.actorOper.system.actor_system_priority},
 				key:      p.key,
 				port_pri: p.portPriority,
 				port:     p.portNum,
@@ -765,8 +857,8 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		actor: LacpPduInfoTlv{tlv_type: 1,
 			len: 0x14,
 			info: LacpPortInfo{
-				system: LacpPortSystemInfo{systemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
-					systemPriority: 1},
+				system: LacpSystem{actor_system: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+					actor_system_priority: 1},
 				key:      100,
 				port_pri: 0x80,
 				port:     10,
@@ -775,8 +867,8 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		partner: LacpPduInfoTlv{tlv_type: 1,
 			len: 0x14,
 			info: LacpPortInfo{
-				system: LacpPortSystemInfo{systemId: p.actorOper.system.systemId,
-					systemPriority: p.actorOper.system.systemPriority},
+				system: LacpSystem{actor_system: p.actorOper.system.actor_system,
+					actor_system_priority: p.actorOper.system.actor_system_priority},
 				key:      p.key,
 				port_pri: p.portPriority,
 				port:     p.portNum,
@@ -812,13 +904,15 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 
 	// must be called to initialize the global
-	LacpSysGlobalInfoInit()
+	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
 		Id:     1,
 		Prio:   0x80,
 		IntfId: "eth1.1",
 		Key:    100,
+		sysId:  sysId,
 	}
 
 	// not calling Create because we don't want to launch all state machines
@@ -909,6 +1003,130 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 	}
 
 	p.DelLaAggPort()
+}
+
+func TestTwoAggsBackToBackSinglePort(t *testing.T) {
+
+	const LaAggPortActor = 10
+	const LaAggPortPeer = 20
+	LaSystemActor := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}
+	LaSystemPeer := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}
+
+	bridge := SimulationBridge{
+		port1:       LaAggPortActor,
+		port2:       LaAggPortPeer,
+		rxLacpPort1: make(chan RxPacket),
+		rxLacpPort2: make(chan RxPacket),
+	}
+
+	ActorSystem := LacpSysGlobalInfoInit(LaSystemActor)
+	PeerSystem := LacpSysGlobalInfoInit(LaSystemPeer)
+	ActorSystem.LaSysGlobalRegisterTxCallback(LaAggPortActor, bridge.TxViaGoChannel)
+	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeer, bridge.TxViaGoChannel)
+
+	// port 1
+	go LaRxMain(bridge.rxLacpPort1)
+	// port 2
+	go LaRxMain(bridge.rxLacpPort2)
+
+	p1conf := &LaAggPortConfig{
+		Id:     LaAggPortActor,
+		Prio:   0x80,
+		Key:    100,
+		AggId:  100,
+		Enable: true,
+		Mode:   LacpModeActive,
+		//Timeout: LacpFastPeriodicTime,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, LaAggPortActor, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId:   "eth1.1",
+		traceEna: false,
+		sysId:    LaSystemActor,
+	}
+
+	p2conf := &LaAggPortConfig{
+		Id:     LaAggPortPeer,
+		Prio:   0x80,
+		Key:    200,
+		AggId:  200,
+		Enable: true,
+		Mode:   LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, LaAggPortPeer, 0xDE, 0xAD, 0xBE, 0xEF},
+			speed:  1000000000,
+			duplex: LacpPortDuplexFull,
+			mtu:    1500,
+		},
+		IntfId:   "eth1.2",
+		traceEna: false,
+		sysId:    LaSystemPeer,
+	}
+
+	// lets create a port and start the machines
+	CreateLaAggPort(p1conf)
+	CreateLaAggPort(p2conf)
+
+	a1conf := &LaAggConfig{
+		mac:   [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:    100,
+		Key:   100,
+		sysId: LaSystemActor,
+	}
+
+	a2conf := &LaAggConfig{
+		mac:   [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:    200,
+		Key:   200,
+		sysId: LaSystemPeer,
+	}
+
+	// Create Aggregation
+	CreateLaAgg(a1conf)
+	CreateLaAgg(a2conf)
+
+	// Add port to agg
+	AddLaAggPortToAgg(a1conf.Id, p1conf.Id)
+	AddLaAggPortToAgg(a2conf.Id, p2conf.Id)
+
+	//time.Sleep(time.Second * 30)
+	stopTest := make(chan bool)
+
+	var p1 *LaAggPort
+	var p2 *LaAggPort
+	if LaFindPortById(p1conf.Id, &p1) &&
+		LaFindPortById(p2conf.Id, &p2) {
+
+		go func() {
+			for i := 0; i < 10 &&
+				(p1.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDistributing ||
+					p2.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDistributing); i++ {
+				time.Sleep(time.Second * 1)
+			}
+			stopTest <- true
+		}()
+
+		<-stopTest
+		close(stopTest)
+
+		state1 := GetLaAggPortActorOperState(p1conf.Id)
+		state2 := GetLaAggPortActorOperState(p2conf.Id)
+
+		const portUpState = LacpStateActivityBit | LacpStateAggregationBit |
+			LacpStateSyncBit | LacpStateCollectingBit | LacpStateDistributingBit
+
+		if !LacpStateIsSet(state1, portUpState) {
+			t.Error(fmt.Sprintf("Actor Port state 0x%x did not come up properly with peer expected 0x%x", state1, portUpState))
+		}
+		if !LacpStateIsSet(state2, portUpState) {
+			t.Error(fmt.Sprintf("Peer Port state 0x%x did not come up properly with actor expected 0x%x", state2, portUpState))
+		}
+	} else {
+		t.Error("Unable to find port just created")
+	}
 }
 
 //

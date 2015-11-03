@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	//"fmt"
+	"fmt"
 	"sync"
 )
 
@@ -126,7 +126,7 @@ func (a *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort, sendResponse boo
 		select {
 		case readyN := <-readyChan:
 			if !readyN {
-				//fmt.Println("LacpMuxCheckSelectionLogic:Setting ready to false ")
+				p.MuxMachineFsm.LacpMuxmLog("LacpMuxCheckSelectionLogic:Setting ready to false ")
 				a.ready = false
 			}
 		}
@@ -168,6 +168,9 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *LacpPdu) {
 
 	p := rxm.p
 
+	rxm.LacpRxmLog(fmt.Sprintf("PDU actor info %#v", lacpPduInfo.actor.info))
+	rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.partnerOper))
+
 	if !LacpLacpPortInfoIsEqual(&lacpPduInfo.actor.info, &p.partnerOper, LacpStateAggregationBit) {
 
 		rxm.LacpRxmLog("PDU and Oper states do not agree, moving port to LacpAggUnSelected")
@@ -182,6 +185,21 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *LacpPdu) {
 				src: RxMachineModuleStr}
 		}
 	}
+	/* THIS SHOULD NOT BE NECESSARY
+	else {
+		rxm.LacpRxmLog("PDU and Oper agree, moving port to LacpAggSelected")
+
+		// lets trigger the event only if mux is not in waiting state as
+		// the wait while timer expiration will trigger the unselected event
+		if p.MuxMachineFsm != nil &&
+			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
+			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
+			p.aggSelected = LacpAggSelected
+			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelected,
+				src: RxMachineModuleStr}
+		}
+	}
+	*/
 }
 
 // updateDefaultedSelected: 802.1ax Section 6.4.9
