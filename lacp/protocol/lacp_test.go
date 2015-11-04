@@ -264,15 +264,8 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 
 	// if the port is found verify the initial state after begin event
 	// which was called as part of create
-	if p.aggSelected == LacpAggSelected {
-		t.Error("Port is in SELECTED mode")
-	}
-
-	// Add port to agg
-	AddLaAggPortToAgg(aconf.Id, pconf.Id)
-
 	if p.aggSelected != LacpAggSelected {
-		t.Error("Port is in NOT in SELECTED mode")
+		t.Error("Port is in SELECTED mode")
 	}
 
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {

@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	"fmt"
+	//"fmt"
 	"strings"
 	//"time"
 )
@@ -108,8 +108,6 @@ func (p *LaAggPort) LaPortLog(msg string) {
 // find a port from the global map table by portNum
 func LaFindPortById(pId uint16, port **LaAggPort) bool {
 	for _, sgi := range gLacpSysGlobalInfo {
-		fmt.Printf("%#v\n", sgi)
-		fmt.Println(sgi.PortMap)
 		for _, p := range sgi.PortMap {
 			if p.portNum == pId {
 				*port = p
@@ -117,7 +115,6 @@ func LaFindPortById(pId uint16, port **LaAggPort) bool {
 			}
 		}
 	}
-	fmt.Println("returning from LaFindPortById")
 	return false
 }
 
@@ -192,7 +189,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// add port to port map
 	sgi.PortMap[p.portNum] = p
 
-	fmt.Printf("%#v", *p)
+	//fmt.Printf("%#v", *p)
 
 	return p
 }

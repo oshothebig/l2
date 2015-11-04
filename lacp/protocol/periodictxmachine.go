@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	"fmt"
+	//"fmt"
 	"time"
 	"utils/fsm"
 )
@@ -259,12 +259,14 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 // condition has been met when the state is NO PERIODIC
 func (m *LacpPtxMachine) LacpPtxIsNoPeriodicExitCondition() bool {
 	p := m.p
-	m.LacpPtxmLog(fmt.Sprintf("LacpPtxIsNoPeriodicExitCondition: state %d ena %d lacpEna %d mode set %d state 0x%x",
-		m.Machine.Curr.CurrentState(),
-		p.portEnabled,
-		p.lacpEnabled,
-		LacpModeGet(p.actorOper.state, p.lacpEnabled),
-		p.actorOper.state))
+	/*
+		m.LacpPtxmLog(fmt.Sprintf("LacpPtxIsNoPeriodicExitCondition: state %d ena %d lacpEna %d mode set %d state 0x%x",
+			m.Machine.Curr.CurrentState(),
+			p.portEnabled,
+			p.lacpEnabled,
+			LacpModeGet(p.actorOper.state, p.lacpEnabled),
+			p.actorOper.state))
+	*/
 	return m.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic &&
 		p.lacpEnabled &&
 		p.portEnabled &&
