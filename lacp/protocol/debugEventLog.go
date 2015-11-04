@@ -2,19 +2,23 @@
 package lacp
 
 import (
-	"fmt"
+	//"fmt"
+	"log"
+	"os"
 	"strings"
-	"time"
+	//"time"
 )
 
 type LacpDebug struct {
 	LacpLogChan chan string
+	logger      *log.Logger
 }
 
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpDebug() *LacpDebug {
 	lacpdebug := &LacpDebug{
-		LacpLogChan: make(chan string)}
+		LacpLogChan: make(chan string),
+		logger:      log.New(os.Stdout, "LacpLog:", log.Ldate|log.Ltime|log.Lmicroseconds)}
 
 	return lacpdebug
 }
@@ -34,7 +38,7 @@ func (p *LaAggPort) LacpDebugEventLogMain() {
 
 			case msg, logEvent := <-port.LacpDebug.LacpLogChan:
 				if logEvent {
-					fmt.Println(strings.Join([]string{time.Now().Format("Mon Jan 2 15:04:05.99999999 -0700 MST 2006"), p.intfNum, msg}, "-"))
+					port.LacpDebug.logger.Println(strings.Join([]string{p.intfNum, msg}, "-"))
 				} else {
 					return
 				}

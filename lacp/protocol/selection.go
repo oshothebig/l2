@@ -236,7 +236,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 
 	// check to see if aggrigator exists
 	// and that the keys match
-	if p.aggId != 0 && LaFindAggById(p.aggId, &a) &&
+	if p.AggId != 0 && LaFindAggById(p.AggId, &a) &&
 		(p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
 		p.key == a.actorAdminKey &&
@@ -256,7 +256,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 		p.DistributeMachineEvents(mEvtChan, evt, true)
 		//msg := <-p.portChan
 		return true
-	} else if p.aggId != 0 && LaFindAggById(p.aggId, &a) &&
+	} else if p.AggId != 0 && LaFindAggById(p.AggId, &a) &&
 		(p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCDetached) {
 

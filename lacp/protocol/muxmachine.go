@@ -189,7 +189,7 @@ func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm
 	// ready will be true if all other ports are attached
 	// or this is the the first
 	// or lacp is not enabled
-	if LaFindAggById(p.aggId, &a) {
+	if LaFindAggById(p.AggId, &a) {
 		if a.ready || LacpModeGet(p.actorAdmin.state, p.lacpEnabled) == LacpModeOn {
 			skipWaitWhileTimer = true
 			a.ready = false
@@ -553,10 +553,10 @@ func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected(sendResponse bool) {
 	if p.aggSelected == LacpAggSelected ||
 		p.aggSelected == LacpAggStandby {
 		p.readyN = true
-		if LaFindAggById(p.aggId, &a) {
+		if LaFindAggById(p.AggId, &a) {
 			a.LacpMuxCheckSelectionLogic(p, sendResponse)
 		} else {
-			muxm.LacpMuxmLog(strings.Join([]string{"MUXM: Unable to find Aggrigator", string(p.aggId)}, ":"))
+			muxm.LacpMuxmLog(strings.Join([]string{"MUXM: Unable to find Aggrigator", string(p.AggId)}, ":"))
 		}
 	}
 	//else {
@@ -573,7 +573,7 @@ func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected(sendResponse bool) {
 func (muxm *LacpMuxMachine) AttachMuxToAggregator() {
 	// TODO send message to asic deamon  create
 	p := muxm.p
-	if LaFindAggById(p.aggId, &p.aggAttached) {
+	if LaFindAggById(p.AggId, &p.aggAttached) {
 		muxm.LacpMuxmLog("Attach Mux To Aggregator Enter, send Add PORT to ASICD")
 	}
 }

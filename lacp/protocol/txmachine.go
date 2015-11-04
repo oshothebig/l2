@@ -260,6 +260,7 @@ func (txm *LacpTxMachine) LacpTxMachineOff(m fsm.Machine, data interface{}) fsm.
 	txm.txPending = 0
 	txm.txPkts = 0
 	txm.ntt = false
+	txm.TxGuardTimerStop()
 	return LacpTxmStateOff
 }
 
@@ -267,9 +268,15 @@ func (txm *LacpTxMachine) LacpTxMachineOff(m fsm.Machine, data interface{}) fsm.
 // generate a new event to tx a new packet
 func (txm *LacpTxMachine) LacpTxMachineGuard(m fsm.Machine, data interface{}) fsm.State {
 	txm.txPkts = 0
+	var state fsm.State
+
+	state = LacpTxmStateOn
+	if txm.txPending > 0 {
+		state = LacpTxmStateGuardTimerExpire
+	}
 
 	// no state transition just need to clear the txPkts
-	return LacpTxmStateGuardTimerExpire
+	return state
 }
 
 // LacpTxMachineFSMBuild will build the state machine with callbacks

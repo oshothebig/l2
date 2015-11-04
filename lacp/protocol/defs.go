@@ -129,9 +129,9 @@ func LacpStateIsSet(currState uint8, stateBits uint8) bool {
 	return (currState & stateBits) == stateBits
 }
 
-func LacpModeGet(currState uint8, lacpDisabled bool) int {
+func LacpModeGet(currState uint8, lacpEnabled bool) int {
 	mode := LacpModeOn
-	if !lacpDisabled {
+	if lacpEnabled {
 		mode = LacpModePassive
 		if LacpStateIsSet(currState, LacpStateActivityBit) {
 			mode = LacpModeActive

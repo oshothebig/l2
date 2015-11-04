@@ -38,7 +38,7 @@ func LacpSysGlobalInfoInit(sysId [6]uint8) *LacpSysGlobalInfo {
 		gLacpSysGlobalInfo = make(map[[6]uint8]*LacpSysGlobalInfo)
 	}
 
-	if gLacpSysGlobalInfo[sysId] == nil {
+	if _, ok := gLacpSysGlobalInfo[sysId]; !ok {
 		fmt.Println("LASYS: global vars init sysId", sysId)
 		gLacpSysGlobalInfo[sysId] = &LacpSysGlobalInfo{
 			LacpEnabled:                true,
@@ -65,6 +65,10 @@ func LacpSysGlobalInfoInit(sysId [6]uint8) *LacpSysGlobalInfo {
 		LacpStateSet(&gLacpSysGlobalInfo[sysId].ActorStateDefaultParams.state, individual)
 	}
 	return gLacpSysGlobalInfo[sysId]
+}
+
+func LacpSysGlobalInfoGet(sysId [6]uint8) *LacpSysGlobalInfo {
+	return LacpSysGlobalInfoInit(sysId)
 }
 
 func LacpSysGlobalDefaultSystemGet(sysId [6]uint8) *LacpSystem {

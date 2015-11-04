@@ -15,17 +15,27 @@ const (
 
 type LacpAggrigatorStats struct {
 	// does not include lacp or marker pdu
-	octetsTx int
-	octetsRx int
-	framesTx int
-	framesRx int
+	octetsTx              int
+	octetsRx              int
+	framesTx              int
+	framesRx              int
+	mcFramesTxOk          int
+	mcFramesRxOk          int
+	bcFramesTxOk          int
+	bcFramesRxOk          int
+	framesDiscardedonTx   int
+	framesDiscardedonRx   int
+	framesWithTxErrors    int
+	framesWithRxErrors    int
+	unknownProtocolFrames int
 }
 
 // 802.1ax-2014 Section 6.4.6 Variables associated with each Aggregator
 // Section 7.3.1.1
 
 type LaAggregator struct {
-	// 802.1ax Section 7.3.1.1
+	// 802.1ax Section 7.3.1.1 && 6.3.2
+	// Aggregator_Identifier
 	aggId               int
 	aggDescription      string   // 255 max chars
 	aggName             string   // 255 max chars
@@ -36,47 +46,62 @@ type LaAggregator struct {
 	//        of aggregation to any other aggregator
 	// FALSE - port attached to this aggregator is able of
 	//         aggregation to any other aggregator
+	// Individual_Aggregator
 	aggOrIndividual bool
-	actorAdminKey   uint16
-	actorOperKey    uint16
-	aggMacAddr      [6]uint
-	// remote system
-	partnerSystemId       [6]uint8
+	// Actor_Admin_Aggregator_Key
+	actorAdminKey uint16
+	// Actor_Oper_Aggregator_Key
+	actorOperKey uint16
+	//Aggregator_MAC_address
+	aggMacAddr [6]uint
+	// Partner_System
+	partnerSystemId [6]uint8
+	// Partner_System_Priority
 	partnerSystemPriority int
-	partnerOperKey        int
+	// Partner_Oper_Aggregator_Key
+	partnerOperKey int
 
-	// up/down
+	// UP/DOWN
 	adminState int
 	operState  int
+
+	// date of last oper change
+	timeOfLastOperChange time.Time
+
+	// aggrigator stats
+	stats LacpAggrigatorStats
+
+	// Receive_State
+	rxState bool
+	// Transmit_State
+	txState bool
 
 	// sum of data rate of each link in aggregation (read-only)
 	dataRate int
 
-	timeOfLastOperChange time.Time
-
-	receive_state  bool
-	transmit_state bool
-
+	// LAG is ready to add a port in the ReadyN state
 	ready bool
 
 	// Port number from LaAggPort
+	// LAG_Ports
 	PortNumList []uint16
 }
 
 // TODO add more defaults
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
+	sgi := LacpSysGlobalInfoGet(ac.SysId)
 	a := &LaAggregator{
 		aggId:               ac.Id,
 		actorAdminKey:       ac.Key,
-		actorSystemId:       gLacpSysGlobalInfo[ac.sysId].SystemDefaultParams.actor_system,
-		actorSystemPriority: gLacpSysGlobalInfo[ac.sysId].SystemDefaultParams.actor_system_priority,
+		actorSystemId:       sgi.SystemDefaultParams.actor_system,
+		actorSystemPriority: sgi.SystemDefaultParams.actor_system_priority,
 		partnerSystemId:     [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		ready:               true,
 		PortNumList:         make([]uint16, 0),
 	}
 
 	// add agg to map
-	gLacpSysGlobalInfo[ac.sysId].AggMap[ac.Id] = a
+	sgi.AggMap[ac.Id] = a
 
 	for _, pId := range ac.LagMembers {
 		a.PortNumList = append(a.PortNumList, pId)

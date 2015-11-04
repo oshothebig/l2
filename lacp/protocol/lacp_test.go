@@ -70,13 +70,13 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 		Mode:   LacpModeActive,
 		Properties: PortProperties{
 			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
+			Speed:  1000000000,
+			Duplex: LacpPortDuplexFull,
+			Mtu:    1500,
 		},
 		IntfId:   "eth1.1",
-		traceEna: false,
-		sysId:    sysId,
+		TraceEna: false,
+		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -135,10 +135,10 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 	LacpSysGlobalInfoInit(sysId)
 
 	aconf := &LaAggConfig{
-		mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
 		Id:    2000,
 		Key:   50,
-		sysId: sysId,
+		SysId: sysId,
 	}
 
 	// Create Aggregation
@@ -153,13 +153,13 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 		Mode:   LacpModeActive,
 		Properties: PortProperties{
 			Mac:    [6]uint8{0x00, 0x02, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
+			Speed:  1000000000,
+			Duplex: LacpPortDuplexFull,
+			Mtu:    1500,
 		},
 		IntfId:   "eth1.1",
-		traceEna: false,
-		sysId:    sysId,
+		TraceEna: false,
+		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -193,13 +193,13 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 		Mode:   LacpModeActive,
 		Properties: PortProperties{
 			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
+			Speed:  1000000000,
+			Duplex: LacpPortDuplexFull,
+			Mtu:    1500,
 		},
 		IntfId:   "eth1.1",
-		traceEna: false,
-		sysId:    sysId,
+		TraceEna: false,
+		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -232,13 +232,13 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 		Mode:   LacpModeActive,
 		Properties: PortProperties{
 			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
+			Speed:  1000000000,
+			Duplex: LacpPortDuplexFull,
+			Mtu:    1500,
 		},
 		IntfId:   "eth1.1",
-		traceEna: false,
-		sysId:    sysId,
+		TraceEna: false,
+		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -253,10 +253,10 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	}
 
 	aconf := &LaAggConfig{
-		mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
 		Id:    2000,
 		Key:   100,
-		sysId: sysId,
+		SysId: sysId,
 	}
 
 	// Create Aggregation
@@ -304,13 +304,13 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 		Mode:  LacpModeActive,
 		Properties: PortProperties{
 			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
+			Speed:  1000000000,
+			Duplex: LacpPortDuplexFull,
+			Mtu:    1500,
 		},
 		IntfId:   "eth1.1",
-		traceEna: false,
-		sysId:    sysId,
+		TraceEna: false,
+		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -325,10 +325,10 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 	}
 
 	aconf := &LaAggConfig{
-		mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
 		Id:    2000,
 		Key:   100,
-		sysId: sysId,
+		SysId: sysId,
 	}
 
 	// Create Aggregation
@@ -375,13 +375,13 @@ func TestLaAggPortEnable(t *testing.T) {
 		Mode:  LacpModeActive,
 		Properties: PortProperties{
 			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
+			Speed:  1000000000,
+			Duplex: LacpPortDuplexFull,
+			Mtu:    1500,
 		},
 		IntfId:   "eth1.1",
-		traceEna: false,
-		sysId:    sysId,
+		TraceEna: false,
+		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -396,10 +396,10 @@ func TestLaAggPortEnable(t *testing.T) {
 	}
 
 	aconf := &LaAggConfig{
-		mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
 		Id:    2000,
 		Key:   100,
-		sysId: sysId,
+		SysId: sysId,
 	}
 
 	// Create Aggregation
@@ -445,7 +445,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Prio:   0x80,
 		IntfId: "eth1.1",
 		Key:    100,
-		sysId:  sysId,
+		SysId:  sysId,
 	}
 
 	// not calling Create because we don't want to launch all state machines
@@ -912,7 +912,7 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 		Prio:   0x80,
 		IntfId: "eth1.1",
 		Key:    100,
-		sysId:  sysId,
+		SysId:  sysId,
 	}
 
 	// not calling Create because we don't want to launch all state machines
@@ -1039,13 +1039,13 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 		//Timeout: LacpFastPeriodicTime,
 		Properties: PortProperties{
 			Mac:    [6]uint8{0x00, LaAggPortActor, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
+			Speed:  1000000000,
+			Duplex: LacpPortDuplexFull,
+			Mtu:    1500,
 		},
 		IntfId:   "eth1.1",
-		traceEna: true,
-		sysId:    LaSystemActor,
+		TraceEna: false,
+		SysId:    LaSystemActor,
 	}
 
 	p2conf := &LaAggPortConfig{
@@ -1057,13 +1057,13 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 		Mode:   LacpModeActive,
 		Properties: PortProperties{
 			Mac:    [6]uint8{0x00, LaAggPortPeer, 0xDE, 0xAD, 0xBE, 0xEF},
-			speed:  1000000000,
-			duplex: LacpPortDuplexFull,
-			mtu:    1500,
+			Speed:  1000000000,
+			Duplex: LacpPortDuplexFull,
+			Mtu:    1500,
 		},
 		IntfId:   "eth1.2",
-		traceEna: false,
-		sysId:    LaSystemPeer,
+		TraceEna: false,
+		SysId:    LaSystemPeer,
 	}
 
 	// lets create a port and start the machines
@@ -1071,17 +1071,17 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	CreateLaAggPort(p2conf)
 
 	a1conf := &LaAggConfig{
-		mac:   [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
 		Id:    100,
 		Key:   100,
-		sysId: LaSystemActor,
+		SysId: LaSystemActor,
 	}
 
 	a2conf := &LaAggConfig{
-		mac:   [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Mac:   [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
 		Id:    200,
 		Key:   200,
-		sysId: LaSystemPeer,
+		SysId: LaSystemPeer,
 	}
 
 	// Create Aggregation
@@ -1093,7 +1093,7 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	AddLaAggPortToAgg(a2conf.Id, p2conf.Id)
 
 	//time.Sleep(time.Second * 30)
-	stopTest := make(chan bool)
+	testWait := make(chan bool)
 
 	var p1 *LaAggPort
 	var p2 *LaAggPort
@@ -1106,11 +1106,11 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 					p2.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDistributing); i++ {
 				time.Sleep(time.Second * 1)
 			}
-			stopTest <- true
+			testWait <- true
 		}()
 
-		<-stopTest
-		close(stopTest)
+		<-testWait
+		close(testWait)
 
 		state1 := GetLaAggPortActorOperState(p1conf.Id)
 		state2 := GetLaAggPortActorOperState(p2conf.Id)
@@ -1124,9 +1124,178 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 		if !LacpStateIsSet(state2, portUpState) {
 			t.Error(fmt.Sprintf("Peer Port state 0x%x did not come up properly with actor expected 0x%x", state2, portUpState))
 		}
+
+		// TODO check the states of the other state machines
 	} else {
 		t.Error("Unable to find port just created")
 	}
+	// cleanup the provisioning
+	DeleteLaAgg(a1conf.Id)
+	DeleteLaAgg(a2conf.Id)
+}
+
+// TestTwoAggsBackToBackSinglePortTimeout will allow for
+// two ports to sync up then force a timeout by disabling
+// one end of the connection by setting the mode to "ON"
+func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
+
+	const LaAggPortActor = 11
+	const LaAggPortPeer = 21
+	LaSystemActor := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}
+	LaSystemPeer := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}
+
+	bridge := SimulationBridge{
+		port1:       LaAggPortActor,
+		port2:       LaAggPortPeer,
+		rxLacpPort1: make(chan RxPacket),
+		rxLacpPort2: make(chan RxPacket),
+	}
+
+	ActorSystem := LacpSysGlobalInfoInit(LaSystemActor)
+	PeerSystem := LacpSysGlobalInfoInit(LaSystemPeer)
+	ActorSystem.LaSysGlobalRegisterTxCallback(LaAggPortActor, bridge.TxViaGoChannel)
+	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeer, bridge.TxViaGoChannel)
+
+	// port 1
+	go LaRxMain(bridge.rxLacpPort1)
+	// port 2
+	go LaRxMain(bridge.rxLacpPort2)
+
+	p1conf := &LaAggPortConfig{
+		Id:     LaAggPortActor,
+		Prio:   0x80,
+		Key:    100,
+		AggId:  100,
+		Enable: true,
+		Mode:   LacpModeActive,
+		//Timeout: LacpFastPeriodicTime,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, LaAggPortActor, 0xDE, 0xAD, 0xBE, 0xEF},
+			Speed:  1000000000,
+			Duplex: LacpPortDuplexFull,
+			Mtu:    1500,
+		},
+		IntfId:   "eth1.1",
+		TraceEna: true,
+		SysId:    LaSystemActor,
+	}
+
+	p2conf := &LaAggPortConfig{
+		Id:     LaAggPortPeer,
+		Prio:   0x80,
+		Key:    200,
+		AggId:  200,
+		Enable: true,
+		Mode:   LacpModeActive,
+		Properties: PortProperties{
+			Mac:    [6]uint8{0x00, LaAggPortPeer, 0xDE, 0xAD, 0xBE, 0xEF},
+			Speed:  1000000000,
+			Duplex: LacpPortDuplexFull,
+			Mtu:    1500,
+		},
+		IntfId:   "eth1.2",
+		TraceEna: false,
+		SysId:    LaSystemPeer,
+	}
+
+	// lets create a port and start the machines
+	CreateLaAggPort(p1conf)
+	CreateLaAggPort(p2conf)
+
+	a1conf := &LaAggConfig{
+		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:    100,
+		Key:   100,
+		SysId: LaSystemActor,
+	}
+
+	a2conf := &LaAggConfig{
+		Mac:   [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:    200,
+		Key:   200,
+		SysId: LaSystemPeer,
+	}
+
+	// Create Aggregation
+	CreateLaAgg(a1conf)
+	CreateLaAgg(a2conf)
+
+	// Add port to agg
+	AddLaAggPortToAgg(a1conf.Id, p1conf.Id)
+	AddLaAggPortToAgg(a2conf.Id, p2conf.Id)
+
+	//time.Sleep(time.Second * 30)
+	testWait := make(chan bool)
+
+	var p1 *LaAggPort
+	var p2 *LaAggPort
+	if LaFindPortById(p1conf.Id, &p1) &&
+		LaFindPortById(p2conf.Id, &p2) {
+
+		go func() {
+			for i := 0; i < 10 &&
+				(p1.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDistributing ||
+					p2.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDistributing); i++ {
+				time.Sleep(time.Second * 1)
+			}
+			testWait <- true
+		}()
+
+		<-testWait
+
+		state1 := GetLaAggPortActorOperState(p1conf.Id)
+		state2 := GetLaAggPortActorOperState(p2conf.Id)
+
+		const portUpState = LacpStateActivityBit | LacpStateAggregationBit |
+			LacpStateSyncBit | LacpStateCollectingBit | LacpStateDistributingBit
+
+		if !LacpStateIsSet(state1, portUpState) {
+			t.Error(fmt.Sprintf("Actor Port state 0x%x did not come up properly with peer expected 0x%x", state1, portUpState))
+		}
+		if !LacpStateIsSet(state2, portUpState) {
+			t.Error(fmt.Sprintf("Peer Port state 0x%x did not come up properly with actor expected 0x%x", state2, portUpState))
+		}
+
+		// TODO check the states of the other state machines
+
+		// Lets disable lacp for p1
+		SetLaAggPortLacpMode(p1conf.Id, LacpModeOn, LacpLongTimeoutTime)
+
+		go func() {
+			var i int
+			for i = 0; i < 10 &&
+				(p1.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateLacpDisabled ||
+					p1.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached ||
+					p2.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateDefaulted ||
+					p2.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached); i++ {
+
+				time.Sleep(time.Second * 1)
+			}
+
+			if i == 10 {
+				testWait <- false
+			} else {
+				testWait <- true
+			}
+
+		}()
+
+		testResult := <-testWait
+		if !testResult {
+			t.Error(fmt.Sprintf("Actor and Peer states are not correct Expected P1 RXM/MUX",
+				LacpRxmStateLacpDisabled, LacpMuxmStateDetached, "Actual", p1.RxMachineFsm.Machine.Curr.CurrentState(),
+				p1.MuxMachineFsm.Machine.Curr.CurrentState(), "Expected P2 RXM/MUX", LacpRxmStateDefaulted,
+				LacpMuxmStateDetached, "Actual", p2.RxMachineFsm.Machine.Curr.CurrentState(),
+				p2.MuxMachineFsm.Machine.Curr.CurrentState()))
+		}
+
+		// TODO check the states of the other state machines
+	} else {
+		t.Error("Unable to find port just created")
+	}
+	// cleanup the provisioning
+	DeleteLaAgg(a1conf.Id)
+	DeleteLaAgg(a2conf.Id)
 }
 
 //

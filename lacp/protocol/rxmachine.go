@@ -296,25 +296,58 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	// Actor_Oper_Port_Sate.Expired = FALSE
 	LacpStateClear(&p.actorOper.state, LacpStateExpiredBit)
 
-	// lets inform the MUX of a possible state change
-	if LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
-		if p.aggSelected == LacpAggSelected && p.MuxMachineFsm != nil {
-			if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached {
-				p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
-					src: RxMachineModuleStr}
-			} else if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting {
-				p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting,
-					src: RxMachineModuleStr}
-			}
-		}
-	}
-
 	if ntt == true && p.TxMachineFsm != nil {
 		// update ntt, which should trigger a packet transmit
 		p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt}
 	}
 
+	// Other machines may need to be informed of the various
+	// state info changes
+	rxm.InformMachinesOfStateChanges()
+
 	return LacpRxmStateCurrent
+}
+
+// InformMachinesOfStateChanges will inform other state machines of
+// the various event changes made when rx machine receives a packet
+func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
+	p := rxm.p
+
+	if p.MuxMachineFsm != nil {
+		// lets inform the MUX of a possible state change
+		if LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
+			if p.aggSelected == LacpAggSelected {
+				if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached {
+					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
+						src: RxMachineModuleStr}
+				} else if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting {
+					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting,
+						src: RxMachineModuleStr}
+				}
+			}
+		} else if !LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) &&
+			(p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDistributing ||
+				p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting) {
+			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
+				src: RxMachineModuleStr}
+
+		} else if !LacpStateIsSet(p.partnerOper.state, LacpStateCollectingBit) &&
+			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDistributing {
+			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerCollecting,
+				src: RxMachineModuleStr}
+		}
+	}
+
+	// lets inform the PTX machine of change as this is an indication of
+	// no tx packets, case should occur on first bring up when transmission
+	// is based on admin provisioning.  Peer should respond to initial messages
+	if !LacpStateIsSet(p.actorOper.state, LacpStateActivityBit) &&
+		!LacpStateIsSet(p.partnerOper.state, LacpStateActivityBit) &&
+		p.PtxMachineFsm != nil {
+		p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventActorPartnerOperActivityPassiveMode,
+			src: RxMachineModuleStr}
+	}
+
 }
 
 func LacpRxMachineFSMBuild(p *LaAggPort) *LacpRxMachine {

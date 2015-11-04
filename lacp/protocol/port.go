@@ -2,16 +2,16 @@
 package lacp
 
 import (
-	//"fmt"
+	"fmt"
 	"strings"
 	//"time"
 )
 
 type PortProperties struct {
 	Mac    [6]uint8
-	speed  int
-	duplex int
-	mtu    int
+	Speed  int
+	Duplex int
+	Mtu    int
 }
 
 type LacpPortInfo struct {
@@ -45,7 +45,7 @@ type LaAggPort struct {
 	portNum      uint16
 	portPriority uint16
 
-	aggId int
+	AggId int
 
 	// Once selected reference to agg group will be made
 	aggAttached *LaAggregator
@@ -108,6 +108,8 @@ func (p *LaAggPort) LaPortLog(msg string) {
 // find a port from the global map table by portNum
 func LaFindPortById(pId uint16, port **LaAggPort) bool {
 	for _, sgi := range gLacpSysGlobalInfo {
+		fmt.Printf("%#v\n", sgi)
+		fmt.Println(sgi.PortMap)
 		for _, p := range sgi.PortMap {
 			if p.portNum == pId {
 				*port = p
@@ -115,25 +117,38 @@ func LaFindPortById(pId uint16, port **LaAggPort) bool {
 			}
 		}
 	}
+	fmt.Println("returning from LaFindPortById")
 	return false
 }
 
-// find a port form the global map table by key
-func LaFindPortByKey(key uint16, port **LaAggPort) bool {
+// LaFindPortByKey will find a port form the global map table by key
+// index value should input 0 for the first value
+func LaFindPortByKey(key uint16, index *int, port **LaAggPort) bool {
+	var i int
 	for _, sgi := range gLacpSysGlobalInfo {
+		i = *index
+		l := len(sgi.PortMap)
 		for _, p := range sgi.PortMap {
-			if p.key == key {
-				*port = p
-				return true
+			if i < l {
+				if p.key == key {
+					*port = p
+					*index++
+					return true
+				}
 			}
+			i++
 		}
 	}
+	*index = -1
 	return false
 }
 
 // NewLaAggPort
 // Allocate a new lag port, creating appropriate timers
 func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
+
+	sgi := LacpSysGlobalInfoGet(config.SysId)
+
 	p := &LaAggPort{
 		portId:        int(config.Id | config.Prio<<16),
 		portNum:       config.Id,
@@ -142,19 +157,22 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		macProperties: config.Properties,
 		key:           config.Key,
 		aggSelected:   LacpAggUnSelected,
-		sysId:         config.sysId,
+		sysId:         config.SysId,
 		begin:         true,
 		portMoved:     false,
 		lacpEnabled:   false,
 		portEnabled:   config.Enable,
-		logEna:        config.traceEna,
+		logEna:        config.TraceEna,
 		portChan:      make(chan string)}
+
+	// Start Port Logger
+	p.LacpDebugEventLogMain()
 
 	// default actor admin
 	//fmt.Println(config.sysId, gLacpSysGlobalInfo[config.sysId])
-	p.actorAdmin.state = gLacpSysGlobalInfo[config.sysId].ActorStateDefaultParams.state
-	p.actorAdmin.system.LacpSystemActorSystemIdSet(gLacpSysGlobalInfo[config.sysId].SystemDefaultParams.actor_system)
-	p.actorAdmin.system.LacpSystemActorSystemPrioritySet(gLacpSysGlobalInfo[config.sysId].SystemDefaultParams.actor_system_priority)
+	p.actorAdmin.state = sgi.ActorStateDefaultParams.state
+	p.actorAdmin.system.LacpSystemActorSystemIdSet(sgi.SystemDefaultParams.actor_system)
+	p.actorAdmin.system.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.actor_system_priority)
 	p.actorAdmin.key = p.key
 	p.actorAdmin.port = p.portNum
 	p.actorAdmin.port_pri = p.portPriority
@@ -163,7 +181,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	p.actorOper = p.actorAdmin
 
 	// default partner admin
-	p.partnerAdmin.state = gLacpSysGlobalInfo[config.sysId].PartnerStateDefaultParams.state
+	p.partnerAdmin.state = sgi.PartnerStateDefaultParams.state
 	// default partner oper same as admin
 	p.partnerOper = p.partnerAdmin
 
@@ -172,12 +190,9 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	}
 
 	// add port to port map
-	gLacpSysGlobalInfo[config.sysId].PortMap[p.portNum] = p
+	sgi.PortMap[p.portNum] = p
 
-	// Start Port Logger
-	p.LacpDebugEventLogMain()
-
-	//fmt.Printf("%#v", *p)
+	fmt.Printf("%#v", *p)
 
 	return p
 }
@@ -440,14 +455,21 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 // LaAggPortEnabled will update the status on the port
 // as well as inform the appropriate state machines of the
 // state change
-func (p *LaAggPort) LaAggPortLacpEnabled() {
+func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 	mEvtChan := make([]chan LacpMachineEvent, 0)
 	evt := make([]LacpMachineEvent, 0)
 
 	p.LaPortLog("LAPORT: Port LACP Enabled")
 
 	// port can be added to aggregator
-	LacpStateSet(&p.actorAdmin.state, LacpStateActivityBit)
+	LacpStateSet(&p.actorAdmin.state, LacpStateAggregationBit)
+
+	// Activity mode
+	if mode == LacpModeActive {
+		LacpStateSet(&p.actorAdmin.state, LacpStateActivityBit)
+	} else {
+		LacpStateClear(&p.actorAdmin.state, LacpStateActivityBit)
+	}
 
 	if p.portEnabled &&
 		p.aggSelected == LacpAggSelected {
@@ -464,8 +486,9 @@ func (p *LaAggPort) LaAggPortLacpEnabled() {
 		// distribute the port disable event to various machines
 		p.DistributeMachineEvents(mEvtChan, evt, true)
 	}
-	// port is disabled
+	// port has lacp enabled
 	p.lacpEnabled = true
+
 }
 
 // LacpCopyLacpPortInfo:
