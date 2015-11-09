@@ -108,8 +108,8 @@ func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 		p:                  port,
 		log:                port.LacpDebug.LacpLogChan,
 		PreviousState:      LacpRxmStateNone,
-		RxmEvents:          make(chan LacpMachineEvent),
-		RxmPktRxEvent:      make(chan LacpRxLacpPdu),
+		RxmEvents:          make(chan LacpMachineEvent, 10),
+		RxmPktRxEvent:      make(chan LacpRxLacpPdu, 10),
 		RxmKillSignalEvent: make(chan bool),
 		RxmLogEnableEvent:  make(chan bool)}
 
