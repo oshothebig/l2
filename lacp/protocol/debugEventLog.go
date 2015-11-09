@@ -17,7 +17,7 @@ type LacpDebug struct {
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpDebug() *LacpDebug {
 	lacpdebug := &LacpDebug{
-		LacpLogChan: make(chan string),
+		LacpLogChan: make(chan string, 100),
 		logger:      log.New(os.Stdout, "LacpLog:", log.Ldate|log.Ltime|log.Lmicroseconds)}
 
 	return lacpdebug

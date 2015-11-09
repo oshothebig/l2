@@ -216,9 +216,11 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	handle, err := pcap.OpenLive(p.intfNum, 65536, true, pcap.BlockForever)
 	if err != nil {
 		// failure here may be ok as this may be SIM
-		fmt.Println("Error creating pcap OpenLive handle for port", p.portNum, p.intfNum)
+		fmt.Println("Error creating pcap OpenLive handle for port", p.portNum, p.intfNum, err)
 		return p
 	}
+	fmt.Println("Creating Listener for intf", p.intfNum)
+	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.intfNum))
 	p.handle = handle
 	src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
 	in := src.Packets()
@@ -269,6 +271,7 @@ func (p *LaAggPort) Stop() {
 		p.MuxMachineFsm.Stop()
 	}
 	close(p.portChan)
+	p.handle.Close()
 }
 
 //  BEGIN will initiate all the state machines

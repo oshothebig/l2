@@ -131,3 +131,16 @@ func LaAggPortNumListPortIdExist(aggId int, portId uint16) bool {
 	}
 	return false
 }
+
+func LaFindAggByKey(key uint16, agg **LaAggregator) bool {
+
+	for _, sgi := range gLacpSysGlobalInfo {
+		for _, a := range sgi.AggMap {
+			if a.actorAdminKey == key {
+				*agg = a
+				return true
+			}
+		}
+	}
+	return false
+}

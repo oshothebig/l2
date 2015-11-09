@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	"fmt"
+	//"fmt"
 	"github.com/google/gopacket/layers"
 	"sync"
 )
@@ -169,8 +169,8 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *layers.LACP) {
 
 	p := rxm.p
 
-	rxm.LacpRxmLog(fmt.Sprintf("PDU actor info %#v", lacpPduInfo.Actor.Info))
-	rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.partnerOper))
+	//rxm.LacpRxmLog(fmt.Sprintf("PDU actor info %#v", lacpPduInfo.Actor.Info))
+	//rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.partnerOper))
 
 	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Actor.Info, &p.partnerOper, LacpStateAggregationBit) {
 
@@ -225,12 +225,12 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 	if p.AggId != 0 && LaFindAggById(p.AggId, &a) &&
 		(p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
-		p.key == a.actorAdminKey &&
-		p.portEnabled {
+		p.key == a.actorAdminKey {
+
+		//p.portEnabled {
 		// set port as selected
 		p.aggSelected = LacpAggSelected
-		// attach the agg to the port
-		//p.aggAttached = a
+		LacpStateSet(&p.actorOper.state, LacpStateAggregationBit)
 
 		mEvtChan := make([]chan LacpMachineEvent, 0)
 		evt := make([]LacpMachineEvent, 0)

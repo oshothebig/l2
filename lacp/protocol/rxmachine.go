@@ -268,7 +268,7 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	// record the current packet state
 	rxm.recordPDU(lacpPduInfo)
 
-	rxm.LacpRxmLog(fmt.Sprintf("Partner Oper %#v", p.partnerOper))
+	//rxm.LacpRxmLog(fmt.Sprintf("Partner Oper %#v", p.partnerOper))
 
 	// Current while should already be set to
 	// Actors Oper value of Timeout, lets check
@@ -283,7 +283,6 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	LacpStateClear(&p.actorOper.state, LacpStateExpiredBit)
 
 	if ntt == true && p.TxMachineFsm != nil {
-		rxm.LacpRxmLog("Sending NTT to TXM")
 		// update ntt, which should trigger a packet transmit
 		p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
 			src: RxMachineModuleStr}
@@ -292,7 +291,6 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	// Other machines may need to be informed of the various
 	// state info changes
 	rxm.InformMachinesOfStateChanges()
-	rxm.LacpRxmLog("RXM: returning from Current")
 	return LacpRxmStateCurrent
 }
 
@@ -308,7 +306,8 @@ func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
 				if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached {
 					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
 						src: RxMachineModuleStr}
-				} else if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting {
+				}
+				if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting {
 					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting,
 						src: RxMachineModuleStr}
 				}
@@ -447,7 +446,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 					SendResponse(RxMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.RxmPktRxEvent:
-				m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.portNum, rx.src))
+				//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.portNum, rx.src))
 				// lets check if the port has moved
 				if m.CheckPortMoved(&p.partnerOper, &(rx.pdu.Actor.Info)) {
 					fmt.Println("port moved")

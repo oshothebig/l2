@@ -154,13 +154,18 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 
 		if p.linkOperStatus && port.Enable {
 
+			if p.key != 0 {
+				var a *LaAggregator
+				if LaFindAggByKey(p.key, &a) {
+					p.LaPortLog("Found Agg by Key, attaching port to agg")
+					// If the agg is defined lets add port to
+					AddLaAggPortToAgg(a.aggId, p.portNum)
+				}
+			}
+
 			// if port is enabled and lacp is enabled
 			p.LaAggPortEnabled()
 
-			if p.AggId != 0 {
-				// If the agg is defined lets add port to
-				AddLaAggPortToAgg(p.AggId, p.portNum)
-			}
 		}
 	} else {
 		fmt.Println("CONF: ERROR PORT ALREADY EXISTS")
