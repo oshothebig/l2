@@ -2,7 +2,9 @@
 package lacp
 
 import (
-	//"fmt"
+	"fmt"
+	"github.com/google/gopacket/layers"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -12,15 +14,6 @@ import (
 const RxMachineModuleStr = "Rx Machine"
 
 // rxm states
-/*
-const LacpRxmNone = "LacpRxmNone"    // not apart of the state machine, but used as an initial state
-const LacpRxmInitialize = "LacpRxmInitialize"
-const LacpRxmPortDisable = "LacpRxmPortDisable"
-const LacpRxmExpired = "LacpRxmExpired"
-const LacpRxmLacpDisabled = "LacpRxmLacpDisabled"
-const LacpRxmDefaulted = "LacpRxmDefaulted"
-const LacpRxmCurrent = "LacpRxmCurrent"
-*/
 const (
 	LacpRxmStateNone = iota + 1
 	LacpRxmStateInitialize
@@ -35,25 +28,16 @@ var RxmStateStrMap map[fsm.State]string
 
 func RxMachineStrStateMapCreate() {
 	RxmStateStrMap = make(map[fsm.State]string)
-	RxmStateStrMap[LacpRxmStateNone] = "LacmRxmNone"
-	RxmStateStrMap[LacpRxmStateInitialize] = "LacpRxmStateInitialize"
-	RxmStateStrMap[LacpRxmStatePortDisabled] = "LacpRxmStatePortDisabled"
-	RxmStateStrMap[LacpRxmStateExpired] = "LacpRxmStateExpired"
-	RxmStateStrMap[LacpRxmStateLacpDisabled] = "LacpRxmStateLacpDisabled"
-	RxmStateStrMap[LacpRxmStateDefaulted] = "LacpRxmStateDefaulted"
-	RxmStateStrMap[LacpRxmStateCurrent] = "LacpRxmStateCurrent"
+	RxmStateStrMap[LacpRxmStateNone] = "None"
+	RxmStateStrMap[LacpRxmStateInitialize] = "Initialize"
+	RxmStateStrMap[LacpRxmStatePortDisabled] = "PortDisabled"
+	RxmStateStrMap[LacpRxmStateExpired] = "Expired"
+	RxmStateStrMap[LacpRxmStateLacpDisabled] = "LacpDisabled"
+	RxmStateStrMap[LacpRxmStateDefaulted] = "Defaulted"
+	RxmStateStrMap[LacpRxmStateCurrent] = "Current"
 }
 
 // rxm events
-/*
-const LacpRxmBeginEvent = "LacpRxmBeginEvent"
-const LacpRxmPortMovedEvent = "LacpRxmPortMovedEvent"
-const LacpRxmCurrentWhileTimerExpiredEvent = "LacpRxmCurrentWhileTimerExpiredEvent"
-const LacpRxmLacpDisabledEvent = "LacpRxmLacpDisabledEvent"
-const LacpRxmLacpEnabledEvent = "LacpRxmLacpEnabledEvent"
-const LacpRxmLacpPortDisabledEvent = "LacpRxmLacpPortDisabledEvent"
-const LacpRxmLacpPktRxEvent = "LacpRxmLacpPktRxEvent"
-*/
 const (
 	LacpRxmEventBegin = iota + 1
 	LacpRxmEventUnconditionalFallthrough
@@ -68,7 +52,7 @@ const (
 )
 
 type LacpRxLacpPdu struct {
-	pdu          *LacpPdu
+	pdu          *layers.LACP
 	src          string
 	responseChan chan string
 }
@@ -124,8 +108,8 @@ func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 		p:                  port,
 		log:                port.LacpDebug.LacpLogChan,
 		PreviousState:      LacpRxmStateNone,
-		RxmEvents:          make(chan LacpMachineEvent),
-		RxmPktRxEvent:      make(chan LacpRxLacpPdu),
+		RxmEvents:          make(chan LacpMachineEvent, 10),
+		RxmPktRxEvent:      make(chan LacpRxLacpPdu, 10),
 		RxmKillSignalEvent: make(chan bool),
 		RxmLogEnableEvent:  make(chan bool)}
 
@@ -165,7 +149,8 @@ func (rxm *LacpRxMachine) LacpRxMachineInitialize(m fsm.Machine, data interface{
 	// set the agg as being unselected
 	//p.aggSelected = LacpAggUnSelected
 	if p.MuxMachineFsm != nil {
-		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected}
+		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
+			src: RxMachineModuleStr}
 	}
 
 	// Record default params
@@ -226,7 +211,8 @@ func (rxm *LacpRxMachine) LacpRxMachineLacpDisabled(m fsm.Machine, data interfac
 	// Unselect the aggregator
 	//p.aggSelected = LacpAggUnSelected
 	if p.MuxMachineFsm != nil {
-		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected}
+		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
+			src: RxMachineModuleStr}
 	}
 
 	// setup the default params
@@ -266,7 +252,7 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	p := rxm.p
 
 	// Version 1, V2 will require a serialize/deserialize routine since TLV's are involved
-	lacpPduInfo := data.(*LacpPdu)
+	lacpPduInfo := data.(*layers.LACP)
 
 	// update selection logic
 	rxm.updateSelected(lacpPduInfo)
@@ -282,7 +268,7 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	// record the current packet state
 	rxm.recordPDU(lacpPduInfo)
 
-	//rxm.LacpRxmLog(fmt.Sprintf("Partner Oper %#v", p.partnerOper))
+	rxm.LacpRxmLog(fmt.Sprintf("Partner Oper %#v", p.partnerOper))
 
 	// Current while should already be set to
 	// Actors Oper value of Timeout, lets check
@@ -297,14 +283,16 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	LacpStateClear(&p.actorOper.state, LacpStateExpiredBit)
 
 	if ntt == true && p.TxMachineFsm != nil {
+		rxm.LacpRxmLog("Sending NTT to TXM")
 		// update ntt, which should trigger a packet transmit
-		p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt}
+		p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+			src: RxMachineModuleStr}
 	}
 
 	// Other machines may need to be informed of the various
 	// state info changes
 	rxm.InformMachinesOfStateChanges()
-
+	rxm.LacpRxmLog("RXM: returning from Current")
 	return LacpRxmStateCurrent
 }
 
@@ -459,9 +447,10 @@ func (p *LaAggPort) LacpRxMachineMain() {
 					SendResponse(RxMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.RxmPktRxEvent:
-				//fmt.Printf("%#v", *(rx.pdu))
+				m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.portNum, rx.src))
 				// lets check if the port has moved
-				if m.CheckPortMoved(&p.partnerOper, &(rx.pdu.actor.info)) {
+				if m.CheckPortMoved(&p.partnerOper, &(rx.pdu.Actor.Info)) {
+					fmt.Println("port moved")
 					m.p.portMoved = true
 					m.Machine.ProcessEvent(RxModuleStr, LacpRxmEventPortMoved, nil)
 				} else {
@@ -503,7 +492,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 // Record actor informatio from the packet
 // Clear Defaulted Actor Operational state
 // Determine Partner Operational Sync state
-func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *LacpPdu) {
+func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 
 	p := rxm.p
 
@@ -511,7 +500,7 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *LacpPdu) {
 	// Record Actor info from packet - store in parter operational
 	// Port Number, Port Priority, System, System Priority
 	// Key, state variables
-	LacpCopyLacpPortInfo(&lacpPduInfo.actor.info, &p.partnerOper)
+	LacpCopyLacpPortInfoFromPkt(&lacpPduInfo.Actor.Info, &p.partnerOper)
 
 	// Set Actor Oper port state Defaulted to FALSE
 	//rxm.LacpRxmLog("Clearing Defaulted Bit")
@@ -534,18 +523,18 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *LacpPdu) {
 	// Partner state LACP_Activity is TRUE
 
 	// (1)
-	if ((LacpLacpPortInfoIsEqual(&lacpPduInfo.partner.info, &p.actorOper, LacpStateAggregationBit) &&
-		LacpStateIsSet(lacpPduInfo.actor.info.state, LacpStateSyncBit)) ||
+	if ((LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Partner.Info, &p.actorOper, LacpStateAggregationBit) &&
+		LacpStateIsSet(lacpPduInfo.Actor.Info.State, LacpStateSyncBit)) ||
 		//(2)
-		(!LacpStateIsSet(lacpPduInfo.actor.info.state, LacpStateAggregationBit) &&
-			LacpStateIsSet(lacpPduInfo.actor.info.state, LacpStateSyncBit))) &&
+		(!LacpStateIsSet(lacpPduInfo.Actor.Info.State, LacpStateAggregationBit) &&
+			LacpStateIsSet(lacpPduInfo.Actor.Info.State, LacpStateSyncBit))) &&
 		// (3)
-		(LacpStateIsSet(lacpPduInfo.actor.info.state, LacpStateActivityBit) ||
+		(LacpStateIsSet(lacpPduInfo.Actor.Info.State, LacpStateActivityBit) ||
 			(LacpStateIsSet(p.actorOper.state, LacpStateActivityBit) &&
-				LacpStateIsSet(lacpPduInfo.partner.info.state, LacpStateActivityBit))) {
-		//if !LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
-		//	rxm.LacpRxmLog("Setting Partner Sync Bit")
-		//}
+				LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit))) {
+		if !LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
+			rxm.LacpRxmLog("Setting Partner Sync Bit")
+		}
 		LacpStateSet(&p.partnerOper.state, LacpStateSyncBit)
 
 	} else {
@@ -589,25 +578,25 @@ func (rxm *LacpRxMachine) recordDefault() {
 // info agrees with the local port oper state.
 // If it does not agree then set the NTT flag
 // such that the Tx machine generates LACPDU
-func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *LacpPdu) bool {
+func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *layers.LACP) bool {
 
 	p := rxm.p
 
 	const nttStateCompare uint8 = (LacpStateActivityBit | LacpStateTimeoutBit |
 		LacpStateAggregationBit | LacpStateSyncBit)
 
-	if !LacpLacpPortInfoIsEqual(&lacpPduInfo.partner.info, &p.actorOper, nttStateCompare) {
+	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Partner.Info, &p.actorOper, nttStateCompare) {
 
 		return true
 	}
 	return false
 }
 
-func (rxm *LacpRxMachine) recordVersionNumber(lacpPduInfo *LacpPdu) {
+func (rxm *LacpRxMachine) recordVersionNumber(lacpPduInfo *layers.LACP) {
 
 	p := rxm.p
 
-	p.partnerVersion = lacpPduInfo.version
+	p.partnerVersion = uint8(lacpPduInfo.Version)
 }
 
 // currentWhileTimerValid checks the state against
@@ -628,14 +617,9 @@ func (rxm *LacpRxMachine) CurrentWhileTimerValid() (time.Duration, bool) {
 	return 0, true
 }
 
-func (rxm *LacpRxMachine) CheckPortMoved(partnerOper *LacpPortInfo, pktActor *LacpPortInfo) bool {
+func (rxm *LacpRxMachine) CheckPortMoved(partnerOper *LacpPortInfo, pktActor *layers.LACPPortInfo) bool {
 	return rxm.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled &&
-		partnerOper.port == pktActor.port &&
-		partnerOper.system.actor_system[0] == pktActor.system.actor_system[0] &&
-		partnerOper.system.actor_system[1] == pktActor.system.actor_system[1] &&
-		partnerOper.system.actor_system[2] == pktActor.system.actor_system[2] &&
-		partnerOper.system.actor_system[3] == pktActor.system.actor_system[3] &&
-		partnerOper.system.actor_system[4] == pktActor.system.actor_system[4] &&
-		partnerOper.system.actor_system[5] == pktActor.system.actor_system[5] &&
-		partnerOper.system.actor_system_priority == pktActor.system.actor_system_priority
+		partnerOper.port == pktActor.Port &&
+		reflect.DeepEqual(partnerOper.system.actor_system, pktActor.System.SystemId) &&
+		partnerOper.system.actor_system_priority == pktActor.System.SystemPriority
 }

@@ -21,11 +21,11 @@ var PtxmStateStrMap map[fsm.State]string
 
 func PtxMachineStrStateMapCreate() {
 	PtxmStateStrMap = make(map[fsm.State]string)
-	PtxmStateStrMap[LacpPtxmStateNone] = "LacpPtxmStateNone"
-	PtxmStateStrMap[LacpPtxmStateNoPeriodic] = "LacpPtxmStateNoPeriodic"
-	PtxmStateStrMap[LacpPtxmStateFastPeriodic] = "LacpPtxmStateFastPeriodic"
-	PtxmStateStrMap[LacpPtxmStateSlowPeriodic] = "LacpPtxmStateSlowPeriodic"
-	PtxmStateStrMap[LacpPtxmStatePeriodicTx] = "LacpPtxmStatePeriodicTx"
+	PtxmStateStrMap[LacpPtxmStateNone] = "None"
+	PtxmStateStrMap[LacpPtxmStateNoPeriodic] = "NoPeriodic"
+	PtxmStateStrMap[LacpPtxmStateFastPeriodic] = "FastPeriodic"
+	PtxmStateStrMap[LacpPtxmStateSlowPeriodic] = "SlowPeriodic"
+	PtxmStateStrMap[LacpPtxmStatePeriodicTx] = "PeriodicTx"
 }
 
 const (
@@ -89,7 +89,7 @@ func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 		log:                     port.LacpDebug.LacpLogChan,
 		PreviousState:           LacpPtxmStateNone,
 		PeriodicTxTimerInterval: LacpSlowPeriodicTime,
-		PtxmEvents:              make(chan LacpMachineEvent),
+		PtxmEvents:              make(chan LacpMachineEvent, 10),
 		PtxmKillSignalEvent:     make(chan bool),
 		PtxmLogEnableEvent:      make(chan bool)}
 
@@ -148,7 +148,10 @@ func (ptxm *LacpPtxMachine) LacpPtxMachineSlowPeriodic(m fsm.Machine, data inter
 func (ptxm *LacpPtxMachine) LacpPtxMachinePeriodicTx(m fsm.Machine, data interface{}) fsm.State {
 	// inform the tx machine that ntt should change to true which should transmit a
 	// packet
-	ptxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt}
+
+	ptxm.LacpPtxmLog("Sending NTT to TXM")
+	ptxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+		src: PtxMachineModuleStr}
 
 	return LacpPtxmStatePeriodicTx
 }
@@ -227,6 +230,8 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 				m.LacpPtxmLog("PTXM: Machine End")
 				return
 			case <-m.periodicTxTimer.C:
+				m.LacpPtxmLog("Timer expired current state")
+				m.LacpPtxmLog(PtxmStateStrMap[m.Machine.Curr.CurrentState()])
 				m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPeriodicTimerExpired, nil)
 
 				if m.Machine.Curr.CurrentState() == LacpPtxmStatePeriodicTx {

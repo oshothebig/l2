@@ -2,7 +2,8 @@
 package lacp
 
 import (
-	//	"fmt"
+	"fmt"
+	"github.com/google/gopacket/layers"
 	"sync"
 )
 
@@ -164,16 +165,16 @@ func (a *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort, sendResponse boo
 // System, System Priority, Key, State Aggregation).  If values
 // have changed then Selected is set to UNSELECTED, othewise
 // SELECTED
-func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *LacpPdu) {
+func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *layers.LACP) {
 
 	p := rxm.p
 
-	//rxm.LacpRxmLog(fmt.Sprintf("PDU actor info %#v", lacpPduInfo.actor.info))
-	//rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.partnerOper))
+	rxm.LacpRxmLog(fmt.Sprintf("PDU actor info %#v", lacpPduInfo.Actor.Info))
+	rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.partnerOper))
 
-	if !LacpLacpPortInfoIsEqual(&lacpPduInfo.actor.info, &p.partnerOper, LacpStateAggregationBit) {
+	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Actor.Info, &p.partnerOper, LacpStateAggregationBit) {
 
-		rxm.LacpRxmLog("PDU and Oper states do not agree, moving port to LacpAggUnSelected")
+		rxm.LacpRxmLog("PDU and Oper states do not agree, moving port to UnSelected")
 
 		// lets trigger the event only if mux is not in waiting state as
 		// the wait while timer expiration will trigger the unselected event
@@ -185,21 +186,6 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *LacpPdu) {
 				src: RxMachineModuleStr}
 		}
 	}
-	/* THIS SHOULD NOT BE NECESSARY
-	else {
-		rxm.LacpRxmLog("PDU and Oper agree, moving port to LacpAggSelected")
-
-		// lets trigger the event only if mux is not in waiting state as
-		// the wait while timer expiration will trigger the unselected event
-		if p.MuxMachineFsm != nil &&
-			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
-			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
-			p.aggSelected = LacpAggSelected
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelected,
-				src: RxMachineModuleStr}
-		}
-	}
-	*/
 }
 
 // updateDefaultedSelected: 802.1ax Section 6.4.9
@@ -250,7 +236,8 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 		evt := make([]LacpMachineEvent, 0)
 
 		mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelected})
+		evt = append(evt, LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelected,
+			src: PortConfigModuleStr})
 		// inform mux that port has been selected
 		// wait for response
 		p.DistributeMachineEvents(mEvtChan, evt, true)
@@ -270,7 +257,8 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 		evt := make([]LacpMachineEvent, 0)
 
 		mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected})
+		evt = append(evt, LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
+			src: PortConfigModuleStr})
 		// inform mux that port has been selected
 		// wait for response
 		p.DistributeMachineEvents(mEvtChan, evt, true)

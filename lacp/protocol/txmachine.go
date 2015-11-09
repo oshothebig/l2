@@ -5,6 +5,7 @@ package lacp
 
 import (
 	"fmt"
+	"github.com/google/gopacket/layers"
 	"time"
 	"utils/fsm"
 )
@@ -39,22 +40,6 @@ const (
 	LacpTxmEventLacpDisabled
 	LacpTxmEventLacpEnabled
 )
-
-type EthernetLacpFrame struct {
-	dmac     [6]uint8
-	smac     [6]uint8
-	ethType  uint16
-	lacp     LacpPdu
-	reserved [52]uint8
-}
-
-type EthernetLampFrame struct {
-	dmac     [6]uint8
-	smac     [6]uint8
-	ethType  uint16
-	lamp     LaMarkerPdu
-	reserved [52]uint8
-}
 
 // LacpRxMachine holds FSM and current state
 // and event channels for state transitions
@@ -116,7 +101,7 @@ func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 		txPkts:             0,
 		ntt:                false,
 		PreviousState:      LacpTxmStateNone,
-		TxmEvents:          make(chan LacpMachineEvent),
+		TxmEvents:          make(chan LacpMachineEvent, 10),
 		TxmKillSignalEvent: make(chan bool),
 		TxmLogEnableEvent:  make(chan bool)}
 
@@ -168,49 +153,44 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 				txm.TxGuardTimerStart()
 			}
 			txm.txPkts++
-			//txm.LacpTxmLog(fmt.Sprintf("ON: Curr pkt cnt %d", txm.txPkts))
-			// send packet
-			pdu := &EthernetLacpFrame{
-				dmac:    [6]uint8{0x01, 0x80, 0xC2, 0x00, 0x00, 0x02},
-				smac:    txm.p.macProperties.Mac,
-				ethType: SlowProtocolEtherType,
-				lacp: LacpPdu{
-					version: 1,
-					subType: LacpSubType,
-					actor: LacpPduInfoTlv{
-						tlv_type: 0x01,
-						len:      0x14,
-						info: LacpPortInfo{
-							system: LacpSystem{actor_system: p.actorOper.system.actor_system,
-								actor_system_priority: p.actorOper.system.actor_system_priority},
-							key:      p.actorOper.key,
-							port:     p.actorOper.port,
-							port_pri: p.actorOper.port_pri,
-							state:    p.actorOper.state},
+
+			lacp := &layers.LACP{
+				Version: layers.LACPVersion1,
+				Actor: layers.LACPInfoTlv{TlvType: layers.LACPTLVActorInfo,
+					Length: layers.LACPActorTlvLength,
+					Info: layers.LACPPortInfo{
+						System: layers.LACPSystem{SystemId: p.actorOper.system.actor_system,
+							SystemPriority: p.actorOper.system.actor_system_priority,
+						},
+						Key:     p.actorOper.key,
+						PortPri: p.actorOper.port_pri,
+						Port:    p.actorOper.port,
+						State:   p.actorOper.state,
 					},
-					partner: LacpPduInfoTlv{
-						tlv_type: 0x01,
-						len:      0x14,
-						info: LacpPortInfo{
-							system: LacpSystem{actor_system: p.partnerOper.system.actor_system,
-								actor_system_priority: p.partnerOper.system.actor_system_priority},
-							key:      p.partnerOper.key,
-							port:     p.partnerOper.port,
-							port_pri: p.partnerOper.port_pri,
-							state:    p.partnerOper.state},
+				},
+				Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
+					Length: layers.LACPActorTlvLength,
+					Info: layers.LACPPortInfo{
+						System: layers.LACPSystem{SystemId: p.partnerOper.system.actor_system,
+							SystemPriority: p.partnerOper.system.actor_system_priority,
+						},
+						Key:     p.partnerOper.key,
+						PortPri: p.partnerOper.port_pri,
+						Port:    p.partnerOper.port,
+						State:   p.partnerOper.state,
 					},
-					collector: LacpPduCollectorInfoTlv{
-						tlv_type: 0x03,
-						len:      0x10,
-						maxDelay: 1000,
-					},
+				},
+				Collector: layers.LACPCollectorInfoTlv{
+					TlvType:  layers.LACPTLVCollectorInfo,
+					Length:   layers.LACPCollectorTlvLength,
+					MaxDelay: 2000,
 				},
 			}
 
 			// transmit the packet
 			for _, ftx := range LaSysGlobalTxCallbackListGet(p) {
-				//txm.LacpTxmLog("Sending Tx packet")
-				ftx(p.portNum, pdu)
+				//txm.LacpTxmLog(fmt.Sprintf("Sending Tx packet %d", txm.txPkts))
+				ftx(p.portNum, lacp)
 			}
 			// Version 2 consideration if enable_long_pdu_xmit and
 			// LongLACPPDUTransmit are True:
@@ -219,10 +199,11 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 			txm.ntt = false
 		} else {
 			txm.txPending++
-			//txm.LacpTxmLog(fmt.Sprintf("ON: Delay packets %d", txm.txPending))
+			txm.LacpTxmLog(fmt.Sprintf("ON: Delay packets %d", txm.txPending))
 			nextState = LacpTxmStateDelayed
 		}
 	}
+	txm.LacpTxmLog("ON END")
 	return nextState
 }
 
@@ -244,11 +225,13 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 	txm.LacpTxmLog(fmt.Sprintf("Delayed: txPending %d txPkts %d delaying tx", txm.txPending, txm.txPkts))
 	if txm.txPending > 0 && txm.txPkts > 3 {
 		state = LacpTxmStateDelayed
-		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx}
+		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx,
+			src: TxMachineModuleStr}
 	} else {
 		// transmit packet
 		txm.txPending--
-		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt}
+		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+			src: TxMachineModuleStr}
 	}
 
 	return state
@@ -339,7 +322,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 
 			case event := <-m.TxmEvents:
 
-				//m.LacpTxmLog(fmt.Sprintf("Event rx %d", event.e))
+				m.LacpTxmLog(fmt.Sprintf("Event rx %d %s %s", event.e, event.src, TxmStateStrMap[m.Machine.Curr.CurrentState()]))
 				// special case, another machine has a need to
 				// transmit a packet
 				if event.e == LacpTxmEventNtt {
@@ -352,6 +335,8 @@ func (p *LaAggPort) LacpTxMachineMain() {
 					m.txPending > 0 && m.txPkts == 0 {
 					m.txPending--
 					m.ntt = true
+
+					m.LacpTxmLog("Forcing NTT processing from expire")
 					m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
 				}
 
@@ -368,5 +353,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 // LacpTxGuardGeneration will generate an event to the Tx Machine
 // in order to clear the txPkts count
 func (txm *LacpTxMachine) LacpTxGuardGeneration() {
-	txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventGuardTimer}
+	txm.LacpTxmLog("LacpTxGuardGeneration")
+	txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventGuardTimer,
+		src: TxMachineModuleStr}
 }

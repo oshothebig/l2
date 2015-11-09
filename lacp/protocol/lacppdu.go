@@ -3,6 +3,8 @@ package lacp
 
 import ()
 
+/*
+SlowProtocolDmac := [6]uint8{0x01, 0x80, 0xC2, 0x00, 0x00, 0x02}
 const SlowProtocolDmacByte0 uint8 = 0x01
 const SlowProtocolDmacByte1 uint8 = 0x80
 const SlowProtocolDmacByte2 uint8 = 0xC2
@@ -114,3 +116,4 @@ type LacpPdu struct {
 	// this structure as they are optional and
 	// variable
 }
+*/

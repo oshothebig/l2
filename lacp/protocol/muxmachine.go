@@ -106,7 +106,7 @@ func NewLacpMuxMachine(port *LaAggPort) *LacpMuxMachine {
 		collDistCoupled:       false,
 		waitWhileTimerTimeout: LacpAggregateWaitTime,
 		PreviousState:         LacpMuxmStateNone,
-		MuxmEvents:            make(chan LacpMachineEvent),
+		MuxmEvents:            make(chan LacpMachineEvent, 10),
 		MuxmKillSignalEvent:   make(chan bool),
 		MuxmLogEnableEvent:    make(chan bool)}
 
@@ -140,6 +140,7 @@ func (muxm *LacpMuxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 func (muxm *LacpMuxMachine) SendTxMachineNtt() {
 
+	muxm.LacpMuxmLog("Sending NTT to TXM")
 	muxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
 		src: MuxMachineModuleStr}
 }

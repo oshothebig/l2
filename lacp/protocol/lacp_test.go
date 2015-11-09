@@ -6,6 +6,8 @@ package lacp
 
 import (
 	"fmt"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"testing"
 	"time"
 	"utils/fsm"
@@ -74,7 +76,7 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
-		IntfId:   "eth1.1",
+		IntfId:   "SIMeth1.1",
 		TraceEna: false,
 		SysId:    sysId,
 	}
@@ -157,7 +159,7 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
-		IntfId:   "eth1.1",
+		IntfId:   "SIMeth1.1",
 		TraceEna: false,
 		SysId:    sysId,
 	}
@@ -197,7 +199,7 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
-		IntfId:   "eth1.1",
+		IntfId:   "SIMeth1.1",
 		TraceEna: false,
 		SysId:    sysId,
 	}
@@ -236,7 +238,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
-		IntfId:   "eth1.1",
+		IntfId:   "SIMeth1.1",
 		TraceEna: false,
 		SysId:    sysId,
 	}
@@ -301,7 +303,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
-		IntfId:   "eth1.1",
+		IntfId:   "SIMeth1.1",
 		TraceEna: false,
 		SysId:    sysId,
 	}
@@ -372,7 +374,7 @@ func TestLaAggPortEnable(t *testing.T) {
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
-		IntfId:   "eth1.1",
+		IntfId:   "SIMeth1.1",
 		TraceEna: false,
 		SysId:    sysId,
 	}
@@ -436,7 +438,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	pconf := &LaAggPortConfig{
 		Id:     1,
 		Prio:   0x80,
-		IntfId: "eth1.1",
+		IntfId: "SIMeth1.1",
 		Key:    100,
 		SysId:  sysId,
 	}
@@ -717,29 +719,31 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	LacpStateSet(&p.actorAdmin.state, LacpStateTimeoutBit)
 	LacpStateSet(&p.actorOper.state, LacpStateTimeoutBit)
 
+	//slow := &layers.SlowProtocol{
+	//	SubType: layers.SlowProtocolTypeLACP,
+	//}
 	// send valid pdu
-	lacppdu := &LacpPdu{
-		subType: LacpSubType,
-		version: 1,
-		actor: LacpPduInfoTlv{tlv_type: 1,
-			len: 0x14,
-			info: LacpPortInfo{
-				system: LacpSystem{actor_system: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
-					actor_system_priority: 1},
-				key:      100,
-				port_pri: 0x80,
-				port:     10,
-				state:    LacpStateActivityBit | LacpStateAggregationBit | LacpStateTimeoutBit},
+	lacppdu := &layers.LACP{
+		Version: layers.LACPVersion2,
+		Actor: layers.LACPInfoTlv{TlvType: layers.LACPTLVActorInfo,
+			Length: layers.LACPActorTlvLength,
+			Info: layers.LACPPortInfo{
+				System: layers.LACPSystem{SystemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+					SystemPriority: 1},
+				Key:     100,
+				PortPri: 0x80,
+				Port:    10,
+				State:   LacpStateActivityBit | LacpStateAggregationBit | LacpStateTimeoutBit},
 		},
-		partner: LacpPduInfoTlv{tlv_type: 1,
-			len: 0x14,
-			info: LacpPortInfo{
-				system: LacpSystem{actor_system: p.actorOper.system.actor_system,
-					actor_system_priority: p.actorOper.system.actor_system_priority},
-				key:      p.key,
-				port_pri: p.portPriority,
-				port:     p.portNum,
-				state:    p.actorOper.state},
+		Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
+			Length: layers.LACPPartnerTlvLength,
+			Info: layers.LACPPortInfo{
+				System: layers.LACPSystem{SystemId: p.actorOper.system.actor_system,
+					SystemPriority: p.actorOper.system.actor_system_priority},
+				Key:     p.key,
+				PortPri: p.portPriority,
+				Port:    p.portNum,
+				State:   p.actorOper.state},
 		},
 	}
 
@@ -794,29 +798,27 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
 
-	// send valid pdu
-	lacppdu = &LacpPdu{
-		subType: LacpSubType,
-		version: 1,
-		actor: LacpPduInfoTlv{tlv_type: 1,
-			len: 0x14,
-			info: LacpPortInfo{
-				system: LacpSystem{actor_system: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
-					actor_system_priority: 1},
-				key:      100,
-				port_pri: 0x80,
-				port:     10,
-				state:    LacpStateActivityBit | LacpStateAggregationBit | LacpStateTimeoutBit},
+	lacppdu = &layers.LACP{
+		Version: layers.LACPVersion2,
+		Actor: layers.LACPInfoTlv{TlvType: layers.LACPTLVActorInfo,
+			Length: layers.LACPActorTlvLength,
+			Info: layers.LACPPortInfo{
+				System: layers.LACPSystem{SystemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+					SystemPriority: 1},
+				Key:     100,
+				PortPri: 0x80,
+				Port:    10,
+				State:   LacpStateActivityBit | LacpStateAggregationBit | LacpStateTimeoutBit},
 		},
-		partner: LacpPduInfoTlv{tlv_type: 1,
-			len: 0x14,
-			info: LacpPortInfo{
-				system: LacpSystem{actor_system: p.actorOper.system.actor_system,
-					actor_system_priority: p.actorOper.system.actor_system_priority},
-				key:      p.key,
-				port_pri: p.portPriority,
-				port:     p.portNum,
-				state:    p.actorOper.state},
+		Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
+			Length: layers.LACPPartnerTlvLength,
+			Info: layers.LACPPortInfo{
+				System: layers.LACPSystem{SystemId: p.actorOper.system.actor_system,
+					SystemPriority: p.actorOper.system.actor_system_priority},
+				Key:     p.key,
+				PortPri: p.portPriority,
+				Port:    p.portNum,
+				State:   p.actorOper.state},
 		},
 	}
 
@@ -843,29 +845,27 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
 
-	// send valid pdu
-	lacppdu = &LacpPdu{
-		subType: LacpSubType,
-		version: 1,
-		actor: LacpPduInfoTlv{tlv_type: 1,
-			len: 0x14,
-			info: LacpPortInfo{
-				system: LacpSystem{actor_system: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
-					actor_system_priority: 1},
-				key:      100,
-				port_pri: 0x80,
-				port:     10,
-				state:    LacpStateActivityBit | LacpStateAggregationBit | LacpStateTimeoutBit},
+	lacppdu = &layers.LACP{
+		Version: layers.LACPVersion2,
+		Actor: layers.LACPInfoTlv{TlvType: layers.LACPTLVActorInfo,
+			Length: layers.LACPActorTlvLength,
+			Info: layers.LACPPortInfo{
+				System: layers.LACPSystem{SystemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+					SystemPriority: 1},
+				Key:     100,
+				PortPri: 0x80,
+				Port:    10,
+				State:   LacpStateActivityBit | LacpStateAggregationBit | LacpStateTimeoutBit},
 		},
-		partner: LacpPduInfoTlv{tlv_type: 1,
-			len: 0x14,
-			info: LacpPortInfo{
-				system: LacpSystem{actor_system: p.actorOper.system.actor_system,
-					actor_system_priority: p.actorOper.system.actor_system_priority},
-				key:      p.key,
-				port_pri: p.portPriority,
-				port:     p.portNum,
-				state:    p.actorOper.state},
+		Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
+			Length: layers.LACPPartnerTlvLength,
+			Info: layers.LACPPortInfo{
+				System: layers.LACPSystem{SystemId: p.actorOper.system.actor_system,
+					SystemPriority: p.actorOper.system.actor_system_priority},
+				Key:     p.key,
+				PortPri: p.portPriority,
+				Port:    p.portNum,
+				State:   p.actorOper.state},
 		},
 	}
 
@@ -903,7 +903,7 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 	pconf := &LaAggPortConfig{
 		Id:     1,
 		Prio:   0x80,
-		IntfId: "eth1.1",
+		IntfId: "SIMeth1.1",
 		Key:    100,
 		SysId:  sysId,
 	}
@@ -1002,25 +1002,27 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 
 	const LaAggPortActor = 10
 	const LaAggPortPeer = 20
+	LaAggPortActorIf := "SIMeth0"
+	LaAggPortPeerIf := "SIM2eth0"
 	LaSystemActor := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}
 	LaSystemPeer := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}
 
 	bridge := SimulationBridge{
 		port1:       LaAggPortActor,
 		port2:       LaAggPortPeer,
-		rxLacpPort1: make(chan RxPacket),
-		rxLacpPort2: make(chan RxPacket),
+		rxLacpPort1: make(chan gopacket.Packet, 10),
+		rxLacpPort2: make(chan gopacket.Packet, 10),
 	}
 
 	ActorSystem := LacpSysGlobalInfoInit(LaSystemActor)
 	PeerSystem := LacpSysGlobalInfoInit(LaSystemPeer)
-	ActorSystem.LaSysGlobalRegisterTxCallback(LaAggPortActor, bridge.TxViaGoChannel)
-	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeer, bridge.TxViaGoChannel)
+	ActorSystem.LaSysGlobalRegisterTxCallback(LaAggPortActorIf, bridge.TxViaGoChannel)
+	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeerIf, bridge.TxViaGoChannel)
 
 	// port 1
-	go LaRxMain(bridge.rxLacpPort1)
+	LaRxMain(bridge.port1, bridge.rxLacpPort1)
 	// port 2
-	go LaRxMain(bridge.rxLacpPort2)
+	LaRxMain(bridge.port2, bridge.rxLacpPort2)
 
 	p1conf := &LaAggPortConfig{
 		Id:     LaAggPortActor,
@@ -1036,7 +1038,7 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
-		IntfId:   "eth1.1",
+		IntfId:   LaAggPortActorIf,
 		TraceEna: false,
 		SysId:    LaSystemActor,
 	}
@@ -1054,7 +1056,7 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
-		IntfId:   "eth1.2",
+		IntfId:   LaAggPortPeerIf,
 		TraceEna: false,
 		SysId:    LaSystemPeer,
 	}
@@ -1082,8 +1084,8 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	CreateLaAgg(a2conf)
 
 	// Add port to agg
-	AddLaAggPortToAgg(a1conf.Id, p1conf.Id)
-	AddLaAggPortToAgg(a2conf.Id, p2conf.Id)
+	//AddLaAggPortToAgg(a1conf.Id, p1conf.Id)
+	//AddLaAggPortToAgg(a2conf.Id, p2conf.Id)
 
 	//time.Sleep(time.Second * 30)
 	testWait := make(chan bool)
@@ -1134,25 +1136,27 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 
 	const LaAggPortActor = 11
 	const LaAggPortPeer = 21
+	const LaAggPortActorIf = "SIMeth0"
+	const LaAggPortPeerIf = "SIMeth0"
 	LaSystemActor := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}
 	LaSystemPeer := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}
 
 	bridge := SimulationBridge{
 		port1:       LaAggPortActor,
 		port2:       LaAggPortPeer,
-		rxLacpPort1: make(chan RxPacket),
-		rxLacpPort2: make(chan RxPacket),
+		rxLacpPort1: make(chan gopacket.Packet),
+		rxLacpPort2: make(chan gopacket.Packet),
 	}
 
 	ActorSystem := LacpSysGlobalInfoInit(LaSystemActor)
 	PeerSystem := LacpSysGlobalInfoInit(LaSystemPeer)
-	ActorSystem.LaSysGlobalRegisterTxCallback(LaAggPortActor, bridge.TxViaGoChannel)
-	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeer, bridge.TxViaGoChannel)
+	ActorSystem.LaSysGlobalRegisterTxCallback(LaAggPortActorIf, bridge.TxViaGoChannel)
+	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeerIf, bridge.TxViaGoChannel)
 
 	// port 1
-	go LaRxMain(bridge.rxLacpPort1)
+	go LaRxMain(bridge.port1, bridge.rxLacpPort1)
 	// port 2
-	go LaRxMain(bridge.rxLacpPort2)
+	go LaRxMain(bridge.port2, bridge.rxLacpPort2)
 
 	p1conf := &LaAggPortConfig{
 		Id:     LaAggPortActor,
@@ -1168,7 +1172,7 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
-		IntfId:   "eth1.1",
+		IntfId:   LaAggPortActorIf,
 		TraceEna: true,
 		SysId:    LaSystemActor,
 	}
@@ -1186,7 +1190,7 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
-		IntfId:   "eth1.2",
+		IntfId:   LaAggPortPeerIf,
 		TraceEna: false,
 		SysId:    LaSystemPeer,
 	}
