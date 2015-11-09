@@ -19,10 +19,10 @@ var CdmStateStrMap map[fsm.State]string
 
 func CdMachineStrStateMapCreate() {
 	CdmStateStrMap = make(map[fsm.State]string)
-	CdmStateStrMap[LacpCdmStateNone] = "LacpCdmStateNone"
-	CdmStateStrMap[LacpCdmStateNoActorChurn] = "LacpCdmStateNoActorChurn"
-	CdmStateStrMap[LacpCdmStateActorChurnMonitor] = "LacpCdmStateActorChurnMonitor"
-	CdmStateStrMap[LacpCdmStateActorChurn] = "LacpCdmStateActorChurn"
+	CdmStateStrMap[LacpCdmStateNone] = "None"
+	CdmStateStrMap[LacpCdmStateNoActorChurn] = "NoActorChurn"
+	CdmStateStrMap[LacpCdmStateActorChurnMonitor] = "ActorChurnMonitor"
+	CdmStateStrMap[LacpCdmStateActorChurn] = "ActorChurn"
 }
 
 const (
@@ -79,7 +79,7 @@ func NewLacpCdMachine(port *LaAggPort) *LacpCdMachine {
 		PreviousState:             LacpCdmStateNone,
 		actorChurnTimerInterval:   LacpChurnDetectionTime,
 		partnerChurnTimerInterval: LacpChurnDetectionTime,
-		CdmEvents:                 make(chan LacpMachineEvent),
+		CdmEvents:                 make(chan LacpMachineEvent, 10),
 		CdmKillSignalEvent:        make(chan bool),
 		CdmLogEnableEvent:         make(chan bool)}
 

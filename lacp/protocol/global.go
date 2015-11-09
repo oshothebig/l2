@@ -3,6 +3,7 @@ package lacp
 
 import (
 	"fmt"
+	//"github.com/google/gopacket/layers"
 )
 
 type TxCallback func(port uint16, data interface{})
@@ -21,7 +22,7 @@ type LacpSysGlobalInfo struct {
 	muxCoupling bool
 
 	// list of tx function which should be called for a given port
-	TxCallbacks map[uint16][]TxCallback
+	TxCallbacks map[string][]TxCallback
 }
 
 // holds default lacp state info
@@ -46,7 +47,7 @@ func LacpSysGlobalInfoInit(sysId [6]uint8) *LacpSysGlobalInfo {
 			AggMap:                     make(map[int]*LaAggregator),
 			SystemDefaultParams:        LacpSystem{actor_system_priority: 0x8000},
 			PartnerSystemDefaultParams: LacpSystem{actor_system_priority: 0x0},
-			TxCallbacks:                make(map[uint16][]TxCallback),
+			TxCallbacks:                make(map[string][]TxCallback),
 		}
 
 		gLacpSysGlobalInfo[sysId].SystemDefaultParams.LacpSystemActorSystemIdSet(sysId)
@@ -84,14 +85,14 @@ func LacpSysGlobalDefaultActorSystemGet(sysId [6]uint8) *LacpPortInfo {
 	return &gLacpSysGlobalInfo[sysId].ActorStateDefaultParams
 }
 
-func (g *LacpSysGlobalInfo) LaSysGlobalRegisterTxCallback(port uint16, f TxCallback) {
-	g.TxCallbacks[port] = append(g.TxCallbacks[port], f)
+func (g *LacpSysGlobalInfo) LaSysGlobalRegisterTxCallback(intf string, f TxCallback) {
+	g.TxCallbacks[intf] = append(g.TxCallbacks[intf], f)
 }
 
 func LaSysGlobalTxCallbackListGet(p *LaAggPort) []TxCallback {
 
 	if s, sok := gLacpSysGlobalInfo[p.sysId]; sok {
-		if fList, pok := s.TxCallbacks[p.portNum]; pok {
+		if fList, pok := s.TxCallbacks[p.intfNum]; pok {
 			return fList
 		}
 	}
@@ -99,13 +100,8 @@ func LaSysGlobalTxCallbackListGet(p *LaAggPort) []TxCallback {
 	// temporary function
 	x := func(port uint16, data interface{}) {
 		fmt.Println("TX not registered for port", p.intfNum, p.portId)
-		lacp := data.(*EthernetLacpFrame)
-		if lacp.lacp.subType == LacpSubType {
-			//fmt.Printf("%#v\n", *lacp)
-		} else if lacp.lacp.subType == LampSubType {
-			//lamp := data.(*EthernetLampFrame)
-			//fmt.Printf("%#v\n", *lamp)
-		}
+		//lacp := data.(*layers.LACP)
+		//fmt.Printf("%#v\n", *lacp)
 	}
 
 	debugTxList := make([]TxCallback, 0)

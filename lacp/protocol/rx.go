@@ -5,82 +5,88 @@ package lacp
 
 import (
 	"fmt"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"net"
+	"reflect"
 )
 
 const RxModuleStr = "Rx Module"
 
-type RxPacketMetaData struct {
-	port uint16
-	intf string
-}
-
-// These are the only parameters we care about at this time
-// Parameters accomidate
-type RxPacket struct {
-	metadata RxPacketMetaData
-	pdu      EthernetLacpFrame
-}
-
 // LaRxMain will process incomming packets from
 // a socket as of 10/22/15 packets recevied from
 // channel
-func LaRxMain(rxPktChan chan RxPacket) {
+func LaRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 
-	go func() {
+	// can be used by test interface
+	go func(portId uint16, rx chan gopacket.Packet) {
+		rxMainPort := portId
+		rxMainChan := rx
 		// TODO add logic to either wait on a socket or wait on a channel,
 		// maybe both?  Can spawn a seperate go thread to wait on a socket
 		// and send the packet to this thread
 		for {
 			select {
-			case packet, ok := <-rxPktChan:
-				//fmt.Println("RX PACKET", packet)
+			case packet, ok := <-rxMainChan:
+				//fmt.Println("RxMain: port", rxMainPort)
+
 				if ok {
-					// check if this is a valid frame to process
-					if marker, lacp := IsControlFrame(&packet); lacp || marker {
-						//fmt.Println("Control Frame found", lacp, marker)
+					//fmt.Println("RxMain: port", rxMainPort)
+					//fmt.Println("RX:", packet)
+
+					if marker, lacp := IsControlFrame(packet); lacp || marker {
+						//fmt.Println("IsControl Frame ", marker, lacp)
 						if lacp {
-							//fmt.Println("ProcessLacpFrame")
-							ProcessLacpFrame(&packet.metadata, &packet.pdu.lacp)
-						} else if marker {
-							// marker protocol
-							ProcessLampFrame(&packet.metadata, &packet.pdu.lacp)
+							lacpLayer := packet.Layer(layers.LayerTypeLACP)
+							if lacpLayer == nil {
+								fmt.Println("Received non LACP frame", packet)
+							} else {
+
+								// lacp data
+								lacp := lacpLayer.(*layers.LACP)
+
+								ProcessLacpFrame(rxMainPort, lacp)
+							}
 						} else {
+							fmt.Println("Discard Packet not an lacp frame")
 							// discard packet
 						}
 					} else {
 						// discard packet
+						fmt.Println("Discarding Packet not lacp or marker")
 					}
 				} else {
+					fmt.Println("Channel closed")
 					return
 				}
 			}
 		}
-	}()
+
+		fmt.Println("RX go routine end")
+	}(pId, rxPktChan)
 }
 
-func IsControlFrame(pdu *RxPacket) (bool, bool) {
+func IsControlFrame(packet gopacket.Packet) (bool, bool) {
 	lacp := false
 	marker := false
+	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
+	slowProtocolLayer := packet.Layer(layers.LayerTypeSlowProtocol)
+	if ethernetLayer == nil || slowProtocolLayer == nil {
+		return false, false
+	}
 
-	if pdu.pdu.dmac[0] == SlowProtocolDmacByte0 &&
-		pdu.pdu.dmac[1] == SlowProtocolDmacByte1 &&
-		pdu.pdu.dmac[2] == SlowProtocolDmacByte2 &&
-		pdu.pdu.dmac[3] == SlowProtocolDmacByte3 &&
-		pdu.pdu.dmac[4] == SlowProtocolDmacByte4 &&
-		pdu.pdu.dmac[5] == SlowProtocolDmacByte5 &&
-		pdu.pdu.ethType == SlowProtocolEtherType &&
-		pdu.pdu.lacp.subType == LacpSubType {
+	ethernet := ethernetLayer.(*layers.Ethernet)
+	slow := slowProtocolLayer.(*layers.SlowProtocol)
+	slowProtocolMAC := net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x02}
+
+	if reflect.DeepEqual(ethernet.DstMAC, slowProtocolMAC) &&
+		ethernet.EthernetType == layers.EthernetTypeSlowProtocol &&
+		slow.SubType == layers.SlowProtocolTypeLACP {
 		lacp = true
 		// only supporting marker information
-	} else if pdu.pdu.dmac[0] == SlowProtocolDmacByte0 &&
-		pdu.pdu.dmac[1] == SlowProtocolDmacByte1 &&
-		pdu.pdu.dmac[2] == SlowProtocolDmacByte2 &&
-		pdu.pdu.dmac[3] == SlowProtocolDmacByte3 &&
-		pdu.pdu.dmac[4] == SlowProtocolDmacByte4 &&
-		pdu.pdu.dmac[5] == SlowProtocolDmacByte5 &&
-		pdu.pdu.ethType == SlowProtocolEtherType &&
-		pdu.pdu.lacp.subType == LampSubType &&
-		pdu.pdu.lacp.actor.tlv_type == LampMarkerInformation {
+	} else if reflect.DeepEqual(ethernet.DstMAC, slowProtocolMAC) &&
+		ethernet.EthernetType == layers.EthernetTypeSlowProtocol &&
+		slow.SubType == layers.SlowProtocolTypeLAMP {
 		marker = true
 	}
 
@@ -89,31 +95,22 @@ func IsControlFrame(pdu *RxPacket) (bool, bool) {
 
 // ProcessLacpFrame will lookup the cooresponding port from which the
 // packet arrived and forward the packet to the Rx Machine for processing
-func ProcessLacpFrame(metadata *RxPacketMetaData, pdu interface{}) {
+func ProcessLacpFrame(pId uint16, lacp *layers.LACP) {
 	var p *LaAggPort
-	lacppdu := pdu.(*LacpPdu)
 
-	// sanity check
-	if metadata.port != lacppdu.partner.info.port &&
-		lacppdu.partner.info.port != 0 {
-		fmt.Println("RX: WARNING port", metadata, "LAPort", lacppdu.partner.info.port, "do not agree")
-	}
-
-	// lets find the port and only process it if the
-	// begin state has been met
-	if LaFindPortById(metadata.port, &p) {
-		//fmt.Println("Sending Pkt to Rx Machine")
-		// lets offload the packet to another thread
+	//fmt.Println(lacp)
+	// lets find the port via the info in the packet
+	if LaFindPortById(pId, &p) {
 		p.RxMachineFsm.RxmPktRxEvent <- LacpRxLacpPdu{
-			pdu: lacppdu,
+			pdu: lacp,
 			src: RxModuleStr}
 	} else {
-		fmt.Println("Unable to find port", metadata.port)
+		fmt.Println("Unable to find port", lacp.Partner.Info.Port, lacp.Partner.Info.PortPri)
 	}
-
 }
 
-func ProcessLampFrame(metadata *RxPacketMetaData, pdu interface{}) {
+/*
+func ProcessLampFrame(lamppdu *layers.LAMP) {
 	var p *LaAggPort
 
 	// copying data over to an array, then cast it back
@@ -132,3 +129,4 @@ func ProcessLampFrame(metadata *RxPacketMetaData, pdu interface{}) {
 		//fmt.Println(lamppdu)
 	}
 }
+*/

@@ -2,47 +2,94 @@
 package lacp
 
 import (
-//"fmt"
+	"fmt"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"net"
 )
 
 // bridge will simulate communication between two channels
 type SimulationBridge struct {
 	port1       uint16
 	port2       uint16
-	rxLacpPort1 chan RxPacket
-	rxLacpPort2 chan RxPacket
-	rxLampPort1 chan RxPacket
-	rxLampPort2 chan RxPacket
+	rxLacpPort1 chan gopacket.Packet
+	rxLacpPort2 chan gopacket.Packet
+	rxLampPort1 chan gopacket.Packet
+	rxLampPort2 chan gopacket.Packet
 }
 
 func (bridge *SimulationBridge) TxViaGoChannel(port uint16, pdu interface{}) {
 
-	//fmt.Println("TX channel: Rx port", port, "bridge Port", bridge.port1)
-	if port == bridge.port1 {
-		lacp := pdu.(*EthernetLacpFrame)
-		if lacp.lacp.subType == LacpSubType {
-			bridge.rxLacpPort2 <- RxPacket{metadata: RxPacketMetaData{port: bridge.port2},
-				pdu: *lacp}
+	var p *LaAggPort
+	if LaFindPortById(port, &p) {
+
+		// Set up all the layers' fields we can.
+		eth := layers.Ethernet{
+			SrcMAC:       net.HardwareAddr{0x00, uint8(p.portNum & 0xff), 0x00, 0x01, 0x01, 0x01},
+			DstMAC:       layers.SlowProtocolDMAC,
+			EthernetType: layers.EthernetTypeSlowProtocol,
 		}
-		/*else {
-			lamp := pdu.(*EthernetLampFrame)
-			bridge.rxLampPort2 <- RxPacket{metadata: RxPacketMetaData{port: bridge.port2},
-				lacp: lamp}
+
+		slow := layers.SlowProtocol{
+			SubType: layers.SlowProtocolTypeLACP,
 		}
-		*/
+
+		lacp := pdu.(*layers.LACP)
+
+		// Set up buffer and options for serialization.
+		buf := gopacket.NewSerializeBuffer()
+		opts := gopacket.SerializeOptions{
+			FixLengths:       true,
+			ComputeChecksums: true,
+		}
+
+		gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
+		pkt := gopacket.NewPacket(buf.Bytes(), layers.LinkTypeEthernet, gopacket.Default)
+		if port != bridge.port1 {
+			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port1)
+			//fmt.Println("TX:", pkt)
+			bridge.rxLacpPort1 <- pkt
+		} else {
+			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port2)
+			bridge.rxLacpPort2 <- pkt
+		}
 	} else {
-		lacp := pdu.(*EthernetLacpFrame)
-		if lacp.lacp.subType == LacpSubType {
-			bridge.rxLacpPort1 <- RxPacket{metadata: RxPacketMetaData{port: bridge.port1},
-				pdu: *lacp}
-		}
-		/*
-			else {
-				lamp := pdu.(*EthernetLampFrame)
-				bridge.txLampPort1 <- *lamp
-			}
-		*/
+		fmt.Println("Unable to find port in tx")
 	}
 }
 
-func TxViaLinuxIf(port uint16, pdu interface{}) {}
+func TxViaLinuxIf(port uint16, pdu interface{}) {
+	var p *LaAggPort
+	if LaFindPortById(port, &p) {
+
+		txIface, err := net.InterfaceByName(p.intfNum)
+
+		if err == nil && p.handle != nil {
+			// conver the packet to a go packet
+			// Set up all the layers' fields we can.
+			eth := layers.Ethernet{
+				SrcMAC:       txIface.HardwareAddr,
+				DstMAC:       layers.SlowProtocolDMAC,
+				EthernetType: layers.EthernetTypeSlowProtocol,
+			}
+
+			slow := layers.SlowProtocol{
+				SubType: layers.SlowProtocolTypeLACP,
+			}
+
+			lacp := pdu.(*layers.LACP)
+
+			// Set up buffer and options for serialization.
+			buf := gopacket.NewSerializeBuffer()
+			opts := gopacket.SerializeOptions{
+				FixLengths:       true,
+				ComputeChecksums: true,
+			}
+			// Send one packet for every address.
+			gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
+			if err := p.handle.WritePacketData(buf.Bytes()); err != nil {
+				fmt.Println(err)
+			}
+		}
+	}
+}

@@ -2,13 +2,17 @@
 package lacp
 
 import (
-	//"fmt"
+	"fmt"
+	"reflect"
 	"strings"
 	//"time"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 )
 
 type PortProperties struct {
-	Mac    [6]uint8
+	Mac    [6]byte
 	Speed  int
 	Duplex int
 	Mtu    int
@@ -89,6 +93,9 @@ type LaAggPort struct {
 	log      chan string
 	logEna   bool
 
+	// handle used to tx packets to linux if
+	handle *pcap.Handle
+
 	// Version 2
 	partnerLacpPduVersionNumber int
 	enableLongPduXmit           bool
@@ -110,6 +117,23 @@ func LaFindPortById(pId uint16, port **LaAggPort) bool {
 	for _, sgi := range gLacpSysGlobalInfo {
 		for _, p := range sgi.PortMap {
 			if p.portNum == pId {
+				*port = p
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func LaConvertPortAndPriToPortId(pId uint16, prio uint16) int {
+	return int(pId | prio<<16)
+}
+
+// find a port from the global map table by portNum
+func LaFindPortByPortId(portId int, port **LaAggPort) bool {
+	for _, sgi := range gLacpSysGlobalInfo {
+		for _, p := range sgi.PortMap {
+			if p.portId == portId {
 				*port = p
 				return true
 			}
@@ -147,7 +171,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	sgi := LacpSysGlobalInfoGet(config.SysId)
 
 	p := &LaAggPort{
-		portId:        int(config.Id | config.Prio<<16),
+		portId:        LaConvertPortAndPriToPortId(config.Id, config.Prio),
 		portNum:       config.Id,
 		portPriority:  config.Prio,
 		intfNum:       config.IntfId,
@@ -188,6 +212,18 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 
 	// add port to port map
 	sgi.PortMap[p.portNum] = p
+
+	handle, err := pcap.OpenLive(p.intfNum, 65536, true, pcap.BlockForever)
+	if err != nil {
+		// failure here may be ok as this may be SIM
+		fmt.Println("Error creating pcap OpenLive handle for port", p.portNum, p.intfNum)
+		return p
+	}
+	p.handle = handle
+	src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+	in := src.Packets()
+	// start rx routine
+	LaRxMain(p.portNum, in)
 
 	//fmt.Printf("%#v", *p)
 
@@ -267,19 +303,24 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	}
 	// Rxm
 	mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpRxmEventBegin})
+	evt = append(evt, LacpMachineEvent{e: LacpRxmEventBegin,
+		src: PortConfigModuleStr})
 	// Ptxm
 	mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpPtxmEventBegin})
+	evt = append(evt, LacpMachineEvent{e: LacpPtxmEventBegin,
+		src: PortConfigModuleStr})
 	// Cdm
 	mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpCdmEventBegin})
+	evt = append(evt, LacpMachineEvent{e: LacpCdmEventBegin,
+		src: PortConfigModuleStr})
 	// Muxm
 	mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpMuxmEventBegin})
+	evt = append(evt, LacpMachineEvent{e: LacpMuxmEventBegin,
+		src: PortConfigModuleStr})
 	// Txm
 	mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpTxmEventBegin})
+	evt = append(evt, LacpMachineEvent{e: LacpTxmEventBegin,
+		src: PortConfigModuleStr})
 
 	// call the begin event for each
 	// distribute the port disable event to various machines
@@ -349,19 +390,23 @@ func (p *LaAggPort) LaAggPortDisable() {
 	// Rxm
 	if !p.portMoved {
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpRxmEventNotPortEnabledAndNotPortMoved})
+		evt = append(evt, LacpMachineEvent{e: LacpRxmEventNotPortEnabledAndNotPortMoved,
+			src: PortConfigModuleStr})
 	}
 	// Ptxm
 	mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpPtxmEventNotPortEnabled})
+	evt = append(evt, LacpMachineEvent{e: LacpPtxmEventNotPortEnabled,
+		src: PortConfigModuleStr})
 
 	// Cdm
 	mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpCdmEventNotPortEnabled})
+	evt = append(evt, LacpMachineEvent{e: LacpCdmEventNotPortEnabled,
+		src: PortConfigModuleStr})
 
 	// Txm
 	mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpDisabled})
+	evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpDisabled,
+		src: PortConfigModuleStr})
 
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, true)
@@ -387,28 +432,33 @@ func (p *LaAggPort) LaAggPortEnabled() {
 	// Rxm
 	if p.lacpEnabled {
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpEnabled})
+		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpEnabled,
+			src: PortConfigModuleStr})
 	} else {
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpDisabled})
+		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpDisabled,
+			src: PortConfigModuleStr})
 	}
 
 	// Ptxm
 	if p.PtxMachineFsm.LacpPtxIsNoPeriodicExitCondition() {
 		mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough})
+		evt = append(evt, LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough,
+			src: PortConfigModuleStr})
 	}
 
 	// Cdm
 	if LacpStateIsSet(p.actorOper.state, LacpStateSyncBit) {
 		mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn})
+		evt = append(evt, LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
+			src: PortConfigModuleStr})
 	}
 
 	// Txm
 	if p.lacpEnabled {
 		mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpEnabled})
+		evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpEnabled,
+			src: PortConfigModuleStr})
 	}
 
 	// distribute the port disable event to various machines
@@ -430,15 +480,18 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 	// Rxm
 	if p.portEnabled {
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpDisabled})
+		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpDisabled,
+			src: PortConfigModuleStr})
 
 		// Ptxm
 		mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpPtxmEventLacpDisabled})
+		evt = append(evt, LacpMachineEvent{e: LacpPtxmEventLacpDisabled,
+			src: PortConfigModuleStr})
 
 		// Txm, if lacp is disabled then should not transmit packets
 		mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpDisabled})
+		evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpDisabled,
+			src: PortConfigModuleStr})
 
 		// distribute the port disable event to various machines
 		p.DistributeMachineEvents(mEvtChan, evt, true)
@@ -472,12 +525,14 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 		p.aggSelected == LacpAggSelected {
 		// Rxm
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpEnabled})
+		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpEnabled,
+			src: PortConfigModuleStr})
 
 		// Ptxm
 		if p.PtxMachineFsm.LacpPtxIsNoPeriodicExitCondition() {
 			mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-			evt = append(evt, LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough})
+			evt = append(evt, LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough,
+				src: PortConfigModuleStr})
 		}
 
 		// distribute the port disable event to various machines
@@ -486,6 +541,15 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 	// port has lacp enabled
 	p.lacpEnabled = true
 
+}
+
+func LacpCopyLacpPortInfoFromPkt(fromPortInfoPtr *layers.LACPPortInfo, toPortInfoPtr *LacpPortInfo) {
+	toPortInfoPtr.key = fromPortInfoPtr.Key
+	toPortInfoPtr.port = fromPortInfoPtr.Port
+	toPortInfoPtr.port_pri = fromPortInfoPtr.PortPri
+	toPortInfoPtr.state = fromPortInfoPtr.State
+	toPortInfoPtr.system.LacpSystemActorSystemIdSet(fromPortInfoPtr.System.SystemId)
+	toPortInfoPtr.system.LacpSystemActorSystemPrioritySet(fromPortInfoPtr.System.SystemPriority)
 }
 
 // LacpCopyLacpPortInfo:
@@ -499,17 +563,22 @@ func LacpCopyLacpPortInfo(fromPortInfoPtr *LacpPortInfo, toPortInfoPtr *LacpPort
 	toPortInfoPtr.system.LacpSystemActorSystemPrioritySet(fromPortInfoPtr.system.actor_system_priority)
 }
 
+func LacpLacpPktPortInfoIsEqual(aPortInfoPtr *layers.LACPPortInfo, bPortInfoPtr *LacpPortInfo, stateBits uint8) bool {
+
+	return reflect.DeepEqual(aPortInfoPtr.System.SystemId, bPortInfoPtr.system.actor_system) &&
+		aPortInfoPtr.System.SystemPriority == bPortInfoPtr.system.actor_system_priority &&
+		aPortInfoPtr.Port == bPortInfoPtr.port &&
+		aPortInfoPtr.PortPri == bPortInfoPtr.port_pri &&
+		aPortInfoPtr.Key == bPortInfoPtr.key &&
+		(LacpStateIsSet(aPortInfoPtr.State, stateBits) && LacpStateIsSet(bPortInfoPtr.state, stateBits))
+}
+
 // LacpLacpPortInfoIsEqual:
 // Compare the LacpPortInfo data except be selective
 // about the state bits that is being compared against
 func LacpLacpPortInfoIsEqual(aPortInfoPtr *LacpPortInfo, bPortInfoPtr *LacpPortInfo, stateBits uint8) bool {
 
-	return aPortInfoPtr.system.actor_system[0] == bPortInfoPtr.system.actor_system[0] &&
-		aPortInfoPtr.system.actor_system[1] == bPortInfoPtr.system.actor_system[1] &&
-		aPortInfoPtr.system.actor_system[2] == bPortInfoPtr.system.actor_system[2] &&
-		aPortInfoPtr.system.actor_system[3] == bPortInfoPtr.system.actor_system[3] &&
-		aPortInfoPtr.system.actor_system[4] == bPortInfoPtr.system.actor_system[4] &&
-		aPortInfoPtr.system.actor_system[5] == bPortInfoPtr.system.actor_system[5] &&
+	return reflect.DeepEqual(aPortInfoPtr.system.actor_system, bPortInfoPtr.system.actor_system) &&
 		aPortInfoPtr.system.actor_system_priority == bPortInfoPtr.system.actor_system_priority &&
 		aPortInfoPtr.port == bPortInfoPtr.port &&
 		aPortInfoPtr.port_pri == bPortInfoPtr.port_pri &&

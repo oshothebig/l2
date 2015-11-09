@@ -4,7 +4,7 @@ package main
 import (
 	"fmt"
 	"git.apache.org/thrift.git/lib/go/thrift"
-	_ "l2/lacp/protocol"
+	"l2/lacp/protocol"
 	"lacpd"
 )
 
@@ -24,6 +24,10 @@ func main() {
 	protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 	server := thrift.NewTSimpleServer4(processor, transport, transportFactory, protocolFactory)
 	fmt.Println("Starting LACP Thrift daemon")
+	
+	// register the tx func
+	LacpSysGlobalInfoGet(LaSystemIdDefault).LaSysGlobalRegisterTxCallback('eth0', TxViaLinuxIf)
+	
 	server.Serve()
 
 }
