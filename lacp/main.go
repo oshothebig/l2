@@ -6,6 +6,7 @@ import (
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"l2/lacp/protocol"
 	"lacpd"
+	"net"
 )
 
 func main() {
@@ -28,6 +29,15 @@ func main() {
 	// register the tx func
 	lacp.LacpSysGlobalInfoGet(lacp.LaSystemIdDefault).LaSysGlobalRegisterTxCallback("eth0", lacp.TxViaLinuxIf)
 
-	server.Serve()
+	fmt.Println("Available Interfaces for use:")
+	intfs, err := net.Interfaces()
+	if err == nil {
+		for _, intf := range intfs {
+			fmt.Println(intf)
+		}
+		server.Serve()
+	} else {
+		panic(err)
+	}
 
 }

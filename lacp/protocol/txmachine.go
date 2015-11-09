@@ -183,7 +183,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 				Collector: layers.LACPCollectorInfoTlv{
 					TlvType:  layers.LACPTLVCollectorInfo,
 					Length:   layers.LACPCollectorTlvLength,
-					MaxDelay: 2000,
+					MaxDelay: 0,
 				},
 			}
 
@@ -203,7 +203,6 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 			nextState = LacpTxmStateDelayed
 		}
 	}
-	txm.LacpTxmLog("ON END")
 	return nextState
 }
 
@@ -322,7 +321,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 
 			case event := <-m.TxmEvents:
 
-				m.LacpTxmLog(fmt.Sprintf("Event rx %d %s %s", event.e, event.src, TxmStateStrMap[m.Machine.Curr.CurrentState()]))
+				//m.LacpTxmLog(fmt.Sprintf("Event rx %d %s %s", event.e, event.src, TxmStateStrMap[m.Machine.Curr.CurrentState()]))
 				// special case, another machine has a need to
 				// transmit a packet
 				if event.e == LacpTxmEventNtt {
@@ -353,7 +352,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 // LacpTxGuardGeneration will generate an event to the Tx Machine
 // in order to clear the txPkts count
 func (txm *LacpTxMachine) LacpTxGuardGeneration() {
-	txm.LacpTxmLog("LacpTxGuardGeneration")
+	//txm.LacpTxmLog("LacpTxGuardGeneration")
 	txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventGuardTimer,
 		src: TxMachineModuleStr}
 }

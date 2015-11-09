@@ -64,7 +64,7 @@ func TxViaLinuxIf(port uint16, pdu interface{}) {
 
 		txIface, err := net.InterfaceByName(p.intfNum)
 
-		if err == nil && p.handle != nil {
+		if err == nil {
 			// conver the packet to a go packet
 			// Set up all the layers' fields we can.
 			eth := layers.Ethernet{
@@ -82,14 +82,18 @@ func TxViaLinuxIf(port uint16, pdu interface{}) {
 			// Set up buffer and options for serialization.
 			buf := gopacket.NewSerializeBuffer()
 			opts := gopacket.SerializeOptions{
-				FixLengths:       true,
-				ComputeChecksums: true,
+				FixLengths: true,
+				//ComputeChecksums: true,
 			}
 			// Send one packet for every address.
 			gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
 			if err := p.handle.WritePacketData(buf.Bytes()); err != nil {
 				fmt.Println(err)
 			}
+		} else {
+			fmt.Println("ERROR could not find interface", p.intfNum, err)
 		}
+	} else {
+		fmt.Println("Unable to find port", port)
 	}
 }

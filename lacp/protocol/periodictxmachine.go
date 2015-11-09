@@ -113,9 +113,10 @@ func (ptxm *LacpPtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ptxm.Machine.Rules = r
 	ptxm.Machine.Curr = &LacpStateEvent{
 		strStateMap: PtxmStateStrMap,
-		logEna:      ptxm.p.logEna,
-		logger:      ptxm.LacpPtxmLog,
-		owner:       PtxMachineModuleStr,
+		//logEna:      ptxm.p.logEna,
+		logEna: false,
+		logger: ptxm.LacpPtxmLog,
+		owner:  PtxMachineModuleStr,
 	}
 
 	return ptxm.Machine
@@ -149,7 +150,6 @@ func (ptxm *LacpPtxMachine) LacpPtxMachinePeriodicTx(m fsm.Machine, data interfa
 	// inform the tx machine that ntt should change to true which should transmit a
 	// packet
 
-	ptxm.LacpPtxmLog("Sending NTT to TXM")
 	ptxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
 		src: PtxMachineModuleStr}
 
@@ -230,8 +230,8 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 				m.LacpPtxmLog("PTXM: Machine End")
 				return
 			case <-m.periodicTxTimer.C:
-				m.LacpPtxmLog("Timer expired current state")
-				m.LacpPtxmLog(PtxmStateStrMap[m.Machine.Curr.CurrentState()])
+				//m.LacpPtxmLog("Timer expired current state")
+				//m.LacpPtxmLog(PtxmStateStrMap[m.Machine.Curr.CurrentState()])
 				m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPeriodicTimerExpired, nil)
 
 				if m.Machine.Curr.CurrentState() == LacpPtxmStatePeriodicTx {

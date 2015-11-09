@@ -4,9 +4,7 @@
 package lacp
 
 import (
-	//"fmt"
-	"strconv"
-	"strings"
+	"fmt"
 	"time"
 	"utils/fsm"
 )
@@ -140,7 +138,6 @@ func (muxm *LacpMuxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 func (muxm *LacpMuxMachine) SendTxMachineNtt() {
 
-	muxm.LacpMuxmLog("Sending NTT to TXM")
 	muxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
 		src: MuxMachineModuleStr}
 }
@@ -268,6 +265,9 @@ func (muxm *LacpMuxMachine) LacpMuxmDistributing(m fsm.Machine, data interface{}
 
 	// Enabled Distributing
 	muxm.EnableDistributing()
+
+	// indicate that NTT = TRUE
+	defer muxm.SendTxMachineNtt()
 
 	return LacpMuxmStateDistributing
 }
@@ -460,7 +460,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 						LacpStateClear(&p.actorOper.state, LacpStateAggregationBit)
 					}
 				*/
-				//m.LacpMuxmLog(strings.Join([]string{"Event received", strconv.Itoa(int(event.e))}, ":"))
+				m.LacpMuxmLog(fmt.Sprintf("Event received %d src %s", event.e, event.src))
 
 				// process the event
 				m.Machine.ProcessEvent(event.src, event.e, nil)
@@ -492,6 +492,12 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 					m.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
 					p.aggSelected == LacpAggSelected &&
 					LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
+					m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedAndPartnerSync, nil)
+				}
+				if m.Machine.Curr.CurrentState() != LacpMuxmStateCollecting &&
+					p.aggSelected == LacpAggSelected &&
+					LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) &&
+					LacpStateIsSet(p.partnerOper.state, LacpStateCollectingBit) {
 					m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting, nil)
 				}
 				if event.e == LacpMuxmEventSelectedEqualUnselected &&
@@ -549,7 +555,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected(sendResponse bool) {
 	var a *LaAggregator
 	p := muxm.p
-	muxm.LacpMuxmLog(strings.Join([]string{"Selected", strconv.Itoa(LacpAggSelected), "actual", strconv.Itoa(p.aggSelected)}, "="))
+	//muxm.LacpMuxmLog(strings.Join([]string{"Selected", strconv.Itoa(LacpAggSelected), "actual", strconv.Itoa(p.aggSelected)}, "="))
 	// current port should be in selected state
 	if p.aggSelected == LacpAggSelected ||
 		p.aggSelected == LacpAggStandby {
@@ -557,7 +563,7 @@ func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected(sendResponse bool) {
 		if LaFindAggById(p.AggId, &a) {
 			a.LacpMuxCheckSelectionLogic(p, sendResponse)
 		} else {
-			muxm.LacpMuxmLog(strings.Join([]string{"MUXM: Unable to find Aggrigator", string(p.AggId)}, ":"))
+			muxm.LacpMuxmLog(fmt.Sprintf("Unable to find Aggrigator %d", p.AggId))
 		}
 	}
 	//else {

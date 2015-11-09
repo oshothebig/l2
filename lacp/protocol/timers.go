@@ -88,9 +88,9 @@ func (cdm *LacpCdMachine) ChurnDetectionTimerIntervalSet(interval time.Duration)
 // 802.1ax-2014 Section 6.4.17 in order to not transmit
 // more than 3 packets in this interval
 func (txm *LacpTxMachine) TxGuardTimerStart() {
-	if txm.p.begin == false {
-		txm.LacpTxmLog("Starting Guard Timer")
-	}
+	//if txm.p.begin == false {
+	//	txm.LacpTxmLog("Starting Guard Timer")
+	//}
 	if txm.txGuardTimer == nil {
 		txm.txGuardTimer = time.AfterFunc(LacpFastPeriodicTime, txm.LacpTxGuardGeneration)
 	} else {
