@@ -89,6 +89,10 @@ func (g *LacpSysGlobalInfo) LaSysGlobalRegisterTxCallback(intf string, f TxCallb
 	g.TxCallbacks[intf] = append(g.TxCallbacks[intf], f)
 }
 
+func (g *LacpSysGlobalInfo) LaSysGlobalDeRegisterTxCallback(intf string) {
+	delete(g.TxCallbacks, intf)
+}
+
 func LaSysGlobalTxCallbackListGet(p *LaAggPort) []TxCallback {
 
 	if s, sok := gLacpSysGlobalInfo[p.sysId]; sok {

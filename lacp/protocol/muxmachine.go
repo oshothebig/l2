@@ -86,6 +86,10 @@ type LacpMuxMachine struct {
 }
 
 func (muxm *LacpMuxMachine) Stop() {
+
+	// stop the go routine
+	muxm.MuxmKillSignalEvent <- true
+
 	close(muxm.MuxmEvents)
 	close(muxm.MuxmKillSignalEvent)
 	close(muxm.MuxmLogEnableEvent)
@@ -434,6 +438,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 	// that the RxMachine should handle.
 	go func(m *LacpMuxMachine) {
 		m.LacpMuxmLog("Machine Start")
+		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.MuxmKillSignalEvent:

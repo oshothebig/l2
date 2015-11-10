@@ -45,11 +45,12 @@ func (bridge *SimulationBridge) TxViaGoChannel(port uint16, pdu interface{}) {
 
 		gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
 		pkt := gopacket.NewPacket(buf.Bytes(), layers.LinkTypeEthernet, gopacket.Default)
-		if port != bridge.port1 {
+
+		if port != bridge.port1 && bridge.rxLacpPort1 != nil {
 			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port1)
 			//fmt.Println("TX:", pkt)
 			bridge.rxLacpPort1 <- pkt
-		} else {
+		} else if bridge.rxLacpPort2 != nil {
 			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port2)
 			bridge.rxLacpPort2 <- pkt
 		}

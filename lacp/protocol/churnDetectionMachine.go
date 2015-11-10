@@ -61,6 +61,10 @@ type LacpCdMachine struct {
 }
 
 func (cdm *LacpCdMachine) Stop() {
+
+	// stop the go routine
+	cdm.CdmKillSignalEvent <- true
+
 	close(cdm.CdmEvents)
 	close(cdm.CdmKillSignalEvent)
 	close(cdm.CdmLogEnableEvent)
@@ -183,11 +187,12 @@ func (p *LaAggPort) LacpCdMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the RxMachine should handle.
 	go func(m *LacpCdMachine) {
-		m.LacpCdmLog("CDM: Machine Start")
+		m.LacpCdmLog("Machine Start")
+		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.CdmKillSignalEvent:
-				m.LacpCdmLog("CDM: Machine End")
+				m.LacpCdmLog("Machine End")
 				return
 
 			case event := <-m.CdmEvents:

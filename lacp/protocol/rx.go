@@ -17,7 +17,6 @@ const RxModuleStr = "Rx Module"
 // a socket as of 10/22/15 packets recevied from
 // channel
 func LaRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
-
 	// can be used by test interface
 	go func(portId uint16, rx chan gopacket.Packet) {
 		rxMainPort := portId
@@ -101,6 +100,7 @@ func ProcessLacpFrame(pId uint16, lacp *layers.LACP) {
 	//fmt.Println(lacp)
 	// lets find the port via the info in the packet
 	if LaFindPortById(pId, &p) {
+		//fmt.Println(lacp)
 		p.RxMachineFsm.RxmPktRxEvent <- LacpRxLacpPdu{
 			pdu: lacp,
 			src: RxModuleStr}

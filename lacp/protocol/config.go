@@ -179,6 +179,9 @@ func DeleteLaAggPort(pId uint16) {
 			fmt.Println("CONF: ERROR Must detach p", pId, "from agg", p.AggId, "before deletion")
 			return
 		}
+		if p.portEnabled {
+			DisableLaAggPort(p.portNum)
+		}
 
 		p.DelLaAggPort()
 	}
