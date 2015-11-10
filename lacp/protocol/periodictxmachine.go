@@ -224,10 +224,11 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 	// that the RxMachine should handle.
 	go func(m *LacpPtxMachine) {
 		m.LacpPtxmLog("PTXM: Machine Start")
+		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PtxmKillSignalEvent:
-				m.LacpPtxmLog("PTXM: Machine End")
+				m.LacpPtxmLog("Machine End")
 				return
 			case <-m.periodicTxTimer.C:
 				//m.LacpPtxmLog("Timer expired current state")

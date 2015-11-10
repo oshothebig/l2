@@ -3,12 +3,12 @@ package lacp
 
 import (
 	"fmt"
-	"reflect"
-	"strings"
-	//"time"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"reflect"
+	"strings"
+	"sync"
 )
 
 type PortProperties struct {
@@ -92,6 +92,7 @@ type LaAggPort struct {
 	portChan chan string
 	log      chan string
 	logEna   bool
+	wg       sync.WaitGroup
 
 	// handle used to tx packets to linux if
 	handle *pcap.Handle
@@ -213,10 +214,18 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// add port to port map
 	sgi.PortMap[p.portNum] = p
 
+	// wait group used when stopping all the
+	// state mahines associated with this port.
+	// want to ensure that all routines are stopped
+	// before proceeding with cleanup
+	p.wg.Add(5)
+
 	handle, err := pcap.OpenLive(p.intfNum, 65536, true, pcap.BlockForever)
 	if err != nil {
 		// failure here may be ok as this may be SIM
-		fmt.Println("Error creating pcap OpenLive handle for port", p.portNum, p.intfNum, err)
+		if !strings.Contains(p.intfNum, "SIM") {
+			fmt.Println("Error creating pcap OpenLive handle for port", p.portNum, p.intfNum, err)
+		}
 		return p
 	}
 	fmt.Println("Creating Listener for intf", p.intfNum)
@@ -254,24 +263,52 @@ func (p *LaAggPort) DelLaAggPort() {
 }
 
 func (p *LaAggPort) Stop() {
+
+	LacpSysGlobalInfoGet(p.sysId).LaSysGlobalDeRegisterTxCallback(p.intfNum)
+	// close rx/tx processing
+	// TODO figure out why this call does not return
+	if p.handle != nil {
+		p.handle.Close()
+		fmt.Println("RX/TX handle closed for port", p.portNum)
+	}
+
 	// stop the state machines
+	// TODO maybe run these in parrallel?
 	if p.RxMachineFsm != nil {
 		p.RxMachineFsm.Stop()
+	} else {
+		p.wg.Done()
 	}
+
 	if p.PtxMachineFsm != nil {
 		p.PtxMachineFsm.Stop()
+	} else {
+		p.wg.Done()
 	}
 	if p.TxMachineFsm != nil {
 		p.TxMachineFsm.Stop()
+	} else {
+		p.wg.Done()
 	}
 	if p.CdMachineFsm != nil {
 		p.CdMachineFsm.Stop()
+	} else {
+		p.wg.Done()
 	}
 	if p.MuxMachineFsm != nil {
 		p.MuxMachineFsm.Stop()
+	} else {
+		p.wg.Done()
 	}
+	// lets wait for all the state machines to have stopped
+	p.wg.Wait()
+	fmt.Println("All machines stopped for port", p.portNum)
 	close(p.portChan)
-	p.handle.Close()
+
+	// kill the logger for this port
+	p.LacpDebug.Stop()
+	fmt.Println("Logger stopped for port", p.portNum)
+
 }
 
 //  BEGIN will initiate all the state machines

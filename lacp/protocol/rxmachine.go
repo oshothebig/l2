@@ -401,11 +401,12 @@ func (p *LaAggPort) LacpRxMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the RxMachine should handle.
 	go func(m *LacpRxMachine) {
-		m.LacpRxmLog("RXM: Machine Start")
+		m.LacpRxmLog("Machine Start")
+		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.RxmKillSignalEvent:
-				m.LacpRxmLog("RXM: Machine End")
+				m.LacpRxmLog("Machine End")
 				return
 
 			case <-m.currentWhileTimer.C:

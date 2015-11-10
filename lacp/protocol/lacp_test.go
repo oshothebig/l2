@@ -331,14 +331,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 
 	// if the port is found verify the initial state after begin event
 	// which was called as part of create
-	if p.aggSelected == LacpAggSelected {
-		t.Error("Port is in SELECTED mode")
-	}
-
-	// Add port to agg
-	AddLaAggPortToAgg(aconf.Id, pconf.Id)
-
-	if p.aggSelected == LacpAggSelected {
+	if p.aggSelected != LacpAggSelected {
 		t.Error("Port is in SELECTED mode")
 	}
 
@@ -400,24 +393,11 @@ func TestLaAggPortEnable(t *testing.T) {
 	// Create Aggregation
 	CreateLaAgg(aconf)
 
-	// if the port is found verify the initial state after begin event
-	// which was called as part of create
-	if p.aggSelected == LacpAggSelected {
-		t.Error("Port is in SELECTED mode")
-	}
-
-	// Add port to agg
-	AddLaAggPortToAgg(aconf.Id, pconf.Id)
-
-	if p.aggSelected == LacpAggSelected {
+	if p.aggSelected != LacpAggSelected {
 		t.Error("Port is in SELECTED mode")
 	}
 
 	EnableLaAggPort(pconf.Id)
-
-	if p.aggSelected != LacpAggSelected {
-		t.Error("Port is in NOT in SELECTED mode")
-	}
 
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
 		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
@@ -891,6 +871,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.PreviousState(),
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
+
 	p.DelLaAggPort()
 }
 
@@ -1019,11 +1000,6 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	ActorSystem.LaSysGlobalRegisterTxCallback(LaAggPortActorIf, bridge.TxViaGoChannel)
 	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeerIf, bridge.TxViaGoChannel)
 
-	// port 1
-	LaRxMain(bridge.port1, bridge.rxLacpPort1)
-	// port 2
-	LaRxMain(bridge.port2, bridge.rxLacpPort2)
-
 	p1conf := &LaAggPortConfig{
 		Id:     LaAggPortActor,
 		Prio:   0x80,
@@ -1064,6 +1040,11 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	// lets create a port and start the machines
 	CreateLaAggPort(p1conf)
 	CreateLaAggPort(p2conf)
+
+	// port 1
+	LaRxMain(bridge.port1, bridge.rxLacpPort1)
+	// port 2
+	LaRxMain(bridge.port2, bridge.rxLacpPort2)
 
 	a1conf := &LaAggConfig{
 		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
@@ -1124,6 +1105,9 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	} else {
 		t.Error("Unable to find port just created")
 	}
+
+	bridge.rxLacpPort1 = nil
+	bridge.rxLacpPort2 = nil
 	// cleanup the provisioning
 	DeleteLaAgg(a1conf.Id)
 	DeleteLaAgg(a2conf.Id)
