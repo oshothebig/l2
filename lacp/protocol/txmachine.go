@@ -6,6 +6,8 @@ package lacp
 import (
 	"fmt"
 	"github.com/google/gopacket/layers"
+	"strconv"
+	"strings"
 	"time"
 	"utils/fsm"
 )
@@ -329,15 +331,19 @@ func (p *LaAggPort) LacpTxMachineMain() {
 					m.ntt = true
 				}
 
-				m.Machine.ProcessEvent(event.src, event.e, nil)
+				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 
-				if m.Machine.Curr.CurrentState() == LacpTxmStateGuardTimerExpire &&
-					m.txPending > 0 && m.txPkts == 0 {
-					m.txPending--
-					m.ntt = true
+				if rv != nil {
+					m.LacpTxmLog(strings.Join([]string{error.Error(rv), event.src, TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+				} else {
+					if m.Machine.Curr.CurrentState() == LacpTxmStateGuardTimerExpire &&
+						m.txPending > 0 && m.txPkts == 0 {
+						m.txPending--
+						m.ntt = true
 
-					m.LacpTxmLog("Forcing NTT processing from expire")
-					m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
+						m.LacpTxmLog("Forcing NTT processing from expire")
+						m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
+					}
 				}
 
 				if event.responseChan != nil {

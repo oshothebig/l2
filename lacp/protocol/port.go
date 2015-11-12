@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 )
 
 type PortProperties struct {
@@ -581,6 +582,14 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 	// port has lacp enabled
 	p.lacpEnabled = true
 
+}
+
+func (p *LaAggPort) TimeoutGet() time.Duration {
+	return p.PtxMachineFsm.PeriodicTxTimerInterval
+}
+
+func (p *LaAggPort) ModeGet() int {
+	return LacpModeGet(p.actorOper.state, p.lacpEnabled)
 }
 
 func LacpCopyLacpPortInfoFromPkt(fromPortInfoPtr *layers.LACPPortInfo, toPortInfoPtr *LacpPortInfo) {

@@ -2,6 +2,8 @@
 package lacp
 
 import (
+	"strconv"
+	"strings"
 	"time"
 	"utils/fsm"
 )
@@ -196,7 +198,11 @@ func (p *LaAggPort) LacpCdMachineMain() {
 				return
 
 			case event := <-m.CdmEvents:
-				m.Machine.ProcessEvent(event.src, event.e, nil)
+				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+
+				if rv != nil {
+					m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+				}
 
 				if event.responseChan != nil {
 					SendResponse(CdMachineModuleStr, event.responseChan)
