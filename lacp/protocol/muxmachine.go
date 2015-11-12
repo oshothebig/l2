@@ -5,6 +5,8 @@ package lacp
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 	"utils/fsm"
 )
@@ -465,57 +467,62 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 						LacpStateClear(&p.actorOper.state, LacpStateAggregationBit)
 					}
 				*/
-				m.LacpMuxmLog(fmt.Sprintf("Event received %d src %s", event.e, event.src))
+				//m.LacpMuxmLog(fmt.Sprintf("Event received %d src %s", event.e, event.src))
 
 				// process the event
-				m.Machine.ProcessEvent(event.src, event.e, nil)
+				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 
-				// continuation events
-				if m.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
-					m.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
-					// if port is attached then we know that provisioning found
-					// a valid agg thus port should be attached.
-					if p.aggAttached != nil {
-						// change the selection to be Selected
-						p.aggSelected = LacpAggSelected
-						//muxm.LacpMuxmLog("Setting Actor Aggregation Bit")
-						LacpStateSet(&p.actorOper.state, LacpStateAggregationBit)
+				if rv != nil {
+					m.LacpMuxmLog(strings.Join([]string{error.Error(rv), event.src, MuxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+				} else {
 
-						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelected, nil)
-						event.e = LacpMuxmEventSelectedEqualSelected
+					// continuation events
+					if m.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
+						m.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
+						// if port is attached then we know that provisioning found
+						// a valid agg thus port should be attached.
+						if p.aggAttached != nil {
+							// change the selection to be Selected
+							p.aggSelected = LacpAggSelected
+							//muxm.LacpMuxmLog("Setting Actor Aggregation Bit")
+							LacpStateSet(&p.actorOper.state, LacpStateAggregationBit)
+
+							m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelected, nil)
+							event.e = LacpMuxmEventSelectedEqualSelected
+						}
 					}
-				}
-				if event.e == LacpMuxmEventSelectedEqualSelected &&
-					(m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
-						m.Machine.Curr.CurrentState() == LacpMuxmStateCWaiting) &&
-					!m.waitWhileTimerRunning {
-					// special case we may have a delayed event which will do a fast transition to next state
-					// Attached, trigger is the fact that the timer is not running
-					m.LacpMuxmWaitingEvaluateSelected(true)
-				}
-				if (m.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
-					m.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
-					p.aggSelected == LacpAggSelected &&
-					LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
-					m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedAndPartnerSync, nil)
-				}
-				if m.Machine.Curr.CurrentState() != LacpMuxmStateCollecting &&
-					p.aggSelected == LacpAggSelected &&
-					LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) &&
-					LacpStateIsSet(p.partnerOper.state, LacpStateCollectingBit) {
-					m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting, nil)
-				}
-				if event.e == LacpMuxmEventSelectedEqualUnselected &&
-					(m.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
-						m.Machine.Curr.CurrentState() != LacpMuxmStateCDetached) {
-					// Unselected state will cause a downward transition to detached state
-					state := m.Machine.Curr.CurrentState()
-					endState := fsm.State(LacpMuxmStateDetached)
-					if m.Machine.Curr.CurrentState() > LacpMuxmStateDistributing {
-						endState = LacpMuxmStateCDetached
+					if event.e == LacpMuxmEventSelectedEqualSelected &&
+						(m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
+							m.Machine.Curr.CurrentState() == LacpMuxmStateCWaiting) &&
+						!m.waitWhileTimerRunning {
+						// special case we may have a delayed event which will do a fast transition to next state
+						// Attached, trigger is the fact that the timer is not running
+						m.LacpMuxmWaitingEvaluateSelected(true)
 					}
-					for ; state > endState; state-- {
-						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualUnselected, nil)
+					if (m.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
+						m.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
+						p.aggSelected == LacpAggSelected &&
+						LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
+						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedAndPartnerSync, nil)
+					}
+					if m.Machine.Curr.CurrentState() == LacpMuxmStateCollecting &&
+						p.aggSelected == LacpAggSelected &&
+						LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) &&
+						LacpStateIsSet(p.partnerOper.state, LacpStateCollectingBit) {
+						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting, nil)
+					}
+					if event.e == LacpMuxmEventSelectedEqualUnselected &&
+						(m.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
+							m.Machine.Curr.CurrentState() != LacpMuxmStateCDetached) {
+						// Unselected state will cause a downward transition to detached state
+						state := m.Machine.Curr.CurrentState()
+						endState := fsm.State(LacpMuxmStateDetached)
+						if m.Machine.Curr.CurrentState() > LacpMuxmStateDistributing {
+							endState = LacpMuxmStateCDetached
+						}
+						for ; state > endState; state-- {
+							m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualUnselected, nil)
+						}
 					}
 				}
 

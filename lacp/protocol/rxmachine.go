@@ -208,6 +208,10 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 func (rxm *LacpRxMachine) LacpRxMachineLacpDisabled(m fsm.Machine, data interface{}) fsm.State {
 	p := rxm.p
 
+	// stop the current while timer as it does not need to run as LACP is now
+	// disabled
+	rxm.CurrentWhileTimerStop()
+
 	// Unselect the aggregator
 	//p.aggSelected = LacpAggUnSelected
 	if p.MuxMachineFsm != nil {
@@ -321,6 +325,16 @@ func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
 		} else if !LacpStateIsSet(p.partnerOper.state, LacpStateCollectingBit) &&
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDistributing {
 			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerCollecting,
+				src: RxMachineModuleStr}
+		}
+
+		if LacpStateIsSet(p.partnerOper.state, LacpStateTimeoutBit) &&
+			p.PtxMachineFsm.PeriodicTxTimerInterval == LacpSlowPeriodicTime {
+			p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventPartnerOperStateTimeoutShort,
+				src: RxMachineModuleStr}
+		} else if !LacpStateIsSet(p.partnerOper.state, LacpStateTimeoutBit) &&
+			p.PtxMachineFsm.PeriodicTxTimerInterval == LacpFastPeriodicTime {
+			p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventPartnerOperStateTimeoutLong,
 				src: RxMachineModuleStr}
 		}
 	}
@@ -570,6 +584,13 @@ func (rxm *LacpRxMachine) recordDefault() {
 	LacpStateSet(&p.actorOper.state, LacpStateDefaultedBit)
 	//rxm.LacpRxmLog("Setting Partner Sync Bit")
 	LacpStateSet(&p.partnerOper.state, LacpStateSyncBit)
+
+	if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
+		p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
+		p.aggSelected == LacpAggSelected {
+		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
+			src: RxMachineModuleStr}
+	}
 }
 
 // updateNTT: 802.1ax Section 6.4.9

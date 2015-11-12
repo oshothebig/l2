@@ -53,6 +53,17 @@ const (
 	LacpStateExpiredBit
 )
 
+// default actor
+const LacpStateIndividual uint8 = (LacpStateDefaultedBit | LacpStateActivityBit)
+
+// default partner
+const LacpStateAggregatible uint8 = (LacpStateActivityBit |
+	LacpStateAggregationBit |
+	LacpStateSyncBit |
+	LacpStateCollectingBit |
+	LacpStateDistributingBit |
+	LacpStateDefaultedBit)
+
 const (
 	// also known as manual mode
 	LacpModeOn = iota + 1

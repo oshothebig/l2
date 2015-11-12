@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	//"fmt"
+	"fmt"
 	"github.com/google/gopacket/layers"
 	"sync"
 )
@@ -179,8 +179,8 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *layers.LACP) {
 		// lets trigger the event only if mux is not in waiting state as
 		// the wait while timer expiration will trigger the unselected event
 		if p.MuxMachineFsm != nil &&
-			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
-			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
+			(p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
+				p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCWaiting) {
 			p.aggSelected = LacpAggUnSelected
 			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
 				src: RxMachineModuleStr}
@@ -199,19 +199,20 @@ func (rxm *LacpRxMachine) updateDefaultSelected() {
 
 	p := rxm.p
 
+	//rxm.LacpRxmLog(fmt.Sprintf("Port partner admin info %#v", p.partnerAdmin))
+	//rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.partnerOper))
 	if !LacpLacpPortInfoIsEqual(&p.partnerAdmin, &p.partnerOper, LacpStateAggregationBit) {
-
 		//p.aggSelected = LacpAggUnSelected
 		// lets trigger the event only if mux is not in waiting state as
 		// the wait while timer expiration will trigger the unselected event
 		if p.MuxMachineFsm != nil &&
-			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
-			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting {
+			(p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
+				p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCWaiting) {
+			rxm.LacpRxmLog(fmt.Sprintf("Update Default Selected to Unselected", "Current Mux State", p.MuxMachineFsm.Machine.Curr.CurrentState(), "AggSelected", p.aggSelected))
 			p.aggSelected = LacpAggUnSelected
 			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
 				src: RxMachineModuleStr}
 		}
-
 	}
 }
 
