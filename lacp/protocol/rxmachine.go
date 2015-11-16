@@ -317,12 +317,15 @@ func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
 	p := rxm.p
 
 	if p.MuxMachineFsm != nil {
+
+		if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
+			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
+			p.checkConfigForSelection()
+		}
+
 		// lets inform the MUX of a possible state change
 		if LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
-			if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
-				p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
-				p.checkConfigForSelection()
-			} else if p.aggSelected == LacpAggSelected {
+			if p.aggSelected == LacpAggSelected {
 				if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
 					p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCAttached {
 					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
