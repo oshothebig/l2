@@ -146,6 +146,11 @@ func (rxm *LacpRxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 func (rxm *LacpRxMachine) LacpRxMachineInitialize(m fsm.Machine, data interface{}) fsm.State {
 	p := rxm.p
 
+	// Lets ensure that the port moves to the correct defaulted state
+	// after initialization.  Default params will change after lacp
+	// packets have arrived
+	LacpStateSet(&p.partnerOper.state, p.partnerAdmin.state)
+
 	// set the agg as being unselected
 	//p.aggSelected = LacpAggUnSelected
 	if p.MuxMachineFsm != nil {
@@ -247,6 +252,9 @@ func (rxm *LacpRxMachine) LacpRxMachineDefaulted(m fsm.Machine, data interface{}
 	// Actor Port Oper State Expired = FALSE
 	LacpStateClear(&p.actorOper.state, LacpStateExpiredBit)
 
+	// Lets set the partner admin state to aggregatable and up
+	LacpStateSet(&p.partnerAdmin.state, LacpStateAggregatibleUp)
+
 	return LacpRxmStateDefaulted
 }
 
@@ -295,6 +303,11 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	// Other machines may need to be informed of the various
 	// state info changes
 	rxm.InformMachinesOfStateChanges()
+
+	// In the event that the rx machine times out we want to ensure that the port
+	// stays down so lets change the default partner admin state
+	LacpStateSet(&p.partnerAdmin.state, LacpStateAggregatibleDown)
+
 	return LacpRxmStateCurrent
 }
 
@@ -306,12 +319,15 @@ func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
 	if p.MuxMachineFsm != nil {
 		// lets inform the MUX of a possible state change
 		if LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
-			if p.aggSelected == LacpAggSelected {
-				if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached {
+			if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
+				p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
+				p.checkConfigForSelection()
+			} else if p.aggSelected == LacpAggSelected {
+				if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
+					p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCAttached {
 					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
 						src: RxMachineModuleStr}
-				}
-				if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting {
+				} else if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting {
 					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting,
 						src: RxMachineModuleStr}
 				}
