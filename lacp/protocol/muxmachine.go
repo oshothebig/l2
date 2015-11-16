@@ -593,6 +593,7 @@ func (muxm *LacpMuxMachine) AttachMuxToAggregator() {
 	// TODO send message to asic deamon  create
 	p := muxm.p
 	if LaFindAggById(p.AggId, &p.aggAttached) {
+		LacpStateSet(&p.actorOper.state, LacpStateAggregationBit)
 		muxm.LacpMuxmLog("Attach Mux To Aggregator Enter, send Add PORT to ASICD")
 	}
 }

@@ -57,11 +57,16 @@ const (
 const LacpStateIndividual uint8 = (LacpStateDefaultedBit | LacpStateActivityBit)
 
 // default partner
-const LacpStateAggregatible uint8 = (LacpStateActivityBit |
+const LacpStateAggregatibleUp uint8 = (LacpStateActivityBit |
 	LacpStateAggregationBit |
 	LacpStateSyncBit |
 	LacpStateCollectingBit |
 	LacpStateDistributingBit |
+	LacpStateDefaultedBit)
+
+// default partner state after lacp pdu's received
+const LacpStateAggregatibleDown uint8 = (LacpStateActivityBit |
+	LacpStateAggregationBit |
 	LacpStateDefaultedBit)
 
 const (

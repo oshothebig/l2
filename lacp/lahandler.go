@@ -93,7 +93,7 @@ func (la LaServiceHandler) CreateLaAggPort(Id lacpd.Uint16,
 			Duplex: int(Duplex),
 			Mtu:    int(Mtu),
 		},
-		TraceEna: false,
+		TraceEna: true,
 		IntfId:   IntfId,
 		SysId:    ConvertStringToUint8Array(SysId),
 	}

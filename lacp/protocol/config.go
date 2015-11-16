@@ -3,7 +3,7 @@ package lacp
 
 import (
 	"fmt"
-	"sync"
+	//"sync"
 	"time"
 )
 
@@ -60,35 +60,36 @@ type LaAggPortConfig struct {
 
 func CreateLaAgg(agg *LaAggConfig) {
 
-	var wg sync.WaitGroup
+	//var wg sync.WaitGroup
 
 	a := NewLaAggregator(agg)
 	//fmt.Printf("%#v\n", a)
 
-	// two methods for creating ports after CreateLaAgg is created
-	// 1) PortNumList is populated
-	// 2) find Key's that match
-	for _, pId := range a.PortNumList {
-		wg.Add(1)
-		go func(pId uint16) {
-			var p *LaAggPort
-			defer wg.Done()
-			if LaFindPortById(pId, &p) && p.aggSelected == LacpAggUnSelected {
-				// if aggregation has been provided then lets kick off the process
-				p.checkConfigForSelection()
-			}
-		}(pId)
-	}
+	/*
+		// two methods for creating ports after CreateLaAgg is created
+		// 1) PortNumList is populated
+		// 2) find Key's that match
+		for _, pId := range a.PortNumList {
+			wg.Add(1)
+			go func(pId uint16) {
+				var p *LaAggPort
+				defer wg.Done()
+				if LaFindPortById(pId, &p) && p.aggSelected == LacpAggUnSelected {
+					// if aggregation has been provided then lets kick off the process
+					p.checkConfigForSelection()
+				}
+			}(pId)
+		}
 
-	wg.Wait()
-
+		wg.Wait()
+	*/
 	index := 0
 	var p *LaAggPort
-	if sgi := LacpSysGlobalInfoGet(agg.SysId); sgi != nil {
+	if sgi := LacpSysGlobalInfoGet(a.actorSystemId); sgi != nil {
 		for index != -1 {
-			if LaFindPortByKey(agg.Key, &index, &p) {
+			if LaFindPortByKey(a.actorAdminKey, &index, &p) {
 				if p.aggSelected == LacpAggUnSelected {
-					AddLaAggPortToAgg(agg.Id, p.portNum)
+					AddLaAggPortToAgg(a.aggId, p.portNum)
 				}
 			} else {
 				break
@@ -295,13 +296,13 @@ func AddLaAggPortToAgg(aggId int, pId uint16) {
 		p.AggId = aggId
 
 		// attach the port to the aggregator
-		LacpStateSet(&p.actorAdmin.state, LacpStateAggregationBit)
+		//LacpStateSet(&p.actorAdmin.state, LacpStateAggregationBit)
 
 		// Port is now aggregatible
 		//LacpStateSet(&p.actorOper.state, LacpStateAggregationBit)
 
 		// well obviously this should pass
-		p.checkConfigForSelection()
+		//p.checkConfigForSelection()
 	}
 }
 

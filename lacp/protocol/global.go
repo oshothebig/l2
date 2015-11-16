@@ -53,7 +53,7 @@ func LacpSysGlobalInfoInit(sysId [6]uint8) *LacpSysGlobalInfo {
 		gLacpSysGlobalInfo[sysId].SystemDefaultParams.LacpSystemActorSystemIdSet(sysId)
 
 		// Partner is brought up as aggregatible
-		LacpStateSet(&gLacpSysGlobalInfo[sysId].PartnerStateDefaultParams.state, LacpStateAggregatible)
+		LacpStateSet(&gLacpSysGlobalInfo[sysId].PartnerStateDefaultParams.state, LacpStateAggregatibleUp)
 
 		// Actor is brought up as individual
 		LacpStateSet(&gLacpSysGlobalInfo[sysId].ActorStateDefaultParams.state, LacpStateIndividual)
