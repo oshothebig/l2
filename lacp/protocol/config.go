@@ -4,23 +4,35 @@ package lacp
 import (
 	"fmt"
 	//"sync"
+	"net"
 	"time"
+)
+
+const (
+	LaAggTypeLACP = iota + 1
+	LaAggTypeSTATIC
 )
 
 const PortConfigModuleStr = "Port Config"
 
 type LaAggConfig struct {
+	// Aggregator name
+	Name string
 	// Aggregator_MAC_address
 	Mac [6]uint8
 	// Aggregator_Identifier
 	Id int
 	// Actor_Admin_Aggregator_Key
 	Key uint16
+	// Aggregator Type, LACP or STATIC
+	Type uint32
+	// Minimum number of links
+	MinLinks uint16
 	// LAG_ports
 	LagMembers []uint16
 
 	// system to attach this agg to
-	SysId [6]uint8
+	SysId net.HardwareAddr
 
 	// TODO hash config
 }
@@ -51,7 +63,7 @@ type LaAggPortConfig struct {
 	Properties PortProperties
 
 	// system to attach this agg to
-	SysId [6]uint8
+	SysId net.HardwareAddr
 
 	// Linux If
 	TraceEna bool
@@ -85,14 +97,16 @@ func CreateLaAgg(agg *LaAggConfig) {
 	*/
 	index := 0
 	var p *LaAggPort
-	if sgi := LacpSysGlobalInfoGet(a.actorSystemId); sgi != nil {
-		for index != -1 {
-			if LaFindPortByKey(a.actorAdminKey, &index, &p) {
-				if p.aggSelected == LacpAggUnSelected {
-					AddLaAggPortToAgg(a.aggId, p.portNum)
+	if mac, err := net.ParseMAC(a.Config.SystemIdMac); err == nil {
+		if sgi := LacpSysGlobalInfoGet(mac); sgi != nil {
+			for index != -1 {
+				if LaFindPortByKey(a.actorAdminKey, &index, &p) {
+					if p.aggSelected == LacpAggUnSelected {
+						AddLaAggPortToAgg(a.aggId, p.portNum)
+					}
+				} else {
+					break
 				}
-			} else {
-				break
 			}
 		}
 	}

@@ -161,7 +161,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 				Actor: layers.LACPInfoTlv{TlvType: layers.LACPTLVActorInfo,
 					Length: layers.LACPActorTlvLength,
 					Info: layers.LACPPortInfo{
-						System: layers.LACPSystem{SystemId: p.actorOper.system.actor_system,
+						System: layers.LACPSystem{SystemId: convertNetHwAddressToSysIdKey(p.actorOper.system.actor_system),
 							SystemPriority: p.actorOper.system.actor_system_priority,
 						},
 						Key:     p.actorOper.key,
@@ -173,7 +173,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 				Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
 					Length: layers.LACPActorTlvLength,
 					Info: layers.LACPPortInfo{
-						System: layers.LACPSystem{SystemId: p.partnerOper.system.actor_system,
+						System: layers.LACPSystem{SystemId: convertNetHwAddressToSysIdKey(p.partnerOper.system.actor_system),
 							SystemPriority: p.partnerOper.system.actor_system_priority,
 						},
 						Key:     p.partnerOper.key,

@@ -80,6 +80,18 @@ const (
 	LacpModePassive
 )
 
+type LacpConfigInfo struct {
+	//	    2 : i32 	Interval
+	// 	    3 : i32 	LacpMode
+	//	    4 : string 	SystemIdMac
+	//	    5 : i16 	SystemPriority
+	Interval uint32
+	Mode     uint32
+	// In format AA:BB:CC:DD:EE:FF
+	SystemIdMac    string
+	SystemPriority uint16
+}
+
 // LacpMachineEvent machine events will be sent
 // with this struct and will provide extra data
 // in order to provide async communication between

@@ -6,6 +6,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"net"
 	"reflect"
 	"strings"
 	"sync"
@@ -13,7 +14,7 @@ import (
 )
 
 type PortProperties struct {
-	Mac    [6]byte
+	Mac    net.HardwareAddr
 	Speed  int
 	Duplex int
 	Mtu    int
@@ -51,6 +52,8 @@ type LaAggPort struct {
 	portPriority uint16
 
 	AggId int
+
+	config LacpConfigInfo
 
 	// Once selected reference to agg group will be made
 	aggAttached *LaAggregator
@@ -105,7 +108,7 @@ type LaAggPort struct {
 	// going to save as byte
 	partnerVersion uint8
 
-	sysId [6]uint8
+	sysId net.HardwareAddr
 }
 
 func (p *LaAggPort) LaPortLog(msg string) {
@@ -173,20 +176,23 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	sgi := LacpSysGlobalInfoGet(config.SysId)
 
 	p := &LaAggPort{
-		portId:        LaConvertPortAndPriToPortId(config.Id, config.Prio),
-		portNum:       config.Id,
-		portPriority:  config.Prio,
-		intfNum:       config.IntfId,
-		macProperties: config.Properties,
-		key:           config.Key,
-		aggSelected:   LacpAggUnSelected,
-		sysId:         config.SysId,
-		begin:         true,
-		portMoved:     false,
-		lacpEnabled:   false,
-		portEnabled:   config.Enable,
-		logEna:        config.TraceEna,
-		portChan:      make(chan string)}
+		portId:       LaConvertPortAndPriToPortId(config.Id, config.Prio),
+		portNum:      config.Id,
+		portPriority: config.Prio,
+		intfNum:      config.IntfId,
+		key:          config.Key,
+		aggSelected:  LacpAggUnSelected,
+		sysId:        config.SysId,
+		begin:        true,
+		portMoved:    false,
+		lacpEnabled:  false,
+		portEnabled:  config.Enable,
+		macProperties: PortProperties{Mac: config.Properties.Mac,
+			Speed:  config.Properties.Speed,
+			Duplex: config.Properties.Duplex,
+			Mtu:    config.Properties.Mtu},
+		logEna:   config.TraceEna,
+		portChan: make(chan string)}
 
 	// Start Port Logger
 	p.LacpDebugEventLogMain()
@@ -213,7 +219,8 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	}
 
 	// add port to port map
-	sgi.PortMap[p.portNum] = p
+	sgi.PortMap[PortIdKey{Name: p.intfNum,
+		Id: p.portNum}] = p
 
 	// wait group used when stopping all the
 	// state mahines associated with this port.
@@ -253,10 +260,11 @@ func (p *LaAggPort) PortChannelGet() chan string {
 func (p *LaAggPort) DelLaAggPort() {
 	p.Stop()
 	for _, sgi := range gLacpSysGlobalInfo {
-		for pId, p := range sgi.PortMap {
-			if pId == p.portNum {
+		for key, port := range sgi.PortMap {
+			if port.portNum == p.portNum ||
+				port.intfNum == p.intfNum {
 				// remove the port from the port map
-				delete(gLacpSysGlobalInfo[p.sysId].PortMap, p.portNum)
+				delete(gLacpSysGlobalInfo[convertNetHwAddressToSysIdKey(p.sysId)].PortMap, key)
 				return
 			}
 		}
@@ -539,8 +547,9 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 	}
 
 	// port is no longer controlling lacp state
-	p.actorAdmin.state = gLacpSysGlobalInfo[p.sysId].ActorStateDefaultParams.state
-	p.actorOper.state = gLacpSysGlobalInfo[p.sysId].ActorStateDefaultParams.state
+	sysInfo := LacpSysGlobalInfoGet(p.sysId)
+	p.actorAdmin.state = sysInfo.ActorStateDefaultParams.state
+	p.actorOper.state = sysInfo.ActorStateDefaultParams.state
 }
 
 // LaAggPortEnabled will update the status on the port
@@ -597,7 +606,7 @@ func LacpCopyLacpPortInfoFromPkt(fromPortInfoPtr *layers.LACPPortInfo, toPortInf
 	toPortInfoPtr.port = fromPortInfoPtr.Port
 	toPortInfoPtr.port_pri = fromPortInfoPtr.PortPri
 	toPortInfoPtr.state = fromPortInfoPtr.State
-	toPortInfoPtr.system.LacpSystemActorSystemIdSet(fromPortInfoPtr.System.SystemId)
+	toPortInfoPtr.system.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(fromPortInfoPtr.System.SystemId))
 	toPortInfoPtr.system.LacpSystemActorSystemPrioritySet(fromPortInfoPtr.System.SystemPriority)
 }
 

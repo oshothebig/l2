@@ -430,7 +430,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 	muxm := p.LacpMuxMachineFSMBuild()
 
 	// Hw only supports mux coupling
-	if gLacpSysGlobalInfo[p.sysId].muxCoupling {
+	if LacpSysGlobalInfoGet(p.sysId).muxCoupling {
 		muxm.PrevStateSet(LacpMuxmStateCNone)
 	}
 	// set the inital state
