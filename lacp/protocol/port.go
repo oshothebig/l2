@@ -244,6 +244,9 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// start rx routine
 	LaRxMain(p.portNum, in)
 
+	// register the tx func
+	LacpSysGlobalInfoGet(p.sysId).LaSysGlobalRegisterTxCallback(p.intfNum, TxViaLinuxIf)
+
 	//fmt.Printf("%#v", *p)
 
 	return p

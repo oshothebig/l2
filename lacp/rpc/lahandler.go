@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	//"genmodels"
 	lacp "l2/lacp/protocol"
 	"lacpd"
 	"net"

@@ -95,6 +95,9 @@ type LaAggregator struct {
 	// Port number from LaAggPort
 	// LAG_Ports
 	PortNumList []uint16
+
+	// Ports in Distributed state
+	DistributedPortNumList []string
 }
 
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
@@ -105,9 +108,10 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		actorAdminKey: ac.Key,
 		Config: LacpConfigInfo{SystemIdMac: sgi.SystemDefaultParams.actor_system.String(),
 			SystemPriority: sgi.SystemDefaultParams.actor_system_priority},
-		partnerSystemId: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-		ready:           true,
-		PortNumList:     make([]uint16, 0),
+		partnerSystemId:        [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		ready:                  true,
+		PortNumList:            make([]uint16, 0),
+		DistributedPortNumList: make([]string, 0),
 	}
 
 	// want to ensure that the application can use a string name or id
