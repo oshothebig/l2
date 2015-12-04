@@ -2,6 +2,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"git.apache.org/thrift.git/lib/go/thrift"
 	lacp "l2/lacp/protocol"
