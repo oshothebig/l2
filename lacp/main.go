@@ -16,7 +16,8 @@ func main() {
 	var err error
 
 	// lookup port
-	configFile := "/opt/flexswitch/params/clients.json"
+	paramsDir := flag.String("params", "", "Directory Location for config files")
+	configFile := *paramsDir + "/clients.json"
 	port := lacp.GetClientPort(configFile, "lacpd")
 	if port != 0 {
 		addr := fmt.Sprintf("localhost:%d", port)
