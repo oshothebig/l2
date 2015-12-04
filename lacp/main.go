@@ -31,7 +31,6 @@ func main() {
 		transportFactory := thrift.NewTBufferedTransportFactory(8192)
 		protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 		server := thrift.NewTSimpleServer4(processor, transport, transportFactory, protocolFactory)
-		fmt.Println("Starting LACP Thrift daemon")
 
 		fmt.Println("Available Interfaces for use:")
 		intfs, err := net.Interfaces()
@@ -39,6 +38,7 @@ func main() {
 			for _, intf := range intfs {
 				fmt.Println(intf)
 			}
+			fmt.Println("Starting LACP Thrift daemon")
 			server.Serve()
 		} else {
 			panic(err)
