@@ -54,7 +54,7 @@ func GetClientPort(paramsFile string, client string) int {
 
 	bytes, err := ioutil.ReadFile(paramsFile)
 	if err != nil {
-		fmt.Println("Error in reading configuration file")
+		fmt.Println("Error in reading configuration file %s", paramsFile)
 		return 0
 	}
 
