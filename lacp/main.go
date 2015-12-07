@@ -7,7 +7,7 @@ import (
 	"git.apache.org/thrift.git/lib/go/thrift"
 	lacp "l2/lacp/protocol"
 	"l2/lacp/rpc"
-	"lacpd"
+	"lacpdServices"
 	"net"
 )
 
@@ -27,8 +27,8 @@ func main() {
 			panic(fmt.Sprintf("Failed to create Socket with:", addr))
 		}
 
-		handler := rpc.NewLACPDServerHandler()
-		processor := lacpd.NewLACPDServerProcessor(handler)
+		handler := rpc.NewLACPDServiceHandler()
+		processor := lacpdServices.NewLACPDServicesProcessor(handler)
 		transportFactory := thrift.NewTBufferedTransportFactory(8192)
 		protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 		server := thrift.NewTSimpleServer4(processor, transport, transportFactory, protocolFactory)

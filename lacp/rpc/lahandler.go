@@ -6,17 +6,17 @@ import (
 	"errors"
 	"fmt"
 	lacp "l2/lacp/protocol"
-	"lacpd"
+	"lacpdServices"
 	"net"
 	"strings"
 	"time"
 )
 
-type LACPDServerHandler struct {
+type LACPDServiceHandler struct {
 }
 
-func NewLACPDServerHandler() *LACPDServerHandler {
-	return &LACPDServerHandler{}
+func NewLACPDServiceHandler() *LACPDServiceHandler {
+	return &LACPDServiceHandler{}
 }
 
 func ConvertStringToUint8Array(s string) [6]uint8 {
@@ -97,7 +97,7 @@ func GetKeyByAggName(aggName string) uint16 {
 }
 
 // OPEN CONFIG YANG specific
-func (la LACPDServerHandler) CreateAggregationConfig(config *lacpd.AggregationConfig) (bool, error) {
+func (la LACPDServiceHandler) CreateAggregationConfig(config *lacpdServices.AggregationConfig) (bool, error) {
 	//        1 : string      NameKey
 	//        2 : i32         LagType
 	//        3 : i16         MinLinks
@@ -112,15 +112,15 @@ func (la LACPDServerHandler) CreateAggregationConfig(config *lacpd.AggregationCo
 	return true, nil
 }
 
-func (la LACPDServerHandler) DeleteAggregationConfig(config *lacpd.AggregationConfig) (bool, error) {
+func (la LACPDServiceHandler) DeleteAggregationConfig(config *lacpdServices.AggregationConfig) (bool, error) {
 	return true, nil
 }
 
-func (la LACPDServerHandler) UpdateAggregationConfig(config *lacpd.AggregationConfig) (bool, error) {
+func (la LACPDServiceHandler) UpdateAggregationConfig(config *lacpdServices.AggregationConfig) (bool, error) {
 	return true, nil
 }
 
-func (la LACPDServerHandler) CreateAggregationLacpConfig(config *lacpd.AggregationLacpConfig) (bool, error) {
+func (la LACPDServiceHandler) CreateAggregationLacpConfig(config *lacpdServices.AggregationLacpConfig) (bool, error) {
 	//		1 : string 	NameKey
 	//	    2 : i32 	Interval
 	// 	    3 : i32 	LacpMode
@@ -149,15 +149,15 @@ func (la LACPDServerHandler) CreateAggregationLacpConfig(config *lacpd.Aggregati
 	return true, nil
 }
 
-func (la LACPDServerHandler) DeleteAggregationLacpConfig(config *lacpd.AggregationLacpConfig) (bool, error) {
+func (la LACPDServiceHandler) DeleteAggregationLacpConfig(config *lacpdServices.AggregationLacpConfig) (bool, error) {
 	return true, nil
 }
 
-func (la LACPDServerHandler) UpdateAggregationLacpConfig(config *lacpd.AggregationLacpConfig) (bool, error) {
+func (la LACPDServiceHandler) UpdateAggregationLacpConfig(config *lacpdServices.AggregationLacpConfig) (bool, error) {
 	return true, nil
 }
 
-func (la LACPDServerHandler) CreateEthernetConfig(config *lacpd.EthernetConfig) (bool, error) {
+func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.EthernetConfig) (bool, error) {
 
 	yangModeMap := map[uint32]string{
 		//LacpActivityTypeACTIVE:  "ACTIVE",
@@ -187,16 +187,16 @@ func (la LACPDServerHandler) CreateEthernetConfig(config *lacpd.EthernetConfig) 
 		// lets create a port with some defaults
 		la.CreateLaAggPort(
 			0,
-			0, //Prio lacpd.Uint16,
-			lacpd.Uint16(GetKeyByAggName(config.AggregateId)),
+			0, //Prio lacpdServices.Uint16,
+			lacpdServices.Uint16(GetKeyByAggName(config.AggregateId)),
 			0,
 			config.Enabled,
 			"ON",   //"ON", "ACTIVE", "PASSIVE"
 			"LONG", //"SHORT", "LONG"
 			config.MacAddress,
-			lacpd.Int(ConvertModelSpeedToLaAggSpeed(config.Speed)),
-			lacpd.Int(config.DuplexMode),
-			lacpd.Int(config.Mtu),
+			lacpdServices.Int(ConvertModelSpeedToLaAggSpeed(config.Speed)),
+			lacpdServices.Int(config.DuplexMode),
+			lacpdServices.Int(config.Mtu),
 			config.MacAddress,
 			config.NameKey,
 		)
@@ -216,16 +216,16 @@ func (la LACPDServerHandler) CreateEthernetConfig(config *lacpd.EthernetConfig) 
 		}
 		la.CreateLaAggPort(
 			0,
-			lacpd.Uint16(a.Config.SystemPriority),
-			lacpd.Uint16(GetKeyByAggName(config.AggregateId)),
+			lacpdServices.Uint16(a.Config.SystemPriority),
+			lacpdServices.Uint16(GetKeyByAggName(config.AggregateId)),
 			0,
 			config.Enabled,
 			mode,
 			timeout,
 			config.MacAddress,
-			lacpd.Int(ConvertModelSpeedToLaAggSpeed(config.Speed)),
-			lacpd.Int(config.DuplexMode),
-			lacpd.Int(config.Mtu),
+			lacpdServices.Int(ConvertModelSpeedToLaAggSpeed(config.Speed)),
+			lacpdServices.Int(config.DuplexMode),
+			lacpdServices.Int(config.Mtu),
 			a.Config.SystemIdMac,
 			config.NameKey,
 		)
@@ -233,18 +233,18 @@ func (la LACPDServerHandler) CreateEthernetConfig(config *lacpd.EthernetConfig) 
 	return true, nil
 }
 
-func (la LACPDServerHandler) DeleteEthernetConfig(config *lacpd.EthernetConfig) (bool, error) {
+func (la LACPDServiceHandler) DeleteEthernetConfig(config *lacpdServices.EthernetConfig) (bool, error) {
 	return true, nil
 }
 
-func (la LACPDServerHandler) UpdateEthernetConfig(config *lacpd.EthernetConfig) (bool, error) {
+func (la LACPDServiceHandler) UpdateEthernetConfig(config *lacpdServices.EthernetConfig) (bool, error) {
 	return true, nil
 }
 
-func (la LACPDServerHandler) CreateLaAggregator(aggId lacpd.Int,
-	actorAdminKey lacpd.Uint16,
+func (la LACPDServiceHandler) CreateLaAggregator(aggId lacpdServices.Int,
+	actorAdminKey lacpdServices.Uint16,
 	actorSystemId string,
-	aggMacAddr string) (lacpd.Int, error) {
+	aggMacAddr string) (lacpdServices.Int, error) {
 
 	mac, _ := net.ParseMAC(actorSystemId)
 	conf := &lacp.LaAggConfig{
@@ -262,25 +262,25 @@ func (la LACPDServerHandler) CreateLaAggregator(aggId lacpd.Int,
 	return 0, nil
 }
 
-func (la LACPDServerHandler) DeleteLaAggregator(aggId lacpd.Int) (lacpd.Int, error) {
+func (la LACPDServiceHandler) DeleteLaAggregator(aggId lacpdServices.Int) (lacpdServices.Int, error) {
 
 	lacp.DeleteLaAgg(int(aggId))
 	return 0, nil
 }
 
-func (la LACPDServerHandler) CreateLaAggPort(Id lacpd.Uint16,
-	Prio lacpd.Uint16,
-	Key lacpd.Uint16,
-	AggId lacpd.Int,
+func (la LACPDServiceHandler) CreateLaAggPort(Id lacpdServices.Uint16,
+	Prio lacpdServices.Uint16,
+	Key lacpdServices.Uint16,
+	AggId lacpdServices.Int,
 	Enable bool,
 	Mode string, //"ON", "ACTIVE", "PASSIVE"
 	Timeout string, //"SHORT", "LONG"
 	Mac string,
-	Speed lacpd.Int,
-	Duplex lacpd.Int,
-	Mtu lacpd.Int,
+	Speed lacpdServices.Int,
+	Duplex lacpdServices.Int,
+	Mtu lacpdServices.Int,
 	SysId string,
-	IntfId string) (lacpd.Int, error) {
+	IntfId string) (lacpdServices.Int, error) {
 
 	// TODO: check syntax on strings?
 	t := lacp.LacpShortTimeoutTime
@@ -318,7 +318,7 @@ func (la LACPDServerHandler) CreateLaAggPort(Id lacpd.Uint16,
 	return 0, nil
 }
 
-func (la LACPDServerHandler) DeleteLaAggPort(Id lacpd.Uint16) (lacpd.Int, error) {
+func (la LACPDServiceHandler) DeleteLaAggPort(Id lacpdServices.Uint16) (lacpdServices.Int, error) {
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(Id), &p) {
 		if p.AggId != 0 {
@@ -330,7 +330,7 @@ func (la LACPDServerHandler) DeleteLaAggPort(Id lacpd.Uint16) (lacpd.Int, error)
 	return 1, errors.New(fmt.Sprintf("LACP: Unable to find Port %d", Id))
 }
 
-func (la LACPDServerHandler) SetLaAggPortMode(Id lacpd.Uint16, m string) (lacpd.Int, error) {
+func (la LACPDServiceHandler) SetLaAggPortMode(Id lacpdServices.Uint16, m string) (lacpdServices.Int, error) {
 
 	supportedModes := map[string]int{"ON": lacp.LacpModeOn,
 		"ACTIVE":  lacp.LacpModeActive,
@@ -350,7 +350,7 @@ func (la LACPDServerHandler) SetLaAggPortMode(Id lacpd.Uint16, m string) (lacpd.
 	return 0, nil
 }
 
-func (la LACPDServerHandler) SetLaAggPortTimeout(Id lacpd.Uint16, t string) (lacpd.Int, error) {
+func (la LACPDServiceHandler) SetLaAggPortTimeout(Id lacpdServices.Uint16, t string) (lacpdServices.Int, error) {
 	// user can supply the periodic time or the
 	supportedTimeouts := map[string]time.Duration{"SHORT": lacp.LacpShortTimeoutTime,
 		"LONG": lacp.LacpLongTimeoutTime}
@@ -372,7 +372,7 @@ func (la LACPDServerHandler) SetLaAggPortTimeout(Id lacpd.Uint16, t string) (lac
 // SetPortLacpLogEnable will enable on a per port basis logging
 // modStr - PORT, RXM, TXM, PTXM, TXM, CDM, ALL
 // modStr can be a string containing one or more of the above
-func (la LACPDServerHandler) SetPortLacpLogEnable(Id lacpd.Uint16, modStr string, ena bool) (lacpd.Int, error) {
+func (la LACPDServiceHandler) SetPortLacpLogEnable(Id lacpdServices.Uint16, modStr string, ena bool) (lacpdServices.Int, error) {
 	modules := make(map[string]chan bool)
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(Id), &p) {

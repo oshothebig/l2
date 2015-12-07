@@ -1,4 +1,4 @@
-namespace go lacpd
+namespace go lacpdServices
 typedef i32 int
 typedef i16 uint16
 struct EthernetConfig{
@@ -36,7 +36,7 @@ struct AggregationLacpConfig{
 	10 : string 	SystemIdMac
 	11 : i16 	SystemPriority
 }
-service LACPDServer {
+service LACPDServices {
 	bool CreateEthernetConfig(1: EthernetConfig config);
 	bool UpdateEthernetConfig(1: EthernetConfig config);
 	bool DeleteEthernetConfig(1: EthernetConfig config);

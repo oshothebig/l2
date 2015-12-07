@@ -11,8 +11,7 @@ ipc: $(IPCS)
 	 $(foreach f,$^, make -C $(f) ipc;)
 
 clean: $(COMPS)
-         $(foreach f,$^, make -C $(f) clean;)
+	$(foreach f,$^, make -C $(f) clean;)
 
 install:
 	@echo "All files that need to be copied would go here"
-
