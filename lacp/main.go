@@ -17,9 +17,15 @@ func main() {
 	var err error
 
 	// lookup port
-	paramsDir := flag.String("params", "", "Directory Location for config files")
-	configFile := *paramsDir + "/clients.json"
-	port := lacp.GetClientPort(configFile, "lacpd")
+	paramsDir := flag.String("params", "./params", "Params directory")
+	flag.Parse()
+	fileName := *paramsDir
+	if fileName[len(fileName)-1] != '/' {
+		fileName = fileName + "/"
+	}
+	fileName = fileName + "clients.json"
+
+	port := lacp.GetClientPort(fileName, "lacpd")
 	if port != 0 {
 		addr := fmt.Sprintf("localhost:%d", port)
 		transport, err = thrift.NewTServerSocket(addr)
