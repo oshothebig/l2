@@ -50,6 +50,6 @@ func main() {
 		} else {
 			panic(err)
 		}
-		lacp.ConnectToClients(configFile)
+		lacp.ConnectToClients(fileName)
 	}
 }
