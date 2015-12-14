@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"net"
 	"testing"
 	"time"
 	"utils/fsm"
@@ -60,7 +61,7 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 	var p *LaAggPort
 
 	// must be called to initialize the global
-	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -71,7 +72,7 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 		Enable: false,
 		Mode:   LacpModeActive,
 		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			Mac:    net.HardwareAddr{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
 			Speed:  1000000000,
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
@@ -133,7 +134,7 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 	var p *LaAggPort
 
 	// must be called to initialize the global
-	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 	LacpSysGlobalInfoInit(sysId)
 
 	aconf := &LaAggConfig{
@@ -154,7 +155,7 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 		Enable: true,
 		Mode:   LacpModeActive,
 		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, 0x02, 0xDE, 0xAD, 0xBE, 0xEF},
+			Mac:    net.HardwareAddr{0x00, 0x02, 0xDE, 0xAD, 0xBE, 0xEF},
 			Speed:  1000000000,
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
@@ -183,7 +184,7 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 
 	var p *LaAggPort
-	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -194,7 +195,7 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 		Enable: true,
 		Mode:   LacpModeActive,
 		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			Mac:    net.HardwareAddr{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
 			Speed:  1000000000,
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
@@ -222,7 +223,7 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 
 	var p *LaAggPort
-	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -233,7 +234,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 		Enable: true,
 		Mode:   LacpModeActive,
 		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			Mac:    net.HardwareAddr{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
 			Speed:  1000000000,
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
@@ -288,7 +289,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 
 	var p *LaAggPort
-	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -298,7 +299,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 		AggId: 2000,
 		Mode:  LacpModeActive,
 		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			Mac:    net.HardwareAddr{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
 			Speed:  1000000000,
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
@@ -352,7 +353,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 // Enable port post creation
 func TestLaAggPortEnable(t *testing.T) {
 	var p *LaAggPort
-	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -362,7 +363,7 @@ func TestLaAggPortEnable(t *testing.T) {
 		AggId: 2000,
 		Mode:  LacpModeActive,
 		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
+			Mac:    net.HardwareAddr{0x00, 0x01, 0xDE, 0xAD, 0xBE, 0xEF},
 			Speed:  1000000000,
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
@@ -412,7 +413,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	var msg string
 	var portchan chan string
-	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -783,7 +784,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Actor: layers.LACPInfoTlv{TlvType: layers.LACPTLVActorInfo,
 			Length: layers.LACPActorTlvLength,
 			Info: layers.LACPPortInfo{
-				System: layers.LACPSystem{SystemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+				System: layers.LACPSystem{SystemId: net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 					SystemPriority: 1},
 				Key:     100,
 				PortPri: 0x80,
@@ -830,7 +831,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Actor: layers.LACPInfoTlv{TlvType: layers.LACPTLVActorInfo,
 			Length: layers.LACPActorTlvLength,
 			Info: layers.LACPPortInfo{
-				System: layers.LACPSystem{SystemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+				System: layers.LACPSystem{SystemId: net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 					SystemPriority: 1},
 				Key:     100,
 				PortPri: 0x80,
@@ -878,7 +879,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 
 	// must be called to initialize the global
-	sysId := [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
