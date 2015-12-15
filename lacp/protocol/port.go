@@ -119,7 +119,7 @@ func (p *LaAggPort) LaPortLog(msg string) {
 
 // find a port from the global map table by portNum
 func LaFindPortById(pId uint16, port **LaAggPort) bool {
-	for _, sgi := range LacpSysGlobalInfoGet() {
+	for _, sgi := range gLacpSysGlobalInfo {
 		for _, p := range sgi.PortMap {
 			if p.portNum == pId {
 				*port = p
@@ -136,7 +136,7 @@ func LaConvertPortAndPriToPortId(pId uint16, prio uint16) int {
 
 // find a port from the global map table by portNum
 func LaFindPortByPortId(portId int, port **LaAggPort) bool {
-	for _, sgi := range LacpSysGlobalInfoGet() {
+	for _, sgi := range gLacpSysGlobalInfo {
 		for _, p := range sgi.PortMap {
 			if p.portId == portId {
 				*port = p
@@ -151,7 +151,7 @@ func LaFindPortByPortId(portId int, port **LaAggPort) bool {
 // index value should input 0 for the first value
 func LaFindPortByKey(key uint16, index *int, port **LaAggPort) bool {
 	var i int
-	for _, sgi := range LacpSysGlobalInfoGet() {
+	for _, sgi := range gLacpSysGlobalInfo {
 		i = *index
 		l := len(sgi.PortMap)
 		for _, p := range sgi.PortMap {
@@ -272,7 +272,7 @@ func (p *LaAggPort) PortChannelGet() chan string {
 
 func (p *LaAggPort) DelLaAggPort() {
 	p.Stop()
-	for _, sgi := range LacpSysGlobalInfoGet() {
+	for _, sgi := range gLacpSysGlobalInfo {
 		for key, port := range sgi.PortMap {
 			if port.portNum == p.portNum ||
 				port.intfNum == p.intfNum {
