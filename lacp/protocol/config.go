@@ -110,10 +110,12 @@ func CreateLaAgg(agg *LaAggConfig) {
 	*/
 	index := 0
 	var p *LaAggPort
+	fmt.Println("looking for ports with actorAdminKey ", a.actorAdminKey)
 	if mac, err := net.ParseMAC(a.Config.SystemIdMac); err == nil {
 		if sgi := LacpSysGlobalInfoByIdGet(LacpSystem{actor_system: convertNetHwAddressToSysIdKey(mac),
 			actor_system_priority: a.Config.SystemPriority}); sgi != nil {
 			for index != -1 {
+				fmt.Println("looking for ", index)
 				if LaFindPortByKey(a.actorAdminKey, &index, &p) {
 					if p.aggSelected == LacpAggUnSelected {
 						AddLaAggPortToAgg(a.aggId, p.portNum)

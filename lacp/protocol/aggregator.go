@@ -135,7 +135,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 }
 
 func LaFindAggById(aggId int, agg **LaAggregator) bool {
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.AggMap {
 			if a.aggId == aggId {
 				*agg = a
@@ -147,7 +147,7 @@ func LaFindAggById(aggId int, agg **LaAggregator) bool {
 }
 
 func LaFindAggByName(aggName string, agg **LaAggregator) bool {
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.AggMap {
 			if a.aggName == aggName {
 				*agg = a
@@ -172,7 +172,7 @@ func LaAggPortNumListPortIdExist(aggId int, portId uint16) bool {
 
 func LaFindAggByKey(key uint16, agg **LaAggregator) bool {
 
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.AggMap {
 			if a.actorAdminKey == key {
 				*agg = a
