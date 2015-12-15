@@ -2,6 +2,7 @@
 package lacp
 
 import (
+	"net"
 	"time"
 )
 
@@ -101,13 +102,17 @@ type LaAggregator struct {
 }
 
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
-	sgi := LacpSysGlobalInfoGet(ac.SysId)
+	netMac, _ := net.ParseMAC(ac.Lacp.SystemIdMac)
+	sysId := LacpSystem{
+		actor_system:          convertNetHwAddressToSysIdKey(netMac),
+		actor_system_priority: ac.Lacp.SystemPriority,
+	}
+	sgi := LacpSysGlobalInfoByIdGet(sysId)
 	a := &LaAggregator{
-		aggName:       ac.Name,
-		aggId:         ac.Id,
-		actorAdminKey: ac.Key,
-		Config: LacpConfigInfo{SystemIdMac: sgi.SystemDefaultParams.actor_system.String(),
-			SystemPriority: sgi.SystemDefaultParams.actor_system_priority},
+		aggName:                ac.Name,
+		aggId:                  ac.Id,
+		actorAdminKey:          ac.Key,
+		Config:                 ac.Lacp,
 		partnerSystemId:        [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		ready:                  true,
 		PortNumList:            make([]uint16, 0),
@@ -129,15 +134,8 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	return a
 }
 
-func (a LaAggregator) LaAggUpdateConfigInfo(config *LacpConfigInfo) {
-	a.Config.Interval = config.Interval
-	a.Config.Mode = config.Mode
-	a.Config.SystemIdMac = config.SystemIdMac
-	a.Config.SystemPriority = config.SystemPriority
-}
-
 func LaFindAggById(aggId int, agg **LaAggregator) bool {
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.AggMap {
 			if a.aggId == aggId {
 				*agg = a
@@ -149,7 +147,7 @@ func LaFindAggById(aggId int, agg **LaAggregator) bool {
 }
 
 func LaFindAggByName(aggName string, agg **LaAggregator) bool {
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.AggMap {
 			if a.aggName == aggName {
 				*agg = a
@@ -174,7 +172,7 @@ func LaAggPortNumListPortIdExist(aggId int, portId uint16) bool {
 
 func LaFindAggByKey(key uint16, agg **LaAggregator) bool {
 
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.AggMap {
 			if a.actorAdminKey == key {
 				*agg = a

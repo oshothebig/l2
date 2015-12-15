@@ -119,7 +119,7 @@ func (p *LaAggPort) LaPortLog(msg string) {
 
 // find a port from the global map table by portNum
 func LaFindPortById(pId uint16, port **LaAggPort) bool {
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, p := range sgi.PortMap {
 			if p.portNum == pId {
 				*port = p
@@ -136,7 +136,7 @@ func LaConvertPortAndPriToPortId(pId uint16, prio uint16) int {
 
 // find a port from the global map table by portNum
 func LaFindPortByPortId(portId int, port **LaAggPort) bool {
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, p := range sgi.PortMap {
 			if p.portId == portId {
 				*port = p
@@ -151,7 +151,7 @@ func LaFindPortByPortId(portId int, port **LaAggPort) bool {
 // index value should input 0 for the first value
 func LaFindPortByKey(key uint16, index *int, port **LaAggPort) bool {
 	var i int
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		i = *index
 		l := len(sgi.PortMap)
 		for _, p := range sgi.PortMap {
@@ -173,7 +173,17 @@ func LaFindPortByKey(key uint16, index *int, port **LaAggPort) bool {
 // Allocate a new lag port, creating appropriate timers
 func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 
-	sgi := LacpSysGlobalInfoGet(config.SysId)
+	// Lets see if the agg exists and add this port to this config
+	// otherwise lets use the default
+	var a *LaAggregator
+	var sysId LacpSystem
+	if LaFindAggById(config.AggId, &a) {
+		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
+		sysId.actor_system = convertNetHwAddressToSysIdKey(mac)
+		sysId.actor_system_priority = a.Config.SystemPriority
+	}
+
+	sgi := LacpSysGlobalInfoByIdGet(sysId)
 
 	p := &LaAggPort{
 		portId:       LaConvertPortAndPriToPortId(config.Id, config.Prio),
@@ -200,7 +210,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// default actor admin
 	//fmt.Println(config.sysId, gLacpSysGlobalInfo[config.sysId])
 	p.actorAdmin.state = sgi.ActorStateDefaultParams.state
-	p.actorAdmin.system.LacpSystemActorSystemIdSet(sgi.SystemDefaultParams.actor_system)
+	p.actorAdmin.system.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.actor_system))
 	p.actorAdmin.system.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.actor_system_priority)
 	p.actorAdmin.key = p.key
 	p.actorAdmin.port = p.portNum
@@ -245,7 +255,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	LaRxMain(p.portNum, in)
 
 	// register the tx func
-	LacpSysGlobalInfoGet(p.sysId).LaSysGlobalRegisterTxCallback(p.intfNum, TxViaLinuxIf)
+	sgi.LaSysGlobalRegisterTxCallback(p.intfNum, TxViaLinuxIf)
 
 	//fmt.Printf("%#v", *p)
 
@@ -262,12 +272,21 @@ func (p *LaAggPort) PortChannelGet() chan string {
 
 func (p *LaAggPort) DelLaAggPort() {
 	p.Stop()
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		for key, port := range sgi.PortMap {
 			if port.portNum == p.portNum ||
 				port.intfNum == p.intfNum {
+				var a *LaAggregator
+				var sysId LacpSystem
+				if LaFindAggById(p.AggId, &a) {
+					mac, _ := net.ParseMAC(a.Config.SystemIdMac)
+					sysId.actor_system = convertNetHwAddressToSysIdKey(mac)
+					sysId.actor_system_priority = a.Config.SystemPriority
+				}
+
+				sgi := LacpSysGlobalInfoByIdGet(sysId)
 				// remove the port from the port map
-				delete(gLacpSysGlobalInfo[convertNetHwAddressToSysIdKey(p.sysId)].PortMap, key)
+				delete(sgi.PortMap, key)
 				return
 			}
 		}
@@ -276,7 +295,18 @@ func (p *LaAggPort) DelLaAggPort() {
 
 func (p *LaAggPort) Stop() {
 
-	LacpSysGlobalInfoGet(p.sysId).LaSysGlobalDeRegisterTxCallback(p.intfNum)
+	var a *LaAggregator
+	var sysId LacpSystem
+	if LaFindAggById(p.AggId, &a) {
+		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
+		sysId.actor_system = convertNetHwAddressToSysIdKey(mac)
+		sysId.actor_system_priority = a.Config.SystemPriority
+	}
+
+	sgi := LacpSysGlobalInfoByIdGet(sysId)
+	if sgi != nil {
+		sgi.LaSysGlobalDeRegisterTxCallback(p.intfNum)
+	}
 	// close rx/tx processing
 	// TODO figure out why this call does not return
 	if p.handle != nil {
@@ -549,10 +579,18 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 		p.DistributeMachineEvents(mEvtChan, evt, true)
 	}
 
+	var a *LaAggregator
+	var sysId LacpSystem
+	if LaFindAggById(p.AggId, &a) {
+		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
+		sysId.actor_system = convertNetHwAddressToSysIdKey(mac)
+		sysId.actor_system_priority = a.Config.SystemPriority
+	}
+
 	// port is no longer controlling lacp state
-	sysInfo := LacpSysGlobalInfoGet(p.sysId)
-	p.actorAdmin.state = sysInfo.ActorStateDefaultParams.state
-	p.actorOper.state = sysInfo.ActorStateDefaultParams.state
+	sgi := LacpSysGlobalInfoByIdGet(sysId)
+	p.actorAdmin.state = sgi.ActorStateDefaultParams.state
+	p.actorOper.state = sgi.ActorStateDefaultParams.state
 }
 
 // LaAggPortEnabled will update the status on the port
@@ -620,7 +658,7 @@ func LacpCopyLacpPortInfo(fromPortInfoPtr *LacpPortInfo, toPortInfoPtr *LacpPort
 	toPortInfoPtr.port = fromPortInfoPtr.port
 	toPortInfoPtr.port_pri = fromPortInfoPtr.port_pri
 	toPortInfoPtr.state = fromPortInfoPtr.state
-	toPortInfoPtr.system.LacpSystemActorSystemIdSet(fromPortInfoPtr.system.actor_system)
+	toPortInfoPtr.system.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(fromPortInfoPtr.system.actor_system))
 	toPortInfoPtr.system.LacpSystemActorSystemPrioritySet(fromPortInfoPtr.system.actor_system_priority)
 }
 

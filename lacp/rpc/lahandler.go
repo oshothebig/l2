@@ -8,6 +8,7 @@ import (
 	lacp "l2/lacp/protocol"
 	"lacpdServices"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -44,7 +45,8 @@ func ConvertModelLagTypeToLaAggType(yangLagType int32) uint32 {
 }
 
 func ConvertModelSpeedToLaAggSpeed(yangSpeed string) int {
-	speedMap := map[string]int{"SPEED_100Gb": 1, //EthernetSpeedSPEED100Gb,
+	speedMap := map[string]int{
+		"SPEED_100Gb":   1, //EthernetSpeedSPEED100Gb,
 		"SPEED_10Gb":    2, //EthernetSpeedSPEED10Gb,
 		"SPEED_40Gb":    3, //EthernetSpeedSPEED40Gb,
 		"SPEED_25Gb":    4, //EthernetSpeedSPEED25Gb,
@@ -59,6 +61,34 @@ func ConvertModelSpeedToLaAggSpeed(yangSpeed string) int {
 		return 8 //EthernetSpeedSPEEDUNKNOWN
 	}
 	return speed
+}
+
+func ConvertModelLacpModeToLaAggMode(yangLacpMode int32) uint32 {
+	var mode uint32
+	if yangLacpMode == 0 {
+		// ACTIVE
+		mode = lacp.LacpModeActive
+	} else {
+		// PASSIVE
+		mode = lacp.LacpModePassive
+	}
+
+	return mode
+}
+
+func ConvertModelLacpPeriodToLaAggInterval(yangInterval int32) time.Duration {
+	var interval time.Duration
+	switch yangInterval {
+	case 0: // SLOW
+		interval = lacp.LacpSlowPeriodicTime
+		break
+	case 1: // FAST
+		interval = lacp.LacpFastPeriodicTime
+		break
+	default:
+		interval = lacp.LacpSlowPeriodicTime
+	}
+	return interval
 }
 
 var gAggKeyMap map[string]uint16
@@ -96,12 +126,22 @@ func GetKeyByAggName(aggName string) uint16 {
 	return key
 }
 
+// the id of the agg should be part of the name
+// format expected <name>-<#number>
+func GetIdByAggName(aggName string) int {
+	i, _ := strconv.Atoi(strings.Split(aggName, "-")[1])
+	return i
+}
+
 // OPEN CONFIG YANG specific
+// CreateAggreagationConfig will create a static lag
 func (la LACPDServiceHandler) CreateAggregationConfig(config *lacpdServices.AggregationConfig) (bool, error) {
 	//        1 : string      NameKey
 	//        2 : i32         LagType
 	//        3 : i16         MinLinks
 	conf := &lacp.LaAggConfig{
+		Id:  GetIdByAggName(config.NameKey),
+		Key: GetKeyByAggName(config.NameKey),
 		// Identifier of the lag
 		Name: config.NameKey,
 		// Type of LAG STATIC or LACP
@@ -120,31 +160,48 @@ func (la LACPDServiceHandler) UpdateAggregationConfig(config *lacpdServices.Aggr
 	return true, nil
 }
 
+// CreateAggregationLacpConfig will create an lacp lag
+//	1 : i32 	LagType  (0 == LACP, 1 == STATIC)
+//	2 : string 	Description
+//	3 : bool 	Enabled
+//	4 : i16 	Mtu
+//	5 : i16 	MinLinks
+//	6 : string 	Type
+//	7 : string 	NameKey
+//	8 : i32 	Interval (0 == LONG, 1 == SHORT)
+//	9 : i32 	LacpMode (0 == ACTIVE, 1 == PASSIVE)
+//	10 : string SystemIdMac
+//	11 : i16 	SystemPriority
 func (la LACPDServiceHandler) CreateAggregationLacpConfig(config *lacpdServices.AggregationLacpConfig) (bool, error) {
-	//		1 : string 	NameKey
-	//	    2 : i32 	Interval
-	// 	    3 : i32 	LacpMode
-	//	    4 : string 	SystemIdMac
-	//	    5 : i16 	SystemPriority
+
 	var a *lacp.LaAggregator
 	if lacp.LaFindAggByName(config.NameKey, &a) {
-		if a.AggType == lacp.LaAggTypeLACP {
 
-			lacpInfo := lacp.LacpConfigInfo{Interval: uint32(config.Interval),
-				Mode:           uint32(config.LacpMode),
-				SystemIdMac:    config.SystemIdMac,
-				SystemPriority: uint16(config.SystemPriority)}
-
-			a.LaAggUpdateConfigInfo(&lacpInfo)
-
-			// if
-
-		} else {
-			fmt.Println("CONF: ERROR LaAgg %s must be of type LACP")
-		}
+		// TODO, lets delete the previous lag???
 
 	} else {
-		fmt.Println("CONF: ERROR MUST FIRST call CreateAggregationConfig and type must be LACP")
+
+		conf := &lacp.LaAggConfig{
+			Id:  GetIdByAggName(config.NameKey),
+			Key: GetKeyByAggName(config.NameKey),
+			// Identifier of the lag
+			Name: config.NameKey,
+			// Type of LAG STATIC or LACP
+			Type:     ConvertModelLagTypeToLaAggType(config.LagType),
+			MinLinks: uint16(config.MinLinks),
+			Enabled:  config.Enabled,
+			// lacp config
+			Lacp: lacp.LacpConfigInfo{
+				Interval:       ConvertModelLacpPeriodToLaAggInterval(config.Interval),
+				Mode:           ConvertModelLacpModeToLaAggMode(config.LacpMode),
+				SystemIdMac:    config.SystemIdMac,
+				SystemPriority: uint16(config.SystemPriority),
+			},
+			Properties: lacp.PortProperties{
+				Mtu: int(config.Mtu),
+			},
+		}
+		lacp.CreateLaAgg(conf)
 	}
 	return true, nil
 }
@@ -191,9 +248,9 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 			lacpdServices.Uint16(GetKeyByAggName(config.AggregateId)),
 			0,
 			config.Enabled,
-			"ON",   //"ON", "ACTIVE", "PASSIVE"
-			"LONG", //"SHORT", "LONG"
-			config.MacAddress,
+			"ON",                //"ON", "ACTIVE", "PASSIVE"
+			"LONG",              //"SHORT", "LONG"
+			"00:00:00:00:00:00", // default
 			lacpdServices.Int(ConvertModelSpeedToLaAggSpeed(config.Speed)),
 			lacpdServices.Int(config.DuplexMode),
 			lacpdServices.Int(config.Mtu),
@@ -246,7 +303,6 @@ func (la LACPDServiceHandler) CreateLaAggregator(aggId lacpdServices.Int,
 	actorSystemId string,
 	aggMacAddr string) (lacpdServices.Int, error) {
 
-	mac, _ := net.ParseMAC(actorSystemId)
 	conf := &lacp.LaAggConfig{
 		// Aggregator_MAC_address
 		Mac: ConvertStringToUint8Array(aggMacAddr),
@@ -254,8 +310,6 @@ func (la LACPDServiceHandler) CreateLaAggregator(aggId lacpdServices.Int,
 		Id: int(aggId),
 		// Actor_Admin_Aggregator_Key
 		Key: uint16(actorAdminKey),
-		// system to attach this agg to
-		SysId: mac,
 	}
 
 	lacp.CreateLaAgg(conf)

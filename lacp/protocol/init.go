@@ -1,23 +1,18 @@
 // init
 package lacp
 
-import (
-	"net"
-)
+import ()
 
-var LaSystemIdDefault net.HardwareAddr
+var LaSystemIdDefault LacpSystem
 
 func init() {
 
-	// TODO write some logic to read the system sysId from a config file
-	// hard coding for now
-	LaSystemIdDefault = make(net.HardwareAddr, 6)
-	LaSystemIdDefault[0] = 0x00
-	LaSystemIdDefault[0] = 0x00
-	LaSystemIdDefault[0] = 0x01
-	LaSystemIdDefault[0] = 0x02
-	LaSystemIdDefault[0] = 0x03
-	LaSystemIdDefault[0] = 0x04
-
+	// Default system Id is all zero's
+	// this will be used by all static lags, as well as initial
+	// aggregation configs.
+	LaSystemIdDefault = LacpSystem{
+		actor_system_priority: 0,
+		actor_system:          [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+	}
 	LacpSysGlobalInfoInit(LaSystemIdDefault)
 }

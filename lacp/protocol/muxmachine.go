@@ -431,10 +431,11 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
 	muxm := p.LacpMuxMachineFSMBuild()
 
-	// Hw only supports mux coupling
-	if LacpSysGlobalInfoGet(p.sysId).muxCoupling {
-		muxm.PrevStateSet(LacpMuxmStateCNone)
-	}
+	// TODO: Hw only supports mux coupling, this should be a param file for lacp
+	//if LacpSysGlobalInfoGet(LacpSystem{actor_system: p.aggAttached.Config.SystemIdMac,
+	//	actor_system_priority: p.aggAttached.Config.SystemPriority}).muxCoupling {
+	//	muxm.PrevStateSet(LacpMuxmStateCNone)
+	//}
 	// set the inital state
 	muxm.Machine.Start(muxm.PrevState())
 

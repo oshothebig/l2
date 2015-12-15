@@ -37,7 +37,7 @@ type LacpSysGlobalInfo struct {
 }
 
 // holds default lacp state info
-var gLacpSysGlobalInfo map[[6]uint8]*LacpSysGlobalInfo
+var gLacpSysGlobalInfo map[LacpSystem]*LacpSysGlobalInfo
 
 func convertNetHwAddressToSysIdKey(mac net.HardwareAddr) [6]uint8 {
 	var macArr [6]uint8
@@ -67,13 +67,13 @@ func convertSysIdKeyToNetHwAddress(mac [6]uint8) net.HardwareAddr {
 // to setup each new port.
 //
 // NOTE: Only one instance should exist on live system
-func LacpSysGlobalInfoInit(sysId net.HardwareAddr) *LacpSysGlobalInfo {
+func LacpSysGlobalInfoInit(sysId LacpSystem) *LacpSysGlobalInfo {
 
 	if gLacpSysGlobalInfo == nil {
-		gLacpSysGlobalInfo = make(map[[6]uint8]*LacpSysGlobalInfo)
+		gLacpSysGlobalInfo = make(map[LacpSystem]*LacpSysGlobalInfo)
 	}
 
-	sysKey := convertNetHwAddressToSysIdKey(sysId)
+	sysKey := sysId
 
 	if _, ok := gLacpSysGlobalInfo[sysKey]; !ok {
 		fmt.Println("LASYS: global vars init sysId", sysId)
@@ -86,7 +86,7 @@ func LacpSysGlobalInfoInit(sysId net.HardwareAddr) *LacpSysGlobalInfo {
 			TxCallbacks:                make(map[string][]TxCallback),
 		}
 
-		gLacpSysGlobalInfo[sysKey].SystemDefaultParams.LacpSystemActorSystemIdSet(sysId)
+		gLacpSysGlobalInfo[sysKey].SystemDefaultParams.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sysId.actor_system))
 
 		// Partner is brought up as aggregatible
 		LacpStateSet(&gLacpSysGlobalInfo[sysKey].PartnerStateDefaultParams.state, LacpStateAggregatibleUp)
@@ -97,21 +97,25 @@ func LacpSysGlobalInfoInit(sysId net.HardwareAddr) *LacpSysGlobalInfo {
 	return gLacpSysGlobalInfo[sysKey]
 }
 
-func LacpSysGlobalInfoGet(sysId net.HardwareAddr) *LacpSysGlobalInfo {
+func LacpSysGlobalInfoGet() map[LacpSystem]*LacpSysGlobalInfo {
+	return gLacpSysGlobalInfo
+}
+
+func LacpSysGlobalInfoByIdGet(sysId LacpSystem) *LacpSysGlobalInfo {
 	return LacpSysGlobalInfoInit(sysId)
 }
 
-func LacpSysGlobalDefaultSystemGet(sysId net.HardwareAddr) *LacpSystem {
-	return &gLacpSysGlobalInfo[convertNetHwAddressToSysIdKey(sysId)].SystemDefaultParams
+func LacpSysGlobalDefaultSystemGet(sysId LacpSystem) *LacpSystem {
+	return &gLacpSysGlobalInfo[sysId].SystemDefaultParams
 }
-func LacpSysGlobalDefaultPartnerSystemGet(sysId net.HardwareAddr) *LacpSystem {
-	return &gLacpSysGlobalInfo[convertNetHwAddressToSysIdKey(sysId)].PartnerSystemDefaultParams
+func LacpSysGlobalDefaultPartnerSystemGet(sysId LacpSystem) *LacpSystem {
+	return &gLacpSysGlobalInfo[sysId].PartnerSystemDefaultParams
 }
-func LacpSysGlobalDefaultPartnerInfoGet(sysId net.HardwareAddr) *LacpPortInfo {
-	return &gLacpSysGlobalInfo[convertNetHwAddressToSysIdKey(sysId)].PartnerStateDefaultParams
+func LacpSysGlobalDefaultPartnerInfoGet(sysId LacpSystem) *LacpPortInfo {
+	return &gLacpSysGlobalInfo[sysId].PartnerStateDefaultParams
 }
-func LacpSysGlobalDefaultActorSystemGet(sysId net.HardwareAddr) *LacpPortInfo {
-	return &gLacpSysGlobalInfo[convertNetHwAddressToSysIdKey(sysId)].ActorStateDefaultParams
+func LacpSysGlobalDefaultActorSystemGet(sysId LacpSystem) *LacpPortInfo {
+	return &gLacpSysGlobalInfo[sysId].ActorStateDefaultParams
 }
 
 func (g *LacpSysGlobalInfo) LaSysGlobalRegisterTxCallback(intf string, f TxCallback) {
@@ -124,7 +128,15 @@ func (g *LacpSysGlobalInfo) LaSysGlobalDeRegisterTxCallback(intf string) {
 
 func LaSysGlobalTxCallbackListGet(p *LaAggPort) []TxCallback {
 
-	if s, sok := gLacpSysGlobalInfo[convertNetHwAddressToSysIdKey(p.sysId)]; sok {
+	var a *LaAggregator
+	var sysId LacpSystem
+	if LaFindAggById(p.AggId, &a) {
+		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
+		sysId.actor_system = convertNetHwAddressToSysIdKey(mac)
+		sysId.actor_system_priority = a.Config.SystemPriority
+	}
+
+	if s, sok := gLacpSysGlobalInfo[sysId]; sok {
 		if fList, pok := s.TxCallbacks[p.intfNum]; pok {
 			return fList
 		}

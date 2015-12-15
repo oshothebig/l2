@@ -15,6 +15,14 @@ const (
 
 const PortConfigModuleStr = "Port Config"
 
+type LacpConfigInfo struct {
+	Interval time.Duration
+	Mode     uint32
+	// In format AA:BB:CC:DD:EE:FF
+	SystemIdMac    string
+	SystemPriority uint16
+}
+
 type LaAggConfig struct {
 	// Aggregator name
 	Name string
@@ -28,11 +36,16 @@ type LaAggConfig struct {
 	Type uint32
 	// Minimum number of links
 	MinLinks uint16
+	// Enabled
+	Enabled bool
 	// LAG_ports
 	LagMembers []uint16
 
 	// system to attach this agg to
-	SysId net.HardwareAddr
+	Lacp LacpConfigInfo
+
+	// mau properties of each link
+	Properties PortProperties
 
 	// TODO hash config
 }
@@ -98,7 +111,8 @@ func CreateLaAgg(agg *LaAggConfig) {
 	index := 0
 	var p *LaAggPort
 	if mac, err := net.ParseMAC(a.Config.SystemIdMac); err == nil {
-		if sgi := LacpSysGlobalInfoGet(mac); sgi != nil {
+		if sgi := LacpSysGlobalInfoByIdGet(LacpSystem{actor_system: convertNetHwAddressToSysIdKey(mac),
+			actor_system_priority: a.Config.SystemPriority}); sgi != nil {
 			for index != -1 {
 				if LaFindPortByKey(a.actorAdminKey, &index, &p) {
 					if p.aggSelected == LacpAggUnSelected {
