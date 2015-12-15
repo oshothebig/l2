@@ -648,53 +648,14 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 	p := muxm.p
 	a := muxm.p.aggAttached
 
-	muxm.LacpMuxmLog("Sending Distributing Enable to ASICD")
-	// asicd expects the port list to be a bitmap in string format
-	s := ""
-	currNum := uint64(0)
-	a.DistributedPortNumList = append(a.DistributedPortNumList, p.intfNum)
-	sort.Strings(a.DistributedPortNumList)
-	for i := 0; i < len(a.DistributedPortNumList); i++ {
-		num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "eth")[1], 10, 32)
-		if err == nil {
-			for j := currNum; j < num; j++ {
-				s += "0"
-				currNum += 1
-			}
-			if currNum == num {
-				s += "1"
-			}
-			currNum += 1
-		}
-	}
+	if a != nil {
 
-	if len(a.DistributedPortNumList) == 1 {
-		asicdclnt.ClientHdl.CreateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
-	} else {
-		asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
-	}
-}
-
-// DisableDistributing is a required function defined in 802.1ax-2014
-// Section 6.4.9
-// This function causes the Aggregator Multiplexer of the Aggregator
-// to which the Aggregation Port is attached to stop distributing frames
-// to the Aggregation Port.
-func (muxm *LacpMuxMachine) DisableDistributing() {
-	p := muxm.p
-	a := muxm.p.aggAttached
-
-	muxm.LacpMuxmLog("Sending Distributing Disable to ASICD")
-	s := ""
-	currNum := uint64(0)
-	for j := 0; j < len(a.DistributedPortNumList); j++ {
-		if p.intfNum == a.DistributedPortNumList[j] {
-			a.DistributedPortNumList = append(a.DistributedPortNumList[:j], a.DistributedPortNumList[j+1:]...)
-		}
-	}
-	sort.Strings(a.DistributedPortNumList)
-
-	if len(a.DistributedPortNumList) > 0 {
+		muxm.LacpMuxmLog("Sending Distributing Enable to ASICD")
+		// asicd expects the port list to be a bitmap in string format
+		s := ""
+		currNum := uint64(0)
+		a.DistributedPortNumList = append(a.DistributedPortNumList, p.intfNum)
+		sort.Strings(a.DistributedPortNumList)
 		for i := 0; i < len(a.DistributedPortNumList); i++ {
 			num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "eth")[1], 10, 32)
 			if err == nil {
@@ -708,14 +669,59 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 				currNum += 1
 			}
 		}
-	} else {
-		s = "0"
+
+		if len(a.DistributedPortNumList) == 1 {
+			asicdclnt.ClientHdl.CreateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+		} else {
+			asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+		}
 	}
+}
 
-	asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+// DisableDistributing is a required function defined in 802.1ax-2014
+// Section 6.4.9
+// This function causes the Aggregator Multiplexer of the Aggregator
+// to which the Aggregation Port is attached to stop distributing frames
+// to the Aggregation Port.
+func (muxm *LacpMuxMachine) DisableDistributing() {
+	p := muxm.p
+	a := muxm.p.aggAttached
 
-	if len(a.DistributedPortNumList) == 0 {
-		asicdclnt.ClientHdl.DeleteLag(int32(p.AggId))
+	if a != nil {
+
+		muxm.LacpMuxmLog("Sending Distributing Disable to ASICD")
+		s := ""
+		currNum := uint64(0)
+		for j := 0; j < len(a.DistributedPortNumList); j++ {
+			if p.intfNum == a.DistributedPortNumList[j] {
+				a.DistributedPortNumList = append(a.DistributedPortNumList[:j], a.DistributedPortNumList[j+1:]...)
+			}
+		}
+		sort.Strings(a.DistributedPortNumList)
+
+		if len(a.DistributedPortNumList) > 0 {
+			for i := 0; i < len(a.DistributedPortNumList); i++ {
+				num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "eth")[1], 10, 32)
+				if err == nil {
+					for j := currNum; j < num; j++ {
+						s += "0"
+						currNum += 1
+					}
+					if currNum == num {
+						s += "1"
+					}
+					currNum += 1
+				}
+			}
+		} else {
+			s = "0"
+		}
+
+		asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+
+		if len(a.DistributedPortNumList) == 0 {
+			asicdclnt.ClientHdl.DeleteLag(int32(p.AggId))
+		}
 	}
 }
 
