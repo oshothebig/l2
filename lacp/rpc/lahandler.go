@@ -183,7 +183,7 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 	//	10 : bool 	EnableFlowControl
 	//	11 : string 	AggregateId
 	var a *lacp.LaAggregator
-	if lacp.LaFindAggByName(config.AggregateId, &a) {
+	if !lacp.LaFindAggByName(config.AggregateId, &a) {
 		// lets create a port with some defaults
 		la.CreateLaAggPort(
 			0,
@@ -206,17 +206,17 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 		// 	    3 : i32 	LacpMode
 		//	    4 : string 	SystemIdMac
 		//	    5 : i16 	SystemPriority
-		mode, ok := yangModeMap[uint32(config.Mode)]
+		mode, ok := yangModeMap[uint32(a.Config.Mode)]
 		if !ok {
 			mode = "ON"
 		}
-		timeout, ok := yangTimeoutMap[uint32(config.Interval)]
+		timeout, ok := yangTimeoutMap[uint32(a.Config.Interval)]
 		if !ok {
 			timeout = "LONG"
 		}
 		la.CreateLaAggPort(
 			0,
-			lacpdServices.Uint16(config.SystemPriority),
+			lacpdServices.Uint16(a.Config.SystemPriority),
 			lacpdServices.Uint16(GetKeyByAggName(config.AggregateId)),
 			0,
 			config.Enabled,
