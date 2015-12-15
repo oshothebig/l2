@@ -49,7 +49,9 @@ func main() {
 				fmt.Println(intf)
 			}
 			fmt.Println("Starting LACP Thrift daemon")
-			server.Serve()
+			err = server.Serve()
+			fmt.Println("ERROR server not started")
+			panic(err)
 		} else {
 			panic(err)
 		}
