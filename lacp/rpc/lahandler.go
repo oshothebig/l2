@@ -206,17 +206,17 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 		// 	    3 : i32 	LacpMode
 		//	    4 : string 	SystemIdMac
 		//	    5 : i16 	SystemPriority
-		mode, ok := yangModeMap[uint32(a.Config.Mode)]
+		mode, ok := yangModeMap[uint32(config.Mode)]
 		if !ok {
 			mode = "ON"
 		}
-		timeout, ok := yangTimeoutMap[uint32(a.Config.Interval)]
+		timeout, ok := yangTimeoutMap[uint32(config.Interval)]
 		if !ok {
 			timeout = "LONG"
 		}
 		la.CreateLaAggPort(
 			0,
-			lacpdServices.Uint16(a.Config.SystemPriority),
+			lacpdServices.Uint16(config.SystemPriority),
 			lacpdServices.Uint16(GetKeyByAggName(config.AggregateId)),
 			0,
 			config.Enabled,
