@@ -65,7 +65,7 @@ func GetClientPort(paramsFile string, client string) int {
 	}
 
 	for _, client := range clientsList {
-		if client.Name == "asicd" {
+		if client.Name == client {
 			return client.Port
 		}
 	}

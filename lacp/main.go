@@ -39,6 +39,9 @@ func main() {
 		protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 		server := thrift.NewTSimpleServer4(processor, transport, transportFactory, protocolFactory)
 
+		// connect to any needed services
+		lacp.ConnectToClients(fileName)
+
 		fmt.Println("Available Interfaces for use:")
 		intfs, err := net.Interfaces()
 		if err == nil {
@@ -50,6 +53,6 @@ func main() {
 		} else {
 			panic(err)
 		}
-		lacp.ConnectToClients(fileName)
+
 	}
 }
