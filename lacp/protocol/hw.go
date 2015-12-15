@@ -49,7 +49,7 @@ func CreateIPCHandles(address string) (thrift.TTransport, *thrift.TBinaryProtoco
 	return transport, protocolFactory
 }
 
-func GetClientPort(paramsFile string, client string) int {
+func GetClientPort(paramsFile string, c string) int {
 	var clientsList []ClientJson
 
 	bytes, err := ioutil.ReadFile(paramsFile)
@@ -65,7 +65,7 @@ func GetClientPort(paramsFile string, client string) int {
 	}
 
 	for _, client := range clientsList {
-		if client.Name == client {
+		if client.Name == c {
 			return client.Port
 		}
 	}
