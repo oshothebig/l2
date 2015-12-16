@@ -191,6 +191,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		portPriority: config.Prio,
 		intfNum:      config.IntfId,
 		key:          config.Key,
+		AggId:        0, // this should be set on config AddLaAggPortToAgg
 		aggSelected:  LacpAggUnSelected,
 		sysId:        config.SysId,
 		begin:        true,
