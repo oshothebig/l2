@@ -2,7 +2,7 @@ COMPS=lacp
 
 IPCS=lacp
 
-all: ipc exe 
+all: ipc exe install 
 
 exe: $(COMPS)
 	 $(foreach f,$^, make -C $(f) exe;)
@@ -14,4 +14,4 @@ clean: $(COMPS)
 	$(foreach f,$^, make -C $(f) clean;)
 
 install:
-	@echo "All files that need to be copied would go here"
+	$(foreach f,$^, make -C $(f) install;)
