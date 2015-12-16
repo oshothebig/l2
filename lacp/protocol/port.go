@@ -53,7 +53,7 @@ type LaAggPort struct {
 
 	AggId int
 
-	config LacpConfigInfo
+	//config LacpConfigInfo
 
 	// Once selected reference to agg group will be made
 	aggAttached *LaAggregator

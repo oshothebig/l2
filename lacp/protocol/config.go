@@ -150,8 +150,8 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 	// sanity check that port does not exist already
 	if !LaFindPortById(port.Id, &pTmp) {
 		p := NewLaAggPort(port)
-		fmt.Printf("%#v\n", p)
 
+		fmt.Println("Port mode", port.Mode)
 		// Is lacp enabled or not
 		if port.Mode != LacpModeOn {
 			p.lacpEnabled = true
@@ -201,6 +201,8 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 	} else {
 		fmt.Println("CONF: ERROR PORT ALREADY EXISTS")
 	}
+
+	fmt.Printf("PORT (after config create):\n%#v\n", p)
 }
 
 func DeleteLaAggPort(pId uint16) {
