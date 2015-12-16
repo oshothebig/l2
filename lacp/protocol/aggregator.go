@@ -58,7 +58,7 @@ type LaAggregator struct {
 	// Actor_Oper_Aggregator_Key
 	actorOperKey uint16
 	//Aggregator_MAC_address
-	aggMacAddr [6]uint
+	aggMacAddr [6]uint8
 	// Partner_System
 	partnerSystemId [6]uint8
 	// Partner_System_Priority
@@ -111,7 +111,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	a := &LaAggregator{
 		aggName:                ac.Name,
 		aggId:                  ac.Id,
-		aggMacAddr:             actor_system,
+		aggMacAddr:             sysId.actor_system,
 		actorAdminKey:          ac.Key,
 		AggType:                ac.Type,
 		AggMinLinks:            ac.MinLinks,

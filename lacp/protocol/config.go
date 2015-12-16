@@ -198,11 +198,10 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 			p.LaAggPortEnabled()
 
 		}
+		fmt.Printf("PORT (after config create):\n%#v\n", p)
 	} else {
 		fmt.Println("CONF: ERROR PORT ALREADY EXISTS")
 	}
-
-	fmt.Printf("PORT (after config create):\n%#v\n", p)
 }
 
 func DeleteLaAggPort(pId uint16) {
