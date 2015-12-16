@@ -201,7 +201,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 			Speed:  config.Properties.Speed,
 			Duplex: config.Properties.Duplex,
 			Mtu:    config.Properties.Mtu},
-		logEna:   config.TraceEna,
+		logEna:   true,
 		portChan: make(chan string)}
 
 	// Start Port Logger
@@ -253,14 +253,14 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	in := src.Packets()
 	// start rx routine
 	LaRxMain(p.portNum, in)
-	fmt.Printf("Rx Main Started")
+	fmt.Println("Rx Main Started")
 
 	// register the tx func
 	sgi.LaSysGlobalRegisterTxCallback(p.intfNum, TxViaLinuxIf)
 
-	fmt.Printf("Tx Callback Registered")
+	fmt.Println("Tx Callback Registered")
 
-	fmt.Printf("New Port:\n%#v", *p)
+	//fmt.Println("New Port:\n%#v", *p)
 
 	return p
 }

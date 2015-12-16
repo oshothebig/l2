@@ -150,7 +150,6 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 	// sanity check that port does not exist already
 	if !LaFindPortById(port.Id, &pTmp) {
 		p := NewLaAggPort(port)
-		p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d", port.Id))
 		fmt.Printf("%#v\n", p)
 
 		// Is lacp enabled or not
@@ -179,6 +178,7 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 
 		// lets start all the state machines
 		p.BEGIN(false)
+		p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d", port.Id))
 
 		// TODO: need logic to check link status
 		p.linkOperStatus = true
