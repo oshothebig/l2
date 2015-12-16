@@ -128,8 +128,13 @@ func GetKeyByAggName(aggName string) uint16 {
 
 // the id of the agg should be part of the name
 // format expected <name>-<#number>
-func GetIdByAggName(aggName string) int {
-	i, _ := strconv.Atoi(strings.Split(aggName, "-")[1])
+func GetIdByName(aggName string) int {
+	var i int
+	if strings.Contains(aggName, "-") {
+		i, _ = strconv.Atoi(strings.Split(aggName, "-")[1])
+	} else {
+		i = 0
+	}
 	return i
 }
 
@@ -140,7 +145,7 @@ func (la LACPDServiceHandler) CreateAggregationConfig(config *lacpdServices.Aggr
 	//        2 : i32         LagType
 	//        3 : i16         MinLinks
 	conf := &lacp.LaAggConfig{
-		Id:  GetIdByAggName(config.NameKey),
+		Id:  GetIdByName(config.NameKey),
 		Key: GetKeyByAggName(config.NameKey),
 		// Identifier of the lag
 		Name: config.NameKey,
@@ -182,7 +187,7 @@ func (la LACPDServiceHandler) CreateAggregationLacpConfig(config *lacpdServices.
 	} else {
 
 		conf := &lacp.LaAggConfig{
-			Id:  GetIdByAggName(config.NameKey),
+			Id:  GetIdByName(config.NameKey),
 			Key: GetKeyByAggName(config.NameKey),
 			// Identifier of the lag
 			Name: config.NameKey,
@@ -245,7 +250,7 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 		la.CreateLaAggPort(
 			0,
 			0, //Prio lacpdServices.Uint16,
-			lacpdServices.Uint16(GetKeyByAggName(config.AggregateId)),
+			lacpdServices.Uint16(GetIdByName(config.AggregateId)),
 			0,
 			config.Enabled,
 			"ON",                //"ON", "ACTIVE", "PASSIVE"
@@ -271,11 +276,12 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 		if !ok {
 			timeout = "LONG"
 		}
+
 		la.CreateLaAggPort(
-			0,
+			lacpdServices.Uint16(GetIdByName(config.NameKey)),
 			lacpdServices.Uint16(a.Config.SystemPriority),
 			lacpdServices.Uint16(GetKeyByAggName(config.AggregateId)),
-			0,
+			lacpdServices.Int(GetIdByName(config.AggregateId)),
 			config.Enabled,
 			mode,
 			timeout,
