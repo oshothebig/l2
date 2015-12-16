@@ -88,7 +88,7 @@ func CreateLaAgg(agg *LaAggConfig) {
 	//var wg sync.WaitGroup
 
 	a := NewLaAggregator(agg)
-	//fmt.Printf("%#v\n", a)
+	fmt.Printf("%#v\n", a)
 
 	/*
 		// two methods for creating ports after CreateLaAgg is created

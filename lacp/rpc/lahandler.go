@@ -227,7 +227,7 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 		0: "ACTIVE",
 		1: "STANDBY",
 	}
-	yangTimeoutMap := map[uint32]string{
+	yangPeriodToTimeoutMap := map[uint32]string{
 		//LacpPeriodTypeSLOW: "LONG",
 		//LacpPeriodTypeFAST: "SHORT",
 		0: "LONG",
@@ -248,6 +248,7 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 	if !lacp.LaFindAggByName(config.AggregateId, &a) {
 		fmt.Println("\nDid not find agg", config.AggregateId)
 		// lets create a port with some defaults
+		// origional tested thrift api
 		la.CreateLaAggPort(
 			lacpdServices.Uint16(GetIdByName(config.NameKey)),
 			0, //Prio lacpdServices.Uint16,
@@ -271,14 +272,16 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 		//	    4 : string 	SystemIdMac
 		//	    5 : i16 	SystemPriority
 		mode, ok := yangModeMap[uint32(a.Config.Mode)]
-		if !ok {
+		if !ok || a.Type == lacp.LaAggTypeSTATIC {
 			mode = "ON"
 		}
-		timeout, ok := yangTimeoutMap[uint32(a.Config.Interval)]
+
+		timeout, ok := yangPeriodToTimeoutMap[uint32(a.Config.Interval)]
 		if !ok {
 			timeout = "LONG"
 		}
 
+		// origional tested thrift api
 		la.CreateLaAggPort(
 			lacpdServices.Uint16(GetIdByName(config.NameKey)),
 			lacpdServices.Uint16(a.Config.SystemPriority),
