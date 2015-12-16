@@ -246,12 +246,13 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 	//	11 : string 	AggregateId
 	var a *lacp.LaAggregator
 	if !lacp.LaFindAggByName(config.AggregateId, &a) {
+		fmt.Println("\nDid not find agg", config.AggregatId)
 		// lets create a port with some defaults
 		la.CreateLaAggPort(
-			0,
+			lacpdServices.Uint16(GetIdByName(config.NameKey)),
 			0, //Prio lacpdServices.Uint16,
-			lacpdServices.Uint16(GetIdByName(config.AggregateId)),
-			0,
+			lacpdServices.Uint16(GetKeyByAggName(config.AggregateId)),
+			lacpdServices.Int(GetIdByName(config.AggregateId)),
 			config.Enabled,
 			"ON",                //"ON", "ACTIVE", "PASSIVE"
 			"LONG",              //"SHORT", "LONG"
@@ -263,6 +264,7 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 			config.NameKey,
 		)
 	} else {
+		fmt.Println("\nFound agg", config.AggregatId)
 		// Found the lag lets add the lacp info to the port
 		//	    2 : i32 	Interval
 		// 	    3 : i32 	LacpMode
