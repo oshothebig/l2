@@ -640,6 +640,22 @@ func (muxm *LacpMuxMachine) DisableCollecting() {
 	}
 }
 
+func asicDPortBmpFormatGet(distPortList []string) string {
+	s := ""
+	dLength := len(distPortList)
+
+	for i := 0; i < dLength; i++ {
+		num := strings.Split(distPortList[i], "-")[1]
+		if i == dLength-1 {
+			s += num
+		} else {
+			s += num + ","
+		}
+	}
+	return s
+
+}
+
 // EnableDistributing is a required function defined in 802.1ax-2014
 // Section 6.4.9
 // This function causes the Aggregator Multiplexer of the Aggregator
@@ -651,27 +667,14 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 
 	if a != nil {
 
-		muxm.LacpMuxmLog("Sending Distributing Enable to ASICD")
 		// asicd expects the port list to be a bitmap in string format
-		s := ""
-		currNum := uint64(0)
+
 		a.DistributedPortNumList = append(a.DistributedPortNumList, p.intfNum)
 		sort.Strings(a.DistributedPortNumList)
-		for i := 0; i < len(a.DistributedPortNumList); i++ {
-			num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "-")[1], 10, 32)
-			if err == nil {
-				for j := currNum; j < num; j++ {
-					s += "0"
-					currNum += 1
-				}
-				if currNum == num {
-					s += "1"
-				}
-				currNum += 1
-			}
-		}
 
-		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d Distributed PortsListLen %d Bitmap %s", p.AggId, len(a.DistributedPortNumList), s))
+		s := asicDPortBmpFormatGet(a.DistributedPortNumList)
+
+		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d EnableDistributing PortsListLen %d Bitmap %s", p.AggId, len(a.DistributedPortNumList), s))
 		if len(a.DistributedPortNumList) == 1 {
 			asicdclnt.ClientHdl.CreateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
 		} else {
@@ -692,8 +695,6 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 
 	if a != nil {
 
-		s := ""
-		currNum := uint64(0)
 		portFound = false
 		for j := 0; j < len(a.DistributedPortNumList); j++ {
 			if p.intfNum == a.DistributedPortNumList[j] {
@@ -705,25 +706,9 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 		if portFound {
 			sort.Strings(a.DistributedPortNumList)
 
-			if len(a.DistributedPortNumList) > 0 {
-				for i := 0; i < len(a.DistributedPortNumList); i++ {
-					num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "-")[1], 10, 32)
-					if err == nil {
-						for j := currNum; j < num; j++ {
-							s += "0"
-							currNum += 1
-						}
-						if currNum == num {
-							s += "1"
-						}
-						currNum += 1
-					}
-				}
-			} else {
-				s = "0"
-			}
+			s := asicDPortBmpFormatGet(a.DistributedPortNumList)
 
-			muxm.LacpMuxmLog("Sending Update Lag port to ASICD")
+			muxm.LacpMuxmLog(fmt.Sprintf("Agg %d DisableDistributing PortsListLen %d Bitmap %s", p.AggId, len(a.DistributedPortNumList), s))
 
 			asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
 
