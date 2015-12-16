@@ -671,6 +671,7 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 			}
 		}
 
+		muxm.LacpMuxmLog(fmt.Sprintf("Distributed PortsListLen %d Bitmap %s", len(a.DistributedPortNumList), s))
 		if len(a.DistributedPortNumList) == 1 {
 			asicdclnt.ClientHdl.CreateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
 		} else {
