@@ -658,7 +658,7 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 		a.DistributedPortNumList = append(a.DistributedPortNumList, p.intfNum)
 		sort.Strings(a.DistributedPortNumList)
 		for i := 0; i < len(a.DistributedPortNumList); i++ {
-			num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "eth")[1], 10, 32)
+			num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "-")[1], 10, 32)
 			if err == nil {
 				for j := currNum; j < num; j++ {
 					s += "0"
@@ -702,7 +702,7 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 
 		if len(a.DistributedPortNumList) > 0 {
 			for i := 0; i < len(a.DistributedPortNumList); i++ {
-				num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "eth")[1], 10, 32)
+				num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "-")[1], 10, 32)
 				if err == nil {
 					for j := currNum; j < num; j++ {
 						s += "0"
