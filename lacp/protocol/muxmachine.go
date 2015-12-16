@@ -686,43 +686,51 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 // to which the Aggregation Port is attached to stop distributing frames
 // to the Aggregation Port.
 func (muxm *LacpMuxMachine) DisableDistributing() {
+	var portFound bool
 	p := muxm.p
 	a := muxm.p.aggAttached
 
 	if a != nil {
 
-		muxm.LacpMuxmLog("Sending Distributing Disable to ASICD")
 		s := ""
 		currNum := uint64(0)
+		portFound = false
 		for j := 0; j < len(a.DistributedPortNumList); j++ {
 			if p.intfNum == a.DistributedPortNumList[j] {
+				portFound = true
 				a.DistributedPortNumList = append(a.DistributedPortNumList[:j], a.DistributedPortNumList[j+1:]...)
 			}
 		}
-		sort.Strings(a.DistributedPortNumList)
+		// only send info to hw if port is in distributed list
+		if portFound {
+			sort.Strings(a.DistributedPortNumList)
 
-		if len(a.DistributedPortNumList) > 0 {
-			for i := 0; i < len(a.DistributedPortNumList); i++ {
-				num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "-")[1], 10, 32)
-				if err == nil {
-					for j := currNum; j < num; j++ {
-						s += "0"
+			if len(a.DistributedPortNumList) > 0 {
+				for i := 0; i < len(a.DistributedPortNumList); i++ {
+					num, err := strconv.ParseUint(strings.Split(a.DistributedPortNumList[i], "-")[1], 10, 32)
+					if err == nil {
+						for j := currNum; j < num; j++ {
+							s += "0"
+							currNum += 1
+						}
+						if currNum == num {
+							s += "1"
+						}
 						currNum += 1
 					}
-					if currNum == num {
-						s += "1"
-					}
-					currNum += 1
 				}
+			} else {
+				s = "0"
 			}
-		} else {
-			s = "0"
-		}
 
-		asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+			muxm.LacpMuxmLog("Sending Update Lag port to ASICD")
 
-		if len(a.DistributedPortNumList) == 0 {
-			asicdclnt.ClientHdl.DeleteLag(int32(p.AggId))
+			asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+
+			if len(a.DistributedPortNumList) == 0 {
+				muxm.LacpMuxmLog("Sending Lag Delete to ASICD")
+				asicdclnt.ClientHdl.DeleteLag(int32(p.AggId))
+			}
 		}
 	}
 }

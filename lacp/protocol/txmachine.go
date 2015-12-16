@@ -127,7 +127,7 @@ func (txm *LacpTxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	txm.Machine.Rules = r
 	txm.Machine.Curr = &LacpStateEvent{
 		strStateMap: TxmStateStrMap,
-		logEna:      false,
+		logEna:      txm.p.logEna,
 		logger:      txm.LacpTxmLog,
 		owner:       TxMachineModuleStr,
 	}
