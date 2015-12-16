@@ -221,17 +221,18 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(config *lacpdServices.
 
 func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.EthernetConfig) (bool, error) {
 
-	yangModeMap := map[uint32]string{
+	aggModeMap := map[uint32]string{
 		//LacpActivityTypeACTIVE:  "ACTIVE",
 		//LacpActivityTypeSTANDBY: "STANDBY",
-		0: "ACTIVE",
-		1: "STANDBY",
+		lacp.LacpModeOn:      "ON",
+		lacp.LacpModeActive:  "ACTIVE",
+		lacp.LacpModePassive: "PASSIVE",
 	}
-	yangPeriodToTimeoutMap := map[uint32]string{
+	aggIntervalToTimeoutMap := map[time.Duration]string{
 		//LacpPeriodTypeSLOW: "LONG",
 		//LacpPeriodTypeFAST: "SHORT",
-		0: "LONG",
-		1: "SHORT",
+		lacp.LacpSlowPeriodicTime: "LONG",
+		lacp.LacpFastPeriodicTime: "SHORT",
 	}
 	//	1 : string 	NameKey
 	//	2 : bool 	Enabled
@@ -272,12 +273,12 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 		// 	    3 : i32 	LacpMode
 		//	    4 : string 	SystemIdMac
 		//	    5 : i16 	SystemPriority
-		mode, ok := yangModeMap[uint32(a.Config.Mode)]
+		mode, ok := aggModeMap[uint32(a.Config.Mode)]
 		if !ok || a.AggType == lacp.LaAggTypeSTATIC {
 			mode = "ON"
 		}
 
-		timeout, ok := yangPeriodToTimeoutMap[uint32(a.Config.Interval)]
+		timeout, ok := aggIntervalToTimeoutMap[a.Config.Interval]
 		if !ok {
 			timeout = "LONG"
 		}

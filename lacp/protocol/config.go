@@ -197,6 +197,9 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 			// if port is enabled and lacp is enabled
 			p.LaAggPortEnabled()
 
+			// check for selection
+			p.checkConfigForSelection()
+
 		}
 		fmt.Printf("PORT (after config create):\n%#v\n", p)
 	} else {
