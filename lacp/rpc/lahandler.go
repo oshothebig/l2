@@ -272,7 +272,7 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 		//	    4 : string 	SystemIdMac
 		//	    5 : i16 	SystemPriority
 		mode, ok := yangModeMap[uint32(a.Config.Mode)]
-		if !ok || a.Type == lacp.LaAggTypeSTATIC {
+		if !ok || a.AggType == lacp.LaAggTypeSTATIC {
 			mode = "ON"
 		}
 

@@ -112,6 +112,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		aggName:                ac.Name,
 		aggId:                  ac.Id,
 		actorAdminKey:          ac.Key,
+		AggType:                ac.Type,
 		Config:                 ac.Lacp,
 		partnerSystemId:        [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		ready:                  true,
