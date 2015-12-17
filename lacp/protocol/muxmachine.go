@@ -4,7 +4,9 @@
 package lacp
 
 import (
+	hwconst "asicd/asicdConstDefs"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -429,10 +431,11 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
 	muxm := p.LacpMuxMachineFSMBuild()
 
-	// Hw only supports mux coupling
-	if gLacpSysGlobalInfo[p.sysId].muxCoupling {
-		muxm.PrevStateSet(LacpMuxmStateCNone)
-	}
+	// TODO: Hw only supports mux coupling, this should be a param file for lacp
+	//if LacpSysGlobalInfoGet(LacpSystem{actor_system: p.aggAttached.Config.SystemIdMac,
+	//	actor_system_priority: p.aggAttached.Config.SystemPriority}).muxCoupling {
+	//	muxm.PrevStateSet(LacpMuxmStateCNone)
+	//}
 	// set the inital state
 	muxm.Machine.Start(muxm.PrevState())
 
@@ -637,14 +640,47 @@ func (muxm *LacpMuxMachine) DisableCollecting() {
 	}
 }
 
+func asicDPortBmpFormatGet(distPortList []string) string {
+	s := ""
+	dLength := len(distPortList)
+
+	for i := 0; i < dLength; i++ {
+		num := strings.Split(distPortList[i], "-")[1]
+		if i == dLength-1 {
+			s += num
+		} else {
+			s += num + ","
+		}
+	}
+	return s
+
+}
+
 // EnableDistributing is a required function defined in 802.1ax-2014
 // Section 6.4.9
 // This function causes the Aggregator Multiplexer of the Aggregator
 // to which the Aggregation Port is attached to start distributing frames
 // to the Aggregation Port.
 func (muxm *LacpMuxMachine) EnableDistributing() {
-	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("Sending Distributing Enable to ASICD")
+	p := muxm.p
+	a := muxm.p.aggAttached
+
+	if a != nil {
+
+		// asicd expects the port list to be a bitmap in string format
+
+		a.DistributedPortNumList = append(a.DistributedPortNumList, p.intfNum)
+		sort.Strings(a.DistributedPortNumList)
+
+		s := asicDPortBmpFormatGet(a.DistributedPortNumList)
+
+		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d EnableDistributing PortsListLen %d Bitmap %s", p.AggId, len(a.DistributedPortNumList), s))
+		if len(a.DistributedPortNumList) == 1 {
+			asicdclnt.ClientHdl.CreateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+		} else {
+			asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+		}
+	}
 }
 
 // DisableDistributing is a required function defined in 802.1ax-2014
@@ -653,8 +689,35 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 // to which the Aggregation Port is attached to stop distributing frames
 // to the Aggregation Port.
 func (muxm *LacpMuxMachine) DisableDistributing() {
-	// TODO send message to asic deamon
-	muxm.LacpMuxmLog("Sending Distributing Disable to ASICD")
+	var portFound bool
+	p := muxm.p
+	a := muxm.p.aggAttached
+
+	if a != nil {
+
+		portFound = false
+		for j := 0; j < len(a.DistributedPortNumList); j++ {
+			if p.intfNum == a.DistributedPortNumList[j] {
+				portFound = true
+				a.DistributedPortNumList = append(a.DistributedPortNumList[:j], a.DistributedPortNumList[j+1:]...)
+			}
+		}
+		// only send info to hw if port is in distributed list
+		if portFound {
+			sort.Strings(a.DistributedPortNumList)
+
+			s := asicDPortBmpFormatGet(a.DistributedPortNumList)
+
+			muxm.LacpMuxmLog(fmt.Sprintf("Agg %d DisableDistributing PortsListLen %d Bitmap %s", p.AggId, len(a.DistributedPortNumList), s))
+
+			asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+
+			if len(a.DistributedPortNumList) == 0 {
+				muxm.LacpMuxmLog("Sending Lag Delete to ASICD")
+				asicdclnt.ClientHdl.DeleteLag(int32(p.AggId))
+			}
+		}
+	}
 }
 
 // EnableCollectingDistributing is a required function defined in 802.1ax-2014

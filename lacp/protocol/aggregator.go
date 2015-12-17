@@ -2,6 +2,7 @@
 package lacp
 
 import (
+	"net"
 	"time"
 )
 
@@ -13,7 +14,7 @@ const (
 	LacpAggUnSelected
 )
 
-type LacpAggrigatorStats struct {
+type LacpAggregatorStats struct {
 	// does not include lacp or marker pdu
 	octetsTx              int
 	octetsRx              int
@@ -36,11 +37,15 @@ type LacpAggrigatorStats struct {
 type LaAggregator struct {
 	// 802.1ax Section 7.3.1.1 && 6.3.2
 	// Aggregator_Identifier
-	aggId               int
-	aggDescription      string   // 255 max chars
-	aggName             string   // 255 max chars
-	actorSystemId       [6]uint8 // mac address
-	actorSystemPriority uint16
+	aggId          int
+	aggDescription string // 255 max chars
+	aggName        string // 255 max chars
+	AggType        uint32 // LACP/STATIC
+	AggMinLinks    uint16
+
+	// lacp configuration info
+	Config LacpConfigInfo
+
 	// aggregation capability
 	// TRUE - port attached to this aggregetor is not capable
 	//        of aggregation to any other aggregator
@@ -53,13 +58,19 @@ type LaAggregator struct {
 	// Actor_Oper_Aggregator_Key
 	actorOperKey uint16
 	//Aggregator_MAC_address
-	aggMacAddr [6]uint
+	aggMacAddr [6]uint8
 	// Partner_System
 	partnerSystemId [6]uint8
 	// Partner_System_Priority
 	partnerSystemPriority int
 	// Partner_Oper_Aggregator_Key
 	partnerOperKey int
+
+	//		1 : string 	NameKey
+	//	    2 : i32 	Interval
+	// 	    3 : i32 	LacpMode
+	//	    4 : string 	SystemIdMac
+	//	    5 : i16 	SystemPriority
 
 	// UP/DOWN
 	adminState int
@@ -69,7 +80,7 @@ type LaAggregator struct {
 	timeOfLastOperChange time.Time
 
 	// aggrigator stats
-	stats LacpAggrigatorStats
+	stats LacpAggregatorStats
 
 	// Receive_State
 	rxState bool
@@ -85,23 +96,39 @@ type LaAggregator struct {
 	// Port number from LaAggPort
 	// LAG_Ports
 	PortNumList []uint16
+
+	// Ports in Distributed state
+	DistributedPortNumList []string
 }
 
-// TODO add more defaults
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
-	sgi := LacpSysGlobalInfoGet(ac.SysId)
+	netMac, _ := net.ParseMAC(ac.Lacp.SystemIdMac)
+	sysId := LacpSystem{
+		actor_system:          convertNetHwAddressToSysIdKey(netMac),
+		actor_system_priority: ac.Lacp.SystemPriority,
+	}
+	sgi := LacpSysGlobalInfoByIdGet(sysId)
 	a := &LaAggregator{
-		aggId:               ac.Id,
-		actorAdminKey:       ac.Key,
-		actorSystemId:       sgi.SystemDefaultParams.actor_system,
-		actorSystemPriority: sgi.SystemDefaultParams.actor_system_priority,
-		partnerSystemId:     [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-		ready:               true,
-		PortNumList:         make([]uint16, 0),
+		aggName:                ac.Name,
+		aggId:                  ac.Id,
+		aggMacAddr:             sysId.actor_system,
+		actorAdminKey:          ac.Key,
+		AggType:                ac.Type,
+		AggMinLinks:            ac.MinLinks,
+		Config:                 ac.Lacp,
+		partnerSystemId:        [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		ready:                  true,
+		PortNumList:            make([]uint16, 0),
+		DistributedPortNumList: make([]string, 0),
 	}
 
+	// want to ensure that the application can use a string name or id
+	// to uniquely identify a lag
+	key := AggIdKey{Id: ac.Id,
+		Name: ac.Name}
+
 	// add agg to map
-	sgi.AggMap[ac.Id] = a
+	sgi.AggMap[key] = a
 
 	for _, pId := range ac.LagMembers {
 		a.PortNumList = append(a.PortNumList, pId)
@@ -111,10 +138,24 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 }
 
 func LaFindAggById(aggId int, agg **LaAggregator) bool {
-	for _, sgi := range gLacpSysGlobalInfo {
-		if a, ok := sgi.AggMap[aggId]; ok {
-			*agg = a
-			return ok
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		for _, a := range sgi.AggMap {
+			if a.aggId == aggId {
+				*agg = a
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func LaFindAggByName(aggName string, agg **LaAggregator) bool {
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		for _, a := range sgi.AggMap {
+			if a.aggName == aggName {
+				*agg = a
+				return true
+			}
 		}
 	}
 	return false
@@ -134,7 +175,7 @@ func LaAggPortNumListPortIdExist(aggId int, portId uint16) bool {
 
 func LaFindAggByKey(key uint16, agg **LaAggregator) bool {
 
-	for _, sgi := range gLacpSysGlobalInfo {
+	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.AggMap {
 			if a.actorAdminKey == key {
 				*agg = a

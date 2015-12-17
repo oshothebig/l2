@@ -3,13 +3,16 @@ package lacp
 
 import ()
 
-var LaSystemIdDefault [6]uint8
+var LaSystemIdDefault LacpSystem
 
 func init() {
 
-	// TODO write some logic to read the system sysId from a config file
-	// hard coding for now
-	LaSystemIdDefault = [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04}
-
+	// Default system Id is all zero's
+	// this will be used by all static lags, as well as initial
+	// aggregation configs.
+	LaSystemIdDefault = LacpSystem{
+		actor_system_priority: 0,
+		actor_system:          [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+	}
 	LacpSysGlobalInfoInit(LaSystemIdDefault)
 }

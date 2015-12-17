@@ -4,23 +4,48 @@ package lacp
 import (
 	"fmt"
 	//"sync"
+	"net"
 	"time"
+)
+
+const (
+	LaAggTypeLACP = iota + 1
+	LaAggTypeSTATIC
 )
 
 const PortConfigModuleStr = "Port Config"
 
+type LacpConfigInfo struct {
+	Interval time.Duration
+	Mode     uint32
+	// In format AA:BB:CC:DD:EE:FF
+	SystemIdMac    string
+	SystemPriority uint16
+}
+
 type LaAggConfig struct {
+	// Aggregator name
+	Name string
 	// Aggregator_MAC_address
 	Mac [6]uint8
 	// Aggregator_Identifier
 	Id int
 	// Actor_Admin_Aggregator_Key
 	Key uint16
+	// Aggregator Type, LACP or STATIC
+	Type uint32
+	// Minimum number of links
+	MinLinks uint16
+	// Enabled
+	Enabled bool
 	// LAG_ports
 	LagMembers []uint16
 
 	// system to attach this agg to
-	SysId [6]uint8
+	Lacp LacpConfigInfo
+
+	// mau properties of each link
+	Properties PortProperties
 
 	// TODO hash config
 }
@@ -51,7 +76,7 @@ type LaAggPortConfig struct {
 	Properties PortProperties
 
 	// system to attach this agg to
-	SysId [6]uint8
+	SysId net.HardwareAddr
 
 	// Linux If
 	TraceEna bool
@@ -63,7 +88,7 @@ func CreateLaAgg(agg *LaAggConfig) {
 	//var wg sync.WaitGroup
 
 	a := NewLaAggregator(agg)
-	//fmt.Printf("%#v\n", a)
+	fmt.Printf("%#v\n", a)
 
 	/*
 		// two methods for creating ports after CreateLaAgg is created
@@ -85,14 +110,19 @@ func CreateLaAgg(agg *LaAggConfig) {
 	*/
 	index := 0
 	var p *LaAggPort
-	if sgi := LacpSysGlobalInfoGet(a.actorSystemId); sgi != nil {
-		for index != -1 {
-			if LaFindPortByKey(a.actorAdminKey, &index, &p) {
-				if p.aggSelected == LacpAggUnSelected {
-					AddLaAggPortToAgg(a.aggId, p.portNum)
+	fmt.Println("looking for ports with actorAdminKey ", a.actorAdminKey)
+	if mac, err := net.ParseMAC(a.Config.SystemIdMac); err == nil {
+		if sgi := LacpSysGlobalInfoByIdGet(LacpSystem{actor_system: convertNetHwAddressToSysIdKey(mac),
+			actor_system_priority: a.Config.SystemPriority}); sgi != nil {
+			for index != -1 {
+				fmt.Println("looking for ", index)
+				if LaFindPortByKey(a.actorAdminKey, &index, &p) {
+					if p.aggSelected == LacpAggUnSelected {
+						AddLaAggPortToAgg(a.aggId, p.portNum)
+					}
+				} else {
+					break
 				}
-			} else {
-				break
 			}
 		}
 	}
@@ -120,9 +150,8 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 	// sanity check that port does not exist already
 	if !LaFindPortById(port.Id, &pTmp) {
 		p := NewLaAggPort(port)
-		//p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d", port.Id))
-		//fmt.Printf("%#v\n", p)
 
+		fmt.Println("Port mode", port.Mode)
 		// Is lacp enabled or not
 		if port.Mode != LacpModeOn {
 			p.lacpEnabled = true
@@ -149,6 +178,7 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 
 		// lets start all the state machines
 		p.BEGIN(false)
+		p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d", port.Id))
 
 		// TODO: need logic to check link status
 		p.linkOperStatus = true
@@ -167,7 +197,11 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 			// if port is enabled and lacp is enabled
 			p.LaAggPortEnabled()
 
+			// check for selection
+			p.checkConfigForSelection()
+
 		}
+		fmt.Printf("PORT (after config create):\n%#v\n", p)
 	} else {
 		fmt.Println("CONF: ERROR PORT ALREADY EXISTS")
 	}
