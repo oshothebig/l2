@@ -13,10 +13,16 @@ import (
 	"time"
 )
 
+const (
+	SUB_PORTD = 0
+)
+
 type LACPDServiceHandler struct {
 }
 
 func NewLACPDServiceHandler() *LACPDServiceHandler {
+	// link up/down events for now
+	startEvtHandler()
 	return &LACPDServiceHandler{}
 }
 
