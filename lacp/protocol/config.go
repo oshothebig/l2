@@ -181,9 +181,9 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 		p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d", port.Id))
 
 		// TODO: need logic to check link status
-		p.linkOperStatus = true
+		p.LinkOperStatus = true
 
-		if p.linkOperStatus && port.Enable {
+		if p.LinkOperStatus && port.Enable {
 
 			if p.key != 0 {
 				var a *LaAggregator
@@ -214,7 +214,7 @@ func DeleteLaAggPort(pId uint16) {
 			fmt.Println("CONF: ERROR Must detach p", pId, "from agg", p.AggId, "before deletion")
 			return
 		}
-		if p.portEnabled {
+		if p.PortEnabled {
 			DisableLaAggPort(p.portNum)
 		}
 
@@ -245,9 +245,9 @@ func EnableLaAggPort(pId uint16) {
 		p.LaAggPortEnabled()
 
 		// TODO: NEED METHOD to get link status
-		p.linkOperStatus = true
+		p.LinkOperStatus = true
 
-		if p.linkOperStatus &&
+		if p.LinkOperStatus &&
 			p.aggSelected == LacpAggUnSelected {
 			p.checkConfigForSelection()
 		}

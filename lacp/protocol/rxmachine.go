@@ -459,13 +459,13 @@ func (p *LaAggPort) LacpRxMachineMain() {
 						if rv == nil &&
 							m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled &&
 							p.lacpEnabled == true &&
-							p.portEnabled == true {
+							p.PortEnabled == true {
 							rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpEnabled, nil)
 						}
 						if rv == nil &&
 							m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled &&
 							p.lacpEnabled == false &&
-							p.portEnabled == true {
+							p.PortEnabled == true {
 							rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpDisabled, nil)
 						}
 					}
