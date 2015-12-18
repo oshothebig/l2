@@ -480,10 +480,12 @@ func (p *LaAggPort) LacpRxMachineMain() {
 					SendResponse(RxMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.RxmPktRxEvent:
-				//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.portNum, rx.src))
+				m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.portNum, rx.src))
 				// lets check if the port has moved
+				p.counters.LacpInPkts += 1
+
 				if m.CheckPortMoved(&p.partnerOper, &(rx.pdu.Actor.Info)) {
-					fmt.Println("port moved")
+					m.LacpRxmLog("port moved")
 					m.p.portMoved = true
 					m.Machine.ProcessEvent(RxModuleStr, LacpRxmEventPortMoved, nil)
 				} else {

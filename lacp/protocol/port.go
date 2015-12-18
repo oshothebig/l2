@@ -28,6 +28,15 @@ type LacpPortInfo struct {
 	state    uint8
 }
 
+type LacpCounters struct {
+	LacpInPkts        uint64
+	LacpOutPkts       uint64
+	LacpRxErrors      uint64
+	LacpTxErrors      uint64
+	LacpUnknownErrors uint64
+	LacpErrors        uint64
+}
+
 // 802.1ax Section 6.4.7
 // Port attributes associated with aggregator
 type LaAggPort struct {
@@ -52,8 +61,6 @@ type LaAggPort struct {
 	portPriority uint16
 
 	AggId int
-
-	//config LacpConfigInfo
 
 	// Once selected reference to agg group will be made
 	aggAttached *LaAggregator
@@ -87,6 +94,9 @@ type LaAggPort struct {
 	TxMachineFsm  *LacpTxMachine
 	CdMachineFsm  *LacpCdMachine
 	MuxMachineFsm *LacpMuxMachine
+
+	// counters
+	counters LacpCounters
 
 	// will serialize state transition logging per port
 	LacpDebug *LacpDebug
