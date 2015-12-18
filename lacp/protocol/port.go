@@ -264,7 +264,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	in := src.Packets()
 	// start rx routine
 	LaRxMain(p.portNum, in)
-	fmt.Println("Rx Main Started")
+	fmt.Println("Rx Main Started for port", p.portNum)
 
 	// register the tx func
 	sgi.LaSysGlobalRegisterTxCallback(p.intfNum, TxViaLinuxIf)

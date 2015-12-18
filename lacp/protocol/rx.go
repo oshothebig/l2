@@ -30,8 +30,8 @@ func LaRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 				//fmt.Println("RxMain: port", rxMainPort)
 
 				if ok {
-					//fmt.Println("RxMain: port", rxMainPort)
-					//fmt.Println("RX:", packet)
+					fmt.Println("RxMain: port", rxMainPort)
+					fmt.Println("RX:", packet)
 
 					if marker, lacp := IsControlFrame(packet); lacp || marker {
 						//fmt.Println("IsControl Frame ", marker, lacp)
@@ -52,7 +52,7 @@ func LaRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 						}
 					} else {
 						// discard packet
-						//fmt.Println("Discarding Packet not lacp or marker")
+						fmt.Println("Discarding Packet not lacp or marker")
 					}
 				} else {
 					fmt.Println("Channel closed")
