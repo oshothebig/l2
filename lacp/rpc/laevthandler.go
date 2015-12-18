@@ -2,63 +2,83 @@
 package rpc
 
 import (
-	"encoding/json"
+	"asicd/asicdConstDefs"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"github.com/op/go-nanomsg"
 	"infra/portd/portdCommonDefs"
+	lacp "l2/lacp/protocol"
+)
+
+const (
+	SUB_PORTD = 0
+	SUB_ASICD = 1
 )
 
 var PortdSub *nanomsg.SubSocket
 
 func processLinkDownEvent(linkType uint8, linkId uint8) {
-
+	var p *lacp.LaAggPort
+	if lacp.LaFindPortById(uint16(linkId), &p) {
+		if p.IsPortEnabled() {
+			p.LaAggPortDisable()
+			p.LinkOperStatus = false
+		}
+	}
 }
 
 func processLinkUpEvent(linkType uint8, linkId uint8) {
-
+	var p *lacp.LaAggPort
+	if lacp.LaFindPortById(uint16(linkId), &p) {
+		if p.IsPortAdminEnabled() && !p.IsPortOperStatusUp() {
+			p.LaAggPortEnabled()
+			p.LinkOperStatus = true
+		}
+	}
 }
 
-func processPortdEvents(sub *nanomsg.SubSocket) {
+func processAsicdEvents(sub *nanomsg.SubSocket) {
 
-	fmt.Println("in process Port events")
+	fmt.Println("in process Asicd events")
 	for {
-		fmt.Println("In for loop")
+		fmt.Println("In for loop Asicd events")
 		rcvdMsg, err := sub.Recv(0)
 		if err != nil {
-			fmt.Println("Error in receiving")
+			fmt.Println("Error in receiving ", err)
 			return
 		}
 		fmt.Println("After recv rcvdMsg buf", rcvdMsg)
-		MsgType := portdCommonDefs.PortdNotifyMsg{}
-		err = json.Unmarshal(rcvdMsg, &MsgType)
+		buf := bytes.NewReader(rcvdMsg)
+		var MsgType asicdConstDefs.AsicdNotifyMsg
+		err = binary.Read(buf, binary.LittleEndian, &MsgType)
 		if err != nil {
-			fmt.Println("Error in Unmarshalling rcvdMsg Json")
+			fmt.Println("Error in reading msgtype ", err)
 			return
 		}
-		fmt.Printf(" MsgTYpe=%v\n", MsgType)
-		switch MsgType.MsgType {
-		case portdCommonDefs.NOTIFY_LINK_STATE_CHANGE:
-			fmt.Println("received link state change event")
-			msg := portdCommonDefs.LinkStateInfo{}
-			err = json.Unmarshal(MsgType.MsgBuf, &msg)
+		switch MsgType {
+		case asicdConstDefs.NOTIFY_LINK_STATE_CHANGE:
+			var msg asicdConstDefs.LinkStateInfo
+			err = binary.Read(buf, binary.LittleEndian, &msg)
 			if err != nil {
-				fmt.Println("Error in Unmarshalling msgType Json")
+				fmt.Println("Error in reading msg ", err)
 				return
 			}
-			fmt.Printf("Msg linkstatus = %d msg linktype = %d linkId = %d\n", msg.LinkStatus, msg.LinkType, msg.LinkId)
-			if msg.LinkStatus == portdCommonDefs.LINK_STATE_DOWN {
-				processLinkDownEvent(msg.LinkType, msg.LinkId)
+			fmt.Printf("Msg linkstatus = %d msg port = %d\n", msg.LinkStatus, msg.Port)
+			if msg.LinkStatus == asicdConstDefs.LINK_STATE_DOWN {
+				processLinkDownEvent(portdCommonDefs.PHY, msg.Port) //asicd always sends out link state events for PHY ports
 			} else {
-				processLinkUpEvent(msg.LinkType, msg.LinkId)
+				processLinkUpEvent(portdCommonDefs.PHY, msg.Port)
 			}
 		}
 	}
 }
+
 func processEvents(sub *nanomsg.SubSocket, subType int) {
 	fmt.Println("in process events for sub ", subType)
-	if subType == SUB_PORTD {
+	if subType == SUB_ASICD {
 		fmt.Println("process portd events")
-		processPortdEvents(sub)
+		processAsicdEvents(sub)
 	}
 }
 func setupEventHandler(sub *nanomsg.SubSocket, address string, subtype int) {
@@ -90,5 +110,5 @@ func setupEventHandler(sub *nanomsg.SubSocket, address string, subtype int) {
 }
 
 func startEvtHandler() {
-	go setupEventHandler(PortdSub, portdCommonDefs.PUB_SOCKET_ADDR, SUB_PORTD)
+	go setupEventHandler(PortdSub, asicdConstDefs.PUB_SOCKET_ADDR, SUB_ASICD)
 }

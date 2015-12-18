@@ -499,7 +499,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	p.aggSelected = LacpAggSelected
 	p.portMoved = false
-	p.portEnabled = true
+	p.PortEnabled = true
 	p.lacpEnabled = false
 	// send PORT ENABLED && LACP DISABLED event to Rx Machine
 	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
@@ -562,7 +562,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		t.Error("Expected actor expired bit to be set")
 	}
 
-	p.portEnabled = false
+	p.PortEnabled = false
 	// send NOT ENABLED AND NOT MOVED event to Rx Machine from Expired State
 	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
 		e:            LacpRxmEventNotPortEnabledAndNotPortMoved,
@@ -590,7 +590,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		t.Error("Expected partner Sync Bit to not be set")
 	}
 
-	p.portEnabled = true
+	p.PortEnabled = true
 	p.lacpEnabled = false
 	// send NOT ENABLED AND NOT MOVED event to Rx Machine from Expired State
 	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
@@ -604,7 +604,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		t.Error("Expected response from", RxMachineModuleStr)
 	}
 
-	p.portEnabled = false
+	p.PortEnabled = false
 	// send NOT ENABLED AND NOT MOVED event to Rx Machine from LACP DISABLED
 	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
 		e:            LacpRxmEventNotPortEnabledAndNotPortMoved,
@@ -628,7 +628,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
 
-	p.portEnabled = true
+	p.PortEnabled = true
 	p.lacpEnabled = true
 	// send PORT ENABLE LACP ENABLED event to Rx Machine
 	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
@@ -669,7 +669,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	// LETS GET THE STATE BACK TO EXPIRED
 
-	p.portEnabled = false
+	p.PortEnabled = false
 	// send NOT PORT ENABLE NOT PORT MOVED event to Rx Machine
 	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
 		e:            LacpRxmEventNotPortEnabledAndNotPortMoved,
@@ -682,7 +682,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		t.Error("Expected response from", RxMachineModuleStr)
 	}
 
-	p.portEnabled = true
+	p.PortEnabled = true
 	// send PORT ENABLE LACP ENABLED event to Rx Machine
 	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
 		e:            LacpRxmEventPortEnabledAndLacpEnabled,

@@ -63,7 +63,7 @@ type LaAggPort struct {
 	lacpEnabled    bool
 	// TRUE - Aggregation port is operable (MAC_Operational == True)
 	// FALSE - otherwise
-	portEnabled  bool
+	PortEnabled  bool
 	portMoved    bool
 	begin        bool
 	actorChurn   bool
@@ -73,7 +73,7 @@ type LaAggPort struct {
 	macProperties PortProperties
 
 	// determine whether a port is up or down
-	linkOperStatus bool
+	LinkOperStatus bool
 
 	// administrative values for state described in 6.4.2.3
 	actorAdmin   LacpPortInfo
@@ -197,7 +197,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		begin:        true,
 		portMoved:    false,
 		lacpEnabled:  false,
-		portEnabled:  config.Enable,
+		PortEnabled:  config.Enable,
 		macProperties: PortProperties{Mac: config.Properties.Mac,
 			Speed:  config.Properties.Speed,
 			Duplex: config.Properties.Duplex,
@@ -272,6 +272,22 @@ func (p *LaAggPort) EnableLogging(ena bool) {
 
 func (p *LaAggPort) PortChannelGet() chan string {
 	return p.portChan
+}
+
+// IsPortAdminEnabled will check if provisioned port enable
+// state is enabled or disabled
+func (p *LaAggPort) IsPortAdminEnabled() bool {
+	return p.PortEnabled
+}
+
+func (p *LaAggPort) IsPortOperStatusUp() bool {
+	return p.LinkOperStatus
+}
+
+// IsPortEnabled will check if port is admin enabled
+// and link is operationally up
+func (p *LaAggPort) IsPortEnabled() bool {
+	return p.IsPortAdminEnabled() && p.IsPortOperStatusUp()
 }
 
 func (p *LaAggPort) DelLaAggPort() {
@@ -498,7 +514,7 @@ func (p *LaAggPort) LaAggPortDisable() {
 	p.DistributeMachineEvents(mEvtChan, evt, true)
 
 	// port is disabled
-	p.portEnabled = false
+	p.PortEnabled = false
 }
 
 // LaAggPortEnabled will update the status on the port
@@ -513,7 +529,7 @@ func (p *LaAggPort) LaAggPortEnabled() {
 	p.LaPortLog("LAPORT: Port Enabled")
 
 	// port is enabled
-	p.portEnabled = true
+	p.PortEnabled = true
 
 	// Rxm
 	if p.lacpEnabled {
@@ -564,7 +580,7 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 	p.lacpEnabled = false
 
 	// Rxm
-	if p.portEnabled {
+	if p.PortEnabled {
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
 		evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpDisabled,
 			src: PortConfigModuleStr})
@@ -616,7 +632,7 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 		LacpStateClear(&p.actorAdmin.state, LacpStateActivityBit)
 	}
 
-	if p.portEnabled &&
+	if p.PortEnabled &&
 		p.aggSelected == LacpAggSelected {
 		// Rxm
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)

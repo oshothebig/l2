@@ -275,7 +275,7 @@ func (m *LacpPtxMachine) LacpPtxIsNoPeriodicExitCondition() bool {
 	*/
 	return m.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic &&
 		p.lacpEnabled &&
-		p.portEnabled &&
+		p.PortEnabled &&
 		(LacpModeGet(p.actorOper.state, p.lacpEnabled) == LacpModeActive ||
 			LacpModeGet(p.partnerOper.state, p.lacpEnabled) == LacpModeActive)
 }

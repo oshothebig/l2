@@ -13,10 +13,6 @@ import (
 	"time"
 )
 
-const (
-	SUB_PORTD = 0
-)
-
 type LACPDServiceHandler struct {
 }
 
