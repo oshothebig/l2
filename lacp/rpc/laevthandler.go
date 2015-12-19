@@ -21,20 +21,20 @@ var PortdSub *nanomsg.SubSocket
 func processLinkDownEvent(linkType uint8, linkId uint8) {
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(linkId), &p) {
-		if p.IsPortEnabled() {
-			p.LaAggPortDisable()
-			p.LinkOperStatus = false
-		}
+		//if p.IsPortEnabled() {
+		p.LaAggPortDisable()
+		p.LinkOperStatus = false
+		//}
 	}
 }
 
 func processLinkUpEvent(linkType uint8, linkId uint8) {
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(linkId), &p) {
-		if p.IsPortAdminEnabled() && !p.IsPortOperStatusUp() {
-			p.LaAggPortEnabled()
-			p.LinkOperStatus = true
-		}
+		//if p.IsPortAdminEnabled() && !p.IsPortOperStatusUp() {
+		p.LaAggPortEnabled()
+		p.LinkOperStatus = true
+		//}
 	}
 }
 
