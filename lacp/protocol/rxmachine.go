@@ -531,7 +531,7 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 
 	p := rxm.p
 
-	rxm.LacpRxmLog(fmt.Sprintf("recordPDU: %#v", lacpPduInfo))
+	//rxm.LacpRxmLog(fmt.Sprintf("recordPDU: %#v", lacpPduInfo))
 	// Record Actor info from packet - store in parter operational
 	// Port Number, Port Priority, System, System Priority
 	// Key, state variables
