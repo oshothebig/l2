@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	"fmt"
+	//"fmt"
 	"github.com/google/gopacket/layers"
 	"reflect"
 	"strconv"
