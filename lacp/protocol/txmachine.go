@@ -336,7 +336,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 
 				if rv != nil {
-					m.LacpTxmLog(strings.Join([]string{error.Error(rv), event.src, TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+					m.LacpTxmLog(strings.Join([]string{error.Error(rv), event.src, TxmStateStrMap[m.Machine.Curr.PrevState()], TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
 				} else {
 					if m.Machine.Curr.CurrentState() == LacpTxmStateGuardTimerExpire &&
 						m.txPending > 0 && m.txPkts == 0 {
