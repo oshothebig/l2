@@ -201,6 +201,13 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 			// LACPDU will be a Long LACPDU formatted by 802.1ax-2014 Section
 			// 6.4.2 and including Port Conversation Mask TLV 6.4.2.4.3
 			txm.ntt = false
+
+			// lets force another transmit
+			if txm.txPending > 0 && txm.txPkts < 3 {
+				txm.txPending--
+				txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+					src: TxMachineModuleStr}
+			}
 		} else {
 			txm.txPending++
 			txm.LacpTxmLog(fmt.Sprintf("ON: Delay packets %d", txm.txPending))
