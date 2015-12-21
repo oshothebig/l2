@@ -140,6 +140,7 @@ func GetIdByName(aggName string) int {
 	return i
 }
 
+/*
 // OPEN CONFIG YANG specific
 // CreateAggreagationConfig will create a static lag
 func (la LACPDServiceHandler) CreateAggregationConfig(config *lacpdServices.AggregationConfig) (bool, error) {
@@ -166,7 +167,7 @@ func (la LACPDServiceHandler) DeleteAggregationConfig(config *lacpdServices.Aggr
 func (la LACPDServiceHandler) UpdateAggregationConfig(config *lacpdServices.AggregationConfig) (bool, error) {
 	return true, nil
 }
-
+*/
 // CreateAggregationLacpConfig will create an lacp lag
 //	1 : i32 	LagType  (0 == LACP, 1 == STATIC)
 //	2 : string 	Description
@@ -463,4 +464,19 @@ func (la LACPDServiceHandler) SetPortLacpLogEnable(Id lacpdServices.Uint16, modS
 		return 0, nil
 	}
 	return 1, errors.New(fmt.Sprintf("LACP: LOG set failed,  Unable to find Port", Id))
+}
+
+// GetBulkAggregationLacpState will return the status of all the lag groups
+func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdServices.Int, count lacpdServices.Int) (obj *lacpdServices.AggregationLacpStateGetInfo, err error) {
+
+	var lagStates lacpdServices.AggregationLacpStateGetInfo
+	return &lagStates, nil
+}
+
+// GetBulkAggregationLacpMemberStateCounters will return the status of all
+// the lag members.
+func (la LACPDServiceHandler) GetBulkAggregationLacpMemberStateCounters(fromIndex lacpdServices.Int, count lacpdServices.Int) (obj *lacpdServices.AggregationLacpMemberStateCountersGetInfo, err error) {
+
+	var lagMemberStates lacpdServices.AggregationLacpMemberStateCountersGetInfo
+	return &lagMemberStates, nil
 }
