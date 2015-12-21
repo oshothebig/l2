@@ -215,6 +215,12 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) fsm.State {
 	var state fsm.State
 
+	event := data.(LacpMachineEvent)
+	if event.e == LacpTxmEventNtt {
+		txm.txPending++
+		return txm.Machine.Curr.CurrentState()
+	}
+
 	txm.PrevStateSet(txm.Machine.Curr.CurrentState())
 
 	state = LacpTxmStateOn
@@ -282,8 +288,9 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 	// NTT -> TX ON
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventNtt, txm.LacpTxMachineOn)
 	rules.AddRule(LacpTxmStateGuardTimerExpire, LacpTxmEventNtt, txm.LacpTxMachineOn)
+	rules.AddRule(LacpTxmStateDelayed, LacpTxmStateDelayed, txm.LacpTxMachineDelayed)
 	// DELAY -> TX DELAY
-	rules.AddRule(LacpTxmStateOn, LacpTxmEventNtt, txm.LacpTxMachineDelayed)
+	rules.AddRule(LacpTxmStateOn, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
 	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
 	// LACP ON -> TX ON
 	rules.AddRule(LacpTxmStateOff, LacpTxmEventLacpEnabled, txm.LacpTxMachineOn)
@@ -336,7 +343,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 
 				if rv != nil {
-					m.LacpTxmLog(strings.Join([]string{error.Error(rv), event.src, TxmStateStrMap[m.Machine.Curr.PrevState()], TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+					m.LacpTxmLog(strings.Join([]string{error.Error(rv), event.src, TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
 				} else {
 					if m.Machine.Curr.CurrentState() == LacpTxmStateGuardTimerExpire &&
 						m.txPending > 0 && m.txPkts == 0 {
