@@ -338,14 +338,6 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				// transmit a packet
 				if event.e == LacpTxmEventNtt {
 					m.ntt = true
-					if m.Machine.Curr.CurrentState() == LacpTxmStateDelayed {
-						m.txPending++
-						m.LacpTxmLog(fmt.Sprintf("Ntt event received, in delayed state, current pending pkts %d", m.txPending))
-						if event.responseChan != nil {
-							SendResponse(TxMachineModuleStr, event.responseChan)
-						}
-						continue
-					}
 				}
 
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
@@ -355,11 +347,13 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				} else {
 					if m.Machine.Curr.CurrentState() == LacpTxmStateGuardTimerExpire &&
 						m.txPending > 0 && m.txPkts == 0 {
-						m.txPending--
-						m.ntt = true
 
-						m.LacpTxmLog("Forcing NTT processing from expire")
-						m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
+						for m.txPending > 0 && m.txPkts < 3 {
+							m.txPending--
+							m.ntt = true
+							m.LacpTxmLog("Forcing NTT processing from expire")
+							m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
+						}
 					}
 				}
 
