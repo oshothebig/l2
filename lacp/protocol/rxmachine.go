@@ -530,6 +530,11 @@ func (p *LaAggPort) LacpRxMachineMain() {
 func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 
 	p := rxm.p
+	collDistMap := map[int]bool{
+		LacpMuxmStateCollecting:             true,
+		LacpMuxmStateDistributing:           true,
+		LacpMuxStateCCollectingDistributing: true,
+	}
 
 	//rxm.LacpRxmLog(fmt.Sprintf("recordPDU: %#v", lacpPduInfo))
 	// Record Actor info from packet - store in parter operational
@@ -577,8 +582,11 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 		LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
 		// inform mux of state change
 		if p.MuxMachineFsm != nil {
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
-				src: RxMachineModuleStr}
+			_, ok := collDistMap[p.MuxMachineFsm.Machine.Curr.CurrentState()]
+			if ok {
+				p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
+					src: RxMachineModuleStr}
+			}
 		}
 	}
 

@@ -351,7 +351,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 						for m.txPending > 0 && m.txPkts < 3 {
 							m.txPending--
 							m.ntt = true
-							m.LacpTxmLog("Forcing NTT processing from expire")
+							m.LacpTxmLog(fmt.Sprintf("Forcing NTT processing from expire pending pkts %d\n", m.txPending))
 							m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
 						}
 					}
