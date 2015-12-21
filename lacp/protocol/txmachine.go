@@ -215,12 +215,6 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) fsm.State {
 	var state fsm.State
 
-	event := data.(LacpMachineEvent)
-	if event.e == LacpTxmEventNtt {
-		txm.txPending++
-		return txm.Machine.Curr.CurrentState()
-	}
-
 	txm.PrevStateSet(txm.Machine.Curr.CurrentState())
 
 	state = LacpTxmStateOn
@@ -288,7 +282,6 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 	// NTT -> TX ON
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventNtt, txm.LacpTxMachineOn)
 	rules.AddRule(LacpTxmStateGuardTimerExpire, LacpTxmEventNtt, txm.LacpTxMachineOn)
-	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventNtt, txm.LacpTxMachineDelayed)
 	// DELAY -> TX DELAY
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
 	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
@@ -338,6 +331,14 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				// transmit a packet
 				if event.e == LacpTxmEventNtt {
 					m.ntt = true
+					if m.Machine.Curr.CurrentState() == LacpTxmStateDelayed {
+						m.txPending++
+						m.LacpTxmLog(fmt.Sprintf("Ntt event received, in delayed state, current pending pkts %d", m.txPending))
+						if event.responseChan != nil {
+							SendResponse(TxMachineModuleStr, event.responseChan)
+						}
+						continue
+					}
 				}
 
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
