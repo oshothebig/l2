@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	"fmt"
+	//"fmt"
 	"github.com/google/gopacket/layers"
 	"reflect"
 	"strconv"
@@ -480,7 +480,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 					SendResponse(RxMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.RxmPktRxEvent:
-				m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.portNum, rx.src))
+				//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.portNum, rx.src))
 				// lets check if the port has moved
 				p.counters.LacpInPkts += 1
 
@@ -531,7 +531,7 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 
 	p := rxm.p
 
-	rxm.LacpRxmLog(fmt.Sprintf("recordPDU: %#v", lacpPduInfo))
+	//rxm.LacpRxmLog(fmt.Sprintf("recordPDU: %#v", lacpPduInfo))
 	// Record Actor info from packet - store in parter operational
 	// Port Number, Port Priority, System, System Priority
 	// Key, state variables
