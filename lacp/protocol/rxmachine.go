@@ -530,7 +530,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 
 	p := rxm.p
-	collDistMap := map[int]bool{
+	collDistMap := map[fsm.State]bool{
 		LacpMuxmStateCollecting:             true,
 		LacpMuxmStateDistributing:           true,
 		LacpMuxStateCCollectingDistributing: true,
