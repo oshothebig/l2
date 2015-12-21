@@ -288,7 +288,7 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 	// NTT -> TX ON
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventNtt, txm.LacpTxMachineOn)
 	rules.AddRule(LacpTxmStateGuardTimerExpire, LacpTxmEventNtt, txm.LacpTxMachineOn)
-	rules.AddRule(LacpTxmStateDelayed, LacpTxmStateDelayed, txm.LacpTxMachineDelayed)
+	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventNtt, txm.LacpTxMachineDelayed)
 	// DELAY -> TX DELAY
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
 	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
