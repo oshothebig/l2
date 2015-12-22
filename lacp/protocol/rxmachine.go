@@ -639,7 +639,7 @@ func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *layers.LACP) bool {
 		LacpStateAggregationBit | LacpStateSyncBit)
 
 	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Partner.Info, &p.actorOper, nttStateCompare) {
-
+		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.actorOper))
 		return true
 	}
 	return false

@@ -333,7 +333,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 
 			case event := <-m.TxmEvents:
 
-				//m.LacpTxmLog(fmt.Sprintf("Event rx %d %s %s", event.e, event.src, TxmStateStrMap[m.Machine.Curr.CurrentState()]))
+				m.LacpTxmLog(fmt.Sprintf("Event rx %d %s %s", event.e, event.src, TxmStateStrMap[m.Machine.Curr.CurrentState()]))
 				// special case, another machine has a need to
 				// transmit a packet
 				if event.e == LacpTxmEventNtt {
