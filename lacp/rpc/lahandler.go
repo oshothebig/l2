@@ -668,5 +668,5 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpMemberStateCounters(fromInde
 	obj.More = moreRoutes
 	obj.Count = validCount
 
-	return &lagMemberStates, nil
+	return obj, nil
 }
