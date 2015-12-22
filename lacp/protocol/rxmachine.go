@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	//"fmt"
+	"fmt"
 	"github.com/google/gopacket/layers"
 	"reflect"
 	"strconv"
@@ -530,6 +530,11 @@ func (p *LaAggPort) LacpRxMachineMain() {
 func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 
 	p := rxm.p
+	collDistMap := map[fsm.State]bool{
+		LacpMuxmStateCollecting:             true,
+		LacpMuxmStateDistributing:           true,
+		LacpMuxStateCCollectingDistributing: true,
+	}
 
 	//rxm.LacpRxmLog(fmt.Sprintf("recordPDU: %#v", lacpPduInfo))
 	// Record Actor info from packet - store in parter operational
@@ -573,12 +578,18 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 		LacpStateSet(&p.partnerOper.state, LacpStateSyncBit)
 
 	} else {
-		rxm.LacpRxmLog("Clearing Sync Bit")
-		LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
-		// inform mux of state change
-		if p.MuxMachineFsm != nil {
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
-				src: RxMachineModuleStr}
+		if LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
+			rxm.LacpRxmLog("Clearing Sync Bit")
+
+			LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
+			// inform mux of state change
+			if p.MuxMachineFsm != nil {
+				_, ok := collDistMap[p.MuxMachineFsm.Machine.Curr.CurrentState()]
+				if ok {
+					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
+						src: RxMachineModuleStr}
+				}
+			}
 		}
 	}
 
@@ -624,11 +635,15 @@ func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *layers.LACP) bool {
 
 	p := rxm.p
 
-	const nttStateCompare uint8 = (LacpStateActivityBit | LacpStateTimeoutBit |
+	const nttStateCompare uint8 = (LacpStateActivityBit |
 		LacpStateAggregationBit | LacpStateSyncBit)
 
 	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Partner.Info, &p.actorOper, nttStateCompare) {
-
+		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.actorOper))
+		return true
+	} else if (LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && !LacpStateIsSet(p.actorOper.state, LacpStateTimeoutBit)) ||
+		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && LacpStateIsSet(p.actorOper.state, LacpStateTimeoutBit)) {
+		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.actorOper))
 		return true
 	}
 	return false

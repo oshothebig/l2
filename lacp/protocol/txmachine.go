@@ -191,7 +191,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 
 			// transmit the packet
 			for _, ftx := range LaSysGlobalTxCallbackListGet(p) {
-				//txm.LacpTxmLog(fmt.Sprintf("Sending Tx packet %d", txm.txPkts))
+				txm.LacpTxmLog(fmt.Sprintf("Sending Tx packet %d", txm.txPkts))
 				ftx(p.portNum, lacp)
 				p.counters.LacpOutPkts += 1
 
@@ -201,6 +201,13 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 			// LACPDU will be a Long LACPDU formatted by 802.1ax-2014 Section
 			// 6.4.2 and including Port Conversation Mask TLV 6.4.2.4.3
 			txm.ntt = false
+
+			// lets force another transmit
+			if txm.txPending > 0 && txm.txPkts < 3 {
+				txm.txPending--
+				txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+					src: TxMachineModuleStr}
+			}
 		} else {
 			txm.txPending++
 			txm.LacpTxmLog(fmt.Sprintf("ON: Delay packets %d", txm.txPending))
@@ -220,7 +227,6 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 	state = LacpTxmStateOn
 
 	// if more than 3 packets are being transmitted within time interval
-	// TODO send packet to MUX
 	// Version 2 consideration if enable_long_pdu_xmit and
 	// LongLACPPDUTransmit are True:
 	// LACPDU will be a Long LACPDU formatted by 802.1ax-2014 Section
@@ -228,8 +234,8 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 	txm.LacpTxmLog(fmt.Sprintf("Delayed: txPending %d txPkts %d delaying tx", txm.txPending, txm.txPkts))
 	if txm.txPending > 0 && txm.txPkts > 3 {
 		state = LacpTxmStateDelayed
-		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx,
-			src: TxMachineModuleStr}
+		//txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx,
+		//	src: TxMachineModuleStr}
 	} else {
 		// transmit packet
 		txm.txPending--
@@ -282,6 +288,7 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 	// NTT -> TX ON
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventNtt, txm.LacpTxMachineOn)
 	rules.AddRule(LacpTxmStateGuardTimerExpire, LacpTxmEventNtt, txm.LacpTxMachineOn)
+	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventNtt, txm.LacpTxMachineOn)
 	// DELAY -> TX DELAY
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
 	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
@@ -331,14 +338,6 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				// transmit a packet
 				if event.e == LacpTxmEventNtt {
 					m.ntt = true
-					if m.Machine.Curr.CurrentState() == LacpTxmStateDelayed {
-						m.txPending++
-						m.LacpTxmLog(fmt.Sprintf("Ntt event received, in delayed state, current pending pkts %d", m.txPending))
-						if event.responseChan != nil {
-							SendResponse(TxMachineModuleStr, event.responseChan)
-						}
-						continue
-					}
 				}
 
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
@@ -348,11 +347,13 @@ func (p *LaAggPort) LacpTxMachineMain() {
 				} else {
 					if m.Machine.Curr.CurrentState() == LacpTxmStateGuardTimerExpire &&
 						m.txPending > 0 && m.txPkts == 0 {
-						m.txPending--
-						m.ntt = true
 
-						m.LacpTxmLog("Forcing NTT processing from expire")
-						m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
+						for m.txPending > 0 && m.txPkts < 3 {
+							m.txPending--
+							m.ntt = true
+							m.LacpTxmLog(fmt.Sprintf("Forcing NTT processing from expire pending pkts %d\n", m.txPending))
+							m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
+						}
 					}
 				}
 

@@ -145,11 +145,14 @@ func (a *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort, sendResponse boo
 			go func(id uint16) {
 				defer wg.Done()
 				var port *LaAggPort
-				if LaFindPortById(pId, &port) &&
+				p.MuxMachineFsm.LacpMuxmLog(fmt.Sprintf("LacpMuxCheckSelectionLogic: looking for port %d", id))
+				if LaFindPortById(id, &port) &&
 					port.readyN {
 					// trigger event to mux
 					// event should be defered in the processing
 					port.MuxMachineFsm.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedAndReady, nil)
+				} else {
+					p.MuxMachineFsm.LacpMuxmLog("LacpMuxCheckSelectionLogic: port not found or readyN is false")
 				}
 			}(pId)
 		}
