@@ -578,14 +578,17 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 		LacpStateSet(&p.partnerOper.state, LacpStateSyncBit)
 
 	} else {
-		rxm.LacpRxmLog("Clearing Sync Bit")
-		LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
-		// inform mux of state change
-		if p.MuxMachineFsm != nil {
-			_, ok := collDistMap[p.MuxMachineFsm.Machine.Curr.CurrentState()]
-			if ok {
-				p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
-					src: RxMachineModuleStr}
+		if LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
+			rxm.LacpRxmLog("Clearing Sync Bit")
+
+			LacpStateClear(&p.partnerOper.state, LacpStateSyncBit)
+			// inform mux of state change
+			if p.MuxMachineFsm != nil {
+				_, ok := collDistMap[p.MuxMachineFsm.Machine.Curr.CurrentState()]
+				if ok {
+					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
+						src: RxMachineModuleStr}
+				}
 			}
 		}
 	}

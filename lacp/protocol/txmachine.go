@@ -191,7 +191,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 
 			// transmit the packet
 			for _, ftx := range LaSysGlobalTxCallbackListGet(p) {
-				//txm.LacpTxmLog(fmt.Sprintf("Sending Tx packet %d", txm.txPkts))
+				txm.LacpTxmLog(fmt.Sprintf("Sending Tx packet %d", txm.txPkts))
 				ftx(p.portNum, lacp)
 				p.counters.LacpOutPkts += 1
 
@@ -227,7 +227,6 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 	state = LacpTxmStateOn
 
 	// if more than 3 packets are being transmitted within time interval
-	// TODO send packet to MUX
 	// Version 2 consideration if enable_long_pdu_xmit and
 	// LongLACPPDUTransmit are True:
 	// LACPDU will be a Long LACPDU formatted by 802.1ax-2014 Section
@@ -235,8 +234,8 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 	txm.LacpTxmLog(fmt.Sprintf("Delayed: txPending %d txPkts %d delaying tx", txm.txPending, txm.txPkts))
 	if txm.txPending > 0 && txm.txPkts > 3 {
 		state = LacpTxmStateDelayed
-		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx,
-			src: TxMachineModuleStr}
+		//txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx,
+		//	src: TxMachineModuleStr}
 	} else {
 		// transmit packet
 		txm.txPending--
@@ -289,6 +288,7 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 	// NTT -> TX ON
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventNtt, txm.LacpTxMachineOn)
 	rules.AddRule(LacpTxmStateGuardTimerExpire, LacpTxmEventNtt, txm.LacpTxMachineOn)
+	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventNtt, txm.LacpTxMachineOn)
 	// DELAY -> TX DELAY
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
 	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventDelayTx, txm.LacpTxMachineDelayed)
