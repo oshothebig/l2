@@ -46,6 +46,21 @@ func ConvertModelLagTypeToLaAggType(yangLagType int32) uint32 {
 	return LagType
 }
 
+func ConvertLaAggTypeToModelLagType(aggType uint32) int32 {
+	var LagType int32
+	switch aggType {
+	case lacp.LaAggTypeLACP:
+		LagType = 0
+		break
+	case lacp.LaAggTypeSTATIC:
+		LagType = 1
+		break
+	default:
+		fmt.Println("ERROR: unknown LagType %d", aggType)
+	}
+	return LagType
+}
+
 func ConvertModelSpeedToLaAggSpeed(yangSpeed string) int {
 	speedMap := map[string]int{
 		"SPEED_100Gb":   1, //EthernetSpeedSPEED100Gb,
@@ -78,6 +93,19 @@ func ConvertModelLacpModeToLaAggMode(yangLacpMode int32) uint32 {
 	return mode
 }
 
+func ConvertLaAggModeToModelLacpMode(lacpMode uint32) int32 {
+	var mode int32
+	if lacpMode == lacp.LacpModeActive {
+		// ACTIVE
+		mode = 0
+	} else {
+		// PASSIVE
+		mode = 1
+	}
+
+	return mode
+}
+
 func ConvertModelLacpPeriodToLaAggInterval(yangInterval int32) time.Duration {
 	var interval time.Duration
 	switch yangInterval {
@@ -93,11 +121,26 @@ func ConvertModelLacpPeriodToLaAggInterval(yangInterval int32) time.Duration {
 	return interval
 }
 
+func ConvertLaAggIntervalToLacpPeriod(interval time.Duration) int32 {
+	var period int32
+	switch interval {
+	case lacp.LacpSlowPeriodicTime:
+		period = 0
+		break
+	case lacp.LacpFastPeriodicTime:
+		period = 1
+		break
+	default:
+		period = 0
+	}
+	return period
+}
+
 var gAggKeyMap map[string]uint16
 var gAggKeyVal uint16
 var gAggKeyFreeList []uint16
 
-func GenerateKeyByAggName(aggName string) uint16 {
+func GenerateKeyByAggName(AggName string) uint16 {
 	var rKey uint16
 	if len(gAggKeyFreeList) == 0 {
 		gAggKeyVal += 1
@@ -110,7 +153,7 @@ func GenerateKeyByAggName(aggName string) uint16 {
 	return rKey
 }
 
-func GetKeyByAggName(aggName string) uint16 {
+func GetKeyByAggName(AggName string) uint16 {
 
 	var key uint16
 	if gAggKeyMap == nil {
@@ -118,22 +161,22 @@ func GetKeyByAggName(aggName string) uint16 {
 		gAggKeyFreeList = make([]uint16, 0)
 	}
 
-	if _, ok := gAggKeyMap[aggName]; ok {
-		key = gAggKeyMap[aggName]
+	if _, ok := gAggKeyMap[AggName]; ok {
+		key = gAggKeyMap[AggName]
 	} else {
-		key = GenerateKeyByAggName(aggName)
+		key = GenerateKeyByAggName(AggName)
 		// store the newly generated key
-		gAggKeyMap[aggName] = key
+		gAggKeyMap[AggName] = key
 	}
 	return key
 }
 
 // the id of the agg should be part of the name
 // format expected <name>-<#number>
-func GetIdByName(aggName string) int {
+func GetIdByName(AggName string) int {
 	var i int
-	if strings.Contains(aggName, "-") {
-		i, _ = strconv.Atoi(strings.Split(aggName, "-")[1])
+	if strings.Contains(AggName, "-") {
+		i, _ = strconv.Atoi(strings.Split(AggName, "-")[1])
 	} else {
 		i = 0
 	}
@@ -467,10 +510,58 @@ func (la LACPDServiceHandler) SetPortLacpLogEnable(Id lacpdServices.Uint16, modS
 }
 
 // GetBulkAggregationLacpState will return the status of all the lag groups
+// All lag groups are stored in a map, thus we will assume that the order
+// at which a for loop iterates over the map is preserved.  It is assumed
+// that at the time of this operation that no new aggragators are added,
+// otherwise can get inconsistent results
 func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdServices.Int, count lacpdServices.Int) (obj *lacpdServices.AggregationLacpStateGetInfo, err error) {
 
-	var lagStates lacpdServices.AggregationLacpStateGetInfo
-	return &lagStates, nil
+	var lagStateList []lacpdServices.AggregationLacpState = make([]lacpdServices.AggregationLacpState, count)
+	var nextLagState *lacpdServices.AggregationLacpState
+	var returnLagStates []*lacpdServices.AggregationLacpState
+	var a *lacp.LaAggregator
+	validCount := lacpdServices.Int(0)
+	toIndex := fromIndex
+	for currIndex := lacpdServices.Int(0); validCount != count && lacp.LaGetAggNext(&a); currIndex++ {
+
+		if currIndex < fromIndex {
+			continue
+		} else {
+
+			nextLagState = &lagStateList[validCount]
+			nextLagState.Description = a.AggDescription
+			nextLagState.LagType = ConvertLaAggTypeToModelLagType(a.AggType)
+			nextLagState.Enabled = true
+			nextLagState.MinLinks = int16(a.AggMinLinks)
+			nextLagState.NameKey = a.AggName
+			nextLagState.Type = "ETH"
+			nextLagState.Interval = ConvertLaAggIntervalToLacpPeriod(a.Config.Interval)
+			nextLagState.LacpMode = ConvertLaAggModeToModelLacpMode(a.Config.Mode)
+			nextLagState.SystemIdMac = a.Config.SystemIdMac
+			nextLagState.SystemPriority = int16(a.Config.SystemPriority)
+
+			if len(returnLagStates) == 0 {
+				returnLagStates = make([]*lacpdServices.AggregationLacpState, 0)
+			}
+			returnLagStates = append(returnLagStates, nextLagState)
+			validCount++
+			toIndex++
+		}
+	}
+	// lets try and get the next agg if one exists then there are more routes
+	moreRoutes := false
+	if a != nil {
+		moreRoutes = lacp.LaGetAggNext(&a)
+	}
+
+	fmt.Printf("Returning %d list of lagGroups\n", validCount)
+	obj.AggregationLacpStateList = returnLagStates
+	obj.StartIdx = fromIndex
+	obj.EndIdx = toIndex + 1
+	obj.More = moreRoutes
+	obj.Count = validCount
+
+	return obj, nil
 }
 
 // GetBulkAggregationLacpMemberStateCounters will return the status of all

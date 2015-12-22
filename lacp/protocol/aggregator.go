@@ -2,6 +2,7 @@
 package lacp
 
 import (
+	"fmt"
 	"net"
 	"time"
 )
@@ -38,8 +39,8 @@ type LaAggregator struct {
 	// 802.1ax Section 7.3.1.1 && 6.3.2
 	// Aggregator_Identifier
 	aggId          int
-	aggDescription string // 255 max chars
-	aggName        string // 255 max chars
+	AggDescription string // 255 max chars
+	AggName        string // 255 max chars
 	AggType        uint32 // LACP/STATIC
 	AggMinLinks    uint16
 
@@ -109,7 +110,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	}
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
 	a := &LaAggregator{
-		aggName:                ac.Name,
+		AggName:                ac.Name,
 		aggId:                  ac.Id,
 		aggMacAddr:             sysId.actor_system,
 		actorAdminKey:          ac.Key,
@@ -137,6 +138,32 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	return a
 }
 
+func LaGetAggNext(agg **LaAggregator) bool {
+	returnNext := false
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		for id, a := range sgi.AggMap {
+			if *agg == nil {
+				fmt.Println("agg map curr %d", a.aggId)
+			} else {
+				fmt.Println("agg map prev %d curr %d found %d", *agg.aggId, a.aggId)
+			}
+			if *agg == nil {
+				// first agg
+				*agg = a
+			} else if *agg == a {
+				// found agg
+				returnNext = true
+			} else if returnNext {
+				// next agg
+				*agg = a
+				return true
+			}
+		}
+	}
+	*agg = nil
+	return false
+}
+
 func LaFindAggById(aggId int, agg **LaAggregator) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.AggMap {
@@ -149,10 +176,10 @@ func LaFindAggById(aggId int, agg **LaAggregator) bool {
 	return false
 }
 
-func LaFindAggByName(aggName string, agg **LaAggregator) bool {
+func LaFindAggByName(AggName string, agg **LaAggregator) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.AggMap {
-			if a.aggName == aggName {
+			if a.AggName == AggName {
 				*agg = a
 				return true
 			}
