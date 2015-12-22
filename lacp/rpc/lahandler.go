@@ -155,20 +155,20 @@ func GenerateKeyByAggName(AggName string) uint16 {
 
 func GetKeyByAggName(AggName string) uint16 {
 
-	var key uint16
+	var Key uint16
 	if gAggKeyMap == nil {
 		gAggKeyMap = make(map[string]uint16)
 		gAggKeyFreeList = make([]uint16, 0)
 	}
 
 	if _, ok := gAggKeyMap[AggName]; ok {
-		key = gAggKeyMap[AggName]
+		Key = gAggKeyMap[AggName]
 	} else {
-		key = GenerateKeyByAggName(AggName)
-		// store the newly generated key
-		gAggKeyMap[AggName] = key
+		Key = GenerateKeyByAggName(AggName)
+		// store the newly generated Key
+		gAggKeyMap[AggName] = Key
 	}
-	return key
+	return Key
 }
 
 // the id of the agg should be part of the name
@@ -571,5 +571,102 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdService
 func (la LACPDServiceHandler) GetBulkAggregationLacpMemberStateCounters(fromIndex lacpdServices.Int, count lacpdServices.Int) (obj *lacpdServices.AggregationLacpMemberStateCountersGetInfo, err error) {
 
 	var lagMemberStates lacpdServices.AggregationLacpMemberStateCountersGetInfo
+
+	var lagMemberStateList []lacpdServices.AggregationLacpMemberStateCounters = make([]lacpdServices.AggregationLacpMemberStateCounters, count)
+	var nextLagMemberState *lacpdServices.AggregationLacpMemberStateCounters
+	var returnLagMemberStates []*lacpdServices.AggregationLacpMemberStateCounters
+	var returnLagMemberStateGetInfo lacpdServices.AggregationLacpMemberStateCountersGetInfo
+	var p *lacp.LaAggPort
+	validCount := lacpdServices.Int(0)
+	toIndex := fromIndex
+	obj = &returnLagMemberStateGetInfo
+	for currIndex := lacpdServices.Int(0); validCount != count && lacp.LaGetPortNext(&p); currIndex++ {
+
+		if currIndex < fromIndex {
+			continue
+		} else {
+
+			nextLagMemberState = &lagMemberStateList[validCount]
+
+			// actor info
+			nextLagMemberState.Aggregatable = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateAggregationBit)
+			nextLagMemberState.Collecting = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateCollectingBit)
+			nextLagMemberState.Distributing = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit)
+			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit) {
+				// in sync
+				nextLagMemberState.Synchronization = 0
+			} else {
+				// out of sync
+				nextLagMemberState.Synchronization = 1
+			}
+			// short 1, long 0
+			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateTimeoutBit) {
+				// short
+				nextLagMemberState.Timeout = 1
+			} else {
+				// long
+				nextLagMemberState.Timeout = 0
+			}
+
+			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateActivityBit) {
+				// active
+				nextLagMemberState.Activity = 0
+			} else {
+				// passive
+				nextLagMemberState.Activity = 1
+			}
+
+			nextLagMemberState.OperKey = int16(p.ActorOper.Key)
+			nextLagMemberState.Interface = p.IntfNum
+			if p.AggAttached != nil {
+				nextLagMemberState.LacpMode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)
+			}
+
+			// partner info
+			nextLagMemberState.PartnerId = p.PartnerOper.System.LacpSystemConvertSystemIdToString()
+			nextLagMemberState.PartnerKey = int16(p.PartnerOper.Key)
+
+			// System
+			nextLagMemberState.Description = ""
+			nextLagMemberState.SystemIdMac = p.ActorOper.System.LacpSystemConvertSystemIdToString()[6:]
+			nextLagMemberState.LagType = ConvertLaAggTypeToModelLagType(p.AggAttached.AggType)
+			nextLagMemberState.SystemId = p.ActorOper.System.LacpSystemConvertSystemIdToString()
+			nextLagMemberState.Interval = ConvertLaAggIntervalToLacpPeriod(p.AggAttached.Config.Interval)
+			nextLagMemberState.Enabled = p.PortEnabled
+
+			nextLagMemberState.NameKey = p.IntfNum
+			nextLagMemberState.SystemPriority = int16(p.ActorOper.System.Actor_System_priority)
+			nextLagMemberState.Type = "ETH"
+			nextLagMemberState.MinLinks = int16(p.AggAttached.AggMinLinks)
+
+			// stats
+			nextLagMemberState.LacpInPkts = int64(p.Counters.LacpInPkts)
+			nextLagMemberState.LacpOutPkts = int64(p.Counters.LacpOutPkts)
+			nextLagMemberState.LacpRxErrors = int64(p.Counters.LacpRxErrors)
+			nextLagMemberState.LacpTxErrors = int64(p.Counters.LacpTxErrors)
+			nextLagMemberState.LacpUnknownErrors = int64(p.Counters.LacpUnknownErrors)
+			nextLagMemberState.LacpErrors = int64(p.Counters.LacpErrors)
+
+			if len(returnLagMemberStates) == 0 {
+				returnLagMemberStates = make([]*lacpdServices.AggregationLacpMemberStateCounters, 0)
+			}
+			returnLagMemberStates = append(returnLagMemberStates, nextLagMemberState)
+			validCount++
+			toIndex++
+		}
+	}
+	// lets try and get the next agg if one exists then there are more routes
+	moreRoutes := false
+	if p != nil {
+		moreRoutes = lacp.LaGetPortNext(&p)
+	}
+
+	fmt.Printf("Returning %d list of lagMembers\n", validCount)
+	obj.AggregationLacpMemberStateCountersList = returnLagMemberStates
+	obj.StartIdx = fromIndex
+	obj.EndIdx = toIndex + 1
+	obj.More = moreRoutes
+	obj.Count = validCount
+
 	return &lagMemberStates, nil
 }

@@ -20,11 +20,11 @@ type PortProperties struct {
 }
 
 type LacpPortInfo struct {
-	system   LacpSystem
-	key      uint16
-	port_pri uint16
+	System   LacpSystem
+	Key      uint16
+	Port_pri uint16
 	port     uint16
-	state    uint8
+	State    uint8
 }
 
 type LacpCounters struct {
@@ -50,19 +50,19 @@ type LaAggPort struct {
 	portId int
 
 	// string id of port
-	intfNum string
+	IntfNum string
 
-	// key
-	key uint16
+	// Key
+	Key uint16
 
 	// used to form portId
-	portNum      uint16
+	PortNum      uint16
 	portPriority uint16
 
 	AggId int
 
 	// Once selected reference to agg group will be made
-	aggAttached *LaAggregator
+	AggAttached *LaAggregator
 	aggSelected int
 	// unable to aggregate with other links in an agg
 	operIndividual int
@@ -81,26 +81,26 @@ type LaAggPort struct {
 	// determine whether a port is up or down
 	LinkOperStatus bool
 
-	// administrative values for state described in 6.4.2.3
+	// administrative values for State described in 6.4.2.3
 	actorAdmin   LacpPortInfo
-	actorOper    LacpPortInfo
+	ActorOper    LacpPortInfo
 	partnerAdmin LacpPortInfo
-	partnerOper  LacpPortInfo
+	PartnerOper  LacpPortInfo
 
-	// state machines
+	// State machines
 	RxMachineFsm  *LacpRxMachine
 	PtxMachineFsm *LacpPtxMachine
 	TxMachineFsm  *LacpTxMachine
 	CdMachineFsm  *LacpCdMachine
 	MuxMachineFsm *LacpMuxMachine
 
-	// counters
-	counters LacpCounters
+	// Counters
+	Counters LacpCounters
 
-	// will serialize state transition logging per port
+	// will serialize State transition logging per port
 	LacpDebug *LacpDebug
 
-	// on configuration changes need to inform all state
+	// on configuration changes need to inform all State
 	// machines and wait for a response
 	portChan chan string
 	log      chan string
@@ -126,11 +126,11 @@ func (p *LaAggPort) LaPortLog(msg string) {
 	}
 }
 
-// find a port from the global map table by portNum
+// find a port from the global map table by PortNum
 func LaFindPortById(pId uint16, port **LaAggPort) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, p := range sgi.PortMap {
-			if p.portNum == pId {
+			if p.PortNum == pId {
 				*port = p
 				return true
 			}
@@ -143,7 +143,34 @@ func LaConvertPortAndPriToPortId(pId uint16, prio uint16) int {
 	return int(pId | prio<<16)
 }
 
-// find a port from the global map table by portNum
+func LaGetPortNext(port **LaAggPort) bool {
+	returnNext := false
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		for _, p := range sgi.PortMap {
+			if *port == nil {
+				fmt.Println("port map curr %d", p.PortNum)
+			} else {
+				fmt.Println(fmt.Sprintf("port map prev %d curr %d", (*port).PortNum, p.PortNum))
+			}
+			if *port == nil {
+				// first port
+				*port = p
+				return true
+			} else if (*port).PortNum == p.PortNum {
+				// found agg
+				returnNext = true
+			} else if returnNext {
+				// next agg
+				*port = p
+				return true
+			}
+		}
+	}
+	*port = nil
+	return false
+}
+
+// find a port from the global map table by PortNum
 func LaFindPortByPortId(portId int, port **LaAggPort) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, p := range sgi.PortMap {
@@ -156,16 +183,16 @@ func LaFindPortByPortId(portId int, port **LaAggPort) bool {
 	return false
 }
 
-// LaFindPortByKey will find a port form the global map table by key
+// LaFindPortByKey will find a port form the global map table by Key
 // index value should input 0 for the first value
-func LaFindPortByKey(key uint16, index *int, port **LaAggPort) bool {
+func LaFindPortByKey(Key uint16, index *int, port **LaAggPort) bool {
 	var i int
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		i = *index
 		l := len(sgi.PortMap)
 		for _, p := range sgi.PortMap {
 			if i < l {
-				if p.key == key {
+				if p.Key == Key {
 					*port = p
 					*index++
 					return true
@@ -188,18 +215,18 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	var sysId LacpSystem
 	if LaFindAggById(config.AggId, &a) {
 		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-		sysId.actor_system = convertNetHwAddressToSysIdKey(mac)
-		sysId.actor_system_priority = a.Config.SystemPriority
+		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
+		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
 
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
 
 	p := &LaAggPort{
 		portId:       LaConvertPortAndPriToPortId(config.Id, config.Prio),
-		portNum:      config.Id,
+		PortNum:      config.Id,
 		portPriority: config.Prio,
-		intfNum:      config.IntfId,
-		key:          config.Key,
+		IntfNum:      config.IntfId,
+		Key:          config.Key,
 		AggId:        0, // this should be set on config AddLaAggPortToAgg
 		aggSelected:  LacpAggUnSelected,
 		sysId:        config.SysId,
@@ -219,54 +246,54 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 
 	// default actor admin
 	//fmt.Println(config.sysId, gLacpSysGlobalInfo[config.sysId])
-	p.actorAdmin.state = sgi.ActorStateDefaultParams.state
-	p.actorAdmin.system.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.actor_system))
-	p.actorAdmin.system.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.actor_system_priority)
-	p.actorAdmin.key = p.key
-	p.actorAdmin.port = p.portNum
-	p.actorAdmin.port_pri = p.portPriority
+	p.actorAdmin.State = sgi.ActorStateDefaultParams.State
+	p.actorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.actor_System))
+	p.actorAdmin.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
+	p.actorAdmin.Key = p.Key
+	p.actorAdmin.port = p.PortNum
+	p.actorAdmin.Port_pri = p.portPriority
 
 	// default actor oper same as admin
-	p.actorOper = p.actorAdmin
+	p.ActorOper = p.actorAdmin
 
 	// default partner admin
-	p.partnerAdmin.state = sgi.PartnerStateDefaultParams.state
+	p.partnerAdmin.State = sgi.PartnerStateDefaultParams.State
 	// default partner oper same as admin
-	p.partnerOper = p.partnerAdmin
+	p.PartnerOper = p.partnerAdmin
 
 	if config.Mode != LacpModeOn {
 		p.lacpEnabled = true
 	}
 
 	// add port to port map
-	sgi.PortMap[PortIdKey{Name: p.intfNum,
-		Id: p.portNum}] = p
+	sgi.PortMap[PortIdKey{Name: p.IntfNum,
+		Id: p.PortNum}] = p
 
 	// wait group used when stopping all the
-	// state mahines associated with this port.
+	// State mahines associated with this port.
 	// want to ensure that all routines are stopped
 	// before proceeding with cleanup
 	p.wg.Add(5)
 
-	handle, err := pcap.OpenLive(p.intfNum, 65536, true, pcap.BlockForever)
+	handle, err := pcap.OpenLive(p.IntfNum, 65536, true, pcap.BlockForever)
 	if err != nil {
 		// failure here may be ok as this may be SIM
-		if !strings.Contains(p.intfNum, "SIM") {
-			fmt.Println("Error creating pcap OpenLive handle for port", p.portNum, p.intfNum, err)
+		if !strings.Contains(p.IntfNum, "SIM") {
+			fmt.Println("Error creating pcap OpenLive handle for port", p.PortNum, p.IntfNum, err)
 		}
 		return p
 	}
-	fmt.Println("Creating Listener for intf", p.intfNum)
-	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.intfNum))
+	fmt.Println("Creating Listener for intf", p.IntfNum)
+	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
 	p.handle = handle
 	src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
 	in := src.Packets()
 	// start rx routine
-	LaRxMain(p.portNum, in)
-	fmt.Println("Rx Main Started for port", p.portNum)
+	LaRxMain(p.PortNum, in)
+	fmt.Println("Rx Main Started for port", p.PortNum)
 
 	// register the tx func
-	sgi.LaSysGlobalRegisterTxCallback(p.intfNum, TxViaLinuxIf)
+	sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, TxViaLinuxIf)
 
 	fmt.Println("Tx Callback Registered")
 
@@ -284,7 +311,7 @@ func (p *LaAggPort) PortChannelGet() chan string {
 }
 
 // IsPortAdminEnabled will check if provisioned port enable
-// state is enabled or disabled
+// State is enabled or disabled
 func (p *LaAggPort) IsPortAdminEnabled() bool {
 	return p.PortEnabled
 }
@@ -302,20 +329,20 @@ func (p *LaAggPort) IsPortEnabled() bool {
 func (p *LaAggPort) DelLaAggPort() {
 	p.Stop()
 	for _, sgi := range LacpSysGlobalInfoGet() {
-		for key, port := range sgi.PortMap {
-			if port.portNum == p.portNum ||
-				port.intfNum == p.intfNum {
+		for Key, port := range sgi.PortMap {
+			if port.PortNum == p.PortNum ||
+				port.IntfNum == p.IntfNum {
 				var a *LaAggregator
 				var sysId LacpSystem
 				if LaFindAggById(p.AggId, &a) {
 					mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-					sysId.actor_system = convertNetHwAddressToSysIdKey(mac)
-					sysId.actor_system_priority = a.Config.SystemPriority
+					sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
+					sysId.Actor_System_priority = a.Config.SystemPriority
 				}
 
 				sgi := LacpSysGlobalInfoByIdGet(sysId)
 				// remove the port from the port map
-				delete(sgi.PortMap, key)
+				delete(sgi.PortMap, Key)
 				return
 			}
 		}
@@ -328,22 +355,22 @@ func (p *LaAggPort) Stop() {
 	var sysId LacpSystem
 	if LaFindAggById(p.AggId, &a) {
 		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-		sysId.actor_system = convertNetHwAddressToSysIdKey(mac)
-		sysId.actor_system_priority = a.Config.SystemPriority
+		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
+		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
 
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
 	if sgi != nil {
-		sgi.LaSysGlobalDeRegisterTxCallback(p.intfNum)
+		sgi.LaSysGlobalDeRegisterTxCallback(p.IntfNum)
 	}
 	// close rx/tx processing
 	// TODO figure out why this call does not return
 	if p.handle != nil {
 		p.handle.Close()
-		fmt.Println("RX/TX handle closed for port", p.portNum)
+		fmt.Println("RX/TX handle closed for port", p.PortNum)
 	}
 
-	// stop the state machines
+	// stop the State machines
 	// TODO maybe run these in parrallel?
 	if p.RxMachineFsm != nil {
 		p.RxMachineFsm.Stop()
@@ -371,32 +398,32 @@ func (p *LaAggPort) Stop() {
 	} else {
 		p.wg.Done()
 	}
-	// lets wait for all the state machines to have stopped
+	// lets wait for all the State machines to have stopped
 	p.wg.Wait()
-	fmt.Println("All machines stopped for port", p.portNum)
+	fmt.Println("All machines stopped for port", p.PortNum)
 	close(p.portChan)
 
 	// kill the logger for this port
 	p.LacpDebug.Stop()
-	fmt.Println("Logger stopped for port", p.portNum)
+	fmt.Println("Logger stopped for port", p.PortNum)
 
 }
 
-//  BEGIN will initiate all the state machines
+//  BEGIN will initiate all the State machines
 // and will send an event back to this caller
 // to begin processing.
 func (p *LaAggPort) BEGIN(restart bool) {
 	mEvtChan := make([]chan LacpMachineEvent, 0)
 	evt := make([]LacpMachineEvent, 0)
 
-	// system in being initalized
+	// System in being initalized
 	p.begin = true
 
 	if !restart {
 		// save off a shortcut to the log chan
 		p.log = p.LacpDebug.LacpLogChan
 
-		// start all the state machines
+		// start all the State machines
 		// Order here matters as Rx machine
 		// will send event to Mux machine
 		// thus machine must be up and
@@ -472,7 +499,7 @@ func (p *LaAggPort) DistributeMachineEvents(mec []chan LacpMachineEvent, e []Lac
 				//fmt.Println("LAPORT: Waiting for response Delayed", length, "curr", i, time.Now())
 				if i >= length {
 					// 10/24/15 fixed hack by sending response after Machine.ProcessEvent
-					// HACK, found that port is pre-empting the state machine callback return
+					// HACK, found that port is pre-empting the State machine callback return
 					// lets delay for a short period to allow for event to be received
 					// and other routines to process their events
 					/*
@@ -490,8 +517,8 @@ func (p *LaAggPort) DistributeMachineEvents(mec []chan LacpMachineEvent, e []Lac
 }
 
 // LaAggPortDisable will update the status on the port
-// as well as inform the appropriate state machines of the
-// state change
+// as well as inform the appropriate State machines of the
+// State change
 func (p *LaAggPort) LaAggPortDisable() {
 	mEvtChan := make([]chan LacpMachineEvent, 0)
 	evt := make([]LacpMachineEvent, 0)
@@ -527,10 +554,10 @@ func (p *LaAggPort) LaAggPortDisable() {
 }
 
 // LaAggPortEnabled will update the status on the port
-// as well as inform the appropriate state machines of the
-// state change
-// When this is called, it is assumed that all states are
-// in their default state.
+// as well as inform the appropriate State machines of the
+// State change
+// When this is called, it is assumed that all States are
+// in their default State.
 func (p *LaAggPort) LaAggPortEnabled() {
 	mEvtChan := make([]chan LacpMachineEvent, 0)
 	evt := make([]LacpMachineEvent, 0)
@@ -559,7 +586,7 @@ func (p *LaAggPort) LaAggPortEnabled() {
 	}
 
 	// Cdm
-	if LacpStateIsSet(p.actorOper.state, LacpStateSyncBit) {
+	if LacpStateIsSet(p.ActorOper.State, LacpStateSyncBit) {
 		mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
 		evt = append(evt, LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
 			src: PortConfigModuleStr})
@@ -577,8 +604,8 @@ func (p *LaAggPort) LaAggPortEnabled() {
 }
 
 // LaAggPortLacpDisable will update the status on the port
-// as well as inform the appropriate state machines of the
-// state change
+// as well as inform the appropriate State machines of the
+// State change
 func (p *LaAggPort) LaAggPortLacpDisable() {
 	mEvtChan := make([]chan LacpMachineEvent, 0)
 	evt := make([]LacpMachineEvent, 0)
@@ -612,19 +639,19 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 	var sysId LacpSystem
 	if LaFindAggById(p.AggId, &a) {
 		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-		sysId.actor_system = convertNetHwAddressToSysIdKey(mac)
-		sysId.actor_system_priority = a.Config.SystemPriority
+		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
+		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
 
-	// port is no longer controlling lacp state
+	// port is no longer controlling lacp State
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
-	p.actorAdmin.state = sgi.ActorStateDefaultParams.state
-	p.actorOper.state = sgi.ActorStateDefaultParams.state
+	p.actorAdmin.State = sgi.ActorStateDefaultParams.State
+	p.ActorOper.State = sgi.ActorStateDefaultParams.State
 }
 
 // LaAggPortEnabled will update the status on the port
-// as well as inform the appropriate state machines of the
-// state change
+// as well as inform the appropriate State machines of the
+// State change
 func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 	mEvtChan := make([]chan LacpMachineEvent, 0)
 	evt := make([]LacpMachineEvent, 0)
@@ -632,13 +659,13 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 	p.LaPortLog("LAPORT: Port LACP Enabled")
 
 	// port can be added to aggregator
-	LacpStateSet(&p.actorAdmin.state, LacpStateAggregationBit)
+	LacpStateSet(&p.actorAdmin.State, LacpStateAggregationBit)
 
 	// Activity mode
 	if mode == LacpModeActive {
-		LacpStateSet(&p.actorAdmin.state, LacpStateActivityBit)
+		LacpStateSet(&p.actorAdmin.State, LacpStateActivityBit)
 	} else {
-		LacpStateClear(&p.actorAdmin.state, LacpStateActivityBit)
+		LacpStateClear(&p.actorAdmin.State, LacpStateActivityBit)
 	}
 
 	if p.PortEnabled &&
@@ -668,48 +695,48 @@ func (p *LaAggPort) TimeoutGet() time.Duration {
 }
 
 func (p *LaAggPort) ModeGet() int {
-	return LacpModeGet(p.actorOper.state, p.lacpEnabled)
+	return LacpModeGet(p.ActorOper.State, p.lacpEnabled)
 }
 
 func LacpCopyLacpPortInfoFromPkt(fromPortInfoPtr *layers.LACPPortInfo, toPortInfoPtr *LacpPortInfo) {
-	toPortInfoPtr.key = fromPortInfoPtr.Key
+	toPortInfoPtr.Key = fromPortInfoPtr.Key
 	toPortInfoPtr.port = fromPortInfoPtr.Port
-	toPortInfoPtr.port_pri = fromPortInfoPtr.PortPri
-	toPortInfoPtr.state = fromPortInfoPtr.State
-	toPortInfoPtr.system.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(fromPortInfoPtr.System.SystemId))
-	toPortInfoPtr.system.LacpSystemActorSystemPrioritySet(fromPortInfoPtr.System.SystemPriority)
+	toPortInfoPtr.Port_pri = fromPortInfoPtr.PortPri
+	toPortInfoPtr.State = fromPortInfoPtr.State
+	toPortInfoPtr.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(fromPortInfoPtr.System.SystemId))
+	toPortInfoPtr.System.LacpSystemActorSystemPrioritySet(fromPortInfoPtr.System.SystemPriority)
 }
 
 // LacpCopyLacpPortInfo:
 // Copy the LacpPortInfo data from->to
 func LacpCopyLacpPortInfo(fromPortInfoPtr *LacpPortInfo, toPortInfoPtr *LacpPortInfo) {
-	toPortInfoPtr.key = fromPortInfoPtr.key
+	toPortInfoPtr.Key = fromPortInfoPtr.Key
 	toPortInfoPtr.port = fromPortInfoPtr.port
-	toPortInfoPtr.port_pri = fromPortInfoPtr.port_pri
-	toPortInfoPtr.state = fromPortInfoPtr.state
-	toPortInfoPtr.system.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(fromPortInfoPtr.system.actor_system))
-	toPortInfoPtr.system.LacpSystemActorSystemPrioritySet(fromPortInfoPtr.system.actor_system_priority)
+	toPortInfoPtr.Port_pri = fromPortInfoPtr.Port_pri
+	toPortInfoPtr.State = fromPortInfoPtr.State
+	toPortInfoPtr.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(fromPortInfoPtr.System.actor_System))
+	toPortInfoPtr.System.LacpSystemActorSystemPrioritySet(fromPortInfoPtr.System.Actor_System_priority)
 }
 
-func LacpLacpPktPortInfoIsEqual(aPortInfoPtr *layers.LACPPortInfo, bPortInfoPtr *LacpPortInfo, stateBits uint8) bool {
+func LacpLacpPktPortInfoIsEqual(aPortInfoPtr *layers.LACPPortInfo, bPortInfoPtr *LacpPortInfo, StateBits uint8) bool {
 
-	return aPortInfoPtr.System.SystemId == bPortInfoPtr.system.actor_system &&
-		aPortInfoPtr.System.SystemPriority == bPortInfoPtr.system.actor_system_priority &&
+	return aPortInfoPtr.System.SystemId == bPortInfoPtr.System.actor_System &&
+		aPortInfoPtr.System.SystemPriority == bPortInfoPtr.System.Actor_System_priority &&
 		aPortInfoPtr.Port == bPortInfoPtr.port &&
-		aPortInfoPtr.PortPri == bPortInfoPtr.port_pri &&
-		aPortInfoPtr.Key == bPortInfoPtr.key &&
-		(LacpStateIsSet(aPortInfoPtr.State, stateBits) && LacpStateIsSet(bPortInfoPtr.state, stateBits))
+		aPortInfoPtr.PortPri == bPortInfoPtr.Port_pri &&
+		aPortInfoPtr.Key == bPortInfoPtr.Key &&
+		(LacpStateIsSet(aPortInfoPtr.State, StateBits) && LacpStateIsSet(bPortInfoPtr.State, StateBits))
 }
 
 // LacpLacpPortInfoIsEqual:
 // Compare the LacpPortInfo data except be selective
-// about the state bits that is being compared against
-func LacpLacpPortInfoIsEqual(aPortInfoPtr *LacpPortInfo, bPortInfoPtr *LacpPortInfo, stateBits uint8) bool {
+// about the State bits that is being compared against
+func LacpLacpPortInfoIsEqual(aPortInfoPtr *LacpPortInfo, bPortInfoPtr *LacpPortInfo, StateBits uint8) bool {
 
-	return aPortInfoPtr.system.actor_system == bPortInfoPtr.system.actor_system &&
-		aPortInfoPtr.system.actor_system_priority == bPortInfoPtr.system.actor_system_priority &&
+	return aPortInfoPtr.System.actor_System == bPortInfoPtr.System.actor_System &&
+		aPortInfoPtr.System.Actor_System_priority == bPortInfoPtr.System.Actor_System_priority &&
 		aPortInfoPtr.port == bPortInfoPtr.port &&
-		aPortInfoPtr.port_pri == bPortInfoPtr.port_pri &&
-		aPortInfoPtr.key == bPortInfoPtr.key &&
-		(LacpStateIsSet(aPortInfoPtr.state, stateBits) && LacpStateIsSet(bPortInfoPtr.state, stateBits))
+		aPortInfoPtr.Port_pri == bPortInfoPtr.Port_pri &&
+		aPortInfoPtr.Key == bPortInfoPtr.Key &&
+		(LacpStateIsSet(aPortInfoPtr.State, StateBits) && LacpStateIsSet(bPortInfoPtr.State, StateBits))
 }

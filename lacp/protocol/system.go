@@ -1,24 +1,38 @@
-// system
+// System
 package lacp
 
 import (
+	"fmt"
 	"net"
 )
 
 // 6.4.5 Variables associated with the System
 type LacpSystem struct {
 	// System Priority
-	actor_system_priority uint16
+	Actor_System_priority uint16
 	// MAC address component of the System Id
-	actor_system [6]uint8
+	actor_System [6]uint8
 }
 
-func (s *LacpSystem) LacpSystemActorSystemIdSet(actor_system net.HardwareAddr) {
-	s.actor_system = convertNetHwAddressToSysIdKey(actor_system)
+func (s *LacpSystem) LacpSystemActorSystemIdSet(actor_System net.HardwareAddr) {
+	s.actor_System = convertNetHwAddressToSysIdKey(actor_System)
 }
 
-func (s *LacpSystem) LacpSystemActorSystemPrioritySet(actor_system_priority uint16) {
-	s.actor_system_priority = actor_system_priority
+func (s *LacpSystem) LacpSystemActorSystemPrioritySet(Actor_System_priority uint16) {
+	s.Actor_System_priority = Actor_System_priority
+}
+
+func (s *LacpSystem) LacpSystemConvertSystemIdToString() string {
+	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+		uint8(s.Actor_System_priority>>16&0xff),
+		uint8(s.Actor_System_priority&0xff),
+		s.actor_System[5],
+		s.actor_System[4],
+		s.actor_System[3],
+		s.actor_System[2],
+		s.actor_System[1],
+		s.actor_System[0],
+	)
 }
 
 //6.3.2 System identification
@@ -45,10 +59,10 @@ func LacpSystemIdGet(s LacpSystem) [8]uint8 {
 
 	var sysId [8]uint8
 
-	mac := s.actor_system
+	mac := s.actor_System
 
-	sysId[7] = uint8(s.actor_system_priority >> 16 & 0xff)
-	sysId[6] = uint8(s.actor_system_priority & 0xff)
+	sysId[7] = uint8(s.Actor_System_priority >> 16 & 0xff)
+	sysId[6] = uint8(s.Actor_System_priority & 0xff)
 	sysId[5] = mac[5]
 	sysId[4] = mac[4]
 	sysId[3] = mac[3]

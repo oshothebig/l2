@@ -35,8 +35,8 @@ const (
 	LacpCdmEventActorChurnTimerExpired
 )
 
-// LacpRxMachine holds FSM and current state
-// and event channels for state transitions
+// LacpRxMachine holds FSM and current State
+// and event channels for State transitions
 type LacpCdMachine struct {
 	// for debugging
 	PreviousState fsm.State
@@ -74,7 +74,7 @@ func (cdm *LacpCdMachine) Stop() {
 
 func (cdm *LacpCdMachine) PrevState() fsm.State { return cdm.PreviousState }
 
-// PrevStateSet will set the previous state
+// PrevStateSet will set the previous State
 func (cdm *LacpCdMachine) PrevStateSet(s fsm.State) { cdm.PreviousState = s }
 
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
@@ -95,7 +95,7 @@ func NewLacpCdMachine(port *LaAggPort) *LacpCdMachine {
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
-// instances state machine without reallocating the machine.
+// instances State machine without reallocating the machine.
 func (cdm *LacpCdMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	if cdm.Machine == nil {
 		cdm.Machine = &fsm.Machine{}
@@ -113,21 +113,21 @@ func (cdm *LacpCdMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	return cdm.Machine
 }
 
-// LacpCdMachineNoActorChurn will set the churn state to false
+// LacpCdMachineNoActorChurn will set the churn State to false
 func (cdm *LacpCdMachine) LacpCdMachineNoActorChurn(m fsm.Machine, data interface{}) fsm.State {
 	p := cdm.p
 	p.actorChurn = false
 	return LacpCdmStateNoActorChurn
 }
 
-// LacpCdMachineActorChurn will set the churn state to true
+// LacpCdMachineActorChurn will set the churn State to true
 func (cdm *LacpCdMachine) LacpCdMachineActorChurn(m fsm.Machine, data interface{}) fsm.State {
 	p := cdm.p
 	p.actorChurn = true
 	return LacpCdmStateActorChurn
 }
 
-// LacpCdMachineActorChurnMonitor will set the churn state to true
+// LacpCdMachineActorChurnMonitor will set the churn State to true
 // and kick off the churn detection timer
 func (cdm *LacpCdMachine) LacpCdMachineActorChurnMonitor(m fsm.Machine, data interface{}) fsm.State {
 	p := cdm.p
@@ -143,8 +143,8 @@ func LacpCdMachineFSMBuild(p *LaAggPort) *LacpCdMachine {
 	CdMachineStrStateMapCreate()
 
 	// Instantiate a new LacpRxMachine
-	// Initial state will be a psuedo state known as "begin" so that
-	// we can transition to the initalize state
+	// Initial State will be a psuedo State known as "begin" so that
+	// we can transition to the initalize State
 	cdm := NewLacpCdMachine(p)
 
 	//BEGIN -> ACTOR CHURN MONITOR
@@ -175,15 +175,15 @@ func LacpCdMachineFSMBuild(p *LaAggPort) *LacpCdMachine {
 }
 
 // LacpCdMachineMain:  802.1ax-2014 Figure 6.23
-// Creation of Rx State Machine state transitions and callbacks
+// Creation of Rx State Machine State transitions and callbacks
 // and create go routine to pend on events
 func (p *LaAggPort) LacpCdMachineMain() {
 
-	// Build the state machine for Lacp Receive Machine according to
+	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
 	cdm := LacpCdMachineFSMBuild(p)
 
-	// set the inital state
+	// set the inital State
 	cdm.Machine.Start(cdm.PrevState())
 
 	// lets create a go routing which will wait for the specific events
