@@ -519,9 +519,11 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdService
 	var lagStateList []lacpdServices.AggregationLacpState = make([]lacpdServices.AggregationLacpState, count)
 	var nextLagState *lacpdServices.AggregationLacpState
 	var returnLagStates []*lacpdServices.AggregationLacpState
+	var returnLagStateGetInfo lacpdServices.AggregationLacpStateGetInfo
 	var a *lacp.LaAggregator
 	validCount := lacpdServices.Int(0)
 	toIndex := fromIndex
+	obj = &returnLagStateGetInfo
 	for currIndex := lacpdServices.Int(0); validCount != count && lacp.LaGetAggNext(&a); currIndex++ {
 
 		if currIndex < fromIndex {
