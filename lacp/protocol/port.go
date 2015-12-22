@@ -7,7 +7,6 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"net"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -694,7 +693,7 @@ func LacpCopyLacpPortInfo(fromPortInfoPtr *LacpPortInfo, toPortInfoPtr *LacpPort
 
 func LacpLacpPktPortInfoIsEqual(aPortInfoPtr *layers.LACPPortInfo, bPortInfoPtr *LacpPortInfo, stateBits uint8) bool {
 
-	return reflect.DeepEqual(aPortInfoPtr.System.SystemId, bPortInfoPtr.system.actor_system) &&
+	return aPortInfoPtr.System.SystemId == bPortInfoPtr.system.actor_system &&
 		aPortInfoPtr.System.SystemPriority == bPortInfoPtr.system.actor_system_priority &&
 		aPortInfoPtr.Port == bPortInfoPtr.port &&
 		aPortInfoPtr.PortPri == bPortInfoPtr.port_pri &&
@@ -707,7 +706,7 @@ func LacpLacpPktPortInfoIsEqual(aPortInfoPtr *layers.LACPPortInfo, bPortInfoPtr 
 // about the state bits that is being compared against
 func LacpLacpPortInfoIsEqual(aPortInfoPtr *LacpPortInfo, bPortInfoPtr *LacpPortInfo, stateBits uint8) bool {
 
-	return reflect.DeepEqual(aPortInfoPtr.system.actor_system, bPortInfoPtr.system.actor_system) &&
+	return aPortInfoPtr.system.actor_system == bPortInfoPtr.system.actor_system &&
 		aPortInfoPtr.system.actor_system_priority == bPortInfoPtr.system.actor_system_priority &&
 		aPortInfoPtr.port == bPortInfoPtr.port &&
 		aPortInfoPtr.port_pri == bPortInfoPtr.port_pri &&
