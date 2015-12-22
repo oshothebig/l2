@@ -635,10 +635,14 @@ func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *layers.LACP) bool {
 
 	p := rxm.p
 
-	const nttStateCompare uint8 = (LacpStateActivityBit | LacpStateTimeoutBit |
+	const nttStateCompare uint8 = (LacpStateActivityBit |
 		LacpStateAggregationBit | LacpStateSyncBit)
 
 	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Partner.Info, &p.actorOper, nttStateCompare) {
+		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.actorOper))
+		return true
+	} else if (LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && !LacpStateIsSet(p.actorOper.state, LacpStateTimeoutBit)) ||
+		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && LacpStateIsSet(p.actorOper.state, LacpStateTimeoutBit)) {
 		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.actorOper))
 		return true
 	}
