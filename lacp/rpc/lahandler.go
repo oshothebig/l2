@@ -570,8 +570,6 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdService
 // the lag members.
 func (la LACPDServiceHandler) GetBulkAggregationLacpMemberStateCounters(fromIndex lacpdServices.Int, count lacpdServices.Int) (obj *lacpdServices.AggregationLacpMemberStateCountersGetInfo, err error) {
 
-	var lagMemberStates lacpdServices.AggregationLacpMemberStateCountersGetInfo
-
 	var lagMemberStateList []lacpdServices.AggregationLacpMemberStateCounters = make([]lacpdServices.AggregationLacpMemberStateCounters, count)
 	var nextLagMemberState *lacpdServices.AggregationLacpMemberStateCounters
 	var returnLagMemberStates []*lacpdServices.AggregationLacpMemberStateCounters
