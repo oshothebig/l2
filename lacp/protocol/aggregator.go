@@ -145,11 +145,12 @@ func LaGetAggNext(agg **LaAggregator) bool {
 			if *agg == nil {
 				fmt.Println("agg map curr %d", a.aggId)
 			} else {
-				fmt.Println("agg map prev %d curr %d found %d", (*agg).aggId, a.aggId)
+				fmt.Println(fmt.Sprintf("agg map prev %d curr %d found %d", (*agg).aggId, a.aggId))
 			}
 			if *agg == nil {
 				// first agg
 				*agg = a
+				return true
 			} else if (*agg).aggId == a.aggId {
 				// found agg
 				returnNext = true
