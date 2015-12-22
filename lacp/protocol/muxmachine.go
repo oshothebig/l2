@@ -581,10 +581,6 @@ func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected(sendResponse bool) {
 			muxm.LacpMuxmLog(fmt.Sprintf("Unable to find Aggrigator %d", p.AggId))
 		}
 	}
-	//else {
-	//	muxm.Machine.processEvent(LacpMuxmEventSelectedEqualUnselected, nil)
-	//}
-
 }
 
 // AttachMuxToAggregator is a required function defined in 802.1ax-2014
