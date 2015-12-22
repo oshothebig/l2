@@ -26,12 +26,12 @@ func (s *LacpSystem) LacpSystemConvertSystemIdToString() string {
 	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 		uint8(s.Actor_System_priority>>16&0xff),
 		uint8(s.Actor_System_priority&0xff),
-		s.actor_System[5],
-		s.actor_System[4],
-		s.actor_System[3],
-		s.actor_System[2],
-		s.actor_System[1],
 		s.actor_System[0],
+		s.actor_System[1],
+		s.actor_System[2],
+		s.actor_System[3],
+		s.actor_System[4],
+		s.actor_System[5],
 	)
 }
 
