@@ -21,7 +21,7 @@ func InvalidStateCheck(p *LaAggPort, invalidStates []fsm.Event, prevState fsm.St
 
 	portchan := p.PortChannelGet()
 
-	// force what state transition should have been
+	// force what State transition should have been
 	p.RxMachineFsm.Machine.Curr.SetState(prevState)
 	p.RxMachineFsm.Machine.Curr.SetState(currState)
 
@@ -42,7 +42,7 @@ func InvalidStateCheck(p *LaAggPort, invalidStates []fsm.Event, prevState fsm.St
 		// PORT MOVED
 		if p.RxMachineFsm.Machine.Curr.PreviousState() != prevState &&
 			p.RxMachineFsm.Machine.Curr.CurrentState() != currState {
-			s = fmt.Sprintf("ERROR RX Machine state incorrect expected (prev/curr)",
+			s = fmt.Sprintf("ERROR RX Machine State incorrect expected (prev/curr)",
 				prevState,
 				currState,
 				"actual",
@@ -85,7 +85,7 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 	// lets create a port and start the machines
 	CreateLaAggPort(pconf)
 
-	// if the port is found verify the initial state after begin event
+	// if the port is found verify the initial State after begin event
 	// which was called as part of create
 	if LaFindPortById(pconf.Id, &p) {
 
@@ -95,34 +95,34 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 		//		"Mux:", p.MuxMachineFsm.Machine.Curr.CurrentState(),
 		//		"Tx:", p.TxMachineFsm.Machine.Curr.CurrentState())
 
-		// lets test the states, after initialization port moves to Disabled State
+		// lets test the States, after initialization port moves to Disabled State
 		// Rx Machine
 		if p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStatePortDisabled {
-			t.Error("ERROR RX Machine state incorrect expected",
+			t.Error("ERROR RX Machine State incorrect expected",
 				LacpRxmStatePortDisabled, "actual",
 				p.RxMachineFsm.Machine.Curr.CurrentState())
 		}
 		// Periodic Tx Machine
 		if p.PtxMachineFsm.Machine.Curr.CurrentState() != LacpPtxmStateNoPeriodic {
-			t.Error("ERROR PTX Machine state incorrect expected",
+			t.Error("ERROR PTX Machine State incorrect expected",
 				LacpPtxmStateNoPeriodic, "actual",
 				p.PtxMachineFsm.Machine.Curr.CurrentState())
 		}
 		// Churn Detection Machine
 		if p.CdMachineFsm.Machine.Curr.CurrentState() != LacpCdmStateActorChurnMonitor {
-			t.Error("ERROR CD Machine state incorrect expected",
+			t.Error("ERROR CD Machine State incorrect expected",
 				LacpCdmStateActorChurnMonitor, "actual",
 				p.CdMachineFsm.Machine.Curr.CurrentState())
 		}
 		// Mux Machine
 		if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached {
-			t.Error("ERROR MUX Machine state incorrect expected",
+			t.Error("ERROR MUX Machine State incorrect expected",
 				LacpMuxmStateDetached, "actual",
 				p.MuxMachineFsm.Machine.Curr.CurrentState())
 		}
 		// Tx Machine
 		if p.TxMachineFsm.Machine.Curr.CurrentState() != LacpTxmStateOff {
-			t.Error("ERROR TX Machine state incorrect expected",
+			t.Error("ERROR TX Machine State incorrect expected",
 				LacpTxmStateOff, "actual",
 				p.TxMachineFsm.Machine.Curr.CurrentState())
 		}
@@ -168,7 +168,7 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 	// lets create a port and start the machines
 	CreateLaAggPort(pconf)
 
-	// if the port is found verify the initial state after begin event
+	// if the port is found verify the initial State after begin event
 	// which was called as part of create
 	if LaFindPortById(pconf.Id, &p) {
 		if p.aggSelected == LacpAggSelected {
@@ -208,7 +208,7 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 	// lets create a port and start the machines
 	CreateLaAggPort(pconf)
 
-	// if the port is found verify the initial state after begin event
+	// if the port is found verify the initial State after begin event
 	// which was called as part of create
 	if LaFindPortById(pconf.Id, &p) {
 		if p.aggSelected == LacpAggSelected {
@@ -247,7 +247,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	// lets create a port and start the machines
 	CreateLaAggPort(pconf)
 
-	// if the port is found verify the initial state after begin event
+	// if the port is found verify the initial State after begin event
 	// which was called as part of create
 	if LaFindPortById(pconf.Id, &p) {
 		if p.aggSelected == LacpAggSelected {
@@ -265,17 +265,17 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	// Create Aggregation
 	CreateLaAgg(aconf)
 
-	// if the port is found verify the initial state after begin event
+	// if the port is found verify the initial State after begin event
 	// which was called as part of create
 	if p.aggSelected != LacpAggSelected {
 		t.Error("Port is in SELECTED mode")
 	}
 
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
-		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
+		t.Error("Mux State expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
 	}
 
-	// TODO Check states of other state machines
+	// TODO Check States of other State machines
 
 	// Delete agg
 	DeleteLaAgg(aconf.Id)
@@ -312,7 +312,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 	// lets create a port and start the machines
 	CreateLaAggPort(pconf)
 
-	// if the port is found verify the initial state after begin event
+	// if the port is found verify the initial State after begin event
 	// which was called as part of create
 	if LaFindPortById(pconf.Id, &p) {
 		if p.aggSelected == LacpAggSelected {
@@ -330,7 +330,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 	// Create Aggregation
 	CreateLaAgg(aconf)
 
-	// if the port is found verify the initial state after begin event
+	// if the port is found verify the initial State after begin event
 	// which was called as part of create
 	if p.aggSelected != LacpAggSelected {
 		t.Error("Port is in SELECTED mode")
@@ -343,7 +343,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 	}
 
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
-		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
+		t.Error("Mux State expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
 	}
 	// Delete port
 	DeleteLaAggPortFromAgg(pconf.AggId, pconf.Id)
@@ -376,7 +376,7 @@ func TestLaAggPortEnable(t *testing.T) {
 	// lets create a port and start the machines
 	CreateLaAggPort(pconf)
 
-	// if the port is found verify the initial state after begin event
+	// if the port is found verify the initial State after begin event
 	// which was called as part of create
 	if LaFindPortById(pconf.Id, &p) {
 		if p.aggSelected == LacpAggSelected {
@@ -401,7 +401,7 @@ func TestLaAggPortEnable(t *testing.T) {
 	EnableLaAggPort(pconf.Id)
 
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
-		t.Error("Mux state expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
+		t.Error("Mux State expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
 	}
 	// Delete port
 	DeleteLaAggPortFromAgg(pconf.AggId, pconf.Id)
@@ -424,7 +424,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		SysId:  sysId,
 	}
 
-	// not calling Create because we don't want to launch all state machines
+	// not calling Create because we don't want to launch all State machines
 	p := NewLaAggPort(pconf)
 
 	// lets start the Rx Machine only
@@ -432,7 +432,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	// Rx Machine
 	if p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateNone {
-		t.Error("ERROR RX Machine state incorrect expected",
+		t.Error("ERROR RX Machine State incorrect expected",
 			LacpRxmStateNone, "actual",
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
@@ -453,7 +453,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// port is initally disabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateInitialize &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStatePortDisabled {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStateInitialize,
 			LacpRxmStatePortDisabled,
 			"actual",
@@ -461,17 +461,17 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
 
-	// check state info
+	// check State info
 	if p.aggSelected != LacpAggUnSelected {
 		t.Error("expected UNSELECTED", LacpAggUnSelected, "actual", p.aggSelected)
 	}
-	if LacpStateIsSet(p.actorOper.state, LacpStateExpiredBit) {
-		t.Error("expected state Expired to be cleared")
+	if LacpStateIsSet(p.ActorOper.State, LacpStateExpiredBit) {
+		t.Error("expected State Expired to be cleared")
 	}
 	if p.portMoved != false {
 		t.Error("expected port moved to be false")
 	}
-	// TODO check actor oper state
+	// TODO check actor oper State
 
 	p.portMoved = true
 	// send PORT MOVED event to Rx Machine
@@ -489,7 +489,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// PORT MOVED
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateInitialize &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStatePortDisabled {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStateInitialize,
 			LacpRxmStatePortDisabled,
 			"actual",
@@ -516,7 +516,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// port is initally disabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStatePortDisabled &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateLacpDisabled {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStatePortDisabled,
 			LacpRxmStateLacpDisabled,
 			"actual",
@@ -541,7 +541,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// then expired
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStatePortDisabled &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateExpired {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStatePortDisabled,
 			LacpRxmStateExpired,
 			"actual",
@@ -549,16 +549,16 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
 
-	if LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
+	if LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
 		t.Error("Expected partner Sync Bit to not be set")
 	}
-	if !LacpStateIsSet(p.partnerOper.state, LacpStateTimeoutBit) {
+	if !LacpStateIsSet(p.PartnerOper.State, LacpStateTimeoutBit) {
 		t.Error("Expected partner Timeout bit to be set since we are in short timeout")
 	}
 	if p.RxMachineFsm.currentWhileTimerTimeout != LacpShortTimeoutTime {
 		t.Error("Expected timer to be set to short timeout")
 	}
-	if !LacpStateIsSet(p.actorOper.state, LacpStateExpiredBit) {
+	if !LacpStateIsSet(p.ActorOper.State, LacpStateExpiredBit) {
 		t.Error("Expected actor expired bit to be set")
 	}
 
@@ -578,7 +578,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// port was enabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateExpired &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStatePortDisabled {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStateExpired,
 			LacpRxmStatePortDisabled,
 			"actual",
@@ -586,7 +586,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
 
-	if LacpStateIsSet(p.partnerOper.state, LacpStateSyncBit) {
+	if LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
 		t.Error("Expected partner Sync Bit to not be set")
 	}
 
@@ -620,7 +620,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// port was enabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateLacpDisabled &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStatePortDisabled {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStateLacpDisabled,
 			LacpRxmStatePortDisabled,
 			"actual",
@@ -657,7 +657,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// port was enabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateExpired &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateDefaulted {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStateExpired,
 			LacpRxmStateDefaulted,
 			"actual",
@@ -667,7 +667,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	// TODO check default selected, record default, expired == false
 
-	// LETS GET THE STATE BACK TO EXPIRED
+	// LETS GET THE State BACK TO EXPIRED
 
 	p.PortEnabled = false
 	// send NOT PORT ENABLE NOT PORT MOVED event to Rx Machine
@@ -695,10 +695,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		t.Error("Expected response from", RxMachineModuleStr)
 	}
 
-	// lets adjust the actorOper timeout state
+	// lets adjust the ActorOper timeout State
 	// TODO Assume a method was called to adjust this
-	LacpStateSet(&p.actorAdmin.state, LacpStateTimeoutBit)
-	LacpStateSet(&p.actorOper.state, LacpStateTimeoutBit)
+	LacpStateSet(&p.actorAdmin.State, LacpStateTimeoutBit)
+	LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
 
 	//slow := &layers.SlowProtocol{
 	//	SubType: layers.SlowProtocolTypeLACP,
@@ -719,12 +719,12 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
 			Length: layers.LACPPartnerTlvLength,
 			Info: layers.LACPPortInfo{
-				System: layers.LACPSystem{SystemId: p.actorOper.system.actor_system,
-					SystemPriority: p.actorOper.system.actor_system_priority},
-				Key:     p.key,
+				System: layers.LACPSystem{SystemId: p.ActorOper.System.actor_System,
+					SystemPriority: p.ActorOper.System.Actor_System_priority},
+				Key:     p.Key,
 				PortPri: p.portPriority,
-				Port:    p.portNum,
-				State:   p.actorOper.state},
+				Port:    p.PortNum,
+				State:   p.ActorOper.State},
 		},
 	}
 
@@ -743,7 +743,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// port was enabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateExpired &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateCurrent {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStateExpired,
 			LacpRxmStateCurrent,
 			"actual",
@@ -757,7 +757,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// port was enabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateCurrent &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateExpired {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStateCurrent,
 			LacpRxmStateExpired,
 			"actual",
@@ -771,7 +771,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// port was enabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateExpired &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateDefaulted {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStateExpired,
 			LacpRxmStateDefaulted,
 			"actual",
@@ -794,12 +794,12 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
 			Length: layers.LACPPartnerTlvLength,
 			Info: layers.LACPPortInfo{
-				System: layers.LACPSystem{SystemId: p.actorOper.system.actor_system,
-					SystemPriority: p.actorOper.system.actor_system_priority},
-				Key:     p.key,
+				System: layers.LACPSystem{SystemId: p.ActorOper.System.actor_System,
+					SystemPriority: p.ActorOper.System.Actor_System_priority},
+				Key:     p.Key,
 				PortPri: p.portPriority,
-				Port:    p.portNum,
-				State:   p.actorOper.state},
+				Port:    p.PortNum,
+				State:   p.ActorOper.State},
 		},
 	}
 
@@ -818,7 +818,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// port was enabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateDefaulted &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateCurrent {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStateExpired,
 			LacpRxmStateCurrent,
 			"actual",
@@ -841,12 +841,12 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
 			Length: layers.LACPPartnerTlvLength,
 			Info: layers.LACPPortInfo{
-				System: layers.LACPSystem{SystemId: p.actorOper.system.actor_system,
-					SystemPriority: p.actorOper.system.actor_system_priority},
-				Key:     p.key,
+				System: layers.LACPSystem{SystemId: p.ActorOper.System.actor_System,
+					SystemPriority: p.ActorOper.System.Actor_System_priority},
+				Key:     p.Key,
 				PortPri: p.portPriority,
-				Port:    p.portNum,
-				State:   p.actorOper.state},
+				Port:    p.PortNum,
+				State:   p.ActorOper.State},
 		},
 	}
 
@@ -865,7 +865,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// port was enabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateCurrent &&
 		p.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateCurrent {
-		t.Error("ERROR RX Machine state incorrect expected (prev/curr)",
+		t.Error("ERROR RX Machine State incorrect expected (prev/curr)",
 			LacpRxmStateExpired,
 			LacpRxmStateCurrent,
 			"actual",
@@ -890,7 +890,7 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 		SysId:  sysId,
 	}
 
-	// not calling Create because we don't want to launch all state machines
+	// not calling Create because we don't want to launch all State machines
 	p := NewLaAggPort(pconf)
 
 	// lets start the Rx Machine only
@@ -898,7 +898,7 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 
 	p.BEGIN(false)
 
-	// turn timer off so that we do not accidentally transition states
+	// turn timer off so that we do not accidentally transition States
 	p.RxMachineFsm.CurrentWhileTimerStop()
 	/*
 		LacpRxmEventBegin = iota + 1
@@ -927,7 +927,7 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 		t.Error(str)
 	}
 
-	// EXPIRED - note disabling current while timer so state does not change
+	// EXPIRED - note disabling current while timer so State does not change
 	expiredInvalidStates := [5]fsm.Event{LacpRxmEventUnconditionalFallthrough,
 		LacpRxmEventPortMoved,
 		LacpRxmEventPortEnabledAndLacpEnabled,
@@ -1089,20 +1089,20 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 		<-testWait
 		close(testWait)
 
-		state1 := GetLaAggPortActorOperState(p1conf.Id)
-		state2 := GetLaAggPortActorOperState(p2conf.Id)
+		State1 := GetLaAggPortActorOperState(p1conf.Id)
+		State2 := GetLaAggPortActorOperState(p2conf.Id)
 
 		const portUpState = LacpStateActivityBit | LacpStateAggregationBit |
 			LacpStateSyncBit | LacpStateCollectingBit | LacpStateDistributingBit
 
-		if !LacpStateIsSet(state1, portUpState) {
-			t.Error(fmt.Sprintf("Actor Port state 0x%x did not come up properly with peer expected 0x%x", state1, portUpState))
+		if !LacpStateIsSet(State1, portUpState) {
+			t.Error(fmt.Sprintf("Actor Port State 0x%x did not come up properly with peer expected 0x%x", State1, portUpState))
 		}
-		if !LacpStateIsSet(state2, portUpState) {
-			t.Error(fmt.Sprintf("Peer Port state 0x%x did not come up properly with actor expected 0x%x", state2, portUpState))
+		if !LacpStateIsSet(State2, portUpState) {
+			t.Error(fmt.Sprintf("Peer Port State 0x%x did not come up properly with actor expected 0x%x", State2, portUpState))
 		}
 
-		// TODO check the states of the other state machines
+		// TODO check the States of the other State machines
 	} else {
 		t.Error("Unable to find port just created")
 	}
@@ -1225,20 +1225,20 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 
 		<-testWait
 
-		state1 := GetLaAggPortActorOperState(p1conf.Id)
-		state2 := GetLaAggPortActorOperState(p2conf.Id)
+		State1 := GetLaAggPortActorOperState(p1conf.Id)
+		State2 := GetLaAggPortActorOperState(p2conf.Id)
 
 		const portUpState = LacpStateActivityBit | LacpStateAggregationBit |
 			LacpStateSyncBit | LacpStateCollectingBit | LacpStateDistributingBit
 
-		if !LacpStateIsSet(state1, portUpState) {
-			t.Error(fmt.Sprintf("Actor Port state 0x%x did not come up properly with peer expected 0x%x", state1, portUpState))
+		if !LacpStateIsSet(State1, portUpState) {
+			t.Error(fmt.Sprintf("Actor Port State 0x%x did not come up properly with peer expected 0x%x", State1, portUpState))
 		}
-		if !LacpStateIsSet(state2, portUpState) {
-			t.Error(fmt.Sprintf("Peer Port state 0x%x did not come up properly with actor expected 0x%x", state2, portUpState))
+		if !LacpStateIsSet(State2, portUpState) {
+			t.Error(fmt.Sprintf("Peer Port State 0x%x did not come up properly with actor expected 0x%x", State2, portUpState))
 		}
 
-		// TODO check the states of the other state machines
+		// TODO check the States of the other State machines
 
 		// Lets disable lacp for p1
 		SetLaAggPortLacpMode(p1conf.Id, LacpModeOn, LacpLongTimeoutTime)
@@ -1264,14 +1264,14 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 
 		testResult := <-testWait
 		if !testResult {
-			t.Error(fmt.Sprintf("Actor and Peer states are not correct Expected P1 RXM/MUX",
+			t.Error(fmt.Sprintf("Actor and Peer States are not correct Expected P1 RXM/MUX",
 				LacpRxmStateLacpDisabled, LacpMuxmStateDetached, "Actual", p1.RxMachineFsm.Machine.Curr.CurrentState(),
 				p1.MuxMachineFsm.Machine.Curr.CurrentState(), "Expected P2 RXM/MUX", LacpRxmStateDefaulted,
 				LacpMuxmStateDetached, "Actual", p2.RxMachineFsm.Machine.Curr.CurrentState(),
 				p2.MuxMachineFsm.Machine.Curr.CurrentState()))
 		}
 
-		// TODO check the states of the other state machines
+		// TODO check the States of the other State machines
 	} else {
 		t.Error("Unable to find port just created")
 	}

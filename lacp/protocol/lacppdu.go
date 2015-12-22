@@ -63,7 +63,7 @@ type LacpPduPortConversationIdDigestTlv struct {
 type LacpPduPortConversationMask1Tlv struct {
 	tlv_type   uint8
 	len        uint8 // 131
-	mask_state uint8
+	mask_State uint8
 	mask_1     [128]uint8
 }
 

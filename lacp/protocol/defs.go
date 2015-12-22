@@ -25,8 +25,8 @@ const LacpShortTimeoutTime time.Duration = (time.Second * 3)
 // Lacp State Timeout == 0
 const LacpLongTimeoutTime time.Duration = (time.Second * 90)
 
-// number of seconds that the Actor and Partner Churn state machines
-// wait for the Actor or Partner Sync state to stabilize
+// number of seconds that the Actor and Partner Churn State machines
+// wait for the Actor or Partner Sync State to stabilize
 const LacpChurnDetectionTime time.Duration = (time.Second * 60)
 
 // number of seconds to delay aggregation to allow multiple links to
@@ -64,7 +64,7 @@ const LacpStateAggregatibleUp uint8 = (LacpStateActivityBit |
 	LacpStateDistributingBit |
 	LacpStateDefaultedBit)
 
-// default partner state after lacp pdu's received
+// default partner State after lacp pdu's received
 const LacpStateAggregatibleDown uint8 = (LacpStateActivityBit |
 	LacpStateAggregationBit |
 	LacpStateDefaultedBit)
@@ -72,10 +72,10 @@ const LacpStateAggregatibleDown uint8 = (LacpStateActivityBit |
 const (
 	// also known as manual mode
 	LacpModeOn = iota + 1
-	// lacp state Activity == TRUE
+	// lacp State Activity == TRUE
 	// considered lacp enabled
 	LacpModeActive
-	// lacp state Activity == FALSE
+	// lacp State Activity == FALSE
 	// considered lacp enabled
 	LacpModePassive
 )
@@ -95,9 +95,9 @@ func SendResponse(msg string, responseChan chan string) {
 }
 
 type LacpStateEvent struct {
-	// current state
+	// current State
 	s fsm.State
-	// previous state
+	// previous State
 	ps fsm.State
 	// current event
 	e fsm.Event
@@ -133,16 +133,16 @@ func (se *LacpStateEvent) SetState(s fsm.State) {
 	}
 }
 
-func LacpStateSet(currState *uint8, stateBits uint8) {
-	*currState |= stateBits
+func LacpStateSet(currState *uint8, StateBits uint8) {
+	*currState |= StateBits
 }
 
-func LacpStateClear(currState *uint8, stateBits uint8) {
-	*currState &= ^(stateBits)
+func LacpStateClear(currState *uint8, StateBits uint8) {
+	*currState &= ^(StateBits)
 }
 
-func LacpStateIsSet(currState uint8, stateBits uint8) bool {
-	return (currState & stateBits) == stateBits
+func LacpStateIsSet(currState uint8, StateBits uint8) bool {
+	return (currState & StateBits) == StateBits
 }
 
 func LacpModeGet(currState uint8, lacpEnabled bool) int {

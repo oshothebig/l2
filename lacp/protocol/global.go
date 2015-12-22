@@ -36,7 +36,7 @@ type LacpSysGlobalInfo struct {
 	TxCallbacks map[string][]TxCallback
 }
 
-// holds default lacp state info
+// holds default lacp State info
 var gLacpSysGlobalInfo map[LacpSystem]*LacpSysGlobalInfo
 
 func convertNetHwAddressToSysIdKey(mac net.HardwareAddr) [6]uint8 {
@@ -66,7 +66,7 @@ func convertSysIdKeyToNetHwAddress(mac [6]uint8) net.HardwareAddr {
 // as well as set some default parameters to be used
 // to setup each new port.
 //
-// NOTE: Only one instance should exist on live system
+// NOTE: Only one instance should exist on live System
 func LacpSysGlobalInfoInit(sysId LacpSystem) *LacpSysGlobalInfo {
 
 	if gLacpSysGlobalInfo == nil {
@@ -81,18 +81,18 @@ func LacpSysGlobalInfoInit(sysId LacpSystem) *LacpSysGlobalInfo {
 			LacpEnabled:                true,
 			PortMap:                    make(map[PortIdKey]*LaAggPort),
 			AggMap:                     make(map[AggIdKey]*LaAggregator),
-			SystemDefaultParams:        LacpSystem{actor_system_priority: 0x8000},
-			PartnerSystemDefaultParams: LacpSystem{actor_system_priority: 0x0},
+			SystemDefaultParams:        LacpSystem{Actor_System_priority: 0x8000},
+			PartnerSystemDefaultParams: LacpSystem{Actor_System_priority: 0x0},
 			TxCallbacks:                make(map[string][]TxCallback),
 		}
 
-		gLacpSysGlobalInfo[sysKey].SystemDefaultParams.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sysId.actor_system))
+		gLacpSysGlobalInfo[sysKey].SystemDefaultParams.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sysId.actor_System))
 
 		// Partner is brought up as aggregatible
-		LacpStateSet(&gLacpSysGlobalInfo[sysKey].PartnerStateDefaultParams.state, LacpStateAggregatibleUp)
+		LacpStateSet(&gLacpSysGlobalInfo[sysKey].PartnerStateDefaultParams.State, LacpStateAggregatibleUp)
 
 		// Actor is brought up as individual
-		LacpStateSet(&gLacpSysGlobalInfo[sysKey].ActorStateDefaultParams.state, LacpStateIndividual)
+		LacpStateSet(&gLacpSysGlobalInfo[sysKey].ActorStateDefaultParams.State, LacpStateIndividual)
 	}
 	return gLacpSysGlobalInfo[sysKey]
 }
@@ -132,19 +132,19 @@ func LaSysGlobalTxCallbackListGet(p *LaAggPort) []TxCallback {
 	var sysId LacpSystem
 	if LaFindAggById(p.AggId, &a) {
 		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-		sysId.actor_system = convertNetHwAddressToSysIdKey(mac)
-		sysId.actor_system_priority = a.Config.SystemPriority
+		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
+		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
 
 	if s, sok := gLacpSysGlobalInfo[sysId]; sok {
-		if fList, pok := s.TxCallbacks[p.intfNum]; pok {
+		if fList, pok := s.TxCallbacks[p.IntfNum]; pok {
 			return fList
 		}
 	}
 
 	// temporary function
 	x := func(port uint16, data interface{}) {
-		fmt.Println("TX not registered for port", p.intfNum, p.portId)
+		fmt.Println("TX not registered for port", p.IntfNum, p.portId)
 		//lacp := data.(*layers.LACP)
 		//fmt.Printf("%#v\n", *lacp)
 	}

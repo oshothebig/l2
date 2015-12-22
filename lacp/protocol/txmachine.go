@@ -1,5 +1,5 @@
-// TX MACHINE, this is not really a state machine but going to create a sort of
-// state machine to processes events
+// TX MACHINE, this is not really a State machine but going to create a sort of
+// State machine to processes events
 // TX Machine is described in 802.1ax-2014 6.4.16
 package lacp
 
@@ -43,8 +43,8 @@ const (
 	LacpTxmEventLacpEnabled
 )
 
-// LacpRxMachine holds FSM and current state
-// and event channels for state transitions
+// LacpRxMachine holds FSM and current State
+// and event channels for State transitions
 type LacpTxMachine struct {
 	// for debugging
 	PreviousState fsm.State
@@ -62,7 +62,7 @@ type LacpTxMachine struct {
 	txPkts int
 
 	// ntt, this may be set by external applications
-	// the state machine will only clear
+	// the State machine will only clear
 	ntt bool
 
 	// debug log
@@ -77,10 +77,10 @@ type LacpTxMachine struct {
 	TxmLogEnableEvent  chan bool
 }
 
-// PrevState will get the previous state from the state transitions
+// PrevState will get the previous State from the State transitions
 func (txm *LacpTxMachine) PrevState() fsm.State { return txm.PreviousState }
 
-// PrevStateSet will set the previous state
+// PrevStateSet will set the previous State
 func (txm *LacpTxMachine) PrevStateSet(s fsm.State) { txm.PreviousState = s }
 
 // Stop will stop all timers and close all channels
@@ -117,7 +117,7 @@ func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
-// instances state machine without reallocating the machine.
+// instances State machine without reallocating the machine.
 func (txm *LacpTxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	if txm.Machine == nil {
 		txm.Machine = &fsm.Machine{}
@@ -161,25 +161,25 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 				Actor: layers.LACPInfoTlv{TlvType: layers.LACPTLVActorInfo,
 					Length: layers.LACPActorTlvLength,
 					Info: layers.LACPPortInfo{
-						System: layers.LACPSystem{SystemId: p.actorOper.system.actor_system,
-							SystemPriority: p.actorOper.system.actor_system_priority,
+						System: layers.LACPSystem{SystemId: p.ActorOper.System.actor_System,
+							SystemPriority: p.ActorOper.System.Actor_System_priority,
 						},
-						Key:     p.actorOper.key,
-						PortPri: p.actorOper.port_pri,
-						Port:    p.actorOper.port,
-						State:   p.actorOper.state,
+						Key:     p.ActorOper.Key,
+						PortPri: p.ActorOper.Port_pri,
+						Port:    p.ActorOper.port,
+						State:   p.ActorOper.State,
 					},
 				},
 				Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
 					Length: layers.LACPActorTlvLength,
 					Info: layers.LACPPortInfo{
-						System: layers.LACPSystem{SystemId: p.partnerOper.system.actor_system,
-							SystemPriority: p.partnerOper.system.actor_system_priority,
+						System: layers.LACPSystem{SystemId: p.PartnerOper.System.actor_System,
+							SystemPriority: p.PartnerOper.System.Actor_System_priority,
 						},
-						Key:     p.partnerOper.key,
-						PortPri: p.partnerOper.port_pri,
-						Port:    p.partnerOper.port,
-						State:   p.partnerOper.state,
+						Key:     p.PartnerOper.Key,
+						PortPri: p.PartnerOper.Port_pri,
+						Port:    p.PartnerOper.port,
+						State:   p.PartnerOper.State,
 					},
 				},
 				Collector: layers.LACPCollectorInfoTlv{
@@ -191,9 +191,9 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 
 			// transmit the packet
 			for _, ftx := range LaSysGlobalTxCallbackListGet(p) {
-				txm.LacpTxmLog(fmt.Sprintf("Sending Tx packet %d", txm.txPkts))
-				ftx(p.portNum, lacp)
-				p.counters.LacpOutPkts += 1
+				//txm.LacpTxmLog(fmt.Sprintf("Sending Tx packet %d", txm.txPkts))
+				ftx(p.PortNum, lacp)
+				p.Counters.LacpOutPkts += 1
 
 			}
 			// Version 2 consideration if enable_long_pdu_xmit and
@@ -217,14 +217,14 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 	return nextState
 }
 
-// LacpTxMachineDelayed is a state in which a packet is forced to transmit
-// regardless of the ntt state
+// LacpTxMachineDelayed is a State in which a packet is forced to transmit
+// regardless of the ntt State
 func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) fsm.State {
-	var state fsm.State
+	var State fsm.State
 
 	txm.PrevStateSet(txm.Machine.Curr.CurrentState())
 
-	state = LacpTxmStateOn
+	State = LacpTxmStateOn
 
 	// if more than 3 packets are being transmitted within time interval
 	// Version 2 consideration if enable_long_pdu_xmit and
@@ -233,7 +233,7 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 	// 6.4.2 and including Port Conversation Mask TLV 6.4.2.4.3
 	txm.LacpTxmLog(fmt.Sprintf("Delayed: txPending %d txPkts %d delaying tx", txm.txPending, txm.txPkts))
 	if txm.txPending > 0 && txm.txPkts > 3 {
-		state = LacpTxmStateDelayed
+		State = LacpTxmStateDelayed
 		//txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx,
 		//	src: TxMachineModuleStr}
 	} else {
@@ -243,7 +243,7 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 			src: TxMachineModuleStr}
 	}
 
-	return state
+	return State
 }
 
 // LacpTxMachineOff will ensure that no packets are transmitted, typically means that
@@ -260,18 +260,18 @@ func (txm *LacpTxMachine) LacpTxMachineOff(m fsm.Machine, data interface{}) fsm.
 // generate a new event to tx a new packet
 func (txm *LacpTxMachine) LacpTxMachineGuard(m fsm.Machine, data interface{}) fsm.State {
 	txm.txPkts = 0
-	var state fsm.State
+	var State fsm.State
 
-	state = LacpTxmStateOn
+	State = LacpTxmStateOn
 	if txm.txPending > 0 {
-		state = LacpTxmStateGuardTimerExpire
+		State = LacpTxmStateGuardTimerExpire
 	}
 
-	// no state transition just need to clear the txPkts
-	return state
+	// no State transition just need to clear the txPkts
+	return State
 }
 
-// LacpTxMachineFSMBuild will build the state machine with callbacks
+// LacpTxMachineFSMBuild will build the State machine with callbacks
 func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 
 	rules := fsm.Ruleset{}
@@ -279,8 +279,8 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 	TxMachineStrStateMapCreate()
 
 	// Instantiate a new LacpRxMachine
-	// Initial state will be a psuedo state known as "begin" so that
-	// we can transition to the initalize state
+	// Initial State will be a psuedo State known as "begin" so that
+	// we can transition to the initalize State
 	txm := NewLacpTxMachine(p)
 
 	//BEGIN -> TX OFF
@@ -309,15 +309,15 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 }
 
 // LacpRxMachineMain:  802.1ax-2014 Table 6-18
-// Creation of Rx State Machine state transitions and callbacks
+// Creation of Rx State Machine State transitions and callbacks
 // and create go routine to pend on events
 func (p *LaAggPort) LacpTxMachineMain() {
 
-	// Build the state machine for Lacp Receive Machine according to
+	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
 	txm := LacpTxMachineFSMBuild(p)
 
-	// set the inital state
+	// set the inital State
 	txm.Machine.Start(txm.PrevState())
 
 	// lets create a go routing which will wait for the specific events

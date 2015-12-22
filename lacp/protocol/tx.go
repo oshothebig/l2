@@ -25,7 +25,7 @@ func (bridge *SimulationBridge) TxViaGoChannel(port uint16, pdu interface{}) {
 
 		// Set up all the layers' fields we can.
 		eth := layers.Ethernet{
-			SrcMAC:       net.HardwareAddr{0x00, uint8(p.portNum & 0xff), 0x00, 0x01, 0x01, 0x01},
+			SrcMAC:       net.HardwareAddr{0x00, uint8(p.PortNum & 0xff), 0x00, 0x01, 0x01, 0x01},
 			DstMAC:       layers.SlowProtocolDMAC,
 			EthernetType: layers.EthernetTypeSlowProtocol,
 		}
@@ -63,7 +63,7 @@ func TxViaLinuxIf(port uint16, pdu interface{}) {
 	var p *LaAggPort
 	if LaFindPortById(port, &p) {
 
-		txIface, err := net.InterfaceByName(p.intfNum)
+		txIface, err := net.InterfaceByName(p.IntfNum)
 
 		if err == nil {
 			// conver the packet to a go packet
@@ -92,7 +92,7 @@ func TxViaLinuxIf(port uint16, pdu interface{}) {
 				fmt.Println(err)
 			}
 		} else {
-			fmt.Println("ERROR could not find interface", p.intfNum, err)
+			fmt.Println("ERROR could not find interface", p.IntfNum, err)
 		}
 	} else {
 		fmt.Println("Unable to find port", port)

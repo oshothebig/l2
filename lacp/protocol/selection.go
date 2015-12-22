@@ -21,7 +21,7 @@ d) Each Aggregator shall be assigned an identifier that distinguishes it among t
    the System.
 e) An Aggregation Port shall only select an Aggregator that has the same operational Key assignment
    as its own operational Key.
-f) Subject to the exception stated in item g), Aggregation Ports that are members of the same LAG
+f) Subject to the exception Stated in item g), Aggregation Ports that are members of the same LAG
    (i.e., two or more Aggregation Ports that have the same Actor System ID, Actor Key, Partner System
    ID, and Partner Key, and that are not required to be Individual) shall select the same Aggregator.
 g) Any pair of Aggregation Ports that are members of the same LAG, but are connected together by the
@@ -36,7 +36,7 @@ g) Any pair of Aggregation Ports that are members of the same LAG, but are conne
    example, if Aggregation Port A is looped back to Aggregation Port C and Aggregation Port B is looped back to
    Aggregation Port D, then it is permissible for A and B (or A and D) to aggregate together, and for C and D (or
    B and C) to aggregate together.
-h) Any Aggregation Port that is required to be Individual (i.e., the operational state for the Actor or the
+h) Any Aggregation Port that is required to be Individual (i.e., the operational State for the Actor or the
    Partner indicates that the Aggregation Port is Individual) shall not select the same Aggregator as any
    other Aggregation Port.
 i) Any Aggregation Port that is Aggregateable shall not select an Aggregator to which an Individual
@@ -47,8 +47,8 @@ k) If there are further constraints on the attachment of Aggregation Ports that 
    Aggregator, those Aggregation Ports may be selected as standby in accordance with the rules
    specified in 6.7.1. Selection or deselection of that Aggregator can cause the Selection Logic to
    reevaluate the Aggregation Ports to be selected as standby.
-l) The Selection Logic operates upon the operational information recorded by the Receive state
-   machine, along with knowledge of the Actor’s own operational configuration and state. The
+l) The Selection Logic operates upon the operational information recorded by the Receive State
+   machine, along with knowledge of the Actor’s own operational configuration and State. The
    Selection Logic uses the LAG ID for the Aggregation Port, determined from these operational
    parameters, to locate the correct Aggregator to which to attach the Aggregation Port.
 m) The Selection Logic is invoked whenever an Aggregation Port is not attached to and has not selected
@@ -61,7 +61,7 @@ n) Once the correct Aggregator has been determined, the variable Selected shall 
    or to STANDBY (6.4.8, 6.7.1).
    NOTE 3—If Selected is SELECTED, the Mux machine will start the process of attaching the Aggregation Port
    to the selected Aggregator. If Selected is STANDBY, the Mux machine holds the Aggregation Port in the
-   WAITING state, ready to be attached to its Aggregator once its Selected state changes to SELECTED.
+   WAITING State, ready to be attached to its Aggregator once its Selected State changes to SELECTED.
 o) The Selection Logic is responsible for computing the value of the Ready variable from the values of
    the Ready_N variable(s) associated with the set of Aggregation Ports that are waiting to attach to the
    same Aggregator (see 6.4.8).
@@ -83,7 +83,7 @@ r) An Aggregation Port shall not select an Aggregator, which has been assigned t
 s) An Aggregation Port shall not select an Aggregator, which has been assigned to a Portal (Clause 9),
    if its Portal’s System Identifier is set to a value that is numerically lower than the Partner’s System
    Identifier, PSI == TRUE, the most significant two bits of Partner_Oper_Key are equal to the value 2
-   or 3 and the two least significant bits of the Aggregation Port’s Partner_Oper_Port_Priority are
+   or 3 and the two least significant bits of the Aggregation Port’s Partner_Oper_Port_priority are
    equal to the value 2 or 3. This is to prevent network partition due to isolation of the Portal Systems
    in the interconnected Portals (Clause 9)
 */
@@ -103,7 +103,7 @@ func (p *LaAggPort) LacpSelectAggrigator() bool {
 // LacpMuxCheckSelectionLogic will be called after the
 // wait while timer has expired.  If this is the last
 // port to have its wait while timer expire then
-// will transition the mux state from waiting to
+// will transition the mux State from waiting to
 // attached
 func (a *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort, sendResponse bool) {
 
@@ -173,13 +173,13 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *layers.LACP) {
 	p := rxm.p
 
 	//rxm.LacpRxmLog(fmt.Sprintf("PDU actor info %#v", lacpPduInfo.Actor.Info))
-	//rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.partnerOper))
+	//rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.PartnerOper))
 
-	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Actor.Info, &p.partnerOper, LacpStateAggregationBit) {
+	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Actor.Info, &p.PartnerOper, LacpStateAggregationBit) {
 
-		rxm.LacpRxmLog("PDU and Oper states do not agree, moving port to UnSelected")
+		rxm.LacpRxmLog("PDU and Oper States do not agree, moving port to UnSelected")
 
-		// lets trigger the event only if mux is not in waiting state as
+		// lets trigger the event only if mux is not in waiting State as
 		// the wait while timer expiration will trigger the unselected event
 		if p.MuxMachineFsm != nil &&
 			(p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
@@ -196,17 +196,17 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *layers.LACP) {
 // Update the value of the Selected variable comparing
 // the Partner admin info based with the partner
 // operational info
-// (port num, port priority, system, system priority,
-//  key, stat.Aggregation)
+// (port num, port priority, System, System priority,
+//  Key, stat.Aggregation)
 func (rxm *LacpRxMachine) updateDefaultSelected() {
 
 	p := rxm.p
 
 	rxm.LacpRxmLog(fmt.Sprintf("Port partner admin info %#v", p.partnerAdmin))
-	rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.partnerOper))
-	if !LacpLacpPortInfoIsEqual(&p.partnerAdmin, &p.partnerOper, LacpStateAggregationBit) {
+	rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.PartnerOper))
+	if !LacpLacpPortInfoIsEqual(&p.partnerAdmin, &p.PartnerOper, LacpStateAggregationBit) {
 		//p.aggSelected = LacpAggUnSelected
-		// lets trigger the event only if mux is not in waiting state as
+		// lets trigger the event only if mux is not in waiting State as
 		// the wait while timer expiration will trigger the unselected event
 		if p.MuxMachineFsm != nil &&
 			(p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
@@ -218,24 +218,24 @@ func (rxm *LacpRxMachine) updateDefaultSelected() {
 	}
 }
 
-// checkConfigForSelection will send selection bit to state machine
+// checkConfigForSelection will send selection bit to State machine
 // and return to the user true
 func (p *LaAggPort) checkConfigForSelection() bool {
 	var a *LaAggregator
 
 	// check to see if aggrigator exists
-	// and that the keys match
+	// and that the Keys match
 	if p.AggId != 0 && LaFindAggById(p.AggId, &a) {
 		if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
-			p.key == a.actorAdminKey {
+			p.Key == a.actorAdminKey {
 			//p.portEnabled {
 
 			//p.LaPortLog("checkConfigForSelection: selected")
 
 			// set port as selected
 			p.aggSelected = LacpAggSelected
-			LacpStateSet(&p.actorOper.state, LacpStateAggregationBit)
+			LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
 
 			mEvtChan := make([]chan LacpMachineEvent, 0)
 			evt := make([]LacpMachineEvent, 0)
@@ -255,7 +255,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 			// set port as selected
 			p.aggSelected = LacpAggUnSelected
 			// attach the agg to the port
-			//p.aggAttached = a
+			//p.AggAttached = a
 
 			mEvtChan := make([]chan LacpMachineEvent, 0)
 			evt := make([]LacpMachineEvent, 0)

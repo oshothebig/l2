@@ -1,4 +1,4 @@
-// debugEventLog this code is meant to serialize the logging states
+// debugEventLog this code is meant to serialize the logging States
 package lacp
 
 import (
@@ -38,7 +38,7 @@ func (p *LaAggPort) LacpDebugEventLogMain() {
 
 			case msg, logEvent := <-port.LacpDebug.LacpLogChan:
 				if logEvent {
-					port.LacpDebug.logger.Println(strings.Join([]string{p.intfNum, msg}, "-"))
+					port.LacpDebug.logger.Println(strings.Join([]string{p.IntfNum, msg}, "-"))
 				} else {
 					return
 				}

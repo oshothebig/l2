@@ -39,15 +39,15 @@ const (
 	LacpPtxmEventPartnerOperStateTimeoutShort
 )
 
-// LacpRxMachine holds FSM and current state
-// and event channels for state transitions
+// LacpRxMachine holds FSM and current State
+// and event channels for State transitions
 type LacpPtxMachine struct {
 	// for debugging
 	PreviousState fsm.State
 
 	Machine *fsm.Machine
 
-	// state transition log
+	// State transition log
 	log chan string
 
 	// Reference to LaAggPort
@@ -69,7 +69,7 @@ type LacpPtxMachine struct {
 
 func (ptxm *LacpPtxMachine) PrevState() fsm.State { return ptxm.PreviousState }
 
-// PrevStateSet will set the previous state
+// PrevStateSet will set the previous State
 func (ptxm *LacpPtxMachine) PrevStateSet(s fsm.State) { ptxm.PreviousState = s }
 
 func (ptxm *LacpPtxMachine) Stop() {
@@ -103,7 +103,7 @@ func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
-// instances state machine without reallocating the machine.
+// instances State machine without reallocating the machine.
 func (ptxm *LacpPtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	if ptxm.Machine == nil {
 		ptxm.Machine = &fsm.Machine{}
@@ -163,8 +163,8 @@ func LacpPtxMachineFSMBuild(p *LaAggPort) *LacpPtxMachine {
 	PtxMachineStrStateMapCreate()
 
 	// Instantiate a new LacpPtxMachine
-	// Initial state will be a psuedo state known as "begin" so that
-	// we can transition to the NO PERIODIC state
+	// Initial State will be a psuedo State known as "begin" so that
+	// we can transition to the NO PERIODIC State
 	ptxm := NewLacpPtxMachine(p)
 
 	//BEGIN -> NO PERIODIC
@@ -182,7 +182,7 @@ func LacpPtxMachineFSMBuild(p *LaAggPort) *LacpPtxMachine {
 	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventNotPortEnabled, ptxm.LacpPtxMachineNoPeriodic)
 	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventNotPortEnabled, ptxm.LacpPtxMachineNoPeriodic)
 	rules.AddRule(LacpPtxmStatePeriodicTx, LacpPtxmEventNotPortEnabled, ptxm.LacpPtxMachineNoPeriodic)
-	// ACTOR/PARTNER OPER STATE ACTIVITY MODE == PASSIVE -> NO PERIODIC
+	// ACTOR/PARTNER OPER State ACTIVITY MODE == PASSIVE -> NO PERIODIC
 	rules.AddRule(LacpPtxmStateNone, LacpPtxmEventActorPartnerOperActivityPassiveMode, ptxm.LacpPtxMachineNoPeriodic)
 	rules.AddRule(LacpPtxmStateFastPeriodic, LacpPtxmEventActorPartnerOperActivityPassiveMode, ptxm.LacpPtxMachineNoPeriodic)
 	rules.AddRule(LacpPtxmStateSlowPeriodic, LacpPtxmEventActorPartnerOperActivityPassiveMode, ptxm.LacpPtxMachineNoPeriodic)
@@ -209,15 +209,15 @@ func LacpPtxMachineFSMBuild(p *LaAggPort) *LacpPtxMachine {
 }
 
 // LacpRxMachineMain:  802.1ax-2014 Table 6-18
-// Creation of Rx State Machine state transitions and callbacks
+// Creation of Rx State Machine State transitions and callbacks
 // and create go routine to pend on events
 func (p *LaAggPort) LacpPtxMachineMain() {
 
-	// Build the state machine for Lacp Receive Machine according to
+	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
 	ptxm := LacpPtxMachineFSMBuild(p)
 
-	// set the inital state
+	// set the inital State
 	ptxm.Machine.Start(ptxm.PrevState())
 
 	// lets create a go routing which will wait for the specific events
@@ -231,12 +231,12 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 				m.LacpPtxmLog("Machine End")
 				return
 			case <-m.periodicTxTimer.C:
-				//m.LacpPtxmLog("Timer expired current state")
+				//m.LacpPtxmLog("Timer expired current State")
 				//m.LacpPtxmLog(PtxmStateStrMap[m.Machine.Curr.CurrentState()])
 				m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPeriodicTimerExpired, nil)
 
 				if m.Machine.Curr.CurrentState() == LacpPtxmStatePeriodicTx {
-					if LacpStateIsSet(m.p.partnerOper.state, LacpStateTimeoutBit) {
+					if LacpStateIsSet(m.p.PartnerOper.State, LacpStateTimeoutBit) {
 						m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPartnerOperStateTimeoutShort, nil)
 					} else {
 						m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPartnerOperStateTimeoutLong, nil)
@@ -262,20 +262,20 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 }
 
 // LacpPtxIsNoPeriodicExitCondition is meant to check if the UTC
-// condition has been met when the state is NO PERIODIC
+// condition has been met when the State is NO PERIODIC
 func (m *LacpPtxMachine) LacpPtxIsNoPeriodicExitCondition() bool {
 	p := m.p
 	/*
-		m.LacpPtxmLog(fmt.Sprintf("LacpPtxIsNoPeriodicExitCondition: state %d ena %d lacpEna %d mode set %d state 0x%x",
+		m.LacpPtxmLog(fmt.Sprintf("LacpPtxIsNoPeriodicExitCondition: State %d ena %d lacpEna %d mode set %d State 0x%x",
 			m.Machine.Curr.CurrentState(),
 			p.portEnabled,
 			p.lacpEnabled,
-			LacpModeGet(p.actorOper.state, p.lacpEnabled),
-			p.actorOper.state))
+			LacpModeGet(p.ActorOper.State, p.lacpEnabled),
+			p.ActorOper.State))
 	*/
 	return m.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic &&
 		p.lacpEnabled &&
 		p.PortEnabled &&
-		(LacpModeGet(p.actorOper.state, p.lacpEnabled) == LacpModeActive ||
-			LacpModeGet(p.partnerOper.state, p.lacpEnabled) == LacpModeActive)
+		(LacpModeGet(p.ActorOper.State, p.lacpEnabled) == LacpModeActive ||
+			LacpModeGet(p.PartnerOper.State, p.lacpEnabled) == LacpModeActive)
 }

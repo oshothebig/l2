@@ -66,7 +66,7 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 			}
 			fmt.Printf("Msg linkstatus = %d msg port = %d\n", msg.LinkStatus, msg.Port)
 			if msg.LinkStatus == asicdConstDefs.LINK_STATE_DOWN {
-				processLinkDownEvent(portdCommonDefs.PHY, msg.Port) //asicd always sends out link state events for PHY ports
+				processLinkDownEvent(portdCommonDefs.PHY, msg.Port) //asicd always sends out link State events for PHY ports
 			} else {
 				processLinkUpEvent(portdCommonDefs.PHY, msg.Port)
 			}
