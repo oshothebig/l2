@@ -672,7 +672,8 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 
 		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d EnableDistributing PortsListLen %d Bitmap %s", p.AggId, len(a.DistributedPortNumList), s))
 		if len(a.DistributedPortNumList) == 1 {
-			asicdclnt.ClientHdl.CreateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+			id,  _:= asicdclnt.ClientHdl.CreateLag(hwconst.HASH_SEL_SRCDSTMAC, s)
+	      p.AggId = int(id)
 		} else {
 			asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
 		}
