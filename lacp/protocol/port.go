@@ -99,6 +99,8 @@ type AggregatorPortObject struct {
 	AggPortProtocolDA [6]uint8
 	// GET
 	AggPortStats AggPortStatsObject
+	// GET
+	AggPortDebug AggPortDebugInformationObject
 }
 
 // GET
@@ -116,7 +118,7 @@ type AggPortStatsObject struct {
 }
 
 //GET
-type AggPortDebugInformation struct {
+type AggPortDebugInformationObject struct {
 	// same as AggregationPort
 	AggPortDebugInformationID int
 	// enum

@@ -263,9 +263,9 @@ func (la LACPDServiceHandler) DeleteAggregationLacpConfig(config *lacpdServices.
 }
 
 func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServices.AggregationLacpConfig, updateconfig *lacpdServices.AggregationLacpConfig, attrset []int8) (bool, error) {
-	objTyp := reflect.TypeOf(origconfig)
+	objTyp := reflect.TypeOf(*origconfig)
 	//objVal := reflect.ValueOf(origconfig)
-	updateObjVal := reflect.ValueOf(updateconfig)
+	updateObjVal := reflect.ValueOf(*updateconfig)
 
 	conf := &lacp.LaAggConfig{
 		Id:  GetIdByName(updateconfig.NameKey),
