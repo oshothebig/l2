@@ -1241,7 +1241,7 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 		// TODO check the States of the other State machines
 
 		// Lets disable lacp for p1
-		SetLaAggPortLacpMode(p1conf.Id, LacpModeOn, LacpLongTimeoutTime)
+		SetLaAggPortLacpMode(p1conf.Id, LacpModeOn)
 
 		go func() {
 			var i int

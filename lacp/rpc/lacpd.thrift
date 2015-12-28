@@ -86,11 +86,11 @@ struct AggregationLacpMemberStateCountersGetInfo {
 }
 service LACPDServices {
 	bool CreateEthernetConfig(1: EthernetConfig config);
-	bool UpdateEthernetConfig(1: EthernetConfig config);
+	bool UpdateEthernetConfig(1: EthernetConfig origconfig, 2: EthernetConfig newconfig, 3: list<byte> attrset);
 	bool DeleteEthernetConfig(1: EthernetConfig config);
 
 	bool CreateAggregationLacpConfig(1: AggregationLacpConfig config);
-	bool UpdateAggregationLacpConfig(1: AggregationLacpConfig config);
+	bool UpdateAggregationLacpConfig(1: AggregationLacpConfig origconfig, 2: AggregationLacpConfig newconfig, 3: list<byte> attrset);
 	bool DeleteAggregationLacpConfig(1: AggregationLacpConfig config);
 
 	AggregationLacpStateGetInfo GetBulkAggregationLacpState(1: int fromIndex, 2: int count);

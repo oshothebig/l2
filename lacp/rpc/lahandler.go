@@ -8,6 +8,7 @@ import (
 	lacp "l2/lacp/protocol"
 	"lacpdServices"
 	"net"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -261,7 +262,76 @@ func (la LACPDServiceHandler) DeleteAggregationLacpConfig(config *lacpdServices.
 	return true, nil
 }
 
-func (la LACPDServiceHandler) UpdateAggregationLacpConfig(config *lacpdServices.AggregationLacpConfig) (bool, error) {
+func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServices.AggregationLacpConfig, updateconfig *lacpdServices.AggregationLacpConfig, attrset []int8) (bool, error) {
+	objTyp := reflect.TypeOf(origconfig)
+	//objVal := reflect.ValueOf(origconfig)
+	updateObjVal := reflect.ValueOf(updateconfig)
+
+	conf := &lacp.LaAggConfig{
+		Id:  GetIdByName(updateconfig.NameKey),
+		Key: GetKeyByAggName(updateconfig.NameKey),
+		// Identifier of the lag
+		Name: updateconfig.NameKey,
+		// Type of LAG STATIC or LACP
+		Type:     ConvertModelLagTypeToLaAggType(updateconfig.LagType),
+		MinLinks: uint16(updateconfig.MinLinks),
+		Enabled:  updateconfig.Enabled,
+		// lacp config
+		Lacp: lacp.LacpConfigInfo{
+			Interval:       ConvertModelLacpPeriodToLaAggInterval(updateconfig.Interval),
+			Mode:           ConvertModelLacpModeToLaAggMode(updateconfig.LacpMode),
+			SystemIdMac:    updateconfig.SystemIdMac,
+			SystemPriority: uint16(updateconfig.SystemPriority),
+		},
+		Properties: lacp.PortProperties{
+			Mtu: int(updateconfig.Mtu),
+		},
+	}
+
+	for i := 1; i < objTyp.NumField(); i++ {
+		objName := objTyp.Field(i).Name
+		//objField := objVal.Field(i)
+		dbObjField := updateObjVal.Field(i)
+		if attrset[i] == 1 {
+			if objName == "Enabled" {
+
+				if dbObjField.Int() == 1 {
+					lacp.SaveLaAggConfig(conf)
+					EnableLaAgg(conf)
+				} else {
+					DisableLaAgg(conf)
+					lacp.SaveLaAggConfig(conf)
+				}
+				return true, nil
+
+			} else if objName == "LagType" {
+				// transitioning to on or lacp
+				SetLaAggType(conf)
+
+			} else {
+				switch objName {
+				case "LacpMode":
+					SetLaAggMode(conf)
+					break
+				case "Interval":
+					SetLaAggPeriod(conf)
+					break
+				// port move cause systemId changes
+				case "SystemIdMac":
+					break
+				case "SystemPriority":
+					break
+				// this may cause lag to go down if min ports is > actual ports
+				case "MinLinks":
+					break
+				default:
+					// unhandled config
+				}
+
+				lacp.SaveLaAggConfig(conf)
+			}
+		}
+	}
 	return true, nil
 }
 
@@ -353,7 +423,8 @@ func (la LACPDServiceHandler) DeleteEthernetConfig(config *lacpdServices.Etherne
 	return true, nil
 }
 
-func (la LACPDServiceHandler) UpdateEthernetConfig(config *lacpdServices.EthernetConfig) (bool, error) {
+func (la LACPDServiceHandler) UpdateEthernetConfig(origconfig *lacpdServices.EthernetConfig, updateconfig *lacpdServices.EthernetConfig, attrSet []int8) (bool, error) {
+
 	return true, nil
 }
 
@@ -443,43 +514,81 @@ func (la LACPDServiceHandler) DeleteLaAggPort(Id lacpdServices.Uint16) (lacpdSer
 	return 1, errors.New(fmt.Sprintf("LACP: Unable to find Port %d", Id))
 }
 
-func (la LACPDServiceHandler) SetLaAggPortMode(Id lacpdServices.Uint16, m string) (lacpdServices.Int, error) {
+func DisableLaAgg(conf *lacp.LaAggConfig) error {
+	var a *lacp.LaAggregator
+	var p *lacp.LaAggPort
+	if lacp.LaFindAggById(conf.Id, &a) {
 
-	supportedModes := map[string]int{"ON": lacp.LacpModeOn,
-		"ACTIVE":  lacp.LacpModeActive,
-		"PASSIVE": lacp.LacpModePassive}
-
-	if mode, ok := supportedModes[m]; ok {
-		var p *lacp.LaAggPort
-		if lacp.LaFindPortById(uint16(Id), &p) {
-			lacp.SetLaAggPortLacpMode(uint16(Id), mode, p.TimeoutGet())
-		} else {
-			return 1, errors.New(fmt.Sprintf("LACP: Mode not set,  Unable to find Port", Id))
+		// configured ports
+		for pId := range a.PortNumList {
+			if lacp.LaFindPortById(uint16(pId), &p) {
+				lacp.DisableLaAggPort(uint16(pId))
+			}
 		}
-	} else {
-		return 1, errors.New(fmt.Sprintf("LACP: Mode not set,  Unsupported mode %d", m, "supported modes: ", supportedModes))
 	}
-
-	return 0, nil
+	return nil
 }
 
-func (la LACPDServiceHandler) SetLaAggPortTimeout(Id lacpdServices.Uint16, t string) (lacpdServices.Int, error) {
-	// user can supply the periodic time or the
-	supportedTimeouts := map[string]time.Duration{"SHORT": lacp.LacpShortTimeoutTime,
-		"LONG": lacp.LacpLongTimeoutTime}
+func EnableLaAgg(conf *lacp.LaAggConfig) error {
+	var a *lacp.LaAggregator
+	var p *lacp.LaAggPort
+	if lacp.LaFindAggById(conf.Id, &a) {
 
-	if timeout, ok := supportedTimeouts[t]; ok {
-		var p *lacp.LaAggPort
-		if lacp.LaFindPortById(uint16(Id), &p) {
-			lacp.SetLaAggPortLacpMode(uint16(Id), p.ModeGet(), timeout)
-		} else {
-			return 1, errors.New(fmt.Sprintf("LACP: timeout not set,  Unable to find Port", Id))
+		// configured ports
+		for pId := range a.PortNumList {
+			if lacp.LaFindPortById(uint16(pId), &p) {
+				lacp.EnableLaAggPort(uint16(pId))
+			}
 		}
-	} else {
-		return 1, errors.New(fmt.Sprintf("LACP: Timeout not set,  Unsupported timeout %d", t, "supported modes: ", supportedTimeouts))
 	}
+	return nil
+}
 
-	return 0, nil
+// SetLaAggType will set whether the agg is static or lacp enabled
+func SetLaAggType(conf *lacp.LaAggConfig) error {
+	return SetLaAggMode(conf)
+}
+
+// SetLaAggPortMode will set the lacp mode of the port based
+// on the model values
+func SetLaAggMode(conf *lacp.LaAggConfig) error {
+
+	var a *lacp.LaAggregator
+	var p *lacp.LaAggPort
+	if lacp.LaFindAggById(conf.Id, &a) {
+
+		if conf.Type == lacp.LaAggTypeSTATIC {
+			// configured ports
+			for pId := range a.PortNumList {
+				if lacp.LaFindPortById(uint16(pId), &p) {
+					lacp.SetLaAggPortLacpMode(uint16(pId), lacp.LacpModeOn)
+				}
+			}
+		} else {
+			for pId := range a.PortNumList {
+				if lacp.LaFindPortById(uint16(pId), &p) {
+					lacp.SetLaAggPortLacpMode(uint16(pId), int(conf.Lacp.Mode))
+				}
+			}
+		}
+	}
+	lacp.SaveLaAggConfig(conf)
+
+	return nil
+}
+
+func SetLaAggPeriod(conf *lacp.LaAggConfig) error {
+	var a *lacp.LaAggregator
+	var p *lacp.LaAggPort
+	if lacp.LaFindAggById(conf.Id, &a) {
+		// configured ports
+		for pId := range a.PortNumList {
+			if lacp.LaFindPortById(uint16(pId), &p) {
+				lacp.SetLaAggPortLacpPeriod(uint16(pId), conf.Lacp.Interval)
+			}
+		}
+	}
+	return nil
 }
 
 // SetPortLacpLogEnable will enable on a per port basis logging

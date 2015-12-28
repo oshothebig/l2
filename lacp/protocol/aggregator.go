@@ -32,6 +32,67 @@ type LacpAggregatorStats struct {
 	unknownProtocolFrames int
 }
 
+type AggregatorObject struct {
+	// GET
+	AggId int
+	// GET
+	AggDescription string
+	// GET-SET
+	AggName string
+	// GET-SET
+	AggActorSystemID [6]uint8
+	// GET-SET
+	AggActorSystemPriority uint16
+	// GET
+	AggAggregateOrIndividual bool
+	// GET-SET
+	AggActorAdminKey uint16
+	// GET
+	AggActorOperKey uint16
+	// GET
+	AggMACAddress [6]uint8
+	// GET
+	AggPartnerSystemID [6]uint8
+	// GET
+	AggPartnerSystemPriority uint16
+	// GET
+	AggPartnerOperKey uint16
+	// GET-SET   up/down enum
+	AggAdminState bool
+	// GET
+	AggOperState bool
+	// GET
+	AggTimeLastOperChange int
+	// GET  sum of data rate of each link
+	AggDataRate int
+	// GET
+	AggStats LacpAggregatorStats
+	// GET-SET  enable/disable enum
+	AggLinkUpDownNotificationEnable bool
+	// NOTIFICATION
+	AggLinkUpNotification bool
+	// NOTIFICATION
+	AggLinkDownNotification bool
+	// GET  list of AggPortID
+	AggPortList []int
+	// GET-SET 10s of microseconds
+	AggCollectorMaxDelay uint16
+	// GET-SET
+	AggPortAlgorithm [3]uint8
+	// GET-SET
+	AggPartnerAdminPortAlgorithm [3]uint8
+	// GET-SET up to 4096 values conversationids
+	AggConversationAdminLink []int
+	// GET-SET
+	AggPartnerAdminPortConverstaionListDigest [16]uint8
+	// GET-SET
+	AggAdminDiscardWrongConversation bool
+	// GET-SET 4096 values
+	AggAdminServiceConversationMap []int
+	// GET-SET
+	AggPartnerAdminConvServiceMappingDigest [16]uint8
+}
+
 // 802.1ax-2014 Section 6.4.6 Variables associated with each Aggregator
 // Section 7.3.1.1
 
