@@ -293,8 +293,6 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 	// this attribute
 	for i := 0; i < objTyp.NumField(); i++ {
 		objName := objTyp.Field(i).Name
-		//objField := objVal.Field(i)
-		dbObjField := updateObjVal.Field(i)
 		fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
 		if attrset[i+1] == 1 {
 			fmt.Println("UpdateAggregationLacpConfig (server): objName changed ", objName)
