@@ -36,6 +36,111 @@ type LacpCounters struct {
 	LacpErrors        uint64
 }
 
+type AggregatorPortObject struct {
+	// GET
+	AggPortId int
+	// GET-SET
+	AggPortActorSystemPriority uint16
+	// GET
+	AggPortActorSystemId [6]uint8
+	// GET-SET
+	AggPortActorAdminKey uint16
+	// GET
+	AggPortActorOperKey uint16
+	// GET-SET
+	AggPortPartnerAdminSystemPriority uint16
+	// GET
+	AggPortPartnerOperSystemPriority uint16
+	// GET-SET
+	AggPortPartnerAdminSystemId [6]uint8
+	// GET
+	AggPortPartnerOperSystemId [6]uint8
+	// GET-SET
+	AggPortPartnerAdminKey uint16
+	// GET
+	AggPortPartnerOperKey uint16
+	// GET
+	AggPortSelectedAggID int
+	// GET
+	AggPortAttachedAggID int
+	// GET
+	AggPortActorPort int
+	// GET-SET
+	AggPortActorPortPriority uint8
+	// GET-SET
+	AggPortPartnerAdminPort int
+	// GET
+	AggPortPartnerOperPort int
+	// GET-SET
+	AggPortPartnerAdminPortPriority uint8
+	// GET
+	AggPortPartnerOperPortPriority uint8
+	// GET-SET
+	AggPortActorAdminState uint8
+	// GET
+	AggPortActorOperState uint8
+	// GET-SET
+	AggPortPartnerAdminState uint8
+	// GET
+	AggPortPartnerOperState uint8
+	// GET
+	AggPortAggregateOrIndividual bool
+	// GET
+	AggPortOperConversationPasses bool
+	// GET
+	AggPortOperConversationCollected bool
+	// GET-SET
+	AggPortLinkNumberID int
+	// GET-SET
+	AggPortPartnerAdminLInkNumberID int
+	// GET-SET
+	AggPortWTRTime int
+	// GET-SET
+	AggPortProtocolDA [6]uint8
+	// GET
+	AggPortStats AggPortStatsObject
+	// GET
+	AggPortDebug AggPortDebugInformationObject
+}
+
+// GET
+type AggPortStatsObject struct {
+	AggPortStatsID                   uint64
+	AggPortStatsLACPDUsRx            uint64
+	AggPortStatsPDUsRx               uint64
+	AggPortStatsMarkerPDUsRx         uint64
+	AggPortStatsMarkerResponsePDUsRx uint64
+	AggPortStatsUnknownRx            uint64
+	AggPortStatsIllegalRx            uint64
+	AggPortStatsLACPDUsTx            uint64
+	AggPortStatsMarkerPDUsTx         uint64
+	AggPortStatsMarkerResponsePDUsTx uint64
+}
+
+//GET
+type AggPortDebugInformationObject struct {
+	// same as AggregationPort
+	AggPortDebugInformationID int
+	// enum
+	AggPortDebugRxState    int
+	AggPortDebugLastRxTime int
+	// enum
+	AggPortDebugMuxState                   int
+	AggPortDebugMuxReason                  string
+	AggPortDebugActorChurnState            int
+	AggPortDebugPartnerChurnState          int
+	AggPortDebugActorChurnCount            int
+	AggPortDebugPartnerChurnCount          int
+	AggPortDebugActorySyncTransitionCount  int
+	AggPortDebugPartnerSyncTransitionCount int
+	AggPortDebugActorChangeCount           int
+	AggPortDebugPartnerChangeCount         int
+	AggPortDebugActorCDSChurnState         int
+	AggPortDebugPartnerCDSChurnState       int
+	AggPortDebugActorCDSChurnCount         int
+	AggPortDebugPartnerCDSChurnCount       int
+}
+
 // 802.1ax Section 6.4.7
 // Port attributes associated with aggregator
 type LaAggPort struct {

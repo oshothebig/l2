@@ -15,6 +15,37 @@ const (
 
 const PortConfigModuleStr = "Port Config"
 
+type LaAggregatorConfig struct {
+	// GET-SET
+	AggName string
+	// GET-SET
+	AggActorSystemID [6]uint8
+	// GET-SET
+	AggActorSystemPriority uint16
+	// GET-SET
+	AggActorAdminKey uint16
+	// GET-SET   up/down enum
+	AggAdminState bool
+	// GET-SET  enable/disable enum
+	AggLinkUpDownNotificationEnable bool
+	// GET-SET 10s of microseconds
+	AggCollectorMaxDelay uint16
+	// GET-SET
+	AggPortAlgorithm [3]uint8
+	// GET-SET
+	AggPartnerAdminPortAlgorithm [3]uint8
+	// GET-SET up to 4096 values conversationids
+	AggConversationAdminLink []int
+	// GET-SET
+	AggPartnerAdminPortConverstaionListDigest [16]uint8
+	// GET-SET
+	AggAdminDiscardWrongConversation bool
+	// GET-SET 4096 values
+	AggAdminServiceConversationMap []int
+	// GET-SET
+	AggPartnerAdminConvServiceMappingDigest [16]uint8
+}
+
 type LacpConfigInfo struct {
 	Interval time.Duration
 	Mode     uint32
@@ -83,6 +114,24 @@ type LaAggPortConfig struct {
 	IntfId   string
 }
 
+func SaveLaAggConfig(ac *LaAggConfig) {
+	var a *LaAggregator
+	if LaFindAggByName(ac.Name, &a) {
+		netMac, _ := net.ParseMAC(ac.Lacp.SystemIdMac)
+		sysId := LacpSystem{
+			actor_System:          convertNetHwAddressToSysIdKey(netMac),
+			Actor_System_priority: ac.Lacp.SystemPriority,
+		}
+		a.AggName = ac.Name
+		a.aggId = ac.Id
+		a.aggMacAddr = sysId.actor_System
+		a.actorAdminKey = ac.Key
+		a.AggType = ac.Type
+		a.AggMinLinks = ac.MinLinks
+		a.Config = ac.Lacp
+	}
+}
+
 func CreateLaAgg(agg *LaAggConfig) {
 
 	//var wg sync.WaitGroup
@@ -141,6 +190,16 @@ func DeleteLaAgg(Id int) {
 		a.actorAdminKey = 0
 		a.partnerSystemId = [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 		a.ready = false
+	}
+}
+
+func DisableLaAgg(Id int) {
+	var a *LaAggregator
+	if LaFindAggById(Id, &a) {
+
+		for _, pId := range a.PortNumList {
+			DisableLaAggPort(pId)
+		}
 	}
 }
 
@@ -256,8 +315,7 @@ func EnableLaAggPort(pId uint16) {
 
 // SetLaAggPortLacpMode will set the various
 // lacp modes - On, Active, Passive
-// timeout -LacpShortTimeoutTime, LacpLongTimeoutTime, 0
-func SetLaAggPortLacpMode(pId uint16, mode int, timeout time.Duration) {
+func SetLaAggPortLacpMode(pId uint16, mode int) {
 
 	var p *LaAggPort
 
@@ -266,21 +324,7 @@ func SetLaAggPortLacpMode(pId uint16, mode int, timeout time.Duration) {
 	// agg exists
 	if LaFindPortById(pId, &p) {
 		prevMode := LacpModeGet(p.ActorOper.State, p.lacpEnabled)
-		p.LaPortLog(fmt.Sprintf("PrevMode", prevMode, "NewMode", mode, "timeout", timeout))
-		// TODO need a way to not update the timer cause users may not care
-		// to set it and may want to just leave it alone
-		if timeout != 0 {
-			// update the periodic timer
-			if LacpStateIsSet(p.ActorOper.State, LacpStateTimeoutBit) &&
-				timeout == LacpLongTimeoutTime {
-				LacpStateClear(&p.actorAdmin.State, LacpStateTimeoutBit)
-				LacpStateClear(&p.ActorOper.State, LacpStateTimeoutBit)
-			} else if !LacpStateIsSet(p.actorAdmin.State, LacpStateTimeoutBit) &&
-				timeout == LacpShortTimeoutTime {
-				LacpStateSet(&p.actorAdmin.State, LacpStateTimeoutBit)
-				LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
-			}
-		}
+		p.LaPortLog(fmt.Sprintf("PrevMode", prevMode, "NewMode", mode))
 
 		// Update the transmission mode
 		if mode != prevMode &&
@@ -309,6 +353,67 @@ func SetLaAggPortLacpMode(pId uint16, mode int, timeout time.Duration) {
 				// must also set the operational State
 				LacpStateClear(&p.ActorOper.State, LacpStateActivityBit)
 			}
+		}
+	}
+}
+
+// SetLaAggPortLacpPeriod will set the periodic rate at which a packet should
+// be transmitted.  What this actually means is at what rate the peer should
+// transmit a packet to us.
+// FAST and SHORT are the periods, the lacp state timeout is encoded such
+// that FAST  is 1 and SHORT is 0
+func SetLaAggPortLacpPeriod(pId uint16, period time.Duration) {
+
+	var p *LaAggPort
+
+	// port exists
+	// port is unselected
+	// agg exists
+	if LaFindPortById(pId, &p) {
+		rxm := p.RxMachineFsm
+		p.LaPortLog(fmt.Sprintf("NewPeriod", period))
+
+		// lets set the period
+		if period == LacpFastPeriodicTime {
+			LacpStateSet(&p.actorAdmin.State, LacpStateTimeoutBit)
+			// must also set the operational State
+			LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
+		} else {
+			LacpStateClear(&p.actorAdmin.State, LacpStateTimeoutBit)
+			// must also set the operational State
+			LacpStateClear(&p.ActorOper.State, LacpStateTimeoutBit)
+		}
+		if timeoutTime, ok := rxm.CurrentWhileTimerValid(); !ok {
+			rxm.CurrentWhileTimerTimeoutSet(timeoutTime)
+		}
+	}
+}
+
+// SetLaAggPortLacpTimeout will set the timeout at which a packet should
+// declare a link down.
+// SHORT and LONG are the periods, the lacp state timeout is encoded such
+// that SHORT is 3 * FAST PERIODIC TIME and LONG is 3 * SLOW PERIODIC TIME
+func SetLaAggPortLacpTimeout(pId uint16, timeout time.Duration) {
+
+	var p *LaAggPort
+
+	// port exists
+	// port is unselected
+	// agg exists
+	if LaFindPortById(pId, &p) {
+		rxm := p.RxMachineFsm
+		// lets set the period
+		if timeout == LacpShortTimeoutTime {
+			LacpStateSet(&p.actorAdmin.State, LacpStateTimeoutBit)
+			// must also set the operational State
+			LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
+		} else {
+			LacpStateClear(&p.actorAdmin.State, LacpStateTimeoutBit)
+			// must also set the operational State
+			LacpStateClear(&p.ActorOper.State, LacpStateTimeoutBit)
+		}
+		if timeoutTime, ok := rxm.CurrentWhileTimerValid(); !ok {
+			rxm.CurrentWhileTimerTimeoutSet(timeoutTime)
 		}
 	}
 }
