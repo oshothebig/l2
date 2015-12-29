@@ -630,6 +630,9 @@ func (p *LaAggPort) LaAggPortDisable() {
 
 	p.LaPortLog("LAPORT: Port Disabled")
 
+	// port is disabled
+	p.PortEnabled = false
+
 	// Rxm
 	if !p.portMoved {
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
@@ -653,9 +656,6 @@ func (p *LaAggPort) LaAggPortDisable() {
 
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, true)
-
-	// port is disabled
-	p.PortEnabled = false
 }
 
 // LaAggPortEnabled will update the status on the port

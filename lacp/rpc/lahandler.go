@@ -519,14 +519,11 @@ func (la LACPDServiceHandler) DeleteLaAggPort(Id lacpdServices.Uint16) (lacpdSer
 
 func DisableLaAgg(conf *lacp.LaAggConfig) error {
 	var a *lacp.LaAggregator
-	var p *lacp.LaAggPort
 	if lacp.LaFindAggById(conf.Id, &a) {
-
+		fmt.Printf("Disable LaAgg %s portNumList %#v\n", a.AggName, a.PortNumList)
 		// configured ports
-		for pId := range a.PortNumList {
-			if lacp.LaFindPortById(uint16(pId), &p) {
-				lacp.DisableLaAggPort(uint16(pId))
-			}
+		for _, pId := range a.PortNumList {
+			lacp.DisableLaAggPort(uint16(pId))
 		}
 	}
 	return nil
@@ -534,14 +531,12 @@ func DisableLaAgg(conf *lacp.LaAggConfig) error {
 
 func EnableLaAgg(conf *lacp.LaAggConfig) error {
 	var a *lacp.LaAggregator
-	var p *lacp.LaAggPort
 	if lacp.LaFindAggById(conf.Id, &a) {
 
+		fmt.Printf("Enable LaAgg %s portNumList %#v", a.AggName, a.PortNumList)
 		// configured ports
-		for pId := range a.PortNumList {
-			if lacp.LaFindPortById(uint16(pId), &p) {
-				lacp.EnableLaAggPort(uint16(pId))
-			}
+		for _, pId := range a.PortNumList {
+			lacp.EnableLaAggPort(uint16(pId))
 		}
 	}
 	return nil
@@ -562,13 +557,13 @@ func SetLaAggMode(conf *lacp.LaAggConfig) error {
 
 		if conf.Type == lacp.LaAggTypeSTATIC {
 			// configured ports
-			for pId := range a.PortNumList {
+			for _, pId := range a.PortNumList {
 				if lacp.LaFindPortById(uint16(pId), &p) {
 					lacp.SetLaAggPortLacpMode(uint16(pId), lacp.LacpModeOn)
 				}
 			}
 		} else {
-			for pId := range a.PortNumList {
+			for _, pId := range a.PortNumList {
 				if lacp.LaFindPortById(uint16(pId), &p) {
 					lacp.SetLaAggPortLacpMode(uint16(pId), int(conf.Lacp.Mode))
 				}
@@ -585,7 +580,7 @@ func SetLaAggPeriod(conf *lacp.LaAggConfig) error {
 	var p *lacp.LaAggPort
 	if lacp.LaFindAggById(conf.Id, &a) {
 		// configured ports
-		for pId := range a.PortNumList {
+		for _, pId := range a.PortNumList {
 			if lacp.LaFindPortById(uint16(pId), &p) {
 				lacp.SetLaAggPortLacpPeriod(uint16(pId), conf.Lacp.Interval)
 			}

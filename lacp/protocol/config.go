@@ -286,9 +286,10 @@ func DisableLaAggPort(pId uint16) {
 
 	// port exists
 	// port exists in agg exists
-	if LaFindPortById(pId, &p) &&
-		LaAggPortNumListPortIdExist(p.AggId, pId) {
+	if LaFindPortById(pId, &p) {
 		p.LaAggPortDisable()
+	} else {
+		fmt.Println("ERROR DisableLaAggPort, did not find port", pId)
 	}
 }
 
