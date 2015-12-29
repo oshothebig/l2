@@ -293,6 +293,7 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 		//objField := objVal.Field(i)
 		dbObjField := updateObjVal.Field(i)
 		if attrset[i] == 1 {
+			fmt.Println("UpdateAggregationLacpConfig (server): objName changed ", objName)
 			if objName == "Enabled" {
 
 				if dbObjField.Int() == 1 {
