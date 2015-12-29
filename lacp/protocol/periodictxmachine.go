@@ -244,6 +244,11 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 				}
 
 			case event := <-m.PtxmEvents:
+				tmpLogEna := false
+				if !m.Machine.Curr.IsLoggerEna() {
+					tmpLogEna = true
+					m.Machine.Curr.EnableLogging(true)
+				}
 				m.Machine.ProcessEvent(event.src, event.e, nil)
 				/* special case */
 				if m.LacpPtxIsNoPeriodicExitCondition() {
@@ -252,6 +257,11 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 
 				if event.responseChan != nil {
 					SendResponse("Periodic TX Machine", event.responseChan)
+				}
+
+				if tmpLogEna == true {
+					m.Machine.Curr.EnableLogging(false)
+					tmpLogEna = false
 				}
 
 			case ena := <-m.PtxmLogEnableEvent:

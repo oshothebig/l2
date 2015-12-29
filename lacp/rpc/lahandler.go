@@ -520,7 +520,7 @@ func (la LACPDServiceHandler) DeleteLaAggPort(Id lacpdServices.Uint16) (lacpdSer
 func DisableLaAgg(conf *lacp.LaAggConfig) error {
 	var a *lacp.LaAggregator
 	if lacp.LaFindAggById(conf.Id, &a) {
-		fmt.Printf("Disable LaAgg %s portNumList %#v", a.AggName, a.PortNumList)
+		fmt.Printf("Disable LaAgg %s portNumList %#v\n", a.AggName, a.PortNumList)
 		// configured ports
 		for pId := range a.PortNumList {
 			lacp.DisableLaAggPort(uint16(pId))
