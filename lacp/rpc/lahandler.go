@@ -300,7 +300,7 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 			fmt.Println("UpdateAggregationLacpConfig (server): objName changed ", objName)
 			if objName == "Enabled" {
 
-				if dbObjField.Int() == 1 {
+				if conf.Enabled == true {
 					lacp.SaveLaAggConfig(conf)
 					EnableLaAgg(conf)
 				} else {
