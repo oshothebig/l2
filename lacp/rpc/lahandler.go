@@ -288,7 +288,9 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 		},
 	}
 
-	for i := 1; i < objTyp.NumField(); i++ {
+	// important to note that the attrset starts at index 1 skipping the BaseObj
+	// which should be the first element on the thrift obj
+	for i := 0; i < objTyp.NumField(); i++ {
 		objName := objTyp.Field(i).Name
 		//objField := objVal.Field(i)
 		dbObjField := updateObjVal.Field(i)
