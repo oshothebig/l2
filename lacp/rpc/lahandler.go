@@ -288,14 +288,15 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 		},
 	}
 
-	// important to note that the attrset starts at index 1 skipping the BaseObj
-	// which should be the first element on the thrift obj
+	// important to note that the attrset starts at index 0 which is the BaseObj
+	// which is not the first element on the thrift obj, thus we need to skip
+	// this attribute
 	for i := 0; i < objTyp.NumField(); i++ {
 		objName := objTyp.Field(i).Name
 		//objField := objVal.Field(i)
 		dbObjField := updateObjVal.Field(i)
 		fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
-		if attrset[i] == 1 {
+		if attrset[i+1] == 1 {
 			fmt.Println("UpdateAggregationLacpConfig (server): objName changed ", objName)
 			if objName == "Enabled" {
 
