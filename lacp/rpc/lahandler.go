@@ -519,14 +519,11 @@ func (la LACPDServiceHandler) DeleteLaAggPort(Id lacpdServices.Uint16) (lacpdSer
 
 func DisableLaAgg(conf *lacp.LaAggConfig) error {
 	var a *lacp.LaAggregator
-	var p *lacp.LaAggPort
 	if lacp.LaFindAggById(conf.Id, &a) {
-
+		fmt.Printf("Disable LaAgg %s portNumList %#v", a.AggName, a.PortNumList)
 		// configured ports
 		for pId := range a.PortNumList {
-			if lacp.LaFindPortById(uint16(pId), &p) {
-				lacp.DisableLaAggPort(uint16(pId))
-			}
+			lacp.DisableLaAggPort(uint16(pId))
 		}
 	}
 	return nil
@@ -534,14 +531,12 @@ func DisableLaAgg(conf *lacp.LaAggConfig) error {
 
 func EnableLaAgg(conf *lacp.LaAggConfig) error {
 	var a *lacp.LaAggregator
-	var p *lacp.LaAggPort
 	if lacp.LaFindAggById(conf.Id, &a) {
 
+		fmt.Printf("Enable LaAgg %s portNumList %#v", a.AggName, a.PortNumList)
 		// configured ports
 		for pId := range a.PortNumList {
-			if lacp.LaFindPortById(uint16(pId), &p) {
-				lacp.EnableLaAggPort(uint16(pId))
-			}
+			lacp.EnableLaAggPort(uint16(pId))
 		}
 	}
 	return nil
