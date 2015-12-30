@@ -253,7 +253,7 @@ func LaGetPortNext(port **LaAggPort) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, p := range sgi.PortMap {
 			if *port == nil {
-				fmt.Println("port map curr %d", p.PortNum)
+				fmt.Println("port map curr", p.PortNum)
 			} else {
 				fmt.Println(fmt.Sprintf("port map prev %d curr %d", (*port).PortNum, p.PortNum))
 			}

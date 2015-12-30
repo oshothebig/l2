@@ -23,15 +23,16 @@ func (s *LacpSystem) LacpSystemActorSystemPrioritySet(Actor_System_priority uint
 }
 
 func (s *LacpSystem) LacpSystemConvertSystemIdToString() string {
+	sysId := LacpSystemIdGet(*s)
 	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-		uint8(s.Actor_System_priority>>16&0xff),
-		uint8(s.Actor_System_priority&0xff),
-		s.actor_System[0],
-		s.actor_System[1],
-		s.actor_System[2],
-		s.actor_System[3],
-		s.actor_System[4],
-		s.actor_System[5],
+		sysId[0],
+		sysId[1],
+		sysId[2],
+		sysId[3],
+		sysId[4],
+		sysId[5],
+		sysId[6],
+		sysId[7],
 	)
 }
 
@@ -61,13 +62,13 @@ func LacpSystemIdGet(s LacpSystem) [8]uint8 {
 
 	mac := s.actor_System
 
-	sysId[7] = uint8(s.Actor_System_priority >> 16 & 0xff)
-	sysId[6] = uint8(s.Actor_System_priority & 0xff)
-	sysId[5] = mac[5]
-	sysId[4] = mac[4]
-	sysId[3] = mac[3]
-	sysId[2] = mac[2]
-	sysId[1] = mac[1]
-	sysId[0] = mac[0]
+	sysId[0] = uint8(s.Actor_System_priority >> 16 & 0xff)
+	sysId[1] = uint8(s.Actor_System_priority & 0xff)
+	sysId[2] = mac[0]
+	sysId[3] = mac[1]
+	sysId[4] = mac[2]
+	sysId[5] = mac[3]
+	sysId[6] = mac[4]
+	sysId[7] = mac[5]
 	return sysId
 }
