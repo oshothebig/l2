@@ -670,12 +670,11 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 
 		s := asicDPortBmpFormatGet(a.DistributedPortNumList)
 
-		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d EnableDistributing PortsListLen %d Bitmap %s", p.AggId, len(a.DistributedPortNumList), s))
+		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d hwAggId %d EnableDistributing PortsListLen %d Bitmap %s", p.AggId, a.HwAggId, len(a.DistributedPortNumList), s))
 		if len(a.DistributedPortNumList) == 1 {
-			id,  _:= asicdclnt.ClientHdl.CreateLag(hwconst.HASH_SEL_SRCDSTMAC, s)
-	      p.AggId = int(id)
+			a.HwAggId, _ = asicdclnt.ClientHdl.CreateLag(hwconst.HASH_SEL_SRCDSTMAC, s)
 		} else {
-			asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+			asicdclnt.ClientHdl.UpdateLag(a.HwAggId, hwconst.HASH_SEL_SRCDSTMAC, s)
 		}
 	}
 }
@@ -707,11 +706,12 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 
 			muxm.LacpMuxmLog(fmt.Sprintf("Agg %d DisableDistributing PortsListLen %d Bitmap %s", p.AggId, len(a.DistributedPortNumList), s))
 
-			asicdclnt.ClientHdl.UpdateLag(int32(p.AggId), hwconst.HASH_SEL_SRCDSTMAC, s)
+			asicdclnt.ClientHdl.UpdateLag(a.HwAggId, hwconst.HASH_SEL_SRCDSTMAC, s)
 
 			if len(a.DistributedPortNumList) == 0 {
 				muxm.LacpMuxmLog("Sending Lag Delete to ASICD")
-				asicdclnt.ClientHdl.DeleteLag(int32(p.AggId))
+				asicdclnt.ClientHdl.DeleteLag(a.HwAggId)
+				a.HwAggId = 0
 			}
 		}
 	}
