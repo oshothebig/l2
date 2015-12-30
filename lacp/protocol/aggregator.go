@@ -100,6 +100,7 @@ type LaAggregator struct {
 	// 802.1ax Section 7.3.1.1 && 6.3.2
 	// Aggregator_Identifier
 	aggId          int
+	HwAggId        int32
 	AggDescription string // 255 max chars
 	AggName        string // 255 max chars
 	AggType        uint32 // LACP/STATIC

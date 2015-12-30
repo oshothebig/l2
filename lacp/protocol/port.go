@@ -323,7 +323,6 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
 		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
-
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
 
 	p := &LaAggPort{
@@ -400,7 +399,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// register the tx func
 	sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, TxViaLinuxIf)
 
-	fmt.Println("Tx Callback Registered")
+	fmt.Println("Tx Callback Registered with")
 
 	//fmt.Println("New Port:\n%#v", *p)
 
