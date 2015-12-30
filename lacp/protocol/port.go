@@ -323,7 +323,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
 		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
-
+	fmt.Println("New Port sysId ", sysId)
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
 
 	p := &LaAggPort{
