@@ -23,7 +23,7 @@ func (s *LacpSystem) LacpSystemActorSystemPrioritySet(Actor_System_priority uint
 }
 
 func (s *LacpSystem) LacpSystemConvertSystemIdToString() string {
-	sysId := LacpSystemIdGet(s)
+	sysId := LacpSystemIdGet(*s)
 	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 		sysId[0],
 		sysId[1],
