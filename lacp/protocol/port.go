@@ -262,10 +262,10 @@ func LaGetPortNext(port **LaAggPort) bool {
 				*port = p
 				return true
 			} else if (*port).PortNum == p.PortNum {
-				// found agg
+				// found port, lets return the next port
 				returnNext = true
 			} else if returnNext {
-				// next agg
+				// next port
 				*port = p
 				return true
 			}
