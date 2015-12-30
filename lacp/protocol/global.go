@@ -135,7 +135,6 @@ func LaSysGlobalTxCallbackListGet(p *LaAggPort) []TxCallback {
 		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
 		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
-	fmt.Println("txCallbackGet %#v", sysId)
 	if s, sok := gLacpSysGlobalInfo[sysId]; sok {
 		if fList, pok := s.TxCallbacks[p.IntfNum]; pok {
 			return fList
