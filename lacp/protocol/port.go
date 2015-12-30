@@ -400,7 +400,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// register the tx func
 	sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, TxViaLinuxIf)
 
-	fmt.Println("Tx Callback Registered")
+	fmt.Println("Tx Callback Registered with %#v", sgi)
 
 	//fmt.Println("New Port:\n%#v", *p)
 
