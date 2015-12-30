@@ -34,15 +34,10 @@ func ConvertStringToUint8Array(s string) [6]uint8 {
 
 func ConvertModelLagTypeToLaAggType(yangLagType int32) uint32 {
 	var LagType uint32
-	switch yangLagType {
-	case 0: //LagAggregationTypeLACP:
+	if yangLagType == 0 {
 		LagType = lacp.LaAggTypeLACP
-		break
-	case 1: //LagAggregationTypeSTATIC:
+	} else {
 		LagType = lacp.LaAggTypeSTATIC
-		break
-	default:
-		fmt.Println("ERROR: unknown LagType %d", yangLagType)
 	}
 	return LagType
 }
@@ -109,15 +104,10 @@ func ConvertLaAggModeToModelLacpMode(lacpMode uint32) int32 {
 
 func ConvertModelLacpPeriodToLaAggInterval(yangInterval int32) time.Duration {
 	var interval time.Duration
-	switch yangInterval {
-	case 0: // SLOW
+	if yangInterval == 1 {
 		interval = lacp.LacpSlowPeriodicTime
-		break
-	case 1: // FAST
+	} else {
 		interval = lacp.LacpFastPeriodicTime
-		break
-	default:
-		interval = lacp.LacpSlowPeriodicTime
 	}
 	return interval
 }
@@ -126,10 +116,10 @@ func ConvertLaAggIntervalToLacpPeriod(interval time.Duration) int32 {
 	var period int32
 	switch interval {
 	case lacp.LacpSlowPeriodicTime:
-		period = 0
+		period = 1
 		break
 	case lacp.LacpFastPeriodicTime:
-		period = 1
+		period = 0
 		break
 	default:
 		period = 0
