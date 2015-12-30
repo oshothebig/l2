@@ -62,7 +62,7 @@ func LacpSystemIdGet(s LacpSystem) [8]uint8 {
 
 	mac := s.actor_System
 
-	sysId[0] = uint8(s.Actor_System_priority >> 16 & 0xff)
+	sysId[0] = uint8(s.Actor_System_priority >> 8 & 0xff)
 	sysId[1] = uint8(s.Actor_System_priority & 0xff)
 	sysId[2] = mac[0]
 	sysId[3] = mac[1]
