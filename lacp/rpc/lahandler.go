@@ -283,9 +283,9 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 	// this attribute
 	for i := 0; i < objTyp.NumField(); i++ {
 		objName := objTyp.Field(i).Name
-		fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
+		//fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
 		if attrset[i+1] == 1 {
-			fmt.Println("UpdateAggregationLacpConfig (server): objName changed ", objName)
+			fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
 			if objName == "Enabled" {
 
 				if conf.Enabled == true {
