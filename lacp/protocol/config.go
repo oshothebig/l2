@@ -300,7 +300,7 @@ func EnableLaAggPort(pId uint16) {
 	// port is unselected
 	// agg exists
 	if LaFindPortById(pId, &p) &&
-		p.aggSelected == LacpAggUnSelected &&
+		//p.aggSelected == LacpAggUnSelected &&
 		LaAggPortNumListPortIdExist(p.AggId, pId) {
 		p.LaAggPortEnabled()
 
