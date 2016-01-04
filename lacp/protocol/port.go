@@ -450,6 +450,11 @@ func (p *LaAggPort) DelLaAggPort() {
 				sgi := LacpSysGlobalInfoByIdGet(sysId)
 				// remove the port from the port map
 				delete(sgi.PortMap, Key)
+				for i, delPort := range sgi.LacpSysGlobalAggPortListGet() {
+					if delPort.PortNum == p.PortNum {
+						sgi.PortList = append(sgi.PortList[:i], sgi.PortList[i+1:]...)
+					}
+				}
 				return
 			}
 		}
