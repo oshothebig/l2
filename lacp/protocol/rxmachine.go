@@ -347,7 +347,16 @@ func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
 				src: RxMachineModuleStr}
 		}
 
-		if LacpStateIsSet(p.PartnerOper.State, LacpStateTimeoutBit) &&
+		// if we were in no periodic state because both ends were in passive
+		// mode
+		if p.TxMachineFsm.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic &&
+			p.begin &&
+			p.lacpEnabled &&
+			LacpStateIsSet(p.PartnerOper.State, LacpStateActivityBit) {
+			// peer changed to active mode
+			p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough,
+				src: RxMachineModuleStr}
+		} else if LacpStateIsSet(p.PartnerOper.State, LacpStateTimeoutBit) &&
 			p.PtxMachineFsm.PeriodicTxTimerInterval == LacpSlowPeriodicTime {
 			p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventPartnerOperStateTimeoutShort,
 				src: RxMachineModuleStr}
@@ -631,18 +640,21 @@ func (rxm *LacpRxMachine) recordDefault() {
 // info agrees with the local port oper State.
 // If it does not agree then set the NTT flag
 // such that the Tx machine generates LACPDU
+// Activity and Timeout are configurable so need to check that these have
+// not changed
 func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *layers.LACP) bool {
 
 	p := rxm.p
 
-	const nttStateCompare uint8 = (LacpStateActivityBit |
-		LacpStateAggregationBit | LacpStateSyncBit)
+	const nttStateCompare uint8 = (LacpStateAggregationBit | LacpStateSyncBit)
 
 	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Partner.Info, &p.ActorOper, nttStateCompare) {
 		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.ActorOper))
 		return true
 	} else if (LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && !LacpStateIsSet(p.ActorOper.State, LacpStateTimeoutBit)) ||
-		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && LacpStateIsSet(p.ActorOper.State, LacpStateTimeoutBit)) {
+		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && LacpStateIsSet(p.ActorOper.State, LacpStateTimeoutBit)) ||
+		(LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit) && !LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit)) ||
+		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit) && LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit)) {
 		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.ActorOper))
 		return true
 	}

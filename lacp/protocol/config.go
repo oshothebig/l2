@@ -349,10 +349,19 @@ func SetLaAggPortLacpMode(pId uint16, mode int) {
 				LacpStateSet(&p.actorAdmin.State, LacpStateActivityBit)
 				// must also set the operational State
 				LacpStateSet(&p.ActorOper.State, LacpStateActivityBit)
+
+				// force the next state
+				p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough,
+					src: PortConfigModuleStr}
 			} else {
 				LacpStateClear(&p.actorAdmin.State, LacpStateActivityBit)
 				// must also set the operational State
 				LacpStateClear(&p.ActorOper.State, LacpStateActivityBit)
+				// we are now passive, is the peer passive as well?
+				if !LacpStateIsSet(p.PartnerOper.State, LacpStateActivityBit) {
+					p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventActorPartnerOperActivityPassiveMode,
+						src: PortConfigModuleStr}
+				}
 			}
 		}
 	}
