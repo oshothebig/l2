@@ -192,6 +192,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 
 	// add agg to map
 	sgi.AggMap[Key] = a
+	sgi.AggList = append(sgi.AggList, a)
 
 	for _, pId := range ac.LagMembers {
 		a.PortNumList = append(a.PortNumList, pId)
@@ -200,10 +201,11 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	return a
 }
 
+// warning for each call the map may change
 func LaGetAggNext(agg **LaAggregator) bool {
 	returnNext := false
 	for _, sgi := range LacpSysGlobalInfoGet() {
-		for _, a := range sgi.AggMap {
+		for _, a := range sgi.LacpSysGlobalAggListGet() {
 			if *agg == nil {
 				fmt.Println("agg map curr %d", a.aggId)
 			} else {
@@ -229,7 +231,7 @@ func LaGetAggNext(agg **LaAggregator) bool {
 
 func LaFindAggById(aggId int, agg **LaAggregator) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
-		for _, a := range sgi.AggMap {
+		for _, a := range sgi.LacpSysGlobalAggListGet() {
 			if a.aggId == aggId {
 				*agg = a
 				return true
@@ -241,7 +243,7 @@ func LaFindAggById(aggId int, agg **LaAggregator) bool {
 
 func LaFindAggByName(AggName string, agg **LaAggregator) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
-		for _, a := range sgi.AggMap {
+		for _, a := range sgi.LacpSysGlobalAggListGet() {
 			if a.AggName == AggName {
 				*agg = a
 				return true
@@ -266,7 +268,7 @@ func LaAggPortNumListPortIdExist(aggId int, portId uint16) bool {
 func LaFindAggByKey(Key uint16, agg **LaAggregator) bool {
 
 	for _, sgi := range LacpSysGlobalInfoGet() {
-		for _, a := range sgi.AggMap {
+		for _, a := range sgi.LacpSysGlobalAggListGet() {
 			if a.actorAdminKey == Key {
 				*agg = a
 				return true

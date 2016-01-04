@@ -234,7 +234,7 @@ func (p *LaAggPort) LaPortLog(msg string) {
 // find a port from the global map table by PortNum
 func LaFindPortById(pId uint16, port **LaAggPort) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
-		for _, p := range sgi.PortMap {
+		for _, p := range sgi.LacpSysGlobalAggPortListGet() {
 			if p.PortNum == pId {
 				*port = p
 				return true
@@ -251,7 +251,7 @@ func LaConvertPortAndPriToPortId(pId uint16, prio uint16) int {
 func LaGetPortNext(port **LaAggPort) bool {
 	returnNext := false
 	for _, sgi := range LacpSysGlobalInfoGet() {
-		for _, p := range sgi.PortMap {
+		for _, p := range sgi.LacpSysGlobalAggPortListGet() {
 			if *port == nil {
 				fmt.Println("port map curr", p.PortNum)
 			} else {
@@ -278,7 +278,7 @@ func LaGetPortNext(port **LaAggPort) bool {
 // find a port from the global map table by PortNum
 func LaFindPortByPortId(portId int, port **LaAggPort) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
-		for _, p := range sgi.PortMap {
+		for _, p := range sgi.LacpSysGlobalAggPortListGet() {
 			if p.portId == portId {
 				*port = p
 				return true
@@ -294,8 +294,9 @@ func LaFindPortByKey(Key uint16, index *int, port **LaAggPort) bool {
 	var i int
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		i = *index
-		l := len(sgi.PortMap)
-		for _, p := range sgi.PortMap {
+		aggPortList := sgi.LacpSysGlobalAggPortListGet()
+		l := len(aggPortList)
+		for _, p := range aggPortList {
 			if i < l {
 				if p.Key == Key {
 					*port = p
@@ -372,6 +373,8 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// add port to port map
 	sgi.PortMap[PortIdKey{Name: p.IntfNum,
 		Id: p.PortNum}] = p
+
+	sgi.PortList = append(sgi.PortList, p)
 
 	// wait group used when stopping all the
 	// State mahines associated with this port.
