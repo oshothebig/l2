@@ -353,6 +353,7 @@ func SetLaAggPortLacpMode(pId uint16, mode int) {
 				// force the next state
 				p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough,
 					src: PortConfigModuleStr}
+
 			} else {
 				LacpStateClear(&p.actorAdmin.State, LacpStateActivityBit)
 				// must also set the operational State
@@ -363,6 +364,9 @@ func SetLaAggPortLacpMode(pId uint16, mode int) {
 						src: PortConfigModuleStr}
 				}
 			}
+			// state change lets update ntt
+			p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+				src: PortConfigModuleStr}
 		}
 	}
 }
