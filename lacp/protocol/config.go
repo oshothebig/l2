@@ -399,6 +399,7 @@ func SetLaAggPortLacpPeriod(pId uint16, period time.Duration) {
 		}
 		if timeoutTime, ok := rxm.CurrentWhileTimerValid(); !ok {
 			rxm.CurrentWhileTimerTimeoutSet(timeoutTime)
+			rxm.CurrentWhileTimerStart()
 		}
 		// state change lets update ntt
 		p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
