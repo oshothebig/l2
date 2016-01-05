@@ -687,7 +687,6 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpMemberStateCounters(fromInde
 			nextLagMemberState.Aggregatable = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateAggregationBit)
 			nextLagMemberState.Collecting = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateCollectingBit)
 			nextLagMemberState.Distributing = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit)
-			nextLagMemberState.Timeout = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateTimeoutBit)
 
 			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateSyncBit) {
 				// in sync
@@ -695,6 +694,14 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpMemberStateCounters(fromInde
 			} else {
 				// out of sync
 				nextLagMemberState.Synchronization = 1
+			}
+			// short 1, long 0
+			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateTimeoutBit) {
+				// short
+				nextLagMemberState.Timeout = 1
+			} else {
+				// long
+				nextLagMemberState.Timeout = 0
 			}
 
 			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateActivityBit) {
