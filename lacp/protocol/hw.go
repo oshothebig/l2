@@ -8,6 +8,7 @@ import (
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"io/ioutil"
 	"strconv"
+	"utils/ipcutils"
 )
 
 type LACPClientBase struct {
@@ -32,7 +33,7 @@ var asicdclnt AsicdClient
 //
 // This method gets Thrift related IPC handles.
 //
-func CreateIPCHandles(address string) (thrift.TTransport, *thrift.TBinaryProtocolFactory) {
+/*func CreateIPCHandles(address string) (thrift.TTransport, *thrift.TBinaryProtocolFactory) {
 	var transportFactory thrift.TTransportFactory
 	var transport thrift.TTransport
 	var protocolFactory *thrift.TBinaryProtocolFactory
@@ -47,7 +48,7 @@ func CreateIPCHandles(address string) (thrift.TTransport, *thrift.TBinaryProtoco
 		return nil, nil
 	}
 	return transport, protocolFactory
-}
+}*/
 
 func GetClientPort(paramsFile string, c string) int {
 	var clientsList []ClientJson
@@ -77,7 +78,7 @@ func ConnectToClients(paramsFile string) {
 	if port != 0 {
 		fmt.Printf("found asicd at port %d\n", port)
 		asicdclnt.Address = "localhost:" + strconv.Itoa(port)
-		asicdclnt.Transport, asicdclnt.PtrProtocolFactory = CreateIPCHandles(asicdclnt.Address)
+		asicdclnt.Transport, asicdclnt.PtrProtocolFactory = ipcutils.CreateIPCHandles(asicdclnt.Address, asicdclnt)
 		if asicdclnt.Transport != nil && asicdclnt.PtrProtocolFactory != nil {
 			fmt.Println("connecting to asicd\n")
 			asicdclnt.ClientHdl = asicdServices.NewAsicdServiceClientFactory(asicdclnt.Transport, asicdclnt.PtrProtocolFactory)
