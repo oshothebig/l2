@@ -90,7 +90,8 @@ func NewLacpCdMachine(port *LaAggPort) *LacpCdMachine {
 		CdmLogEnableEvent:         make(chan bool)}
 
 	port.CdMachineFsm = cdm
-
+	cdm.ChurnDetectionTimerStart()
+	cdm.ChurnDetectionTimerStop()
 	return cdm
 }
 
@@ -196,6 +197,10 @@ func (p *LaAggPort) LacpCdMachineMain() {
 			case <-m.CdmKillSignalEvent:
 				m.LacpCdmLog("Machine End")
 				return
+
+			case <-m.actorChurnTimer.C:
+				//TODO
+				//m.LacpCdmLog("Churn Detection Timer Expired")
 
 			case event := <-m.CdmEvents:
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)

@@ -109,7 +109,7 @@ func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 		log:                port.LacpDebug.LacpLogChan,
 		PreviousState:      LacpRxmStateNone,
 		RxmEvents:          make(chan LacpMachineEvent, 10),
-		RxmPktRxEvent:      make(chan LacpRxLacpPdu, 10),
+		RxmPktRxEvent:      make(chan LacpRxLacpPdu, 1000),
 		RxmKillSignalEvent: make(chan bool),
 		RxmLogEnableEvent:  make(chan bool)}
 
@@ -452,8 +452,13 @@ func (p *LaAggPort) LacpRxMachineMain() {
 				return
 
 			case <-m.currentWhileTimer.C:
-				m.LacpRxmLog("RXM: Current While Timer Expired")
-				m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventCurrentWhileTimerExpired, nil)
+				// special case if we have pending packets in the queue
+				// by the time this expires we want to ensure the packet
+				// gets processed first as this will clear/restart the timer
+				if len(m.RxmPktRxEvent) == 0 {
+					m.LacpRxmLog("RXM: Current While Timer Expired")
+					m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventCurrentWhileTimerExpired, nil)
+				}
 
 			case event := <-m.RxmEvents:
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
