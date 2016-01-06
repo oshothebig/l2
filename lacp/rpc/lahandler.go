@@ -252,7 +252,7 @@ func (la LACPDServiceHandler) DeleteAggregationLacpConfig(config *lacpdServices.
 	return true, nil
 }
 
-func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServices.AggregationLacpConfig, updateconfig *lacpdServices.AggregationLacpConfig, attrset []int8) (bool, error) {
+func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServices.AggregationLacpConfig, updateconfig *lacpdServices.AggregationLacpConfig, attrset []bool) (bool, error) {
 	objTyp := reflect.TypeOf(*origconfig)
 	//objVal := reflect.ValueOf(origconfig)
 	//updateObjVal := reflect.ValueOf(*updateconfig)
@@ -284,7 +284,7 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 	for i := 0; i < objTyp.NumField(); i++ {
 		objName := objTyp.Field(i).Name
 		//fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
-		if attrset[i+1] == 1 {
+		if attrset[i] {
 			fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
 			if objName == "Enabled" {
 
@@ -416,7 +416,7 @@ func (la LACPDServiceHandler) DeleteEthernetConfig(config *lacpdServices.Etherne
 	return true, nil
 }
 
-func (la LACPDServiceHandler) UpdateEthernetConfig(origconfig *lacpdServices.EthernetConfig, updateconfig *lacpdServices.EthernetConfig, attrSet []int8) (bool, error) {
+func (la LACPDServiceHandler) UpdateEthernetConfig(origconfig *lacpdServices.EthernetConfig, updateconfig *lacpdServices.EthernetConfig, attrSet []bool) (bool, error) {
 
 	return true, nil
 }
