@@ -191,7 +191,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 
 			// transmit the packet
 			for _, ftx := range LaSysGlobalTxCallbackListGet(p) {
-				//txm.LacpTxmLog(fmt.Sprintf("Sending Tx packet %d", txm.txPkts))
+				//txm.LacpTxmLog(fmt.Sprintf("Sending Tx packet port %d pkts %d", p.PortNum, txm.txPkts))
 				ftx(p.PortNum, lacp)
 				p.Counters.LacpOutPkts += 1
 

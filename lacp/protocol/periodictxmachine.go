@@ -253,6 +253,12 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 				/* special case */
 				if m.LacpPtxIsNoPeriodicExitCondition() {
 					m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventUnconditionalFallthrough, nil)
+				} else if m.Machine.Curr.CurrentState() == LacpPtxmStatePeriodicTx {
+					if LacpStateIsSet(m.p.PartnerOper.State, LacpStateTimeoutBit) {
+						m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPartnerOperStateTimeoutShort, nil)
+					} else {
+						m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPartnerOperStateTimeoutLong, nil)
+					}
 				}
 
 				if event.responseChan != nil {

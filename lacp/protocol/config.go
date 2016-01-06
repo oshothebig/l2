@@ -349,11 +349,24 @@ func SetLaAggPortLacpMode(pId uint16, mode int) {
 				LacpStateSet(&p.actorAdmin.State, LacpStateActivityBit)
 				// must also set the operational State
 				LacpStateSet(&p.ActorOper.State, LacpStateActivityBit)
+
+				// force the next state
+				p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough,
+					src: PortConfigModuleStr}
+
 			} else {
 				LacpStateClear(&p.actorAdmin.State, LacpStateActivityBit)
 				// must also set the operational State
 				LacpStateClear(&p.ActorOper.State, LacpStateActivityBit)
+				// we are now passive, is the peer passive as well?
+				if !LacpStateIsSet(p.PartnerOper.State, LacpStateActivityBit) {
+					p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventActorPartnerOperActivityPassiveMode,
+						src: PortConfigModuleStr}
+				}
 			}
+			// state change lets update ntt
+			p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+				src: PortConfigModuleStr}
 		}
 	}
 }
@@ -386,7 +399,11 @@ func SetLaAggPortLacpPeriod(pId uint16, period time.Duration) {
 		}
 		if timeoutTime, ok := rxm.CurrentWhileTimerValid(); !ok {
 			rxm.CurrentWhileTimerTimeoutSet(timeoutTime)
+			rxm.CurrentWhileTimerStart()
 		}
+		// state change lets update ntt
+		p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+			src: PortConfigModuleStr}
 	}
 }
 
