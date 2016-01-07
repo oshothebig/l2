@@ -130,6 +130,7 @@ func SaveLaAggConfig(ac *LaAggConfig) {
 		a.AggType = ac.Type
 		a.AggMinLinks = ac.MinLinks
 		a.Config = ac.Lacp
+		a.LagHash = ac.HashMode
 	}
 }
 
@@ -434,6 +435,20 @@ func SetLaAggPortLacpTimeout(pId uint16, timeout time.Duration) {
 		if timeoutTime, ok := rxm.CurrentWhileTimerValid(); !ok {
 			rxm.CurrentWhileTimerTimeoutSet(timeoutTime)
 		}
+	}
+}
+
+func SetLaAggHashMode(aggId int, hashmode uint32) {
+	var a *LaAggregator
+	if LaFindAggById(aggId, &a) {
+		a.LagHash = hashmode
+		if len(a.DistributedPortNumList) > 0 {
+			asicDUpdateLag(a)
+		} else {
+			fmt.Println("SetLaAggHashMode: Agg not active in HW")
+		}
+	} else {
+		fmt.Println("SetLaAggHashMode: Unable to find aggId", aggId)
 	}
 }
 

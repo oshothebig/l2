@@ -162,6 +162,14 @@ type LaAggregator struct {
 
 	// Ports in Distributed State
 	DistributedPortNumList []string
+
+	// For now this value assumes the value of the linux modes
+	// 0 - L2
+	// 1 - L2+L3
+	// 2 - L3+L4
+	// 3 - ENCAP
+	// 4 - ENCAP2
+	LagHash uint32
 }
 
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
@@ -183,6 +191,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		ready:                  true,
 		PortNumList:            make([]uint16, 0),
 		DistributedPortNumList: make([]string, 0),
+		LagHash:                ac.HashMode,
 	}
 
 	// want to ensure that the application can use a string name or id

@@ -242,6 +242,7 @@ func (la LACPDServiceHandler) CreateAggregationLacpConfig(config *lacpdServices.
 			Properties: lacp.PortProperties{
 				Mtu: int(config.Mtu),
 			},
+			HashMode: uint32(config.LagHash),
 		}
 		lacp.CreateLaAgg(conf)
 	}
@@ -570,6 +571,7 @@ func SetLaAggMode(conf *lacp.LaAggConfig) error {
 }
 
 func SetLaAggHashMode(conf *lacp.LaAggConfig) error {
+	lacp.SetLaAggHashMode(conf.Id, conf.HashMode)
 	return nil
 }
 
@@ -646,6 +648,7 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdService
 			nextLagState.LacpMode = ConvertLaAggModeToModelLacpMode(a.Config.Mode)
 			nextLagState.SystemIdMac = a.Config.SystemIdMac
 			nextLagState.SystemPriority = int16(a.Config.SystemPriority)
+			nextLagState.LagHash = int32(a.LagHash)
 
 			if len(returnLagStates) == 0 {
 				returnLagStates = make([]*lacpdServices.AggregationLacpState, 0)
