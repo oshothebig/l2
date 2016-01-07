@@ -78,7 +78,8 @@ type LaAggConfig struct {
 	// mau properties of each link
 	Properties PortProperties
 
-	// TODO hash config
+	// hash config
+	HashMode uint32
 }
 
 type LaAggPortConfig struct {

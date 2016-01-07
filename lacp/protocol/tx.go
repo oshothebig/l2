@@ -83,8 +83,8 @@ func TxViaLinuxIf(port uint16, pdu interface{}) {
 			// Set up buffer and options for serialization.
 			buf := gopacket.NewSerializeBuffer()
 			opts := gopacket.SerializeOptions{
-				FixLengths: true,
-				//ComputeChecksums: true,
+				FixLengths:       true,
+				ComputeChecksums: true,
 			}
 			// Send one packet for every address.
 			gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)

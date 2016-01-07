@@ -276,6 +276,7 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 		Properties: lacp.PortProperties{
 			Mtu: int(updateconfig.Mtu),
 		},
+		HashMode: uint32(updateconfig.LagHash),
 	}
 
 	// important to note that the attrset starts at index 0 which is the BaseObj
@@ -303,6 +304,9 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 
 			} else {
 				switch objName {
+				case "LagHash":
+					SetLaAggHashMode(conf)
+					break
 				case "LacpMode":
 					SetLaAggMode(conf)
 					break
@@ -562,6 +566,10 @@ func SetLaAggMode(conf *lacp.LaAggConfig) error {
 	}
 	lacp.SaveLaAggConfig(conf)
 
+	return nil
+}
+
+func SetLaAggHashMode(conf *lacp.LaAggConfig) error {
 	return nil
 }
 
