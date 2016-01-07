@@ -130,6 +130,7 @@ func SaveLaAggConfig(ac *LaAggConfig) {
 		a.AggType = ac.Type
 		a.AggMinLinks = ac.MinLinks
 		a.Config = ac.Lacp
+		a.LagHash = ac.HashMode
 	}
 }
 

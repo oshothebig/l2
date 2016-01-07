@@ -648,6 +648,7 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdService
 			nextLagState.LacpMode = ConvertLaAggModeToModelLacpMode(a.Config.Mode)
 			nextLagState.SystemIdMac = a.Config.SystemIdMac
 			nextLagState.SystemPriority = int16(a.Config.SystemPriority)
+			nextLagState.LagHash = int32(a.LagHash)
 
 			if len(returnLagStates) == 0 {
 				returnLagStates = make([]*lacpdServices.AggregationLacpState, 0)
