@@ -16,29 +16,31 @@ struct EthernetConfig{
 }
 struct AggregationLacpConfig{
 	1 : i32 	LagType
-	2 : string 	Description
-	3 : bool 	Enabled
+	2 : bool 	Enabled
+	3 : string 	Description
 	4 : i16 	Mtu
-	5 : i16 	MinLinks
-	6 : string 	Type
+	5 : string 	Type
+	6 : i16 	MinLinks
 	7 : string 	NameKey
 	8 : i32 	Interval
 	9 : i32 	LacpMode
 	10 : string 	SystemIdMac
 	11 : i16 	SystemPriority
+	12 : i32 	LagHash
 }
 struct AggregationLacpState{
 	1 : i32 	LagType
-	2 : string 	Description
-	3 : bool 	Enabled
+	2 : bool 	Enabled
+	3 : string 	Description
 	4 : i16 	Mtu
-	5 : i16 	MinLinks
-	6 : string 	Type
+	5 : string 	Type
+	6 : i16 	MinLinks
 	7 : string 	NameKey
 	8 : i32 	Interval
 	9 : i32 	LacpMode
 	10 : string 	SystemIdMac
 	11 : i16 	SystemPriority
+	12 : i32 	LagHash
 }
 struct AggregationLacpStateGetInfo {
 	1: int StartIdx
@@ -55,27 +57,28 @@ struct AggregationLacpMemberStateCounters{
 	5 : i32 	Synchronization
 	6 : bool 	Aggregatable
 	7 : i16 	Mtu
-	8 : i32 	LacpMode
-	9 : i16 	PartnerKey
-	10 : string 	Description
-	11 : string 	SystemIdMac
-	12 : i32 	LagType
-	13 : string 	SystemId
-	14 : i32 	Interval
-	15 : bool 	Enabled
-	16 : string 	NameKey
-	17 : bool 	Distributing
-	18 : i32 	Timeout
-	19 : i32 	Activity
-	20 : i16 	SystemPriority
-	21 : string 	Type
-	22 : i16 	MinLinks
-	23 : i64 	LacpInPkts
-	24 : i64 	LacpOutPkts
-	25 : i64 	LacpRxErrors
-	26 : i64 	LacpTxErrors
-	27 : i64 	LacpUnknownErrors
-	28 : i64 	LacpErrors
+	8 : string 	NameKey
+	9 : i32 	LacpMode
+	10 : i16 	PartnerKey
+	11 : string 	Description
+	12 : string 	SystemIdMac
+	13 : i32 	LagType
+	14 : string 	SystemId
+	15 : i32 	Interval
+	16 : bool 	Enabled
+	17 : i32 	LagHash
+	18 : bool 	Distributing
+	19 : i32 	Timeout
+	20 : i32 	Activity
+	21 : i16 	SystemPriority
+	22 : string 	Type
+	23 : i16 	MinLinks
+	24 : i64 	LacpInPkts
+	25 : i64 	LacpOutPkts
+	26 : i64 	LacpRxErrors
+	27 : i64 	LacpTxErrors
+	28 : i64 	LacpUnknownErrors
+	29 : i64 	LacpErrors
 }
 struct AggregationLacpMemberStateCountersGetInfo {
 	1: int StartIdx
