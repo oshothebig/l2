@@ -139,7 +139,8 @@ func asicDDeleteLag(a *LaAggregator) {
 // update the lag ports or hashing algorithm
 func asicDUpdateLag(a *LaAggregator) {
 
-	asicdclnt.ClientHdl.UpdateLag(a.HwAggId,
+	rv1, rv2 := asicdclnt.ClientHdl.UpdateLag(a.HwAggId,
 		asicDHashModeGet(a.LagHash),
 		asicDPortBmpFormatGet(a.DistributedPortNumList))
+	fmt.Println("asicDUpdateLag:", a.HwAggId, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList), rv1, rv2)
 }

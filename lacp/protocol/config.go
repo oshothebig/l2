@@ -443,7 +443,11 @@ func SetLaAggHashMode(aggId int, hashmode uint32) {
 		a.LagHash = hashmode
 		if a.HwAggId != 0 {
 			asicDUpdateLag(a)
+		} else {
+			fmt.Println("SetLaAggHashMode: Agg not active in HW")
 		}
+	} else {
+		fmt.Println("SetLaAggHashMode: Unable to find aggId", aggId)
 	}
 }
 
