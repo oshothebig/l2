@@ -441,7 +441,7 @@ func SetLaAggHashMode(aggId int, hashmode uint32) {
 	var a *LaAggregator
 	if LaFindAggById(aggId, &a) {
 		a.LagHash = hashmode
-		if a.HwAggId != 0 {
+		if len(a.DistributedPortNumList) > 0 {
 			asicDUpdateLag(a)
 		} else {
 			fmt.Println("SetLaAggHashMode: Agg not active in HW")
