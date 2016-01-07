@@ -2,12 +2,14 @@
 package lacp
 
 import (
+	hwconst "asicd/asicdConstDefs"
 	"asicdServices"
 	"encoding/json"
 	"fmt"
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"io/ioutil"
 	"strconv"
+	"strings"
 )
 
 type LACPClientBase struct {
@@ -31,7 +33,7 @@ var asicdclnt AsicdClient
 
 //
 // This method gets Thrift related IPC handles.
-//
+// TODO move this method to different file name
 func CreateIPCHandles(address string) (thrift.TTransport, *thrift.TBinaryProtocolFactory) {
 	var transportFactory thrift.TTransportFactory
 	var transport thrift.TTransport
@@ -49,6 +51,7 @@ func CreateIPCHandles(address string) (thrift.TTransport, *thrift.TBinaryProtoco
 	return transport, protocolFactory
 }
 
+// look up the various other daemons based on c string
 func GetClientPort(paramsFile string, c string) int {
 	var clientsList []ClientJson
 
@@ -72,6 +75,7 @@ func GetClientPort(paramsFile string, c string) int {
 	return 0
 }
 
+// connect the the asic d
 func ConnectToClients(paramsFile string) {
 	port := GetClientPort(paramsFile, "asicd")
 	if port != 0 {
@@ -84,4 +88,58 @@ func ConnectToClients(paramsFile string) {
 			asicdclnt.IsConnected = true
 		}
 	}
+}
+
+// convert the lacp port names name to asic format string list
+func asicDPortBmpFormatGet(distPortList []string) string {
+	s := ""
+	dLength := len(distPortList)
+
+	for i := 0; i < dLength; i++ {
+		num := strings.Split(distPortList[i], "-")[1]
+		if i == dLength-1 {
+			s += num
+		} else {
+			s += num + ","
+		}
+	}
+	return s
+
+}
+
+// convert the model value to asic value
+func asicDHashModeGet(hashmode uint32) (laghash int32) {
+	switch hashmode {
+	case 0: //L2
+		laghash = hwconst.HASH_SEL_SRCDSTMAC
+		break
+	case 1: //L2 + L3
+		laghash = hwconst.HASH_SEL_SRCDSTIP
+		break
+	//case 2: //L3 + L4
+	//break
+	default:
+		laghash = hwconst.HASH_SEL_SRCDSTMAC
+	}
+	return laghash
+}
+
+// create the lag with hashing algorithm and ports
+func asicDCreateLag(a *LaAggregator) (hwAggId int32) {
+	hwAggId, _ = asicdclnt.ClientHdl.CreateLag(asicDHashModeGet(a.LagHash),
+		asicDPortBmpFormatGet(a.DistributedPortNumList))
+	return hwAggId
+}
+
+// delete the lag
+func asicDDeleteLag(a *LaAggregator) {
+	asicdclnt.ClientHdl.DeleteLag(a.HwAggId)
+}
+
+// update the lag ports or hashing algorithm
+func asicDUpdateLag(a *LaAggregator) {
+
+	asicdclnt.ClientHdl.UpdateLag(a.HwAggId,
+		asicDHashModeGet(a.LagHash),
+		asicDPortBmpFormatGet(a.DistributedPortNumList))
 }

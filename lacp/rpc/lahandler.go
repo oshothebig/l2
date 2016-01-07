@@ -570,6 +570,7 @@ func SetLaAggMode(conf *lacp.LaAggConfig) error {
 }
 
 func SetLaAggHashMode(conf *lacp.LaAggConfig) error {
+	lacp.SetLaAggHashMode(conf.Id, conf.HashMode)
 	return nil
 }
 

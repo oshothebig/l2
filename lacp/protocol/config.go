@@ -437,6 +437,16 @@ func SetLaAggPortLacpTimeout(pId uint16, timeout time.Duration) {
 	}
 }
 
+func SetLaAggHashMode(aggId int, hashmode uint32) {
+	var a *LaAggregator
+	if LaFindAggById(aggId, &a) {
+		a.LagHash = hashmode
+		if a.HwAggId != 0 {
+			asicDUpdateLag(a)
+		}
+	}
+}
+
 func AddLaAggPortToAgg(aggId int, pId uint16) {
 
 	var a *LaAggregator
