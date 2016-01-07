@@ -242,6 +242,7 @@ func (la LACPDServiceHandler) CreateAggregationLacpConfig(config *lacpdServices.
 			Properties: lacp.PortProperties{
 				Mtu: int(config.Mtu),
 			},
+			HashMode: uint32(config.LagHash),
 		}
 		lacp.CreateLaAgg(conf)
 	}
