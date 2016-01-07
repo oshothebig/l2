@@ -128,6 +128,7 @@ func asicDHashModeGet(hashmode uint32) (laghash int32) {
 func asicDCreateLag(a *LaAggregator) (hwAggId int32) {
 	hwAggId, _ = asicdclnt.ClientHdl.CreateLag(asicDHashModeGet(a.LagHash),
 		asicDPortBmpFormatGet(a.DistributedPortNumList))
+	fmt.Printf("asicDCreateLag : id %d hash %d hwhash %d portList %s\n", hwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
 	return hwAggId
 }
 
@@ -139,8 +140,8 @@ func asicDDeleteLag(a *LaAggregator) {
 // update the lag ports or hashing algorithm
 func asicDUpdateLag(a *LaAggregator) {
 
-	rv1, rv2 := asicdclnt.ClientHdl.UpdateLag(a.HwAggId,
+	asicdclnt.ClientHdl.UpdateLag(a.HwAggId,
 		asicDHashModeGet(a.LagHash),
 		asicDPortBmpFormatGet(a.DistributedPortNumList))
-	fmt.Println("asicDUpdateLag:", a.HwAggId, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList), rv1, rv2)
+	fmt.Printf("asicDUpdateLag : id %d hash %d hwhash %d portList %s\n", a.HwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
 }
