@@ -1,4 +1,4 @@
-namespace go lacpdServices
+namespace go lacpd
 typedef i32 int
 typedef i16 uint16
 struct EthernetConfig{

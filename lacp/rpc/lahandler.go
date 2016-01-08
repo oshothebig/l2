@@ -2,17 +2,21 @@
 package rpc
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	lacp "l2/lacp/protocol"
-	"lacpdServices"
+	"lacpd"
+	"models"
 	"net"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 )
+
+const DBName string = "UsrConfDb.db"
 
 type LACPDServiceHandler struct {
 }
@@ -214,7 +218,7 @@ func (la LACPDServiceHandler) UpdateAggregationConfig(config *lacpdServices.Aggr
 //	9 : i32 	LacpMode (0 == ACTIVE, 1 == PASSIVE)
 //	10 : string SystemIdMac
 //	11 : i16 	SystemPriority
-func (la LACPDServiceHandler) CreateAggregationLacpConfig(config *lacpdServices.AggregationLacpConfig) (bool, error) {
+func (la LACPDServiceHandler) CreateAggregationLacpConfig(config *lacpd.AggregationLacpConfig) (bool, error) {
 
 	var a *lacp.LaAggregator
 	if lacp.LaFindAggByName(config.NameKey, &a) {
@@ -249,11 +253,58 @@ func (la LACPDServiceHandler) CreateAggregationLacpConfig(config *lacpdServices.
 	return true, nil
 }
 
-func (la LACPDServiceHandler) DeleteAggregationLacpConfig(config *lacpdServices.AggregationLacpConfig) (bool, error) {
+func (la *LACPDServiceHandler) ReadConfigFromDB(filePath string) error {
+	var dbPath string = filePath + DBName
+
+	dbHdl, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		//h.logger.Err(fmt.Sprintf("Failed to open the DB at %s with error %s", dbPath, err))
+		fmt.Printf("Failed to open the DB at %s with error %s", dbPath, err)
+		return err
+	}
+
+	defer dbHdl.Close()
+
+	dbObj := new(models.AggregationLacpConfig)
+	aggObjList, err2 := dbObj.GetAllObjFromDb(dbHdl)
+	if err2 == nil {
+		for _, aggObj := range aggObjList {
+			aggthriftobj := new(lacpd.AggregationLacpConfig)
+			models.ConvertlacpdAggregationLacpConfigObjToThrift(aggObj, aggthriftobj)
+			_, err = la.CreateAggregationLacpConfig(aggthriftobj)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		fmt.Println("Error getting All AggregationLacpConfig objects")
+		return err2
+	}
+
+	dbObj2 := new(models.EthernetConfig)
+	portObjList, err3 := dbObj2.GetAllObjFromDb(dbHdl)
+	if err3 == nil {
+		for _, portObj := range portObjList {
+			portthriftobj := new(lacpd.EthernetConfig)
+			models.ConvertlacpdEthernetConfigObjToThrift(portObj, portthriftobj)
+			_, err = la.CreateEthernetConfig(portthriftobj)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		fmt.Println("Error getting All AggregationLacpConfig objects")
+		return err3
+	}
+
+	return nil
+}
+
+func (la LACPDServiceHandler) DeleteAggregationLacpConfig(config *lacpd.AggregationLacpConfig) (bool, error) {
 	return true, nil
 }
 
-func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServices.AggregationLacpConfig, updateconfig *lacpdServices.AggregationLacpConfig, attrset []bool) (bool, error) {
+func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpd.AggregationLacpConfig, updateconfig *lacpd.AggregationLacpConfig, attrset []bool) (bool, error) {
 	objTyp := reflect.TypeOf(*origconfig)
 	//objVal := reflect.ValueOf(origconfig)
 	//updateObjVal := reflect.ValueOf(*updateconfig)
@@ -333,7 +384,7 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 	return true, nil
 }
 
-func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.EthernetConfig) (bool, error) {
+func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpd.EthernetConfig) (bool, error) {
 
 	aggModeMap := map[uint32]string{
 		//LacpActivityTypeACTIVE:  "ACTIVE",
@@ -365,17 +416,17 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 		// lets create a port with some defaults
 		// origional tested thrift api
 		la.CreateLaAggPort(
-			lacpdServices.Uint16(GetIdByName(config.NameKey)),
+			lacpd.Uint16(GetIdByName(config.NameKey)),
 			0, //Prio lacpdServices.Uint16,
-			lacpdServices.Uint16(GetKeyByAggName(config.AggregateId)),
-			lacpdServices.Int(GetIdByName(config.AggregateId)),
+			lacpd.Uint16(GetKeyByAggName(config.AggregateId)),
+			lacpd.Int(GetIdByName(config.AggregateId)),
 			config.Enabled,
 			"ON",                //"ON", "ACTIVE", "PASSIVE"
 			"LONG",              //"SHORT", "LONG"
 			"00:00:00:00:00:00", // default
-			lacpdServices.Int(ConvertModelSpeedToLaAggSpeed(config.Speed)),
-			lacpdServices.Int(config.DuplexMode),
-			lacpdServices.Int(config.Mtu),
+			lacpd.Int(ConvertModelSpeedToLaAggSpeed(config.Speed)),
+			lacpd.Int(config.DuplexMode),
+			lacpd.Int(config.Mtu),
 			config.MacAddress,
 			config.NameKey,
 		)
@@ -399,17 +450,17 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 
 		// origional tested thrift api
 		la.CreateLaAggPort(
-			lacpdServices.Uint16(GetIdByName(config.NameKey)),
-			lacpdServices.Uint16(a.Config.SystemPriority),
-			lacpdServices.Uint16(GetKeyByAggName(config.AggregateId)),
-			lacpdServices.Int(GetIdByName(config.AggregateId)),
+			lacpd.Uint16(GetIdByName(config.NameKey)),
+			lacpd.Uint16(a.Config.SystemPriority),
+			lacpd.Uint16(GetKeyByAggName(config.AggregateId)),
+			lacpd.Int(GetIdByName(config.AggregateId)),
 			config.Enabled,
 			mode,
 			timeout,
 			config.MacAddress,
-			lacpdServices.Int(ConvertModelSpeedToLaAggSpeed(config.Speed)),
-			lacpdServices.Int(config.DuplexMode),
-			lacpdServices.Int(config.Mtu),
+			lacpd.Int(ConvertModelSpeedToLaAggSpeed(config.Speed)),
+			lacpd.Int(config.DuplexMode),
+			lacpd.Int(config.Mtu),
 			a.Config.SystemIdMac,
 			config.NameKey,
 		)
@@ -417,19 +468,19 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpdServices.Etherne
 	return true, nil
 }
 
-func (la LACPDServiceHandler) DeleteEthernetConfig(config *lacpdServices.EthernetConfig) (bool, error) {
+func (la LACPDServiceHandler) DeleteEthernetConfig(config *lacpd.EthernetConfig) (bool, error) {
 	return true, nil
 }
 
-func (la LACPDServiceHandler) UpdateEthernetConfig(origconfig *lacpdServices.EthernetConfig, updateconfig *lacpdServices.EthernetConfig, attrSet []bool) (bool, error) {
+func (la LACPDServiceHandler) UpdateEthernetConfig(origconfig *lacpd.EthernetConfig, updateconfig *lacpd.EthernetConfig, attrSet []bool) (bool, error) {
 
 	return true, nil
 }
 
-func (la LACPDServiceHandler) CreateLaAggregator(aggId lacpdServices.Int,
-	actorAdminKey lacpdServices.Uint16,
+func (la LACPDServiceHandler) CreateLaAggregator(aggId lacpd.Int,
+	actorAdminKey lacpd.Uint16,
 	actorSystemId string,
-	aggMacAddr string) (lacpdServices.Int, error) {
+	aggMacAddr string) (lacpd.Int, error) {
 
 	conf := &lacp.LaAggConfig{
 		// Aggregator_MAC_address
@@ -444,25 +495,25 @@ func (la LACPDServiceHandler) CreateLaAggregator(aggId lacpdServices.Int,
 	return 0, nil
 }
 
-func (la LACPDServiceHandler) DeleteLaAggregator(aggId lacpdServices.Int) (lacpdServices.Int, error) {
+func (la LACPDServiceHandler) DeleteLaAggregator(aggId lacpd.Int) (lacpd.Int, error) {
 
 	lacp.DeleteLaAgg(int(aggId))
 	return 0, nil
 }
 
-func (la LACPDServiceHandler) CreateLaAggPort(Id lacpdServices.Uint16,
-	Prio lacpdServices.Uint16,
-	Key lacpdServices.Uint16,
-	AggId lacpdServices.Int,
+func (la LACPDServiceHandler) CreateLaAggPort(Id lacpd.Uint16,
+	Prio lacpd.Uint16,
+	Key lacpd.Uint16,
+	AggId lacpd.Int,
 	Enable bool,
 	Mode string, //"ON", "ACTIVE", "PASSIVE"
 	Timeout string, //"SHORT", "LONG"
 	Mac string,
-	Speed lacpdServices.Int,
-	Duplex lacpdServices.Int,
-	Mtu lacpdServices.Int,
+	Speed lacpd.Int,
+	Duplex lacpd.Int,
+	Mtu lacpd.Int,
 	SysId string,
-	IntfId string) (lacpdServices.Int, error) {
+	IntfId string) (lacpd.Int, error) {
 
 	// TODO: check syntax on strings?
 	t := lacp.LacpShortTimeoutTime
@@ -500,7 +551,7 @@ func (la LACPDServiceHandler) CreateLaAggPort(Id lacpdServices.Uint16,
 	return 0, nil
 }
 
-func (la LACPDServiceHandler) DeleteLaAggPort(Id lacpdServices.Uint16) (lacpdServices.Int, error) {
+func (la LACPDServiceHandler) DeleteLaAggPort(Id lacpd.Uint16) (lacpd.Int, error) {
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(Id), &p) {
 		if p.AggId != 0 {
@@ -592,7 +643,7 @@ func SetLaAggPeriod(conf *lacp.LaAggConfig) error {
 // SetPortLacpLogEnable will enable on a per port basis logging
 // modStr - PORT, RXM, TXM, PTXM, TXM, CDM, ALL
 // modStr can be a string containing one or more of the above
-func (la LACPDServiceHandler) SetPortLacpLogEnable(Id lacpdServices.Uint16, modStr string, ena bool) (lacpdServices.Int, error) {
+func (la LACPDServiceHandler) SetPortLacpLogEnable(Id lacpd.Uint16, modStr string, ena bool) (lacpd.Int, error) {
 	modules := make(map[string]chan bool)
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(Id), &p) {
@@ -621,17 +672,17 @@ func (la LACPDServiceHandler) SetPortLacpLogEnable(Id lacpdServices.Uint16, modS
 // at which a for loop iterates over the map is preserved.  It is assumed
 // that at the time of this operation that no new aggragators are added,
 // otherwise can get inconsistent results
-func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdServices.Int, count lacpdServices.Int) (obj *lacpdServices.AggregationLacpStateGetInfo, err error) {
+func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.AggregationLacpStateGetInfo, err error) {
 
-	var lagStateList []lacpdServices.AggregationLacpState = make([]lacpdServices.AggregationLacpState, count)
-	var nextLagState *lacpdServices.AggregationLacpState
-	var returnLagStates []*lacpdServices.AggregationLacpState
-	var returnLagStateGetInfo lacpdServices.AggregationLacpStateGetInfo
+	var lagStateList []lacpd.AggregationLacpState = make([]lacpd.AggregationLacpState, count)
+	var nextLagState *lacpd.AggregationLacpState
+	var returnLagStates []*lacpd.AggregationLacpState
+	var returnLagStateGetInfo lacpd.AggregationLacpStateGetInfo
 	var a *lacp.LaAggregator
-	validCount := lacpdServices.Int(0)
+	validCount := lacpd.Int(0)
 	toIndex := fromIndex
 	obj = &returnLagStateGetInfo
-	for currIndex := lacpdServices.Int(0); validCount != count && lacp.LaGetAggNext(&a); currIndex++ {
+	for currIndex := lacpd.Int(0); validCount != count && lacp.LaGetAggNext(&a); currIndex++ {
 
 		if currIndex < fromIndex {
 			continue
@@ -651,7 +702,7 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdService
 			nextLagState.LagHash = int32(a.LagHash)
 
 			if len(returnLagStates) == 0 {
-				returnLagStates = make([]*lacpdServices.AggregationLacpState, 0)
+				returnLagStates = make([]*lacpd.AggregationLacpState, 0)
 			}
 			returnLagStates = append(returnLagStates, nextLagState)
 			validCount++
@@ -676,17 +727,17 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdService
 
 // GetBulkAggregationLacpMemberStateCounters will return the status of all
 // the lag members.
-func (la LACPDServiceHandler) GetBulkAggregationLacpMemberStateCounters(fromIndex lacpdServices.Int, count lacpdServices.Int) (obj *lacpdServices.AggregationLacpMemberStateCountersGetInfo, err error) {
+func (la LACPDServiceHandler) GetBulkAggregationLacpMemberStateCounters(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.AggregationLacpMemberStateCountersGetInfo, err error) {
 
-	var lagMemberStateList []lacpdServices.AggregationLacpMemberStateCounters = make([]lacpdServices.AggregationLacpMemberStateCounters, count)
-	var nextLagMemberState *lacpdServices.AggregationLacpMemberStateCounters
-	var returnLagMemberStates []*lacpdServices.AggregationLacpMemberStateCounters
-	var returnLagMemberStateGetInfo lacpdServices.AggregationLacpMemberStateCountersGetInfo
+	var lagMemberStateList []lacpd.AggregationLacpMemberStateCounters = make([]lacpd.AggregationLacpMemberStateCounters, count)
+	var nextLagMemberState *lacpd.AggregationLacpMemberStateCounters
+	var returnLagMemberStates []*lacpd.AggregationLacpMemberStateCounters
+	var returnLagMemberStateGetInfo lacpd.AggregationLacpMemberStateCountersGetInfo
 	var p *lacp.LaAggPort
-	validCount := lacpdServices.Int(0)
+	validCount := lacpd.Int(0)
 	toIndex := fromIndex
 	obj = &returnLagMemberStateGetInfo
-	for currIndex := lacpdServices.Int(0); validCount != count && lacp.LaGetPortNext(&p); currIndex++ {
+	for currIndex := lacpd.Int(0); validCount != count && lacp.LaGetPortNext(&p); currIndex++ {
 
 		if currIndex < fromIndex {
 			continue
@@ -755,7 +806,7 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpMemberStateCounters(fromInde
 			nextLagMemberState.LacpErrors = int64(p.Counters.LacpErrors)
 
 			if len(returnLagMemberStates) == 0 {
-				returnLagMemberStates = make([]*lacpdServices.AggregationLacpMemberStateCounters, 0)
+				returnLagMemberStates = make([]*lacpd.AggregationLacpMemberStateCounters, 0)
 			}
 			returnLagMemberStates = append(returnLagMemberStates, nextLagMemberState)
 			validCount++

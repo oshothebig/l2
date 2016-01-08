@@ -21,7 +21,7 @@ type LACPClientBase struct {
 
 type AsicdClient struct {
 	LACPClientBase
-	ClientHdl *asicdServices.AsicdServiceClient
+	ClientHdl *asicdServices.ASICDServicesClient
 }
 
 type ClientJson struct {
@@ -84,7 +84,7 @@ func ConnectToClients(paramsFile string) {
 		asicdclnt.Transport, asicdclnt.PtrProtocolFactory = CreateIPCHandles(asicdclnt.Address)
 		if asicdclnt.Transport != nil && asicdclnt.PtrProtocolFactory != nil {
 			fmt.Println("connecting to asicd\n")
-			asicdclnt.ClientHdl = asicdServices.NewAsicdServiceClientFactory(asicdclnt.Transport, asicdclnt.PtrProtocolFactory)
+			asicdclnt.ClientHdl = asicdServices.NewASICDServicesClientFactory(asicdclnt.Transport, asicdclnt.PtrProtocolFactory)
 			asicdclnt.IsConnected = true
 		}
 	}
