@@ -4,7 +4,6 @@
 package lacp
 
 import (
-	hwconst "asicd/asicdConstDefs"
 	"fmt"
 	"sort"
 	"strconv"
@@ -636,22 +635,6 @@ func (muxm *LacpMuxMachine) DisableCollecting() {
 	}
 }
 
-func asicDPortBmpFormatGet(distPortList []string) string {
-	s := ""
-	dLength := len(distPortList)
-
-	for i := 0; i < dLength; i++ {
-		num := strings.Split(distPortList[i], "-")[1]
-		if i == dLength-1 {
-			s += num
-		} else {
-			s += num + ","
-		}
-	}
-	return s
-
-}
-
 // EnableDistributing is a required function defined in 802.1ax-2014
 // Section 6.4.9
 // This function causes the Aggregator Multiplexer of the Aggregator
@@ -668,13 +651,12 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 		a.DistributedPortNumList = append(a.DistributedPortNumList, p.IntfNum)
 		sort.Strings(a.DistributedPortNumList)
 
-		s := asicDPortBmpFormatGet(a.DistributedPortNumList)
-
-		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d hwAggId %d EnableDistributing PortsListLen %d Bitmap %s", p.AggId, a.HwAggId, len(a.DistributedPortNumList), s))
+		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d hwAggId %d EnableDistributing PortsListLen %d PortList %v", p.AggId, a.HwAggId, len(a.DistributedPortNumList), a.DistributedPortNumList))
 		if len(a.DistributedPortNumList) == 1 {
-			a.HwAggId, _ = asicdclnt.ClientHdl.CreateLag(hwconst.HASH_SEL_SRCDSTMAC, s)
+			a.HwAggId = asicDCreateLag(a)
+			// TODO UPDATE SQL DB for warm boot purposes
 		} else {
-			asicdclnt.ClientHdl.UpdateLag(a.HwAggId, hwconst.HASH_SEL_SRCDSTMAC, s)
+			asicDUpdateLag(a)
 		}
 	}
 }
@@ -692,7 +674,7 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 	if a != nil {
 
 		portFound = false
-		for j := 0; j < len(a.DistributedPortNumList); j++ {
+		for j := 0; j < len(a.DistributedPortNumList) && !portFound; j++ {
 			if p.IntfNum == a.DistributedPortNumList[j] {
 				portFound = true
 				a.DistributedPortNumList = append(a.DistributedPortNumList[:j], a.DistributedPortNumList[j+1:]...)
@@ -702,16 +684,15 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 		if portFound {
 			sort.Strings(a.DistributedPortNumList)
 
-			s := asicDPortBmpFormatGet(a.DistributedPortNumList)
+			muxm.LacpMuxmLog(fmt.Sprintf("Agg %d DisableDistributing PortsListLen %d PortList %v", p.AggId, len(a.DistributedPortNumList), a.DistributedPortNumList))
 
-			muxm.LacpMuxmLog(fmt.Sprintf("Agg %d DisableDistributing PortsListLen %d Bitmap %s", p.AggId, len(a.DistributedPortNumList), s))
-
-			asicdclnt.ClientHdl.UpdateLag(a.HwAggId, hwconst.HASH_SEL_SRCDSTMAC, s)
+			asicDUpdateLag(a)
 
 			if len(a.DistributedPortNumList) == 0 {
 				muxm.LacpMuxmLog("Sending Lag Delete to ASICD")
-				asicdclnt.ClientHdl.DeleteLag(a.HwAggId)
+				asicDDeleteLag(a)
 				a.HwAggId = 0
+				// TODO UPDATE SQL DB
 			}
 		}
 	}

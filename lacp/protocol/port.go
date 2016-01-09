@@ -382,7 +382,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// before proceeding with cleanup
 	p.wg.Add(5)
 
-	handle, err := pcap.OpenLive(p.IntfNum, 65536, true, pcap.BlockForever)
+	handle, err := pcap.OpenLive(p.IntfNum, 65536, false, 50*time.Millisecond)
 	if err != nil {
 		// failure here may be ok as this may be SIM
 		if !strings.Contains(p.IntfNum, "SIM") {

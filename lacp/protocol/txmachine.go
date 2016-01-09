@@ -103,7 +103,7 @@ func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 		txPkts:             0,
 		ntt:                false,
 		PreviousState:      LacpTxmStateNone,
-		TxmEvents:          make(chan LacpMachineEvent, 10),
+		TxmEvents:          make(chan LacpMachineEvent, 1000),
 		TxmKillSignalEvent: make(chan bool),
 		TxmLogEnableEvent:  make(chan bool)}
 

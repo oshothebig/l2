@@ -242,6 +242,7 @@ func (la LACPDServiceHandler) CreateAggregationLacpConfig(config *lacpdServices.
 			Properties: lacp.PortProperties{
 				Mtu: int(config.Mtu),
 			},
+			HashMode: uint32(config.LagHash),
 		}
 		lacp.CreateLaAgg(conf)
 	}
@@ -252,7 +253,7 @@ func (la LACPDServiceHandler) DeleteAggregationLacpConfig(config *lacpdServices.
 	return true, nil
 }
 
-func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServices.AggregationLacpConfig, updateconfig *lacpdServices.AggregationLacpConfig, attrset []int8) (bool, error) {
+func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServices.AggregationLacpConfig, updateconfig *lacpdServices.AggregationLacpConfig, attrset []bool) (bool, error) {
 	objTyp := reflect.TypeOf(*origconfig)
 	//objVal := reflect.ValueOf(origconfig)
 	//updateObjVal := reflect.ValueOf(*updateconfig)
@@ -276,6 +277,7 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 		Properties: lacp.PortProperties{
 			Mtu: int(updateconfig.Mtu),
 		},
+		HashMode: uint32(updateconfig.LagHash),
 	}
 
 	// important to note that the attrset starts at index 0 which is the BaseObj
@@ -284,7 +286,7 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 	for i := 0; i < objTyp.NumField(); i++ {
 		objName := objTyp.Field(i).Name
 		//fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
-		if attrset[i+1] == 1 {
+		if attrset[i] {
 			fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
 			if objName == "Enabled" {
 
@@ -303,6 +305,9 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpdServi
 
 			} else {
 				switch objName {
+				case "LagHash":
+					SetLaAggHashMode(conf)
+					break
 				case "LacpMode":
 					SetLaAggMode(conf)
 					break
@@ -416,7 +421,7 @@ func (la LACPDServiceHandler) DeleteEthernetConfig(config *lacpdServices.Etherne
 	return true, nil
 }
 
-func (la LACPDServiceHandler) UpdateEthernetConfig(origconfig *lacpdServices.EthernetConfig, updateconfig *lacpdServices.EthernetConfig, attrSet []int8) (bool, error) {
+func (la LACPDServiceHandler) UpdateEthernetConfig(origconfig *lacpdServices.EthernetConfig, updateconfig *lacpdServices.EthernetConfig, attrSet []bool) (bool, error) {
 
 	return true, nil
 }
@@ -565,6 +570,11 @@ func SetLaAggMode(conf *lacp.LaAggConfig) error {
 	return nil
 }
 
+func SetLaAggHashMode(conf *lacp.LaAggConfig) error {
+	lacp.SetLaAggHashMode(conf.Id, conf.HashMode)
+	return nil
+}
+
 func SetLaAggPeriod(conf *lacp.LaAggConfig) error {
 	var a *lacp.LaAggregator
 	var p *lacp.LaAggPort
@@ -638,6 +648,7 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpState(fromIndex lacpdService
 			nextLagState.LacpMode = ConvertLaAggModeToModelLacpMode(a.Config.Mode)
 			nextLagState.SystemIdMac = a.Config.SystemIdMac
 			nextLagState.SystemPriority = int16(a.Config.SystemPriority)
+			nextLagState.LagHash = int32(a.LagHash)
 
 			if len(returnLagStates) == 0 {
 				returnLagStates = make([]*lacpdServices.AggregationLacpState, 0)
