@@ -3,22 +3,23 @@ package lacp
 
 import (
 	//"fmt"
-	"log"
-	"os"
 	"strings"
 	//"time"
+	"log/syslog"
 )
 
 type LacpDebug struct {
 	LacpLogChan chan string
-	logger      *log.Logger
+	logger      *syslog.Writer
 }
 
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpDebug() *LacpDebug {
+	logger, _ := syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "LACP")
 	lacpdebug := &LacpDebug{
 		LacpLogChan: make(chan string, 100),
-		logger:      syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "LACP")
+		logger:      logger,
+	}
 
 	return lacpdebug
 }
@@ -38,7 +39,7 @@ func (p *LaAggPort) LacpDebugEventLogMain() {
 
 			case msg, logEvent := <-port.LacpDebug.LacpLogChan:
 				if logEvent {
-					port.LacpDebug.logger.Println(strings.Join([]string{p.IntfNum, msg}, "-"))
+					port.LacpDebug.logger.Info(strings.Join([]string{p.IntfNum, msg}, "-"))
 				} else {
 					return
 				}
