@@ -18,7 +18,7 @@ type LacpDebug struct {
 func NewLacpDebug() *LacpDebug {
 	lacpdebug := &LacpDebug{
 		LacpLogChan: make(chan string, 100),
-		logger:      log.New(os.Stdout, "LacpLog:", log.Ldate|log.Ltime|log.Lmicroseconds)}
+		logger:      syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "LACP")
 
 	return lacpdebug
 }

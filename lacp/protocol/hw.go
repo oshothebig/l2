@@ -10,8 +10,8 @@ import (
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"io/ioutil"
 	"strconv"
-	"utils/ipcutils"
 	"strings"
+	"utils/ipcutils"
 )
 
 type LACPClientBase struct {
@@ -149,9 +149,8 @@ func asicDUpdateLag(a *LaAggregator) {
 }
 
 func asicdGetPortLinkStatus(intfNum string) bool {
-	bulkInfo, _ := asicdclnt.ClientHdl.GetBulkPortConfig(0, 100)
-
-	if bulkInfo.ObjCount != 0 {
+	bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(0, 100)
+	if err == nil && bulkInfo.ObjCount != 0 {
 		objCount := int64(bulkInfo.ObjCount)
 		for i := int64(0); i < objCount; i++ {
 			if bulkInfo.PortConfigList[i].Name == intfNum {
@@ -159,6 +158,7 @@ func asicdGetPortLinkStatus(intfNum string) bool {
 			}
 		}
 	}
+	fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
 	return false
 
 }
