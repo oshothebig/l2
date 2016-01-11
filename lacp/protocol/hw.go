@@ -130,7 +130,7 @@ func asicDHashModeGet(hashmode uint32) (laghash int32) {
 func asicDCreateLag(a *LaAggregator) (hwAggId int32) {
 	hwAggId, _ = asicdclnt.ClientHdl.CreateLag(asicDHashModeGet(a.LagHash),
 		asicDPortBmpFormatGet(a.DistributedPortNumList))
-	fmt.Printf("asicDCreateLag : id %d hash %d hwhash %d portList %s\n", hwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
+	a.LacpDebug.logger.Info(fmt.Sprintf("asicDCreateLag : id %d hash %d hwhash %d portList %s\n", hwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList)))
 	return hwAggId
 }
 
@@ -145,7 +145,7 @@ func asicDUpdateLag(a *LaAggregator) {
 	asicdclnt.ClientHdl.UpdateLag(a.HwAggId,
 		asicDHashModeGet(a.LagHash),
 		asicDPortBmpFormatGet(a.DistributedPortNumList))
-	fmt.Printf("asicDUpdateLag : id %d hash %d hwhash %d portList %s\n", a.HwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
+	a.LacpDebug.logger.Info(fmt.Sprintf("asicDUpdateLag : id %d hash %d hwhash %d portList %s\n", a.HwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList)))
 }
 
 func asicdGetPortLinkStatus(intfNum string) bool {

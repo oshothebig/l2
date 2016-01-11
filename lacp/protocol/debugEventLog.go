@@ -48,6 +48,30 @@ func (p *LaAggPort) LacpDebugEventLogMain() {
 	}(p)
 }
 
+func (a *LaAggregator) LacpDebugAggEventLogMain() {
+
+	a.LacpDebug = NewLacpDebug()
+
+	go func(a *LaAggregator) {
+
+		for {
+			select {
+
+			case msg, logEvent := <-a.LacpDebug.LacpLogChan:
+				if logEvent {
+					a.LacpDebug.logger.Info(strings.Join([]string{a.AggName, msg}, "-"))
+				} else {
+					return
+				}
+			}
+		}
+	}(a)
+}
+
+func (a *LaAggregator) LacpAggLog(msg string) {
+	a.log <- strings.Join([]string{"AGG", msg}, ":")
+}
+
 func (txm *LacpTxMachine) LacpTxmLog(msg string) {
 	if txm.Machine.Curr.IsLoggerEna() {
 		txm.log <- strings.Join([]string{"TXM", msg}, ":")

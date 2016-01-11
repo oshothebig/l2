@@ -171,7 +171,7 @@ func CreateLaAgg(agg *LaAggConfig) {
 	//var wg sync.WaitGroup
 
 	a := NewLaAggregator(agg)
-	fmt.Printf("%#v\n", a)
+	a.LacpDebug.logger.Info(fmt.Sprintf("%#v\n", a))
 
 	/*
 		// two methods for creating ports after CreateLaAgg is created
@@ -193,12 +193,11 @@ func CreateLaAgg(agg *LaAggConfig) {
 	*/
 	index := 0
 	var p *LaAggPort
-	fmt.Println("looking for ports with actorAdminKey ", a.actorAdminKey)
+	a.LacpDebug.logger.Info(fmt.Sprintf("looking for ports with actorAdminKey\n", a.actorAdminKey))
 	if mac, err := net.ParseMAC(a.Config.SystemIdMac); err == nil {
 		if sgi := LacpSysGlobalInfoByIdGet(LacpSystem{actor_System: convertNetHwAddressToSysIdKey(mac),
 			Actor_System_priority: a.Config.SystemPriority}); sgi != nil {
 			for index != -1 {
-				fmt.Println("looking for ", index)
 				if LaFindPortByKey(a.actorAdminKey, &index, &p) {
 					if p.aggSelected == LacpAggUnSelected {
 						AddLaAggPortToAgg(a.aggId, p.PortNum)
@@ -244,7 +243,7 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 	if !LaFindPortById(port.Id, &pTmp) {
 		p := NewLaAggPort(port)
 
-		fmt.Println("Port mode", port.Mode)
+		p.LacpDebug.logger.Info(fmt.Sprintf("Port mode", port.Mode))
 		// Is lacp enabled or not
 		if port.Mode != LacpModeOn {
 			p.lacpEnabled = true
@@ -291,7 +290,7 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 			p.checkConfigForSelection()
 
 		}
-		fmt.Printf("PORT (after config create):\n%#v\n", p)
+		p.LacpDebug.logger.Info(fmt.Sprintf("PORT (after config create):\n%#v\n", p))
 	} else {
 		fmt.Println("CONF: ERROR PORT ALREADY EXISTS")
 	}
@@ -301,7 +300,7 @@ func DeleteLaAggPort(pId uint16) {
 	var p *LaAggPort
 	if LaFindPortById(pId, &p) {
 		if LaAggPortNumListPortIdExist(p.AggId, pId) {
-			fmt.Println("CONF: ERROR Must detach p", pId, "from agg", p.AggId, "before deletion")
+			p.LacpDebug.logger.Info(fmt.Sprintf("CONF: ERROR Must detach p", pId, "from agg", p.AggId, "before deletion"))
 			return
 		}
 		if p.PortEnabled {
@@ -471,7 +470,7 @@ func SetLaAggHashMode(aggId int, hashmode uint32) {
 		if len(a.DistributedPortNumList) > 0 {
 			asicDUpdateLag(a)
 		} else {
-			fmt.Println("SetLaAggHashMode: Agg not active in HW")
+			a.LacpDebug.logger.Info("SetLaAggHashMode: Agg not active in HW")
 		}
 	} else {
 		fmt.Println("SetLaAggHashMode: Unable to find aggId", aggId)

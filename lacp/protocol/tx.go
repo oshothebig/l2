@@ -89,7 +89,7 @@ func TxViaLinuxIf(port uint16, pdu interface{}) {
 			// Send one packet for every address.
 			gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
 			if err := p.handle.WritePacketData(buf.Bytes()); err != nil {
-				fmt.Println(err)
+				p.LacpDebug.logger.Info(fmt.Sprintf("%s\n", err))
 			}
 		} else {
 			fmt.Println("ERROR could not find interface", p.IntfNum, err)

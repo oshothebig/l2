@@ -305,11 +305,6 @@ func LaGetPortNext(port **LaAggPort) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, p := range sgi.LacpSysGlobalAggPortListGet() {
 			if *port == nil {
-				fmt.Println("port map curr", p.PortNum)
-			} else {
-				fmt.Println(fmt.Sprintf("port map prev %d curr %d", (*port).PortNum, p.PortNum))
-			}
-			if *port == nil {
 				// first port
 				*port = p
 				return true
@@ -569,8 +564,8 @@ func (p *LaAggPort) Stop() {
 	close(p.portChan)
 
 	// kill the logger for this port
+	p.LacpDebug.logger.Info(fmt.Sprintf("Logger stopped for port\n", p.PortNum))
 	p.LacpDebug.Stop()
-	fmt.Println("Logger stopped for port", p.PortNum)
 
 }
 

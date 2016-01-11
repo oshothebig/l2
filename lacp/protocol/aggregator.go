@@ -2,7 +2,8 @@
 package lacp
 
 import (
-	"fmt"
+	//"fmt"
+	//"log/syslog"
 	"net"
 	"time"
 )
@@ -171,6 +172,9 @@ type LaAggregator struct {
 	// 3 - ENCAP
 	// 4 - ENCAP2
 	LagHash uint32
+
+	LacpDebug *LacpDebug
+	log       chan string
 }
 
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
@@ -195,6 +199,8 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		LagHash:                ac.HashMode,
 	}
 
+	a.LacpDebugAggEventLogMain()
+
 	// want to ensure that the application can use a string name or id
 	// to uniquely identify a lag
 	Key := AggIdKey{Id: ac.Id,
@@ -216,11 +222,13 @@ func LaGetAggNext(agg **LaAggregator) bool {
 	returnNext := false
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.LacpSysGlobalAggListGet() {
-			if *agg == nil {
-				fmt.Println("agg map curr %d", a.aggId)
-			} else {
-				fmt.Println(fmt.Sprintf("agg map prev %d curr %d", (*agg).aggId, a.aggId))
-			}
+			/*
+				if *agg == nil {
+					fmt.Println("agg map curr %d", a.aggId)
+				} else {
+					fmt.Println(fmt.Sprintf("agg map prev %d curr %d", (*agg).aggId, a.aggId))
+				}
+			*/
 			if *agg == nil {
 				// first agg
 				*agg = a
