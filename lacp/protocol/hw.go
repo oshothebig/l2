@@ -149,16 +149,18 @@ func asicDUpdateLag(a *LaAggregator) {
 }
 
 func asicdGetPortLinkStatus(intfNum string) bool {
-	bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(1, 100)
-	if err == nil && bulkInfo.ObjCount != 0 {
-		objCount := int64(bulkInfo.ObjCount)
-		for i := int64(0); i < objCount; i++ {
-			if bulkInfo.PortConfigList[i].Name == intfNum {
-				return bulkInfo.PortConfigList[i].OperState == pluginCommon.UpDownState[1]
+	/*
+		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(1, 100)
+		if err == nil && bulkInfo.ObjCount != 0 {
+			objCount := int64(bulkInfo.ObjCount)
+			for i := int64(0); i < objCount; i++ {
+				if bulkInfo.PortConfigList[i].Name == intfNum {
+					return bulkInfo.PortConfigList[i].OperState == pluginCommon.UpDownState[1]
+				}
 			}
 		}
-	}
-	fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
+		fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
+	*/
 	return true
 
 }
