@@ -15,7 +15,8 @@ const (
 
 const PortConfigModuleStr = "Port Config"
 
-type LaAggregatorConfig struct {
+// 802.1.AX-2014 7.3.1.1 Aggregator attributes GET-SET
+type AggConfig struct {
 	// GET-SET
 	AggName string
 	// GET-SET
@@ -80,6 +81,37 @@ type LaAggConfig struct {
 
 	// hash config
 	HashMode uint32
+}
+
+type AggPortConfig struct {
+	// GET-SET
+	AggPortActorSystemPriority uint16
+	// GET-SET
+	AggPortActorAdminKey uint16
+	// GET-SET
+	AggPortPartnerAdminSystemPriority uint16
+	// GET-SET
+	AggPortPartnerAdminSystemId [6]uint8
+	// GET-SET
+	AggPortPartnerAdminKey uint16
+	// GET-SET
+	AggPortActorPortPriority uint8
+	// GET-SET
+	AggPortPartnerAdminPort int
+	// GET-SET
+	AggPortPartnerAdminPortPriority uint8
+	// GET-SET
+	AggPortActorAdminState uint8
+	// GET-SET
+	AggPortPartnerAdminState uint8
+	// GET-SET
+	AggPortLinkNumberID int
+	// GET-SET
+	AggPortPartnerAdminLInkNumberID int
+	// GET-SET
+	AggPortWTRTime int
+	// GET-SET
+	AggPortProtocolDA [6]uint8
 }
 
 type LaAggPortConfig struct {
@@ -241,10 +273,7 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 		p.BEGIN(false)
 		p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d", port.Id))
 
-		// TODO: need logic to check link status
-		p.LinkOperStatus = true
-
-		if p.LinkOperStatus && port.Enable {
+		if p.IsPortOperStatusUp() && port.Enable {
 
 			if p.Key != 0 {
 				var a *LaAggregator
@@ -306,10 +335,7 @@ func EnableLaAggPort(pId uint16) {
 		LaAggPortNumListPortIdExist(p.AggId, pId) {
 		p.LaAggPortEnabled()
 
-		// TODO: NEED METHOD to get link status
-		p.LinkOperStatus = true
-
-		if p.LinkOperStatus &&
+		if p.IsPortOperStatusUp() &&
 			p.aggSelected == LacpAggUnSelected {
 			p.checkConfigForSelection()
 		}

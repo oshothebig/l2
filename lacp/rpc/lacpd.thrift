@@ -51,34 +51,51 @@ struct AggregationLacpStateGetInfo {
 }
 struct AggregationLacpMemberStateCounters{
 	1 : bool 	Collecting
-	2 : i16 	OperKey
-	3 : string 	PartnerId
-	4 : string 	Interface
-	5 : i32 	Synchronization
+	2 : i32 	PartnerCdsChurnMachine
+	3 : i16 	OperKey
+	4 : string 	MuxReason
+	5 : string 	PartnerId
 	6 : bool 	Aggregatable
-	7 : i16 	Mtu
-	8 : string 	NameKey
-	9 : i32 	LacpMode
-	10 : i16 	PartnerKey
-	11 : string 	Description
-	12 : string 	SystemIdMac
-	13 : i32 	LagType
-	14 : string 	SystemId
-	15 : i32 	Interval
-	16 : bool 	Enabled
-	17 : i32 	LagHash
-	18 : bool 	Distributing
-	19 : i32 	Timeout
-	20 : i32 	Activity
-	21 : i16 	SystemPriority
-	22 : string 	Type
-	23 : i16 	MinLinks
-	24 : i64 	LacpInPkts
-	25 : i64 	LacpOutPkts
-	26 : i64 	LacpRxErrors
-	27 : i64 	LacpTxErrors
-	28 : i64 	LacpUnknownErrors
-	29 : i64 	LacpErrors
+	7 : i64 	PartnerCdsChurnCount
+	8 : i32 	LagHash
+	9 : i16 	PartnerKey
+	10 : i32 	RxMachine
+	11 : i64 	ActorSyncTransitionCount
+	12 : string 	SystemId
+	13 : i64 	ActorChangeCount
+	14 : i32 	LacpMode
+	15 : bool 	Distributing
+	16 : i32 	MuxMachine
+	17 : i64 	ActorCdsChurnCount
+	18 : i64 	PartnerSyncTransitionCount
+	19 : i64 	ActorChurnCount
+	20 : i16 	SystemPriority
+	21 : string 	Type
+	22 : i16 	MinLinks
+	23 : string 	Description
+	24 : i64 	PartnerChangeCount
+	25 : i32 	Synchronization
+	26 : string 	Interface
+	27 : i32 	DebugId
+	28 : i32 	RxTime
+	29 : i32 	ActorChurnMachine
+	30 : i32 	LagType
+	31 : i32 	ActorCdsChurnMachine
+	32 : string 	NameKey
+	33 : string 	SystemIdMac
+	34 : i32 	Interval
+	35 : bool 	Enabled
+	36 : i16 	Mtu
+	37 : i32 	Timeout
+	38 : i32 	Activity
+	39 : i32 	PartnerChurnMachine
+	40 : i64 	PartnerChurnCount
+	41 : i64 	LacpInPkts
+	42 : i64 	LacpOutPkts
+	43 : i64 	LacpRxErrors
+	44 : i64 	LacpTxErrors
+	45 : i64 	LacpUnknownErrors
+	46 : i64 	LacpErrors
 }
 struct AggregationLacpMemberStateCountersGetInfo {
 	1: int StartIdx

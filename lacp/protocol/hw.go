@@ -3,6 +3,7 @@ package lacp
 
 import (
 	hwconst "asicd/asicdConstDefs"
+	"asicd/pluginManager/pluginCommon"
 	"asicdServices"
 	"encoding/json"
 	"fmt"
@@ -144,4 +145,19 @@ func asicDUpdateLag(a *LaAggregator) {
 		asicDHashModeGet(a.LagHash),
 		asicDPortBmpFormatGet(a.DistributedPortNumList))
 	fmt.Printf("asicDUpdateLag : id %d hash %d hwhash %d portList %s\n", a.HwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
+}
+
+func asicdGetPortLinkStatus(intfNum string) bool {
+	bulkInfo, _ := asicdclnt.ClientHdl.GetBulkPortConfig(0, 100)
+
+	if bulkInfo.ObjCount != 0 {
+		objCount := int64(bulkInfo.ObjCount)
+		for i := int64(0); i < objCount; i++ {
+			if bulkInfo.PortConfigList[i].Name == intfNum {
+				return bulkInfo.PortConfigList[i].OperState == pluginCommon.UpDownState[1]
+			}
+		}
+	}
+	return false
+
 }

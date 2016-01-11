@@ -36,27 +36,17 @@ type LacpCounters struct {
 	LacpErrors        uint64
 }
 
-type AggregatorPortObject struct {
+type AggPortStatus struct {
 	// GET
 	AggPortId int
-	// GET-SET
-	AggPortActorSystemPriority uint16
 	// GET
 	AggPortActorSystemId [6]uint8
-	// GET-SET
-	AggPortActorAdminKey uint16
 	// GET
 	AggPortActorOperKey uint16
-	// GET-SET
-	AggPortPartnerAdminSystemPriority uint16
 	// GET
 	AggPortPartnerOperSystemPriority uint16
-	// GET-SET
-	AggPortPartnerAdminSystemId [6]uint8
 	// GET
 	AggPortPartnerOperSystemId [6]uint8
-	// GET-SET
-	AggPortPartnerAdminKey uint16
 	// GET
 	AggPortPartnerOperKey uint16
 	// GET
@@ -65,22 +55,12 @@ type AggregatorPortObject struct {
 	AggPortAttachedAggID int
 	// GET
 	AggPortActorPort int
-	// GET-SET
-	AggPortActorPortPriority uint8
-	// GET-SET
-	AggPortPartnerAdminPort int
 	// GET
 	AggPortPartnerOperPort int
-	// GET-SET
-	AggPortPartnerAdminPortPriority uint8
 	// GET
 	AggPortPartnerOperPortPriority uint8
-	// GET-SET
-	AggPortActorAdminState uint8
 	// GET
 	AggPortActorOperState uint8
-	// GET-SET
-	AggPortPartnerAdminState uint8
 	// GET
 	AggPortPartnerOperState uint8
 	// GET
@@ -89,18 +69,90 @@ type AggregatorPortObject struct {
 	AggPortOperConversationPasses bool
 	// GET
 	AggPortOperConversationCollected bool
-	// GET-SET
-	AggPortLinkNumberID int
-	// GET-SET
-	AggPortPartnerAdminLInkNumberID int
-	// GET-SET
-	AggPortWTRTime int
-	// GET-SET
-	AggPortProtocolDA [6]uint8
 	// GET
 	AggPortStats AggPortStatsObject
 	// GET
 	AggPortDebug AggPortDebugInformationObject
+}
+
+type AggregatorPortObject struct {
+	// GET-SET
+	Config AggPortConfig
+	// GET
+	Status AggPortStatus
+	/*
+		// GET
+		AggPortId int
+		// GET-SET
+		AggPortActorSystemPriority uint16
+		// GET
+		AggPortActorSystemId [6]uint8
+		// GET-SET
+		AggPortActorAdminKey uint16
+		// GET
+		AggPortActorOperKey uint16
+		// GET-SET
+		AggPortPartnerAdminSystemPriority uint16
+		// GET
+		AggPortPartnerOperSystemPriority uint16
+		// GET-SET
+		AggPortPartnerAdminSystemId [6]uint8
+		// GET
+		AggPortPartnerOperSystemId [6]uint8
+		// GET-SET
+		AggPortPartnerAdminKey uint16
+		// GET
+		AggPortPartnerOperKey uint16
+		// GET
+		AggPortSelectedAggID int
+		// GET
+		AggPortAttachedAggID int
+		// GET
+		AggPortActorPort int
+		// GET-SET
+		AggPortActorPortPriority uint8
+		// GET-SET
+		AggPortPartnerAdminPort int
+		// GET
+		AggPortPartnerOperPort int
+		// GET-SET
+		AggPortPartnerAdminPortPriority uint8
+		// GET
+		AggPortPartnerOperPortPriority uint8
+		// GET-SET
+		AggPortActorAdminState uint8
+		// GET
+		AggPortActorOperState uint8
+		// GET-SET
+		AggPortPartnerAdminState uint8
+		// GET
+		AggPortPartnerOperState uint8
+		// GET
+		AggPortAggregateOrIndividual bool
+		// GET
+		AggPortOperConversationPasses bool
+		// GET
+		AggPortOperConversationCollected bool
+		// GET-SET
+		AggPortLinkNumberID int
+		// GET-SET
+		AggPortPartnerAdminLInkNumberID int
+		// GET-SET
+		AggPortWTRTime int
+		// GET-SET
+		AggPortProtocolDA [6]uint8
+		// GET
+		AggPortStats AggPortStatsObject
+		// GET
+		AggPortDebug AggPortDebugInformationObject
+	*/
+
+	Internal AggInternalData
+}
+
+type AggInternalData struct {
+	// Linux Interface Name
+	AggNameStr string
 }
 
 // GET
@@ -424,6 +476,7 @@ func (p *LaAggPort) IsPortAdminEnabled() bool {
 }
 
 func (p *LaAggPort) IsPortOperStatusUp() bool {
+	p.LinkOperStatus = asicdGetPortLinkStatus(p.IntfNum)
 	return p.LinkOperStatus
 }
 

@@ -32,6 +32,7 @@ type LacpAggregatorStats struct {
 	unknownProtocolFrames int
 }
 
+// 802.1.AX-2014 7.3.1.1 Aggregator attributes GET-SET
 type AggregatorObject struct {
 	// GET
 	AggId int
