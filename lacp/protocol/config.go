@@ -270,9 +270,10 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 
 		// lets start all the State machines
 		p.BEGIN(false)
-		p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d", port.Id))
+		linkStatus := p.IsPortOperStatusUp()
+		p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d is link up %t admin up %t", port.Id, linkStatus, port.Enable))
 
-		if p.IsPortOperStatusUp() && port.Enable {
+		if linkStatus && port.Enable {
 
 			if p.Key != 0 {
 				var a *LaAggregator
