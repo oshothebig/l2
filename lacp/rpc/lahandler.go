@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	lacp "l2/lacp/protocol"
 	"lacpd"
 	"models"
