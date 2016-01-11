@@ -433,7 +433,7 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpd.EthernetConfig)
 		)
 	} else {
 		fmt.Println("\nFound agg", config.AggregateId)
-		fmt.Printf("LAG:\n%#v\n", a)
+		//fmt.Printf("LAG:\n%#v\n", a)
 		// Found the lag lets add the lacp info to the port
 		//	    2 : i32 	Interval
 		// 	    3 : i32 	LacpMode
