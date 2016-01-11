@@ -159,6 +159,6 @@ func asicdGetPortLinkStatus(intfNum string) bool {
 		}
 	}
 	fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
-	return false
+	return true
 
 }
