@@ -291,6 +291,7 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 			p.checkConfigForSelection()
 
 		}
+		p.LacpDebug.logger.Info(fmt.Sprintf("PORT Config:\n%#v\n", port))
 		p.LacpDebug.logger.Info(fmt.Sprintf("PORT (after config create):\n%#v\n", p))
 	} else {
 		fmt.Println("CONF: ERROR PORT ALREADY EXISTS")
