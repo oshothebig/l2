@@ -850,6 +850,33 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 
 }
 
+func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16) {
+	mEvtChan := make([]chan LacpMachineEvent, 0)
+	evt := make([]LacpMachineEvent, 0)
+
+	p.actorAdmin.System.actor_System = sysIdMac
+	p.actorAdmin.System.Actor_System_priority = sysPrio
+
+	p.aggSelected = LacpAggUnSelected
+
+	if p.ModeGet() == LacpModeOn ||
+		p.lacpEnabled == false ||
+		p.PortEnabled == false {
+		return
+	}
+
+	// partner info should be wrong so lets force sync to be off
+	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
+
+	mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
+	evt = append(evt, LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
+		src: PortConfigModuleStr})
+
+	// unselected event
+	p.DistributeMachineEvents(mEvtChan, evt, true)
+
+}
+
 func (p *LaAggPort) TimeoutGet() time.Duration {
 	return p.PtxMachineFsm.PeriodicTxTimerInterval
 }

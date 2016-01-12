@@ -367,9 +367,8 @@ func (la LACPDServiceHandler) UpdateAggregationLacpConfig(origconfig *lacpd.Aggr
 					SetLaAggPeriod(conf)
 					break
 				// port move cause systemId changes
-				case "SystemIdMac":
-					break
-				case "SystemPriority":
+				case "SystemIdMac", "SystemPriority":
+					SetLaAggSystemInfo(conf)
 					break
 				// this may cause lag to go down if min ports is > actual ports
 				case "MinLinks":
@@ -629,13 +628,21 @@ func SetLaAggHashMode(conf *lacp.LaAggConfig) error {
 
 func SetLaAggPeriod(conf *lacp.LaAggConfig) error {
 	var a *lacp.LaAggregator
-	var p *lacp.LaAggPort
 	if lacp.LaFindAggById(conf.Id, &a) {
 		// configured ports
 		for _, pId := range a.PortNumList {
-			if lacp.LaFindPortById(uint16(pId), &p) {
-				lacp.SetLaAggPortLacpPeriod(uint16(pId), conf.Lacp.Interval)
-			}
+			lacp.SetLaAggPortLacpPeriod(uint16(pId), conf.Lacp.Interval)
+		}
+	}
+	return nil
+}
+
+func SetLaAggSystemInfo(conf *lacp.LaAggConfig) error {
+	var a *lacp.LaAggregator
+	if lacp.LaFindAggById(conf.Id, &a) {
+		// configured ports
+		for _, pId := range a.PortNumList {
+			lacp.SetLaAggPortSystemInfo(uint16(pId), conf.Lacp.SystemIdMac, conf.Lacp.SystemPriority)
 		}
 	}
 	return nil
