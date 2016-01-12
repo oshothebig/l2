@@ -465,6 +465,24 @@ func SetLaAggPortLacpTimeout(pId uint16, timeout time.Duration) {
 	}
 }
 
+func SetLaAggPortSystemInfo(pId uint16, sysIdMac string, sysPrio uint16) {
+	var p *LaAggPort
+
+	// port exists
+	// port is unselected
+	// agg exists
+	if LaFindPortById(pId, &p) {
+		mac, _ := net.ParseMAC(sysIdMac)
+		macArr := convertNetHwAddressToSysIdKey(mac)
+		p.LaAggPortActorAdminInfoSet(macArr, sysPrio)
+
+		if p.IsPortOperStatusUp() &&
+			p.aggSelected == LacpAggUnSelected {
+			p.checkConfigForSelection()
+		}
+	}
+}
+
 func SetLaAggHashMode(aggId int, hashmode uint32) {
 	var a *LaAggregator
 	if LaFindAggById(aggId, &a) {
