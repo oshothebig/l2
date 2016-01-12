@@ -3,22 +3,23 @@ package lacp
 
 import (
 	//"fmt"
-	"log"
-	"os"
 	"strings"
 	//"time"
+	"log/syslog"
 )
 
 type LacpDebug struct {
 	LacpLogChan chan string
-	logger      *log.Logger
+	logger      *syslog.Writer
 }
 
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpDebug() *LacpDebug {
+	logger, _ := syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "LACP")
 	lacpdebug := &LacpDebug{
 		LacpLogChan: make(chan string, 100),
-		logger:      log.New(os.Stdout, "LacpLog:", log.Ldate|log.Ltime|log.Lmicroseconds)}
+		logger:      logger,
+	}
 
 	return lacpdebug
 }
@@ -38,13 +39,37 @@ func (p *LaAggPort) LacpDebugEventLogMain() {
 
 			case msg, logEvent := <-port.LacpDebug.LacpLogChan:
 				if logEvent {
-					port.LacpDebug.logger.Println(strings.Join([]string{p.IntfNum, msg}, "-"))
+					port.LacpDebug.logger.Info(strings.Join([]string{p.IntfNum, msg}, "-"))
 				} else {
 					return
 				}
 			}
 		}
 	}(p)
+}
+
+func (a *LaAggregator) LacpDebugAggEventLogMain() {
+
+	a.LacpDebug = NewLacpDebug()
+
+	go func(a *LaAggregator) {
+
+		for {
+			select {
+
+			case msg, logEvent := <-a.LacpDebug.LacpLogChan:
+				if logEvent {
+					a.LacpDebug.logger.Info(strings.Join([]string{a.AggName, msg}, "-"))
+				} else {
+					return
+				}
+			}
+		}
+	}(a)
+}
+
+func (a *LaAggregator) LacpAggLog(msg string) {
+	a.log <- strings.Join([]string{"AGG", msg}, ":")
 }
 
 func (txm *LacpTxMachine) LacpTxmLog(msg string) {

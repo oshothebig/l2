@@ -7,7 +7,7 @@ import (
 	"git.apache.org/thrift.git/lib/go/thrift"
 	lacp "l2/lacp/protocol"
 	"l2/lacp/rpc"
-	"lacpdServices"
+	"lacpd"
 	"net"
 )
 
@@ -19,11 +19,11 @@ func main() {
 	// lookup port
 	paramsDir := flag.String("params", "./params", "Params directory")
 	flag.Parse()
-	fileName := *paramsDir
-	if fileName[len(fileName)-1] != '/' {
-		fileName = fileName + "/"
+	path := *paramsDir
+	if path[len(path)-1] != '/' {
+		path = path + "/"
 	}
-	fileName = fileName + "clients.json"
+	fileName := path + "clients.json"
 
 	port := lacp.GetClientPort(fileName, "lacpd")
 	if port != 0 {
@@ -34,13 +34,16 @@ func main() {
 		}
 
 		handler := rpc.NewLACPDServiceHandler()
-		processor := lacpdServices.NewLACPDServicesProcessor(handler)
+		processor := lacpd.NewLACPDServicesProcessor(handler)
 		transportFactory := thrift.NewTBufferedTransportFactory(8192)
 		protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 		server := thrift.NewTSimpleServer4(processor, transport, transportFactory, protocolFactory)
 
 		// connect to any needed services
 		lacp.ConnectToClients(fileName)
+
+		// lets replay any config that is in the db
+		handler.ReadConfigFromDB(path)
 
 		fmt.Println("Available Interfaces for use:")
 		intfs, err := net.Interfaces()

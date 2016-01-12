@@ -3,14 +3,15 @@ package lacp
 
 import (
 	hwconst "asicd/asicdConstDefs"
+	//"asicd/pluginManager/pluginCommon"
 	"asicdServices"
 	"encoding/json"
 	"fmt"
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"io/ioutil"
 	"strconv"
-	"utils/ipcutils"
 	"strings"
+	"utils/ipcutils"
 )
 
 type LACPClientBase struct {
@@ -22,7 +23,7 @@ type LACPClientBase struct {
 
 type AsicdClient struct {
 	LACPClientBase
-	ClientHdl *asicdServices.AsicdServiceClient
+	ClientHdl *asicdServices.ASICDServicesClient
 }
 
 type ClientJson struct {
@@ -65,7 +66,7 @@ func ConnectToClients(paramsFile string) {
 		asicdclnt.Transport, asicdclnt.PtrProtocolFactory, _ = ipcutils.CreateIPCHandles(asicdclnt.Address)
 		if asicdclnt.Transport != nil && asicdclnt.PtrProtocolFactory != nil {
 			fmt.Println("connecting to asicd\n")
-			asicdclnt.ClientHdl = asicdServices.NewAsicdServiceClientFactory(asicdclnt.Transport, asicdclnt.PtrProtocolFactory)
+			asicdclnt.ClientHdl = asicdServices.NewASICDServicesClientFactory(asicdclnt.Transport, asicdclnt.PtrProtocolFactory)
 			asicdclnt.IsConnected = true
 		}
 	}
@@ -109,7 +110,7 @@ func asicDHashModeGet(hashmode uint32) (laghash int32) {
 func asicDCreateLag(a *LaAggregator) (hwAggId int32) {
 	hwAggId, _ = asicdclnt.ClientHdl.CreateLag(asicDHashModeGet(a.LagHash),
 		asicDPortBmpFormatGet(a.DistributedPortNumList))
-	fmt.Printf("asicDCreateLag : id %d hash %d hwhash %d portList %s\n", hwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
+	a.LacpDebug.logger.Info(fmt.Sprintf("asicDCreateLag : id %d hash %d hwhash %d portList %s\n", hwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList)))
 	return hwAggId
 }
 
@@ -124,5 +125,22 @@ func asicDUpdateLag(a *LaAggregator) {
 	asicdclnt.ClientHdl.UpdateLag(a.HwAggId,
 		asicDHashModeGet(a.LagHash),
 		asicDPortBmpFormatGet(a.DistributedPortNumList))
-	fmt.Printf("asicDUpdateLag : id %d hash %d hwhash %d portList %s\n", a.HwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
+	a.LacpDebug.logger.Info(fmt.Sprintf("asicDUpdateLag : id %d hash %d hwhash %d portList %s\n", a.HwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList)))
+}
+
+func asicdGetPortLinkStatus(intfNum string) bool {
+	/*
+		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(1, 100)
+		if err == nil && bulkInfo.ObjCount != 0 {
+			objCount := int64(bulkInfo.ObjCount)
+			for i := int64(0); i < objCount; i++ {
+				if bulkInfo.PortConfigList[i].Name == intfNum {
+					return bulkInfo.PortConfigList[i].OperState == pluginCommon.UpDownState[1]
+				}
+			}
+		}
+		fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
+	*/
+	return true
+
 }
