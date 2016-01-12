@@ -33,26 +33,6 @@ type ClientJson struct {
 
 var asicdclnt AsicdClient
 
-//
-// This method gets Thrift related IPC handles.
-// TODO move this method to different file name
-/*func CreateIPCHandles(address string) (thrift.TTransport, *thrift.TBinaryProtocolFactory) {
-	var transportFactory thrift.TTransportFactory
-	var transport thrift.TTransport
-	var protocolFactory *thrift.TBinaryProtocolFactory
-	var err error
-
-	protocolFactory = thrift.NewTBinaryProtocolFactoryDefault()
-	transportFactory = thrift.NewTTransportFactory()
-	transport, err = thrift.NewTSocket(address)
-	transport = transportFactory.GetTransport(transport)
-	if err = transport.Open(); err != nil {
-		fmt.Println("Failed to Open Transport", transport, protocolFactory)
-		return nil, nil
-	}
-	return transport, protocolFactory
-}*/
-
 // look up the various other daemons based on c string
 func GetClientPort(paramsFile string, c string) int {
 	var clientsList []ClientJson
