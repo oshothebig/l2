@@ -183,14 +183,15 @@ type AggPortDebugInformationObject struct {
 	AggPortDebugPartnerChurnState          int
 	AggPortDebugActorChurnCount            int
 	AggPortDebugPartnerChurnCount          int
-	AggPortDebugActorySyncTransitionCount  int
+	AggPortDebugActorSyncTransitionCount   int
 	AggPortDebugPartnerSyncTransitionCount int
-	AggPortDebugActorChangeCount           int
-	AggPortDebugPartnerChangeCount         int
-	AggPortDebugActorCDSChurnState         int
-	AggPortDebugPartnerCDSChurnState       int
-	AggPortDebugActorCDSChurnCount         int
-	AggPortDebugPartnerCDSChurnCount       int
+	// TODO
+	AggPortDebugActorChangeCount     int
+	AggPortDebugPartnerChangeCount   int
+	AggPortDebugActorCDSChurnState   int
+	AggPortDebugPartnerCDSChurnState int
+	AggPortDebugActorCDSChurnCount   int
+	AggPortDebugPartnerCDSChurnCount int
 }
 
 // 802.1ax Section 6.4.7
@@ -253,6 +254,9 @@ type LaAggPort struct {
 
 	// Counters
 	Counters LacpCounters
+
+	// GET
+	AggPortDebug AggPortDebugInformationObject
 
 	// will serialize State transition logging per port
 	LacpDebug *LacpDebug
@@ -593,7 +597,7 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		// Periodic Tx Machine
 		p.LacpPtxMachineMain()
 		// Churn Detection Machine
-		p.LacpCdMachineMain()
+		p.LacpActorCdMachineMain()
 		// Rx Machine
 		p.LacpRxMachineMain()
 		// Tx Machine

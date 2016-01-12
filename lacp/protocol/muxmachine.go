@@ -30,6 +30,7 @@ const (
 )
 
 var MuxmStateStrMap map[fsm.State]string
+var MuxmEventStrMap map[int]string
 
 func MuxxMachineStrStateMapCreate() {
 
@@ -45,6 +46,17 @@ func MuxxMachineStrStateMapCreate() {
 	MuxmStateStrMap[LacpMuxmStateCWaiting] = "CWaiting"
 	MuxmStateStrMap[LacpMuxmStateCAttached] = "CAttached"
 	MuxmStateStrMap[LacpMuxStateCCollectingDistributing] = "CCollectingDistributing"
+
+	MuxmEventStrMap[LacpMuxmEventBegin] = "Begin"
+	MuxmEventStrMap[LacpMuxmEventSelectedEqualSelected] = "Event AggSelected equals Selected"
+	MuxmEventStrMap[LacpMuxmEventSelectedEqualStandby] = "Event AggSlected equals Standby"
+	MuxmEventStrMap[LacpMuxmEventSelectedEqualUnselected] = "Event AggSelected equals Unselected"
+	MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedAndReady] = "Event AggSelected equals Selected and Agg is Ready"
+	MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedAndPartnerSync] = "Event Selected equals Selected and Partner Oper Sync state set"
+	MuxmEventStrMap[LacpMuxmEventNotPartnerSync] = "Event Partner Oper Sync state is NOT set"
+	MuxmEventStrMap[LacpMuxmEventNotPartnerCollecting] = "Event Partner Oper Collecting state is not set"
+	MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting] = "Event Selected equals Selected and Partern Oper Sync state is set"
+
 }
 
 const (
@@ -86,6 +98,8 @@ type LacpMuxMachine struct {
 	MuxmEvents          chan LacpMachineEvent
 	MuxmKillSignalEvent chan bool
 	MuxmLogEnableEvent  chan bool
+
+	actorSyncTransitionTimestamp time.Time
 }
 
 func (muxm *LacpMuxMachine) Stop() {
@@ -224,6 +238,15 @@ func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fs
 	// Actor Oper State Sync = TRUE
 	//muxm.LacpMuxmLog("Setting Actor Sync Bit")
 	LacpStateSet(&p.ActorOper.State, LacpStateSyncBit)
+
+	// debug
+	if p.AggPortDebug.AggPortDebugActorSyncTransitionCount == 0 {
+		muxm.actorSyncTransitionTimestamp = time.Now()
+		p.AggPortDebug.AggPortDebugActorSyncTransitionCount++
+	} else if time.Now().Second()-muxm.actorSyncTransitionTimestamp.Second() > 5 {
+		p.AggPortDebug.AggPortDebugActorSyncTransitionCount++
+		muxm.actorSyncTransitionTimestamp = time.Now()
+	}
 
 	// Actor Oper State Collecting = FALSE
 	//muxm.LacpMuxmLog("Clearing Actor Collecting Bit")
@@ -444,6 +467,8 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 		m.LacpMuxmLog("Machine Start")
 		defer m.p.wg.Done()
 		for {
+			// save the current machine state
+			p.AggPortDebug.AggPortDebugMuxState = int(m.Machine.Curr.CurrentState())
 			select {
 			case <-m.MuxmKillSignalEvent:
 				m.LacpMuxmLog("Machine End")
@@ -470,6 +495,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 					}
 				*/
 				//m.LacpMuxmLog(fmt.Sprintf("Event received %d src %s", event.e, event.src))
+				eventStr := strings.Join([]string{MuxmEventStrMap[int(event.e)], "from", event.src}, " ")
 
 				// process the event
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
@@ -489,6 +515,9 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 							//muxm.LacpMuxmLog("Setting Actor Aggregation Bit")
 							LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
 
+							eventStr = strings.Join([]string{eventStr,
+								"and ", MuxmEventStrMap[LacpMuxmEventSelectedEqualSelected], "from ", MuxMachineModuleStr}, " ")
+
 							m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelected, nil)
 							event.e = LacpMuxmEventSelectedEqualSelected
 						}
@@ -505,12 +534,19 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 						m.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
 						p.aggSelected == LacpAggSelected &&
 						LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
+
+						eventStr = strings.Join([]string{eventStr,
+							"and ", MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedAndPartnerSync], "from ", MuxMachineModuleStr}, " ")
+
 						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedAndPartnerSync, nil)
 					}
 					if m.Machine.Curr.CurrentState() == LacpMuxmStateCollecting &&
 						p.aggSelected == LacpAggSelected &&
 						LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) &&
 						LacpStateIsSet(p.PartnerOper.State, LacpStateCollectingBit) {
+
+						eventStr = strings.Join([]string{eventStr,
+							"and ", MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting], "from ", MuxMachineModuleStr}, " ")
 						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting, nil)
 					}
 					if event.e == LacpMuxmEventSelectedEqualUnselected &&
@@ -522,11 +558,20 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 						if m.Machine.Curr.CurrentState() > LacpMuxmStateDistributing {
 							endState = LacpMuxmStateCDetached
 						}
+						eventStr = strings.Join([]string{eventStr,
+							"and ", MuxmEventStrMap[LacpMuxmEventSelectedEqualUnselected], "from ", MuxMachineModuleStr}, " ")
+
 						for ; State > endState; State-- {
+
 							m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualUnselected, nil)
 						}
 					}
 				}
+
+				if len(eventStr) > 255 {
+					fmt.Println("WARNING string to long for MuxReason", eventStr)
+				}
+				p.AggPortDebug.AggPortDebugMuxReason = eventStr
 
 				if event.responseChan != nil {
 					//m.LacpMuxmLog("Sending response")

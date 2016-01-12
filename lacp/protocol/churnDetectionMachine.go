@@ -57,9 +57,10 @@ type LacpCdMachine struct {
 	partnerChurnTimer *time.Timer
 
 	// machine specific events
-	CdmEvents          chan LacpMachineEvent
-	CdmKillSignalEvent chan bool
-	CdmLogEnableEvent  chan bool
+	CdmEvents           chan LacpMachineEvent
+	CdmKillSignalEvent  chan bool
+	CdmLogEnableEvent   chan bool
+	churnCountTimestamp time.Time
 }
 
 func (cdm *LacpCdMachine) Stop() {
@@ -125,6 +126,13 @@ func (cdm *LacpCdMachine) LacpCdMachineNoActorChurn(m fsm.Machine, data interfac
 func (cdm *LacpCdMachine) LacpCdMachineActorChurn(m fsm.Machine, data interface{}) fsm.State {
 	p := cdm.p
 	p.actorChurn = true
+	if p.AggPortDebug.AggPortDebugActorChurnCount == 0 {
+		cdm.churnCountTimestamp = time.Now()
+		p.AggPortDebug.AggPortDebugActorChurnCount++
+	} else if time.Now().Second()-cdm.churnCountTimestamp.Second() > 5 {
+		p.AggPortDebug.AggPortDebugActorChurnCount++
+		cdm.churnCountTimestamp = time.Now()
+	}
 	return LacpCdmStateActorChurn
 }
 
@@ -175,10 +183,10 @@ func LacpCdMachineFSMBuild(p *LaAggPort) *LacpCdMachine {
 	return cdm
 }
 
-// LacpCdMachineMain:  802.1ax-2014 Figure 6.23
-// Creation of Rx State Machine State transitions and callbacks
+// LacpActorCdMachineMain:  802.1ax-2014
+// Creation of Actor Churn Detection State Machine State transitions and callbacks
 // and create go routine to pend on events
-func (p *LaAggPort) LacpCdMachineMain() {
+func (p *LaAggPort) LacpActorCdMachineMain() {
 
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
@@ -193,6 +201,7 @@ func (p *LaAggPort) LacpCdMachineMain() {
 		m.LacpCdmLog("Machine Start")
 		defer m.p.wg.Done()
 		for {
+			m.p.AggPortDebug.AggPortDebugActorCDSChurnState = int(m.Machine.Curr.CurrentState())
 			select {
 			case <-m.CdmKillSignalEvent:
 				m.LacpCdmLog("Machine End")

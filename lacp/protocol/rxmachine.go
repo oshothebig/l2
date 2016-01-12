@@ -446,6 +446,8 @@ func (p *LaAggPort) LacpRxMachineMain() {
 		m.LacpRxmLog("Machine Start")
 		defer m.p.wg.Done()
 		for {
+			// lets set the current state
+			m.p.AggPortDebug.AggPortDebugRxState = int(m.Machine.Curr.CurrentState())
 			select {
 			case <-m.RxmKillSignalEvent:
 				m.LacpRxmLog("Machine End")
@@ -497,6 +499,9 @@ func (p *LaAggPort) LacpRxMachineMain() {
 				//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.PortNum, rx.src))
 				// lets check if the port has moved
 				p.Counters.LacpInPkts += 1
+
+				// centisecond
+				p.AggPortDebug.AggPortDebugLastRxTime = (time.Now().Nanosecond() - LacpStartTime.Nanosecond()) / 10
 
 				if m.CheckPortMoved(&p.PartnerOper, &(rx.pdu.Actor.Info)) {
 					m.LacpRxmLog("port moved")
