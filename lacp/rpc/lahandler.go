@@ -9,7 +9,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	lacp "l2/lacp/protocol"
 	"lacpd"
-	"models"
 	"net"
 	"reflect"
 	"strconv"
@@ -130,6 +129,17 @@ func ConvertLaAggIntervalToLacpPeriod(interval time.Duration) int32 {
 		period = 0
 	}
 	return period
+}
+
+func ConvertSqlBooleanToBool(sqlbool string) bool {
+	if sqlbool == "true" {
+		return true
+	} else if sqlbool == "True" {
+		return true
+	} else if sqlbool == "1" {
+		return true
+	}
+	return false
 }
 
 var gAggKeyMap map[string]uint16
@@ -254,6 +264,61 @@ func (la LACPDServiceHandler) CreateAggregationLacpConfig(config *lacpd.Aggregat
 	return true, nil
 }
 
+func (la *LACPDServiceHandler) HandleDbReadAggregationLacpConfig(dbHdl *sql.DB) error {
+	dbCmd := "select * from AggregationLacpConfig"
+	rows, err := dbHdl.Query(dbCmd)
+	if err != nil {
+		fmt.Println(fmt.Sprintf("DB method Query failed for 'AggregationLacpConfig' with error AggregationLacpConfig", dbCmd, err))
+		return err
+	}
+
+	defer rows.Close()
+
+	var tmp1 string
+	for rows.Next() {
+
+		object := new(lacpd.AggregationLacpConfig)
+		if err = rows.Scan(&object.LagType, &tmp1, &object.Description, &object.Mtu, &object.Type, &object.MinLinks, &object.NameKey, &object.Interval, &object.LacpMode, &object.SystemIdMac, &object.SystemPriority, &object.LagHash); err != nil {
+
+			fmt.Println("Db method Scan failed when interating over AggregationLacpConfig")
+		}
+		object.Enabled = ConvertSqlBooleanToBool(tmp1)
+		_, err = la.CreateAggregationLacpConfig(object)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (la *LACPDServiceHandler) HandleDbReadEthernetConfig(dbHdl *sql.DB) error {
+	dbCmd := "select * from EthernetConfig"
+	rows, err := dbHdl.Query(dbCmd)
+	if err != nil {
+		fmt.Println(fmt.Sprintf("DB method Query failed for 'EthernetConfig' with error EthernetConfig", dbCmd, err))
+		return err
+	}
+
+	defer rows.Close()
+
+	var tmp1 string
+	var tmp7 string
+	var tmp9 string
+	for rows.Next() {
+
+		object := new(lacpd.EthernetConfig)
+		if err = rows.Scan(&object.NameKey, &tmp1, &object.Description, &object.Mtu, &object.Type, &object.MacAddress, &object.DuplexMode, &tmp7, &object.Speed, &tmp9, &object.AggregateId); err != nil {
+
+			fmt.Println("Db method Scan failed when interating over EthernetConfig")
+		}
+		object.Enabled = ConvertSqlBooleanToBool(tmp1)
+		object.Auto = ConvertSqlBooleanToBool(tmp7)
+		object.EnableFlowControl = ConvertSqlBooleanToBool(tmp9)
+		la.CreateEthernetConfig(object)
+	}
+	return nil
+}
+
 func (la *LACPDServiceHandler) ReadConfigFromDB(filePath string) error {
 	var dbPath string = filePath + DBName
 
@@ -266,36 +331,14 @@ func (la *LACPDServiceHandler) ReadConfigFromDB(filePath string) error {
 
 	defer dbHdl.Close()
 
-	dbObj := new(models.AggregationLacpConfig)
-	aggObjList, err2 := dbObj.GetAllObjFromDb(dbHdl)
-	if err2 == nil {
-		for _, aggObj := range aggObjList {
-			aggthriftobj := new(lacpd.AggregationLacpConfig)
-			models.ConvertlacpdAggregationLacpConfigObjToThrift(aggObj, aggthriftobj)
-			_, err = la.CreateAggregationLacpConfig(aggthriftobj)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
+	if err := la.HandleDbReadAggregationLacpConfig(dbHdl); err != nil {
 		fmt.Println("Error getting All AggregationLacpConfig objects")
-		return err2
+		return err
 	}
 
-	dbObj2 := new(models.EthernetConfig)
-	portObjList, err3 := dbObj2.GetAllObjFromDb(dbHdl)
-	if err3 == nil {
-		for _, portObj := range portObjList {
-			portthriftobj := new(lacpd.EthernetConfig)
-			models.ConvertlacpdEthernetConfigObjToThrift(portObj, portthriftobj)
-			_, err = la.CreateEthernetConfig(portthriftobj)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
+	if err = la.HandleDbReadEthernetConfig(dbHdl); err != nil {
 		fmt.Println("Error getting All AggregationLacpConfig objects")
-		return err3
+		return err
 	}
 
 	return nil

@@ -3,9 +3,9 @@ package lacp
 
 import (
 	//"fmt"
-	"strings"
-	//"time"
 	"log/syslog"
+	"strings"
+	"time"
 )
 
 type LacpDebug struct {
@@ -69,35 +69,35 @@ func (a *LaAggregator) LacpDebugAggEventLogMain() {
 }
 
 func (a *LaAggregator) LacpAggLog(msg string) {
-	a.log <- strings.Join([]string{"AGG", msg}, ":")
+	a.log <- strings.Join([]string{"AGG", time.Now().String(), msg}, ":")
 }
 
 func (txm *LacpTxMachine) LacpTxmLog(msg string) {
 	if txm.Machine.Curr.IsLoggerEna() {
-		txm.log <- strings.Join([]string{"TXM", msg}, ":")
+		txm.log <- strings.Join([]string{"TXM", time.Now().String(), msg}, ":")
 	}
 }
 
 func (cdm *LacpCdMachine) LacpCdmLog(msg string) {
 	if cdm.Machine.Curr.IsLoggerEna() {
-		cdm.log <- strings.Join([]string{"CDM", msg}, ":")
+		cdm.log <- strings.Join([]string{"CDM", time.Now().String(), msg}, ":")
 	}
 }
 
 func (ptxm *LacpPtxMachine) LacpPtxmLog(msg string) {
 	if ptxm.Machine.Curr.IsLoggerEna() {
-		ptxm.log <- strings.Join([]string{"PTXM", msg}, ":")
+		ptxm.log <- strings.Join([]string{"PTXM", time.Now().String(), msg}, ":")
 	}
 }
 
 func (rxm *LacpRxMachine) LacpRxmLog(msg string) {
 	if rxm.Machine.Curr.IsLoggerEna() {
-		rxm.log <- strings.Join([]string{"RXM", msg}, ":")
+		rxm.log <- strings.Join([]string{"RXM", time.Now().String(), msg}, ":")
 	}
 }
 
 func (muxm *LacpMuxMachine) LacpMuxmLog(msg string) {
 	if muxm.Machine.Curr.IsLoggerEna() {
-		muxm.log <- strings.Join([]string{"MUXM", msg}, ":")
+		muxm.log <- strings.Join([]string{"MUXM", time.Now().String(), msg}, ":")
 	}
 }

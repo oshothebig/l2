@@ -1,11 +1,13 @@
 COMPS=lacp
+BUILD_DIR=out/bin
+DESTDIR=$(SR_CODE_BASE)/snaproute/src/$(BUILD_DIR)
 
 IPCS=lacp
 
 all: ipc exe install 
 
 exe: $(COMPS)
-	 $(foreach f,$^, make -C $(f) exe;)
+	 $(foreach f,$^, make -C $(f) exe DESTDIR=$(DESTDIR)/$(EXE_DIR) GOLDFLAGS="-r /opt/flexswitch/sharedlib";)
 
 ipc: $(IPCS)
 	 $(foreach f,$^, make -C $(f) ipc;)
