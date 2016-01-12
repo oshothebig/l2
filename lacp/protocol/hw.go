@@ -3,7 +3,7 @@ package lacp
 
 import (
 	hwconst "asicd/asicdConstDefs"
-	//"asicd/pluginManager/pluginCommon"
+	"asicd/pluginManager/pluginCommon"
 	"asicdServices"
 	"encoding/json"
 	"fmt"
@@ -32,6 +32,26 @@ type ClientJson struct {
 }
 
 var asicdclnt AsicdClient
+
+//
+// This method gets Thrift related IPC handles.
+// TODO move this method to different file name
+/*func CreateIPCHandles(address string) (thrift.TTransport, *thrift.TBinaryProtocolFactory) {
+	var transportFactory thrift.TTransportFactory
+	var transport thrift.TTransport
+	var protocolFactory *thrift.TBinaryProtocolFactory
+	var err error
+
+	protocolFactory = thrift.NewTBinaryProtocolFactoryDefault()
+	transportFactory = thrift.NewTTransportFactory()
+	transport, err = thrift.NewTSocket(address)
+	transport = transportFactory.GetTransport(transport)
+	if err = transport.Open(); err != nil {
+		fmt.Println("Failed to Open Transport", transport, protocolFactory)
+		return nil, nil
+	}
+	return transport, protocolFactory
+}*/
 
 // look up the various other daemons based on c string
 func GetClientPort(paramsFile string, c string) int {
@@ -129,18 +149,17 @@ func asicDUpdateLag(a *LaAggregator) {
 }
 
 func asicdGetPortLinkStatus(intfNum string) bool {
-	/*
-		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(1, 100)
-		if err == nil && bulkInfo.ObjCount != 0 {
-			objCount := int64(bulkInfo.ObjCount)
-			for i := int64(0); i < objCount; i++ {
-				if bulkInfo.PortConfigList[i].Name == intfNum {
-					return bulkInfo.PortConfigList[i].OperState == pluginCommon.UpDownState[1]
-				}
+
+	bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(1, 100)
+	if err == nil && bulkInfo.ObjCount != 0 {
+		objCount := int64(bulkInfo.ObjCount)
+		for i := int64(0); i < objCount; i++ {
+			if bulkInfo.PortConfigList[i].Name == intfNum {
+				return bulkInfo.PortConfigList[i].OperState == pluginCommon.UpDownState[1]
 			}
 		}
-		fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
-	*/
+	}
+	fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
 	return true
 
 }
