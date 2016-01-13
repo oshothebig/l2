@@ -130,7 +130,7 @@ func asicDUpdateLag(a *LaAggregator) {
 
 func asicdGetPortLinkStatus(intfNum string) bool {
 
-	bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(1, 100)
+	bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(0, 100)
 	if err == nil && bulkInfo.ObjCount != 0 {
 		objCount := int64(bulkInfo.ObjCount)
 		for i := int64(0); i < objCount; i++ {

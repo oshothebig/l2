@@ -22,6 +22,7 @@ type LACPDServiceHandler struct {
 }
 
 func NewLACPDServiceHandler() *LACPDServiceHandler {
+	lacp.LacpStartTime = time.Now()
 	// link up/down events for now
 	startEvtHandler()
 	return &LACPDServiceHandler{}
@@ -140,6 +141,56 @@ func ConvertSqlBooleanToBool(sqlbool string) bool {
 		return true
 	}
 	return false
+}
+
+func ConvertRxMachineStateToYangState(state int) int32 {
+	var yangstate int32
+	switch state {
+	case lacp.LacpRxmStateInitialize:
+		yangstate = 3
+		break
+	case lacp.LacpRxmStatePortDisabled:
+		yangstate = 5
+		break
+	case lacp.LacpRxmStateExpired:
+		yangstate = 1
+		break
+	case lacp.LacpRxmStateLacpDisabled:
+		yangstate = 4
+		break
+	case lacp.LacpRxmStateDefaulted:
+		yangstate = 2
+		break
+	case lacp.LacpRxmStateCurrent:
+		yangstate = 0
+		break
+	}
+	return yangstate
+}
+
+func ConvertMuxMachineStateToYangState(state int) int32 {
+	var yangstate int32
+	switch state {
+	case lacp.LacpMuxmStateDetached, lacp.LacpMuxmStateCDetached:
+		yangstate = 0
+		break
+	case lacp.LacpMuxmStateWaiting, lacp.LacpMuxmStateCWaiting:
+		yangstate = 1
+		break
+	case lacp.LacpMuxmStateAttached, lacp.LacpMuxmStateCAttached:
+		yangstate = 2
+		break
+	case lacp.LacpMuxmStateCollecting:
+		yangstate = 3
+		break
+	case lacp.LacpMuxmStateDistributing:
+		yangstate = 4
+		break
+	case lacp.LacpMuxStateCCollectingDistributing:
+		yangstate = 5
+		break
+	}
+	return yangstate
 }
 
 var gAggKeyMap map[string]uint16
@@ -855,6 +906,25 @@ func (la LACPDServiceHandler) GetBulkAggregationLacpMemberStateCounters(fromInde
 			nextLagMemberState.LacpTxErrors = int64(p.Counters.LacpTxErrors)
 			nextLagMemberState.LacpUnknownErrors = int64(p.Counters.LacpUnknownErrors)
 			nextLagMemberState.LacpErrors = int64(p.Counters.LacpErrors)
+
+			// debug
+			nextLagMemberState.DebugId = int32(p.AggPortDebug.AggPortDebugInformationID)
+			nextLagMemberState.RxMachine = ConvertRxMachineStateToYangState(p.AggPortDebug.AggPortDebugRxState)
+			nextLagMemberState.RxTime = int32(p.AggPortDebug.AggPortDebugLastRxTime)
+			nextLagMemberState.MuxMachine = ConvertMuxMachineStateToYangState(p.AggPortDebug.AggPortDebugMuxState)
+			nextLagMemberState.MuxReason = string(p.AggPortDebug.AggPortDebugMuxReason)
+			nextLagMemberState.ActorChurnMachine = int32(p.AggPortDebug.AggPortDebugActorChurnState)
+			nextLagMemberState.PartnerChurnMachine = int32(p.AggPortDebug.AggPortDebugPartnerChurnState)
+			nextLagMemberState.ActorChurnCount = int64(p.AggPortDebug.AggPortDebugActorChurnCount)
+			nextLagMemberState.PartnerChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerChurnCount)
+			nextLagMemberState.ActorSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugActorSyncTransitionCount)
+			nextLagMemberState.PartnerSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugPartnerSyncTransitionCount)
+			nextLagMemberState.ActorChangeCount = int64(p.AggPortDebug.AggPortDebugActorChangeCount)
+			nextLagMemberState.PartnerChangeCount = int64(p.AggPortDebug.AggPortDebugPartnerChangeCount)
+			nextLagMemberState.ActorCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugActorCDSChurnState)
+			nextLagMemberState.PartnerCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugPartnerCDSChurnState)
+			nextLagMemberState.ActorCdsChurnCount = int64(p.AggPortDebug.AggPortDebugActorCDSChurnCount)
+			nextLagMemberState.PartnerCdsChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerCDSChurnCount)
 
 			if len(returnLagMemberStates) == 0 {
 				returnLagMemberStates = make([]*lacpd.AggregationLacpMemberStateCounters, 0)

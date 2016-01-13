@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"net"
 	//"github.com/google/gopacket/layers"
+	"time"
 )
+
+var LacpStartTime time.Time
 
 type TxCallback func(port uint16, data interface{})
 
