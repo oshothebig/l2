@@ -159,7 +159,6 @@ type AggInternalData struct {
 type AggPortStatsObject struct {
 	AggPortStatsID                   uint64
 	AggPortStatsLACPDUsRx            uint64
-	AggPortStatsPDUsRx               uint64
 	AggPortStatsMarkerPDUsRx         uint64
 	AggPortStatsMarkerResponsePDUsRx uint64
 	AggPortStatsUnknownRx            uint64
@@ -246,14 +245,15 @@ type LaAggPort struct {
 	PartnerOper  LacpPortInfo
 
 	// State machines
-	RxMachineFsm  *LacpRxMachine
-	PtxMachineFsm *LacpPtxMachine
-	TxMachineFsm  *LacpTxMachine
-	CdMachineFsm  *LacpCdMachine
-	MuxMachineFsm *LacpMuxMachine
+	RxMachineFsm       *LacpRxMachine
+	PtxMachineFsm      *LacpPtxMachine
+	TxMachineFsm       *LacpTxMachine
+	CdMachineFsm       *LacpCdMachine
+	MuxMachineFsm      *LacpMuxMachine
+	MarkerResponderFsm *LampMarkerResponderMachine
 
 	// Counters
-	Counters LacpCounters
+	LacpCounter AggPortStatsObject
 
 	// GET
 	AggPortDebug AggPortDebugInformationObject
@@ -394,8 +394,9 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 			Speed:  config.Properties.Speed,
 			Duplex: config.Properties.Duplex,
 			Mtu:    config.Properties.Mtu},
-		logEna:   true,
-		portChan: make(chan string)}
+		logEna:       true,
+		portChan:     make(chan string),
+		AggPortDebug: AggPortDebugInformationObject{AggPortDebugInformationID: int(config.Id)}}
 
 	// Start Port Logger
 	p.LacpDebugEventLogMain()
@@ -602,6 +603,8 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		p.LacpRxMachineMain()
 		// Tx Machine
 		p.LacpTxMachineMain()
+		// Marker Responder
+		p.LampMarkerResponderMain()
 	}
 	// Rxm
 	mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
@@ -622,6 +625,10 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	// Txm
 	mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
 	evt = append(evt, LacpMachineEvent{e: LacpTxmEventBegin,
+		src: PortConfigModuleStr})
+	// Marker Responder
+	mEvtChan = append(mEvtChan, p.MarkerResponderFsm.LampMarkerResponderEvents)
+	evt = append(evt, LacpMachineEvent{e: LampMarkerResponderEventBegin,
 		src: PortConfigModuleStr})
 
 	// call the begin event for each

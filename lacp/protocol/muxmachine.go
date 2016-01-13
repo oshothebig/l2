@@ -496,7 +496,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 					}
 				*/
 				//m.LacpMuxmLog(fmt.Sprintf("Event received %d src %s", event.e, event.src))
-				eventStr := strings.Join([]string{MuxmEventStrMap[int(event.e)], "from", event.src}, " ")
+				eventStr := strings.Join([]string{"from", event.src, MuxmEventStrMap[int(event.e)]}, " ")
 
 				// process the event
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
@@ -517,7 +517,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 							LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
 
 							eventStr = strings.Join([]string{eventStr,
-								"and ", MuxmEventStrMap[LacpMuxmEventSelectedEqualSelected], "from ", MuxMachineModuleStr}, " ")
+								"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelected]}, " ")
 
 							m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelected, nil)
 							event.e = LacpMuxmEventSelectedEqualSelected
@@ -537,7 +537,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 						LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
 
 						eventStr = strings.Join([]string{eventStr,
-							"and ", MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedAndPartnerSync], "from ", MuxMachineModuleStr}, " ")
+							"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedAndPartnerSync]}, " ")
 
 						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedAndPartnerSync, nil)
 					}
@@ -547,7 +547,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 						LacpStateIsSet(p.PartnerOper.State, LacpStateCollectingBit) {
 
 						eventStr = strings.Join([]string{eventStr,
-							"and ", MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting], "from ", MuxMachineModuleStr}, " ")
+							"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting]}, " ")
 						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting, nil)
 					}
 					if event.e == LacpMuxmEventSelectedEqualUnselected &&
@@ -560,7 +560,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 							endState = LacpMuxmStateCDetached
 						}
 						eventStr = strings.Join([]string{eventStr,
-							"and ", MuxmEventStrMap[LacpMuxmEventSelectedEqualUnselected], "from ", MuxMachineModuleStr}, " ")
+							"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualUnselected]}, " ")
 
 						for ; State > endState; State-- {
 
