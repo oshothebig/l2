@@ -56,7 +56,7 @@ func MuxxMachineStrStateMapCreate() {
 	MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedAndPartnerSync] = "Event Selected equals Selected and Partner Oper Sync state set"
 	MuxmEventStrMap[LacpMuxmEventNotPartnerSync] = "Event Partner Oper Sync state is NOT set"
 	MuxmEventStrMap[LacpMuxmEventNotPartnerCollecting] = "Event Partner Oper Collecting state is not set"
-	MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting] = "Event Selected equals Selected and Partern Oper Sync state is set"
+	MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting] = "Event Selected equals Selected and Partner Oper Sync and Collecting state is set"
 
 }
 
