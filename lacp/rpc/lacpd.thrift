@@ -57,14 +57,14 @@ struct AggregationLacpMemberStateCounters{
 	5 : string 	PartnerId
 	6 : bool 	Aggregatable
 	7 : i64 	PartnerCdsChurnCount
-	8 : i32 	LagHash
+	8 : i32 	LacpMode
 	9 : i16 	PartnerKey
-	10 : i32 	RxMachine
+	10 : bool 	Distributing
 	11 : i64 	ActorSyncTransitionCount
 	12 : string 	SystemId
 	13 : i64 	ActorChangeCount
-	14 : i32 	LacpMode
-	15 : bool 	Distributing
+	14 : i32 	LagHash
+	15 : i32 	RxMachine
 	16 : i32 	MuxMachine
 	17 : i64 	ActorCdsChurnCount
 	18 : i64 	PartnerSyncTransitionCount
@@ -96,6 +96,10 @@ struct AggregationLacpMemberStateCounters{
 	44 : i64 	LacpTxErrors
 	45 : i64 	LacpUnknownErrors
 	46 : i64 	LacpErrors
+	47 : i64 	LampInPdu
+	48 : i64 	LampInResponsePdu
+	49 : i64 	LampOutPdu
+	50 : i64 	LampOutResponsePdu
 }
 struct AggregationLacpMemberStateCountersGetInfo {
 	1: int StartIdx

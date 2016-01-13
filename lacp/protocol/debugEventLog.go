@@ -101,3 +101,9 @@ func (muxm *LacpMuxMachine) LacpMuxmLog(msg string) {
 		muxm.log <- strings.Join([]string{"MUXM", time.Now().String(), msg}, ":")
 	}
 }
+
+func (mr *LampMarkerResponderMachine) LampMarkerResponderLog(msg string) {
+	if mr.Machine.Curr.IsLoggerEna() {
+		mr.log <- strings.Join([]string{"MARKER RESPONDER", time.Now().String(), msg}, ":")
+	}
+}

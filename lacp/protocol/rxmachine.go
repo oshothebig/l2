@@ -498,7 +498,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 			case rx := <-m.RxmPktRxEvent:
 				//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.PortNum, rx.src))
 				// lets check if the port has moved
-				p.Counters.LacpInPkts += 1
+				p.LacpCounter.AggPortStatsLACPDUsRx += 1
 
 				// centisecond
 				p.AggPortDebug.AggPortDebugLastRxTime = (time.Now().Nanosecond() - LacpStartTime.Nanosecond()) / 10

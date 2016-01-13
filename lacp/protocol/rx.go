@@ -33,7 +33,7 @@ func LaRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 					//fmt.Println("RxMain: port", rxMainPort)
 					//fmt.Println("RX:", packet)
 
-					if marker, lacp := IsControlFrame(packet); lacp || marker {
+					if marker, lacp := IsControlFrame(rxMainPort, packet); lacp || marker {
 						//fmt.Println("IsControl Frame ", marker, lacp)
 						if lacp {
 							lacpLayer := packet.Layer(layers.LayerTypeLACP)
@@ -45,6 +45,17 @@ func LaRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 								lacp := lacpLayer.(*layers.LACP)
 
 								ProcessLacpFrame(rxMainPort, lacp)
+							}
+						} else if marker {
+							lampLayer := packet.Layer(layers.LayerTypeLAMP)
+							if lampLayer == nil {
+								fmt.Println("Received non LAMP frame", packet)
+							} else {
+
+								// lamp data
+								lamp := lampLayer.(*layers.LAMP)
+
+								ProcessLampFrame(rxMainPort, lamp)
 							}
 						} else {
 							fmt.Println("Discard Packet not an lacp frame")
@@ -65,28 +76,56 @@ func LaRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 	}(pId, rxPktChan)
 }
 
-func IsControlFrame(packet gopacket.Packet) (bool, bool) {
+func IsControlFrame(pId uint16, packet gopacket.Packet) (bool, bool) {
+	var p *LaAggPort
+
 	lacp := false
 	marker := false
 	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
 	slowProtocolLayer := packet.Layer(layers.LayerTypeSlowProtocol)
-	if ethernetLayer == nil || slowProtocolLayer == nil {
+	if ethernetLayer == nil {
 		return false, false
 	}
 
 	ethernet := ethernetLayer.(*layers.Ethernet)
-	slow := slowProtocolLayer.(*layers.SlowProtocol)
 	slowProtocolMAC := net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x02}
+	isSlowProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, slowProtocolMAC)
+	isSlowProtocolEtherType := ethernet.EthernetType == layers.EthernetTypeSlowProtocol
 
-	if reflect.DeepEqual(ethernet.DstMAC, slowProtocolMAC) &&
-		ethernet.EthernetType == layers.EthernetTypeSlowProtocol &&
-		slow.SubType == layers.SlowProtocolTypeLACP {
-		lacp = true
-		// only supporting marker information
-	} else if reflect.DeepEqual(ethernet.DstMAC, slowProtocolMAC) &&
-		ethernet.EthernetType == layers.EthernetTypeSlowProtocol &&
-		slow.SubType == layers.SlowProtocolTypeLAMP {
-		marker = true
+	if slowProtocolLayer != nil {
+		slow := slowProtocolLayer.(*layers.SlowProtocol)
+		if isSlowProtocolMAC &&
+			isSlowProtocolEtherType &&
+			slow.SubType == layers.SlowProtocolTypeLACP {
+			lacp = true
+			// only supporting marker information
+		} else if isSlowProtocolMAC &&
+			isSlowProtocolEtherType &&
+			slow.SubType == layers.SlowProtocolTypeLAMP {
+			marker = true
+		} else {
+			// Error cases for stats
+			if LaFindPortById(pId, &p) {
+				// 802.1ax-2014 7.3.3.1.5
+				// TODO Will need a way to know if a packet is picked up by
+				// another protocol for valid subtypes
+				// NOT handling 50 counters per second rate
+				if (!isSlowProtocolMAC &&
+					isSlowProtocolEtherType) ||
+					(isSlowProtocolMAC &&
+						!isSlowProtocolEtherType) {
+					p.LacpCounter.AggPortStatsUnknownRx += 1
+				}
+			}
+		}
+	} else {
+		if LaFindPortById(pId, &p) {
+			// 802.1ax-2014 7.3.3.1.6
+			if isSlowProtocolMAC &&
+				isSlowProtocolEtherType {
+				p.LacpCounter.AggPortStatsIllegalRx += 1
+			}
+		}
 	}
 
 	return marker, lacp
@@ -105,28 +144,19 @@ func ProcessLacpFrame(pId uint16, lacp *layers.LACP) {
 			pdu: lacp,
 			src: RxModuleStr}
 	} else {
-		fmt.Println("Unable to find port", lacp.Partner.Info.Port, lacp.Partner.Info.PortPri)
+		fmt.Println("LACP: Unable to find port", pId)
 	}
 }
 
-/*
-func ProcessLampFrame(lamppdu *layers.LAMP) {
+func ProcessLampFrame(pId uint16, lamp *layers.LAMP) {
 	var p *LaAggPort
 
-	// copying data over to an array, then cast it back
-	lamppdu := pdu.(*LaMarkerPdu)
-
-	// sanity check
-	if metadata.port != lamppdu.requestor_port &&
-		lamppdu.requestor_port != 0 {
-		fmt.Println("RX: WARNING port", metadata, "LAPort", lamppdu.requestor_port, "do not agree")
-	}
-
-	if LaFindPortById(metadata.port, &p) && p.begin {
-		// lets offload the packet to another thread
-		//p.RxMachineFsm.RxmPktRxEvent <- *lacppdu
-		// TODO send packet to marker responder
-		//fmt.Println(lamppdu)
+	if LaFindPortById(pId, &p) {
+		//fmt.Println(lacp)
+		p.MarkerResponderFsm.LampMarkerResponderPktRxEvent <- LampRxLampPdu{
+			pdu: lamp,
+			src: RxModuleStr}
+	} else {
+		fmt.Println("LAMP: Unable to find port", pId)
 	}
 }
-*/

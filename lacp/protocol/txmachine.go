@@ -193,8 +193,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 			for _, ftx := range LaSysGlobalTxCallbackListGet(p) {
 				//txm.LacpTxmLog(fmt.Sprintf("Sending Tx packet port %d pkts %d", p.PortNum, txm.txPkts))
 				ftx(p.PortNum, lacp)
-				p.Counters.LacpOutPkts += 1
-
+				p.LacpCounter.AggPortStatsLACPDUsTx += 1
 			}
 			// Version 2 consideration if enable_long_pdu_xmit and
 			// LongLACPPDUTransmit are True:
