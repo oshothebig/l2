@@ -47,7 +47,8 @@ func MuxxMachineStrStateMapCreate() {
 	MuxmStateStrMap[LacpMuxmStateCAttached] = "CAttached"
 	MuxmStateStrMap[LacpMuxStateCCollectingDistributing] = "CCollectingDistributing"
 
-	MuxmEventStrMap[LacpMuxmEventBegin] = "Begin"
+	MuxmEventStrMap = make(map[int]string)
+	MuxmEventStrMap[LacpMuxmEventBegin] = "Event Begin"
 	MuxmEventStrMap[LacpMuxmEventSelectedEqualSelected] = "Event AggSelected equals Selected"
 	MuxmEventStrMap[LacpMuxmEventSelectedEqualStandby] = "Event AggSlected equals Standby"
 	MuxmEventStrMap[LacpMuxmEventSelectedEqualUnselected] = "Event AggSelected equals Unselected"
