@@ -179,6 +179,10 @@ func (rxm *LacpRxMachine) LacpRxMachinePortDisabled(m fsm.Machine, data interfac
 	// Partner Port Oper State Sync = False
 	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
 
+	// inform partner cdm
+	p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+		src: RxMachineModuleStr}
+
 	return LacpRxmStatePortDisabled
 }
 
@@ -190,6 +194,9 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	// Partner Port Oper State Sync = FALSE
 	//rxm.LacpRxmLog("Clearing Partner Sync Bit")
 	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
+	// inform partner cdm
+	p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+		src: RxMachineModuleStr}
 
 	// Short timeout
 	//rxm.LacpRxmLog("Setting Partner Timeout Bit")
@@ -595,6 +602,9 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 			rxm.LacpRxmLog("Setting Partner Sync Bit")
 		}
 		LacpStateSet(&p.PartnerOper.State, LacpStateSyncBit)
+		// inform partner cdm
+		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
+			src: RxMachineModuleStr}
 
 	} else {
 		if LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
@@ -635,6 +645,9 @@ func (rxm *LacpRxMachine) recordDefault() {
 	LacpStateSet(&p.ActorOper.State, LacpStateDefaultedBit)
 	//rxm.LacpRxmLog("Setting Partner Sync Bit")
 	LacpStateSet(&p.PartnerOper.State, LacpStateSyncBit)
+	// inform partner cdm
+	p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
+		src: RxMachineModuleStr}
 
 	if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
 		p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&

@@ -173,6 +173,9 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 
 	// Actor Oper State Sync = FALSE
 	LacpStateClear(&p.ActorOper.State, LacpStateSyncBit)
+	// inform cdm
+	p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+		src: MuxMachineModuleStr}
 
 	// Disable Distributing
 	muxm.DisableDistributing()
@@ -239,6 +242,9 @@ func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fs
 	// Actor Oper State Sync = TRUE
 	//muxm.LacpMuxmLog("Setting Actor Sync Bit")
 	LacpStateSet(&p.ActorOper.State, LacpStateSyncBit)
+	// inform cdm
+	p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
+		src: MuxMachineModuleStr}
 
 	// debug
 	if p.AggPortDebug.AggPortDebugActorSyncTransitionCount == 0 {
@@ -313,6 +319,9 @@ func (muxm *LacpMuxMachine) LacpMuxmCDetached(m fsm.Machine, data interface{}) f
 	// Actor Oper State Sync = FALSE
 	// Actor Oper State Collecting = FALSE
 	LacpStateClear(&p.ActorOper.State, LacpStateSyncBit|LacpStateCollectingBit)
+	// inform cdm
+	p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+		src: MuxMachineModuleStr}
 
 	// Disable Collecting && Distributing
 	muxm.DisableCollectingDistributing()
@@ -344,6 +353,9 @@ func (muxm *LacpMuxMachine) LacpMuxmCAttached(m fsm.Machine, data interface{}) f
 
 	// Actor Oper State Sync = TRUE
 	LacpStateSet(&p.ActorOper.State, LacpStateSyncBit)
+	// inform cdm
+	p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
+		src: MuxMachineModuleStr}
 
 	// Actor Oper State Collecting = FALSE
 	LacpStateClear(&p.ActorOper.State, LacpStateCollectingBit)

@@ -248,7 +248,8 @@ type LaAggPort struct {
 	RxMachineFsm       *LacpRxMachine
 	PtxMachineFsm      *LacpPtxMachine
 	TxMachineFsm       *LacpTxMachine
-	CdMachineFsm       *LacpCdMachine
+	CdMachineFsm       *LacpActorCdMachine
+	PCdMachineFsm      *LacpPartnerCdMachine
 	MuxMachineFsm      *LacpMuxMachine
 	MarkerResponderFsm *LampMarkerResponderMachine
 
@@ -558,6 +559,11 @@ func (p *LaAggPort) Stop() {
 	} else {
 		p.wg.Done()
 	}
+	if p.PCdMachineFsm != nil {
+		p.PCdMachineFsm.Stop()
+	} else {
+		p.wg.Done()
+	}
 	if p.MuxMachineFsm != nil {
 		p.MuxMachineFsm.Stop()
 	} else {
@@ -599,6 +605,8 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		p.LacpPtxMachineMain()
 		// Churn Detection Machine
 		p.LacpActorCdMachineMain()
+		// Partner Churn Detection Machine
+		p.LacpPartnerCdMachineMain()
 		// Rx Machine
 		p.LacpRxMachineMain()
 		// Tx Machine
@@ -616,6 +624,10 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		src: PortConfigModuleStr})
 	// Cdm
 	mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
+	evt = append(evt, LacpMachineEvent{e: LacpCdmEventBegin,
+		src: PortConfigModuleStr})
+	// Cdm
+	mEvtChan = append(mEvtChan, p.PCdMachineFsm.CdmEvents)
 	evt = append(evt, LacpMachineEvent{e: LacpCdmEventBegin,
 		src: PortConfigModuleStr})
 	// Muxm
@@ -715,6 +727,11 @@ func (p *LaAggPort) LaAggPortDisable() {
 	evt = append(evt, LacpMachineEvent{e: LacpCdmEventNotPortEnabled,
 		src: PortConfigModuleStr})
 
+	// Partner Cdm
+	mEvtChan = append(mEvtChan, p.PCdMachineFsm.CdmEvents)
+	evt = append(evt, LacpMachineEvent{e: LacpCdmEventNotPortEnabled,
+		src: PortConfigModuleStr})
+
 	// Txm
 	mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
 	evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpDisabled,
@@ -760,6 +777,12 @@ func (p *LaAggPort) LaAggPortEnabled() {
 	if LacpStateIsSet(p.ActorOper.State, LacpStateSyncBit) {
 		mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
 		evt = append(evt, LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
+			src: PortConfigModuleStr})
+	}
+	// Partner Cdm
+	if LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
+		mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOn,
 			src: PortConfigModuleStr})
 	}
 
