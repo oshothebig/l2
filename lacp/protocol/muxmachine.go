@@ -522,7 +522,8 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 						m.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
 						// if port is attached then we know that provisioning found
 						// a valid agg thus port should be attached.
-						if p.AggAttached != nil {
+						if p.AggAttached != nil &&
+							p.PortEnabled {
 							// change the selection to be Selected
 							p.aggSelected = LacpAggSelected
 							//muxm.LacpMuxmLog("Setting Actor Aggregation Bit")

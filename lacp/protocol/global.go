@@ -32,6 +32,7 @@ type LacpSysGlobalInfo struct {
 	PartnerSystemDefaultParams LacpSystem
 	ActorStateDefaultParams    LacpPortInfo
 	PartnerStateDefaultParams  LacpPortInfo
+	SysKey                     LacpSystem
 
 	// mux machine coupling
 	// false == NOT COUPLING, true == COUPLING
@@ -92,6 +93,7 @@ func LacpSysGlobalInfoInit(sysId LacpSystem) *LacpSysGlobalInfo {
 			SystemDefaultParams:        LacpSystem{Actor_System_priority: 0x8000},
 			PartnerSystemDefaultParams: LacpSystem{Actor_System_priority: 0x0},
 			TxCallbacks:                make(map[string][]TxCallback),
+			SysKey:                     sysKey,
 		}
 
 		gLacpSysGlobalInfoList = append(gLacpSysGlobalInfoList, gLacpSysGlobalInfo[sysKey])

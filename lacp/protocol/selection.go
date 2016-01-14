@@ -228,8 +228,8 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 	if p.AggId != 0 && LaFindAggById(p.AggId, &a) {
 		if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
-			p.Key == a.actorAdminKey {
-			//p.portEnabled {
+			p.Key == a.actorAdminKey &&
+			p.PortEnabled {
 
 			p.LaPortLog("checkConfigForSelection: selected")
 
@@ -245,7 +245,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 				src: PortConfigModuleStr})
 			// inform mux that port has been selected
 			// wait for response
-			p.DistributeMachineEvents(mEvtChan, evt, false)
+			p.DistributeMachineEvents(mEvtChan, evt, true)
 			//msg := <-p.portChan
 			return true
 		} else if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
@@ -265,7 +265,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 				src: PortConfigModuleStr})
 			// inform mux that port has been selected
 			// wait for response
-			p.DistributeMachineEvents(mEvtChan, evt, false)
+			p.DistributeMachineEvents(mEvtChan, evt, true)
 
 		}
 	}

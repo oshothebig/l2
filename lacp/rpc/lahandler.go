@@ -409,6 +409,9 @@ func (la *LACPDServiceHandler) ReadConfigFromDB(filePath string) error {
 }
 
 func (la LACPDServiceHandler) DeleteAggregationLacpConfig(config *lacpd.AggregationLacpConfig) (bool, error) {
+
+	// Aggregation found now lets delete
+	lacp.DeleteLaAgg(GetIdByName(config.NameKey))
 	return true, nil
 }
 
@@ -576,10 +579,32 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpd.EthernetConfig)
 }
 
 func (la LACPDServiceHandler) DeleteEthernetConfig(config *lacpd.EthernetConfig) (bool, error) {
+	lacp.DeleteLaAggPort(GetIdByName(config.NameKey))
 	return true, nil
 }
 
 func (la LACPDServiceHandler) UpdateEthernetConfig(origconfig *lacpd.EthernetConfig, updateconfig *lacpd.EthernetConfig, attrSet []bool) (bool, error) {
+
+	// important to note that the attrset starts at index 0 which is the BaseObj
+	// which is not the first element on the thrift obj, thus we need to skip
+	// this attribute
+	for i := 0; i < objTyp.NumField(); i++ {
+		objName := objTyp.Field(i).Name
+		//fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
+		if attrset[i] {
+			fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
+			if objName == "AggregateId" {
+
+				if updateconfig.AggregateId == "" {
+					lacp.DeleteLaAggPortFromAgg(GetKeyByAggName(origconfig.AggregateId), GetIdByName(origconfig.NameKey))
+				} else {
+					lacp.AddLaAggPortToAgg(GetKeyByAggName(updateconfigconfig.AggregateId), GetIdByName(origconfig.NameKey))
+				}
+				return true, nil
+
+			}
+		}
+	}
 
 	return true, nil
 }

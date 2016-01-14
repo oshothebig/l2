@@ -371,7 +371,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// otherwise lets use the default
 	var a *LaAggregator
 	var sysId LacpSystem
-	if LaFindAggById(config.AggId, &a) {
+	if LaFindAggByKey(config.Key, &a) {
 		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
 		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
 		sysId.Actor_System_priority = a.Config.SystemPriority
@@ -386,7 +386,6 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		Key:          config.Key,
 		AggId:        0, // this should be set on config AddLaAggPortToAgg
 		aggSelected:  LacpAggUnSelected,
-		sysId:        config.SysId,
 		begin:        true,
 		portMoved:    false,
 		lacpEnabled:  false,
@@ -428,12 +427,6 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		Id: p.PortNum}] = p
 
 	sgi.PortList = append(sgi.PortList, p)
-
-	// wait group used when stopping all the
-	// State mahines associated with this port.
-	// want to ensure that all routines are stopped
-	// before proceeding with cleanup
-	p.wg.Add(5)
 
 	handle, err := pcap.OpenLive(p.IntfNum, 65536, false, 50*time.Millisecond)
 	if err != nil {
@@ -493,15 +486,6 @@ func (p *LaAggPort) DelLaAggPort() {
 		for Key, port := range sgi.PortMap {
 			if port.PortNum == p.PortNum ||
 				port.IntfNum == p.IntfNum {
-				var a *LaAggregator
-				var sysId LacpSystem
-				if LaFindAggById(p.AggId, &a) {
-					mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-					sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
-					sysId.Actor_System_priority = a.Config.SystemPriority
-				}
-
-				sgi := LacpSysGlobalInfoByIdGet(sysId)
 				// remove the port from the port map
 				delete(sgi.PortMap, Key)
 				for i, delPort := range sgi.LacpSysGlobalAggPortListGet() {
@@ -536,6 +520,7 @@ func (p *LaAggPort) Stop() {
 		fmt.Println("RX/TX handle closed for port", p.PortNum)
 	}
 
+	//p.BEGIN(true)
 	// stop the State machines
 	// TODO maybe run these in parrallel?
 	if p.RxMachineFsm != nil {
@@ -566,6 +551,11 @@ func (p *LaAggPort) Stop() {
 	}
 	if p.MuxMachineFsm != nil {
 		p.MuxMachineFsm.Stop()
+	} else {
+		p.wg.Done()
+	}
+	if p.MarkerResponderFsm != nil {
+		p.MarkerResponderFsm.Stop()
 	} else {
 		p.wg.Done()
 	}
@@ -614,35 +604,68 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		// Marker Responder
 		p.LampMarkerResponderMain()
 	}
-	// Rxm
-	mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpRxmEventBegin,
-		src: PortConfigModuleStr})
-	// Ptxm
-	mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpPtxmEventBegin,
-		src: PortConfigModuleStr})
-	// Cdm
-	mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpCdmEventBegin,
-		src: PortConfigModuleStr})
-	// Cdm
-	mEvtChan = append(mEvtChan, p.PCdMachineFsm.CdmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpCdmEventBegin,
-		src: PortConfigModuleStr})
-	// Muxm
-	mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpMuxmEventBegin,
-		src: PortConfigModuleStr})
-	// Txm
-	mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpTxmEventBegin,
-		src: PortConfigModuleStr})
-	// Marker Responder
-	mEvtChan = append(mEvtChan, p.MarkerResponderFsm.LampMarkerResponderEvents)
-	evt = append(evt, LacpMachineEvent{e: LampMarkerResponderEventBegin,
-		src: PortConfigModuleStr})
 
+	// wait group used when stopping all the
+	// State mahines associated with this port.
+	// want to ensure that all routines are stopped
+	// before proceeding with cleanup thus why not
+	// create the wg as part of a BEGIN process
+	// 1) Rx Machine
+	// 2) Tx Machine
+	// 3) Mux Machine
+	// 4) Periodic Tx Machine
+	// 5) Churn Detection Machine * 2
+	// 6) Marker Responder
+	// Rxm
+	if p.RxMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpRxmEventBegin,
+			src: PortConfigModuleStr})
+		p.wg.Add(1)
+	}
+
+	// Ptxm
+	if p.PtxMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpPtxmEventBegin,
+			src: PortConfigModuleStr})
+		p.wg.Add(1)
+	}
+	// Cdm
+	if p.CdMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpCdmEventBegin,
+			src: PortConfigModuleStr})
+		p.wg.Add(1)
+	}
+	// Cdm
+	if p.PCdMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.PCdMachineFsm.CdmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpCdmEventBegin,
+			src: PortConfigModuleStr})
+		p.wg.Add(1)
+	}
+	// Muxm
+	if p.MuxMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpMuxmEventBegin,
+			src: PortConfigModuleStr})
+		p.wg.Add(1)
+	}
+	// Txm
+	if p.TxMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
+		evt = append(evt, LacpMachineEvent{e: LacpTxmEventBegin,
+			src: PortConfigModuleStr})
+		p.wg.Add(1)
+	}
+	// Marker Responder
+	if p.MarkerResponderFsm != nil {
+		mEvtChan = append(mEvtChan, p.MarkerResponderFsm.LampMarkerResponderEvents)
+		evt = append(evt, LacpMachineEvent{e: LampMarkerResponderEventBegin,
+			src: PortConfigModuleStr})
+		p.wg.Add(1)
+	}
 	// call the begin event for each
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, true)
