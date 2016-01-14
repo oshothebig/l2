@@ -84,6 +84,12 @@ func (cdm *LacpCdMachine) LacpCdmLog(msg string) {
 	}
 }
 
+func (cdm *LacpPartnerCdMachine) LacpCdmLog(msg string) {
+	if cdm.Machine.Curr.IsLoggerEna() {
+		cdm.log <- strings.Join([]string{"PCDM", time.Now().String(), msg}, ":")
+	}
+}
+
 func (ptxm *LacpPtxMachine) LacpPtxmLog(msg string) {
 	if ptxm.Machine.Curr.IsLoggerEna() {
 		ptxm.log <- strings.Join([]string{"PTXM", time.Now().String(), msg}, ":")

@@ -67,21 +67,21 @@ func (ptxm *LacpPtxMachine) PeriodicTimerIntervalSet(interval time.Duration) {
 }
 
 func (cdm *LacpCdMachine) ChurnDetectionTimerStart() {
-	if cdm.actorChurnTimer == nil {
-		cdm.actorChurnTimer = time.NewTimer(cdm.actorChurnTimerInterval)
+	if cdm.churnTimer == nil {
+		cdm.churnTimer = time.NewTimer(cdm.churnTimerInterval)
 	} else {
-		cdm.actorChurnTimer.Reset(cdm.actorChurnTimerInterval)
+		cdm.churnTimer.Reset(cdm.churnTimerInterval)
 	}
 }
 
 func (cdm *LacpCdMachine) ChurnDetectionTimerStop() {
-	if cdm.actorChurnTimer != nil {
-		cdm.actorChurnTimer.Stop()
+	if cdm.churnTimer != nil {
+		cdm.churnTimer.Stop()
 	}
 }
 
 func (cdm *LacpCdMachine) ChurnDetectionTimerIntervalSet(interval time.Duration) {
-	cdm.actorChurnTimerInterval = interval
+	cdm.churnTimerInterval = interval
 }
 
 // TxGuardTimerStart used by Tx Machine as described in
