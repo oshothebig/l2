@@ -480,7 +480,7 @@ func (p *LaAggPort) IsPortEnabled() bool {
 	return p.IsPortAdminEnabled() && p.IsPortOperStatusUp()
 }
 
-func (p *LaAggPort) DelLaAggPort() {
+func (p *LaAggPort) LaAggPortDelete() {
 	p.Stop()
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for Key, port := range sgi.PortMap {
