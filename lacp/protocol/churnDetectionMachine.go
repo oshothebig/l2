@@ -155,6 +155,7 @@ func (cdm *LacpCdMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 func (cdm *LacpActorCdMachine) LacpCdMachineNoActorChurn(m fsm.Machine, data interface{}) fsm.State {
 	p := cdm.p
 	p.actorChurn = false
+	cdm.ChurnDetectionTimerStop()
 	return LacpCdmStateNoActorChurn
 }
 
@@ -169,6 +170,7 @@ func (cdm *LacpActorCdMachine) LacpCdMachineActorChurn(m fsm.Machine, data inter
 		p.AggPortDebug.AggPortDebugActorChurnCount++
 		cdm.churnCountTimestamp = time.Now()
 	}
+	cdm.ChurnDetectionTimerStop()
 	return LacpCdmStateActorChurn
 }
 
@@ -185,6 +187,7 @@ func (cdm *LacpActorCdMachine) LacpCdMachineActorChurnMonitor(m fsm.Machine, dat
 func (cdm *LacpPartnerCdMachine) LacpCdMachineNoPartnerChurn(m fsm.Machine, data interface{}) fsm.State {
 	p := cdm.p
 	p.partnerChurn = false
+	cdm.ChurnDetectionTimerStop()
 	return LacpCdmStateNoPartnerChurn
 }
 
@@ -199,6 +202,8 @@ func (cdm *LacpPartnerCdMachine) LacpCdMachinePartnerChurn(m fsm.Machine, data i
 		p.AggPortDebug.AggPortDebugPartnerChurnCount++
 		cdm.churnCountTimestamp = time.Now()
 	}
+
+	cdm.ChurnDetectionTimerStop()
 	return LacpCdmStatePartnerChurn
 }
 
