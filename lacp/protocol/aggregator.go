@@ -101,7 +101,7 @@ type AggregatorObject struct {
 type LaAggregator struct {
 	// 802.1ax Section 7.3.1.1 && 6.3.2
 	// Aggregator_Identifier
-	aggId          int
+	AggId          int
 	HwAggId        int32
 	AggDescription string // 255 max chars
 	AggName        string // 255 max chars
@@ -186,7 +186,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
 	a := &LaAggregator{
 		AggName:                ac.Name,
-		aggId:                  ac.Id,
+		AggId:                  ac.Id,
 		aggMacAddr:             sysId.actor_System,
 		actorAdminKey:          ac.Key,
 		AggType:                ac.Type,
@@ -224,16 +224,16 @@ func LaGetAggNext(agg **LaAggregator) bool {
 		for _, a := range sgi.LacpSysGlobalAggListGet() {
 			/*
 				if *agg == nil {
-					fmt.Println("agg map curr %d", a.aggId)
+					fmt.Println("agg map curr %d", a.AggId)
 				} else {
-					fmt.Println(fmt.Sprintf("agg map prev %d curr %d", (*agg).aggId, a.aggId))
+					fmt.Println(fmt.Sprintf("agg map prev %d curr %d", (*agg).AggId, a.AggId))
 				}
 			*/
 			if *agg == nil {
 				// first agg
 				*agg = a
 				return true
-			} else if (*agg).aggId == a.aggId {
+			} else if (*agg).AggId == a.AggId {
 				// found agg
 				returnNext = true
 			} else if returnNext {
@@ -250,7 +250,7 @@ func LaGetAggNext(agg **LaAggregator) bool {
 func LaFindAggById(aggId int, agg **LaAggregator) bool {
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.LacpSysGlobalAggListGet() {
-			if a.aggId == aggId {
+			if a.AggId == aggId {
 				*agg = a
 				return true
 			}
@@ -271,9 +271,10 @@ func LaFindAggByName(AggName string, agg **LaAggregator) bool {
 	return false
 }
 
-func LaAggPortNumListPortIdExist(aggId int, portId uint16) bool {
+func LaAggPortNumListPortIdExist(Key uint16, portId uint16) bool {
 	var a *LaAggregator
-	if LaFindAggById(aggId, &a) {
+	if LaFindAggByKey(Key, &a) {
+		//fmt.Println("Found agg", Key, "PortList", a.PortNumList)
 		for _, pId := range a.PortNumList {
 			if pId == portId {
 				return true
@@ -294,4 +295,28 @@ func LaFindAggByKey(Key uint16, agg **LaAggregator) bool {
 		}
 	}
 	return false
+}
+
+func (a *LaAggregator) DeleteLaAgg() {
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		lookupKey := AggIdKey{Id: a.AggId, Name: a.AggName}
+		for Key, _ := range sgi.AggMap {
+			if Key.Id == lookupKey.Id &&
+				Key.Name == lookupKey.Name {
+				delete(sgi.AggMap, Key)
+				break
+			}
+		}
+
+		for i, agg := range sgi.LacpSysGlobalAggListGet() {
+			if agg.actorAdminKey == a.actorAdminKey {
+				sgi.AggList = append(sgi.AggList[:i], sgi.AggList[i+1:]...)
+				a.AggId = 0
+				a.actorAdminKey = 0
+				a.partnerSystemId = [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+				a.ready = false
+				break
+			}
+		}
+	}
 }

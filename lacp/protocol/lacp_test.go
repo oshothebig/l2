@@ -61,7 +61,8 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 	var p *LaAggPort
 
 	// must be called to initialize the global
-	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	sysId := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -79,7 +80,6 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 		},
 		IntfId:   "SIMeth1.1",
 		TraceEna: false,
-		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -128,20 +128,33 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 		}
 	}
 	DeleteLaAggPort(pconf.Id)
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
 }
 
 func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 	var p *LaAggPort
 
 	// must be called to initialize the global
-	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	sysId := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+
 	LacpSysGlobalInfoInit(sysId)
 
 	aconf := &LaAggConfig{
-		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:    2000,
-		Key:   50,
-		SysId: sysId,
+		Mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:  2000,
+		Key: 50,
+		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
+			Mode:           LacpModeActive,
+			SystemIdMac:    "00:01:02:03:04:05",
+			SystemPriority: 128},
 	}
 
 	// Create Aggregation
@@ -162,7 +175,6 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 		},
 		IntfId:   "SIMeth1.1",
 		TraceEna: false,
-		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -179,12 +191,22 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 	// Delete the port and agg
 	DeleteLaAggPort(pconf.Id)
 	DeleteLaAgg(aconf.Id)
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.SysKey, sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.SysKey, sgi.PortList, sgi.PortMap)
+		}
+	}
 }
 
 func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 
 	var p *LaAggPort
-	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	// must be called to initialize the global
+	sysId := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -202,7 +224,6 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 		},
 		IntfId:   "SIMeth1.1",
 		TraceEna: false,
-		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -218,12 +239,22 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 
 	// Delete port
 	DeleteLaAggPort(pconf.Id)
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
 }
 
 func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 
 	var p *LaAggPort
-	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	// must be called to initialize the global
+	sysId := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -241,7 +272,6 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 		},
 		IntfId:   "SIMeth1.1",
 		TraceEna: false,
-		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -251,15 +281,18 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	// which was called as part of create
 	if LaFindPortById(pconf.Id, &p) {
 		if p.aggSelected == LacpAggSelected {
-			t.Error("Port is in SELECTED mode")
+			t.Error("Port is in SELECTED mode should be UNSELECTED")
 		}
 	}
 
 	aconf := &LaAggConfig{
-		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:    2000,
-		Key:   100,
-		SysId: sysId,
+		Mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:  2000,
+		Key: 100,
+		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
+			Mode:           LacpModeActive,
+			SystemIdMac:    "00:01:02:03:04:05",
+			SystemPriority: 128},
 	}
 
 	// Create Aggregation
@@ -268,7 +301,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	// if the port is found verify the initial State after begin event
 	// which was called as part of create
 	if p.aggSelected != LacpAggSelected {
-		t.Error("Port is in SELECTED mode")
+		t.Error("Port is in SELECTED mode (2)")
 	}
 
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
@@ -278,7 +311,16 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	// TODO Check States of other State machines
 
 	// Delete agg
+	DeleteLaAggPort(pconf.Id)
 	DeleteLaAgg(aconf.Id)
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
 }
 
 // TestLaAggPortCreateThenCorrectAggCreateThenDetach:
@@ -289,7 +331,9 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 
 	var p *LaAggPort
-	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	// must be called to initialize the global
+	sysId := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -306,7 +350,6 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 		},
 		IntfId:   "SIMeth1.1",
 		TraceEna: false,
-		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -316,44 +359,59 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 	// which was called as part of create
 	if LaFindPortById(pconf.Id, &p) {
 		if p.aggSelected == LacpAggSelected {
-			t.Error("Port is in SELECTED mode")
+			t.Error("Port is in SELECTED mode 1")
 		}
 	}
 
 	aconf := &LaAggConfig{
-		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:    2000,
-		Key:   100,
-		SysId: sysId,
+		Mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:  2000,
+		Key: 100,
+		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
+			Mode:           LacpModeActive,
+			SystemIdMac:    "00:01:02:03:04:05",
+			SystemPriority: 128},
 	}
 
 	// Create Aggregation
 	CreateLaAgg(aconf)
 
 	// if the port is found verify the initial State after begin event
-	// which was called as part of create
-	if p.aggSelected != LacpAggSelected {
-		t.Error("Port is in SELECTED mode")
+	// which was called as part of create should be disabled since this
+	// is the initial state of port config
+	if p.aggSelected == LacpAggSelected {
+		t.Error("Port is in SELECTED mode 2 mux state", p.MuxMachineFsm.Machine.Curr.CurrentState())
 	}
 
 	EnableLaAggPort(pconf.Id)
 
 	if p.aggSelected != LacpAggSelected {
-		t.Error("Port is in NOT in SELECTED mode")
+		t.Error("Port is NOT in SELECTED mode 3")
 	}
 
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
 		t.Error("Mux State expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
 	}
 	// Delete port
-	DeleteLaAggPortFromAgg(pconf.AggId, pconf.Id)
+	DeleteLaAggPortFromAgg(pconf.Key, pconf.Id)
 	DeleteLaAggPort(pconf.Id)
+	DeleteLaAgg(aconf.Id)
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
 }
 
 // Enable port post creation
 func TestLaAggPortEnable(t *testing.T) {
 	var p *LaAggPort
-	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	// must be called to initialize the global
+	sysId := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -370,7 +428,6 @@ func TestLaAggPortEnable(t *testing.T) {
 		},
 		IntfId:   "SIMeth1.1",
 		TraceEna: false,
-		SysId:    sysId,
 	}
 
 	// lets create a port and start the machines
@@ -385,16 +442,19 @@ func TestLaAggPortEnable(t *testing.T) {
 	}
 
 	aconf := &LaAggConfig{
-		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:    2000,
-		Key:   100,
-		SysId: sysId,
+		Mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:  2000,
+		Key: 100,
+		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
+			Mode:           LacpModeActive,
+			SystemIdMac:    "00:01:02:03:04:05",
+			SystemPriority: 128},
 	}
 
 	// Create Aggregation
 	CreateLaAgg(aconf)
 
-	if p.aggSelected != LacpAggSelected {
+	if p.aggSelected == LacpAggSelected {
 		t.Error("Port is in SELECTED mode")
 	}
 
@@ -403,17 +463,31 @@ func TestLaAggPortEnable(t *testing.T) {
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
 		t.Error("Mux State expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
 	}
-	// Delete port
-	DeleteLaAggPortFromAgg(pconf.AggId, pconf.Id)
-	DeleteLaAggPort(pconf.Id)
 
+	if p.aggSelected != LacpAggSelected {
+		t.Error("Port is in SELECTED mode")
+	}
+
+	// Delete port
+	DeleteLaAggPort(pconf.Id)
+	DeleteLaAgg(aconf.Id)
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
 }
 
 func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	var msg string
 	var portchan chan string
-	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	// must be called to initialize the global
+	sysId := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -421,7 +495,6 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Prio:   0x80,
 		IntfId: "SIMeth1.1",
 		Key:    100,
-		SysId:  sysId,
 	}
 
 	// not calling Create because we don't want to launch all State machines
@@ -437,18 +510,8 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
 
+	p.BEGIN(false)
 	portchan = p.PortChannelGet()
-	// send event to Rx Machine
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventBegin,
-		responseChan: portchan,
-		src:          "TEST"}
-
-	// wait for response
-	msg = <-portchan
-	if msg != RxMachineModuleStr {
-		t.Error("Expected response from", RxMachineModuleStr)
-	}
 
 	// port is initally disabled and lacp is disabled
 	if p.RxMachineFsm.Machine.Curr.PreviousState() != LacpRxmStateInitialize &&
@@ -784,7 +847,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Actor: layers.LACPInfoTlv{TlvType: layers.LACPTLVActorInfo,
 			Length: layers.LACPActorTlvLength,
 			Info: layers.LACPPortInfo{
-				System: layers.LACPSystem{SystemId: net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+				System: layers.LACPSystem{SystemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 					SystemPriority: 1},
 				Key:     100,
 				PortPri: 0x80,
@@ -831,7 +894,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Actor: layers.LACPInfoTlv{TlvType: layers.LACPTLVActorInfo,
 			Length: layers.LACPActorTlvLength,
 			Info: layers.LACPPortInfo{
-				System: layers.LACPSystem{SystemId: net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+				System: layers.LACPSystem{SystemId: [6]uint8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 					SystemPriority: 1},
 				Key:     100,
 				PortPri: 0x80,
@@ -873,13 +936,23 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
 
-	p.DelLaAggPort()
+	DeleteLaAggPort(pconf.Id)
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
 }
 
 func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 
 	// must be called to initialize the global
-	sysId := net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	// must be called to initialize the global
+	sysId := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -887,7 +960,6 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 		Prio:   0x80,
 		IntfId: "SIMeth1.1",
 		Key:    100,
-		SysId:  sysId,
 	}
 
 	// not calling Create because we don't want to launch all State machines
@@ -978,6 +1050,14 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 	}
 
 	p.DelLaAggPort()
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
 }
 
 func TestTwoAggsBackToBackSinglePort(t *testing.T) {
@@ -986,8 +1066,11 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	const LaAggPortPeer = 20
 	LaAggPortActorIf := "SIMeth0"
 	LaAggPortPeerIf := "SIM2eth0"
-	LaSystemActor := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}
-	LaSystemPeer := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}
+	// must be called to initialize the global
+	LaSystemActor := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
+	LaSystemPeer := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
 		port1:       LaAggPortActor,
@@ -1010,14 +1093,13 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 		Mode:   LacpModeActive,
 		//Timeout: LacpFastPeriodicTime,
 		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, LaAggPortActor, 0xDE, 0xAD, 0xBE, 0xEF},
+			Mac:    net.HardwareAddr{0x00, LaAggPortActor, 0xDE, 0xAD, 0xBE, 0xEF},
 			Speed:  1000000000,
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
 		IntfId:   LaAggPortActorIf,
 		TraceEna: false,
-		SysId:    LaSystemActor,
 	}
 
 	p2conf := &LaAggPortConfig{
@@ -1028,14 +1110,13 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 		Enable: true,
 		Mode:   LacpModeActive,
 		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, LaAggPortPeer, 0xDE, 0xAD, 0xBE, 0xEF},
+			Mac:    net.HardwareAddr{0x00, LaAggPortPeer, 0xDE, 0xAD, 0xBE, 0xEF},
 			Speed:  1000000000,
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
 		IntfId:   LaAggPortPeerIf,
 		TraceEna: false,
-		SysId:    LaSystemPeer,
 	}
 
 	// lets create a port and start the machines
@@ -1048,17 +1129,23 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	LaRxMain(bridge.port2, bridge.rxLacpPort2)
 
 	a1conf := &LaAggConfig{
-		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:    100,
-		Key:   100,
-		SysId: LaSystemActor,
+		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:  100,
+		Key: 100,
+		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
+			Mode:           LacpModeActive,
+			SystemIdMac:    "00:00:00:00:00:64",
+			SystemPriority: 128},
 	}
 
 	a2conf := &LaAggConfig{
-		Mac:   [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
-		Id:    200,
-		Key:   200,
-		SysId: LaSystemPeer,
+		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:  200,
+		Key: 200,
+		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
+			Mode:           LacpModeActive,
+			SystemIdMac:    "00:00:00:00:00:C8",
+			SystemPriority: 128},
 	}
 
 	// Create Aggregation
@@ -1112,6 +1199,14 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	// cleanup the provisioning
 	DeleteLaAgg(a1conf.Id)
 	DeleteLaAgg(a2conf.Id)
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
 }
 
 // TestTwoAggsBackToBackSinglePortTimeout will allow for
@@ -1122,9 +1217,12 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 	const LaAggPortActor = 11
 	const LaAggPortPeer = 21
 	const LaAggPortActorIf = "SIMeth0"
-	const LaAggPortPeerIf = "SIMeth0"
-	LaSystemActor := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}
-	LaSystemPeer := [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}
+	const LaAggPortPeerIf = "SIMeth1"
+	// must be called to initialize the global
+	LaSystemActor := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
+	LaSystemPeer := LacpSystem{Actor_System_priority: 128,
+		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
 		port1:       LaAggPortActor,
@@ -1144,40 +1242,39 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 	go LaRxMain(bridge.port2, bridge.rxLacpPort2)
 
 	p1conf := &LaAggPortConfig{
-		Id:     LaAggPortActor,
-		Prio:   0x80,
-		Key:    100,
-		AggId:  100,
-		Enable: true,
-		Mode:   LacpModeActive,
-		//Timeout: LacpFastPeriodicTime,
+		Id:      LaAggPortActor,
+		Prio:    0x80,
+		Key:     100,
+		AggId:   100,
+		Enable:  true,
+		Mode:    LacpModeActive,
+		Timeout: LacpShortTimeoutTime,
 		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, LaAggPortActor, 0xDE, 0xAD, 0xBE, 0xEF},
+			Mac:    net.HardwareAddr{0x00, LaAggPortActor, 0xDE, 0xAD, 0xBE, 0xEF},
 			Speed:  1000000000,
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
 		IntfId:   LaAggPortActorIf,
 		TraceEna: true,
-		SysId:    LaSystemActor,
 	}
 
 	p2conf := &LaAggPortConfig{
-		Id:     LaAggPortPeer,
-		Prio:   0x80,
-		Key:    200,
-		AggId:  200,
-		Enable: true,
-		Mode:   LacpModeActive,
+		Id:      LaAggPortPeer,
+		Prio:    0x80,
+		Key:     200,
+		AggId:   200,
+		Enable:  true,
+		Mode:    LacpModeActive,
+		Timeout: LacpShortTimeoutTime,
 		Properties: PortProperties{
-			Mac:    [6]uint8{0x00, LaAggPortPeer, 0xDE, 0xAD, 0xBE, 0xEF},
+			Mac:    net.HardwareAddr{0x00, LaAggPortPeer, 0xDE, 0xAD, 0xBE, 0xEF},
 			Speed:  1000000000,
 			Duplex: LacpPortDuplexFull,
 			Mtu:    1500,
 		},
 		IntfId:   LaAggPortPeerIf,
 		TraceEna: false,
-		SysId:    LaSystemPeer,
 	}
 
 	// lets create a port and start the machines
@@ -1185,17 +1282,23 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 	CreateLaAggPort(p2conf)
 
 	a1conf := &LaAggConfig{
-		Mac:   [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:    100,
-		Key:   100,
-		SysId: LaSystemActor,
+		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:  100,
+		Key: 100,
+		Lacp: LacpConfigInfo{Interval: LacpFastPeriodicTime,
+			Mode:           LacpModeActive,
+			SystemIdMac:    "00:00:00:00:00:64",
+			SystemPriority: 128},
 	}
 
 	a2conf := &LaAggConfig{
-		Mac:   [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
-		Id:    200,
-		Key:   200,
-		SysId: LaSystemPeer,
+		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:  200,
+		Key: 200,
+		Lacp: LacpConfigInfo{Interval: LacpFastPeriodicTime,
+			Mode:           LacpModeActive,
+			SystemIdMac:    "00:00:00:00:00:C8",
+			SystemPriority: 128},
 	}
 
 	// Create Aggregation
@@ -1203,8 +1306,8 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 	CreateLaAgg(a2conf)
 
 	// Add port to agg
-	AddLaAggPortToAgg(a1conf.Id, p1conf.Id)
-	AddLaAggPortToAgg(a2conf.Id, p2conf.Id)
+	AddLaAggPortToAgg(a1conf.Key, p1conf.Id)
+	AddLaAggPortToAgg(a2conf.Key, p2conf.Id)
 
 	//time.Sleep(time.Second * 30)
 	testWait := make(chan bool)
@@ -1246,7 +1349,7 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 		go func() {
 			var i int
 			for i = 0; i < 10 &&
-				(p1.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateLacpDisabled ||
+				(p1.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateDefaulted ||
 					p1.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached ||
 					p2.RxMachineFsm.Machine.Curr.CurrentState() != LacpRxmStateDefaulted ||
 					p2.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached); i++ {
@@ -1278,38 +1381,46 @@ func xTestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 	// cleanup the provisioning
 	DeleteLaAgg(a1conf.Id)
 	DeleteLaAgg(a2conf.Id)
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
 }
 
 //
-func TestLaAggPortPeriodicTxMachineStateTransitions(t *testing.T) {
+func xTestLaAggPortPeriodicTxMachineStateTransitions(t *testing.T) {
 
 }
 
-func TestLaAggPortPeriodicTxMachineInvalidStateTransitions(t *testing.T) {
+func xTestLaAggPortPeriodicTxMachineInvalidStateTransitions(t *testing.T) {
 
 }
 
-func TestLaAggPortMuxMachineStateTransitions(t *testing.T) {
+func xTestLaAggPortMuxMachineStateTransitions(t *testing.T) {
 
 }
 
-func TestLaAggPortMuxMachineInvalidStateTransitions(t *testing.T) {
+func xTestLaAggPortMuxMachineInvalidStateTransitions(t *testing.T) {
 
 }
 
-func TestLaAggPortChurnDetectionMachineStateTransitions(t *testing.T) {
+func xTestLaAggPortChurnDetectionMachineStateTransitions(t *testing.T) {
 
 }
 
-func TestLaAggPortChurnDetectionMachineInvalidStateTransitions(t *testing.T) {
+func xTestLaAggPortChurnDetectionMachineInvalidStateTransitions(t *testing.T) {
 
 }
 
-func TestLaAggPortTxMachineStateTransitions(t *testing.T) {
+func xTestLaAggPortTxMachineStateTransitions(t *testing.T) {
 
 }
 
-func TestLaAggPortTxMachineInvalidStateTransitions(t *testing.T) {
+func xTestLaAggPortTxMachineInvalidStateTransitions(t *testing.T) {
 
 }
 

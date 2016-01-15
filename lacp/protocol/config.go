@@ -139,9 +139,6 @@ type LaAggPortConfig struct {
 	// Port capabilities and attributes
 	Properties PortProperties
 
-	// System to attach this agg to
-	SysId net.HardwareAddr
-
 	// Linux If
 	TraceEna bool
 	IntfId   string
@@ -156,7 +153,7 @@ func SaveLaAggConfig(ac *LaAggConfig) {
 			Actor_System_priority: ac.Lacp.SystemPriority,
 		}
 		a.AggName = ac.Name
-		a.aggId = ac.Id
+		a.AggId = ac.Id
 		a.aggMacAddr = sysId.actor_System
 		a.actorAdminKey = ac.Key
 		a.AggType = ac.Type
@@ -200,7 +197,12 @@ func CreateLaAgg(agg *LaAggConfig) {
 			for index != -1 {
 				if LaFindPortByKey(a.actorAdminKey, &index, &p) {
 					if p.aggSelected == LacpAggUnSelected {
-						AddLaAggPortToAgg(a.aggId, p.PortNum)
+						AddLaAggPortToAgg(a.actorAdminKey, p.PortNum)
+
+						if p.PortEnabled {
+							p.checkConfigForSelection()
+						}
+
 					}
 				} else {
 					break
@@ -215,14 +217,9 @@ func DeleteLaAgg(Id int) {
 	if LaFindAggById(Id, &a) {
 
 		for _, pId := range a.PortNumList {
-			DeleteLaAggPortFromAgg(Id, pId)
 			DeleteLaAggPort(pId)
 		}
-
-		a.aggId = 0
-		a.actorAdminKey = 0
-		a.partnerSystemId = [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-		a.ready = false
+		a.DeleteLaAgg()
 	}
 }
 
@@ -280,7 +277,7 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 				if LaFindAggByKey(p.Key, &a) {
 					p.LaPortLog("Found Agg by Key, attaching port to agg")
 					// If the agg is defined lets add port to
-					AddLaAggPortToAgg(a.aggId, p.PortNum)
+					AddLaAggPortToAgg(a.actorAdminKey, p.PortNum)
 				}
 			}
 
@@ -301,15 +298,14 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 func DeleteLaAggPort(pId uint16) {
 	var p *LaAggPort
 	if LaFindPortById(pId, &p) {
-		if LaAggPortNumListPortIdExist(p.AggId, pId) {
-			p.LacpDebug.logger.Info(fmt.Sprintf("CONF: ERROR Must detach p", pId, "from agg", p.AggId, "before deletion"))
-			return
-		}
+		DeleteLaAggPortFromAgg(p.Key, pId)
 		if p.PortEnabled {
 			DisableLaAggPort(p.PortNum)
 		}
 
 		p.DelLaAggPort()
+	} else {
+		fmt.Println("CONF: DeleteLaAggPort unable to find port", pId)
 	}
 }
 
@@ -333,7 +329,7 @@ func EnableLaAggPort(pId uint16) {
 	// agg exists
 	if LaFindPortById(pId, &p) &&
 		//p.aggSelected == LacpAggUnSelected &&
-		LaAggPortNumListPortIdExist(p.AggId, pId) {
+		LaAggPortNumListPortIdExist(p.Key, pId) {
 		p.LaAggPortEnabled()
 
 		if p.IsPortOperStatusUp() &&
@@ -497,21 +493,21 @@ func SetLaAggHashMode(aggId int, hashmode uint32) {
 	}
 }
 
-func AddLaAggPortToAgg(aggId int, pId uint16) {
+func AddLaAggPortToAgg(Key uint16, pId uint16) {
 
 	var a *LaAggregator
 	var p *LaAggPort
 
 	// both add and port must have existed
-	if LaFindAggById(aggId, &a) && LaFindPortById(pId, &p) &&
+	if LaFindAggByKey(Key, &a) && LaFindPortById(pId, &p) &&
 		p.aggSelected == LacpAggUnSelected &&
-		!LaAggPortNumListPortIdExist(aggId, pId) {
+		!LaAggPortNumListPortIdExist(Key, pId) {
 
-		p.LaPortLog(fmt.Sprintf("Adding LaAggPort %d to LaAgg %d", pId, aggId))
+		p.LaPortLog(fmt.Sprintf("Adding LaAggPort %d to LaAgg %d", pId, a.actorAdminKey))
 		// add port to port number list
 		a.PortNumList = append(a.PortNumList, p.PortNum)
 		// add reference to aggId
-		p.AggId = aggId
+		p.AggId = a.AggId
 
 		// attach the port to the aggregator
 		//LacpStateSet(&p.actorAdmin.State, LacpStateAggregationBit)
@@ -524,15 +520,16 @@ func AddLaAggPortToAgg(aggId int, pId uint16) {
 	}
 }
 
-func DeleteLaAggPortFromAgg(aggId int, pId uint16) {
+func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 
 	var a *LaAggregator
 	var p *LaAggPort
 
 	// both add and port must have existed
-	if LaFindAggById(aggId, &a) && LaFindPortById(pId, &p) &&
-		p.aggSelected == LacpAggSelected &&
-		LaAggPortNumListPortIdExist(aggId, pId) {
+	if LaFindAggByKey(Key, &a) && LaFindPortById(pId, &p) &&
+		//p.aggSelected == LacpAggSelected &&
+		LaAggPortNumListPortIdExist(Key, pId) {
+		p.LaPortLog(fmt.Sprintf("deleting port from agg portList", pId, a.PortNumList))
 
 		// detach the port from the agg port list
 		for idx, PortNum := range a.PortNumList {

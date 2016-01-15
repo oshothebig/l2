@@ -108,38 +108,46 @@ func asicDHashModeGet(hashmode uint32) (laghash int32) {
 
 // create the lag with hashing algorithm and ports
 func asicDCreateLag(a *LaAggregator) (hwAggId int32) {
-	hwAggId, _ = asicdclnt.ClientHdl.CreateLag(asicDHashModeGet(a.LagHash),
-		asicDPortBmpFormatGet(a.DistributedPortNumList))
-	a.LacpDebug.logger.Info(fmt.Sprintf("asicDCreateLag : id %d hash %d hwhash %d portList %s\n", hwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList)))
+	if asicdclnt.ClientHdl != nil {
+		hwAggId, _ = asicdclnt.ClientHdl.CreateLag(asicDHashModeGet(a.LagHash),
+			asicDPortBmpFormatGet(a.DistributedPortNumList))
+		a.LacpDebug.logger.Info(fmt.Sprintf("asicDCreateLag : id %d hash %d hwhash %d portList %s\n", hwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList)))
+	}
 	return hwAggId
 }
 
 // delete the lag
 func asicDDeleteLag(a *LaAggregator) {
-	asicdclnt.ClientHdl.DeleteLag(a.HwAggId)
+	if asicdclnt.ClientHdl != nil {
+		asicdclnt.ClientHdl.DeleteLag(a.HwAggId)
+	}
 }
 
 // update the lag ports or hashing algorithm
 func asicDUpdateLag(a *LaAggregator) {
 
-	asicdclnt.ClientHdl.UpdateLag(a.HwAggId,
-		asicDHashModeGet(a.LagHash),
-		asicDPortBmpFormatGet(a.DistributedPortNumList))
-	a.LacpDebug.logger.Info(fmt.Sprintf("asicDUpdateLag : id %d hash %d hwhash %d portList %s\n", a.HwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList)))
+	if asicdclnt.ClientHdl != nil {
+		asicdclnt.ClientHdl.UpdateLag(a.HwAggId,
+			asicDHashModeGet(a.LagHash),
+			asicDPortBmpFormatGet(a.DistributedPortNumList))
+		a.LacpDebug.logger.Info(fmt.Sprintf("asicDUpdateLag : id %d hash %d hwhash %d portList %s\n", a.HwAggId, a.LagHash, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList)))
+	}
 }
 
 func asicdGetPortLinkStatus(intfNum string) bool {
 
-	bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(0, 100)
-	if err == nil && bulkInfo.ObjCount != 0 {
-		objCount := int64(bulkInfo.ObjCount)
-		for i := int64(0); i < objCount; i++ {
-			if bulkInfo.PortConfigList[i].Name == intfNum {
-				return bulkInfo.PortConfigList[i].OperState == pluginCommon.UpDownState[1]
+	if asicdclnt.ClientHdl != nil {
+		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(0, 100)
+		if err == nil && bulkInfo.ObjCount != 0 {
+			objCount := int64(bulkInfo.ObjCount)
+			for i := int64(0); i < objCount; i++ {
+				if bulkInfo.PortConfigList[i].Name == intfNum {
+					return bulkInfo.PortConfigList[i].OperState == pluginCommon.UpDownState[1]
+				}
 			}
 		}
+		fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
 	}
-	fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
 	return true
 
 }

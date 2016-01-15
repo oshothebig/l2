@@ -409,6 +409,9 @@ func (la *LACPDServiceHandler) ReadConfigFromDB(filePath string) error {
 }
 
 func (la LACPDServiceHandler) DeleteAggregationLacpConfig(config *lacpd.AggregationLacpConfig) (bool, error) {
+
+	// Aggregation found now lets delete
+	lacp.DeleteLaAgg(GetIdByName(config.NameKey))
 	return true, nil
 }
 
@@ -576,10 +579,33 @@ func (la LACPDServiceHandler) CreateEthernetConfig(config *lacpd.EthernetConfig)
 }
 
 func (la LACPDServiceHandler) DeleteEthernetConfig(config *lacpd.EthernetConfig) (bool, error) {
+	lacp.DeleteLaAggPort(uint16(GetIdByName(config.NameKey)))
 	return true, nil
 }
 
-func (la LACPDServiceHandler) UpdateEthernetConfig(origconfig *lacpd.EthernetConfig, updateconfig *lacpd.EthernetConfig, attrSet []bool) (bool, error) {
+func (la LACPDServiceHandler) UpdateEthernetConfig(origconfig *lacpd.EthernetConfig, updateconfig *lacpd.EthernetConfig, attrset []bool) (bool, error) {
+	objTyp := reflect.TypeOf(*origconfig)
+
+	// important to note that the attrset starts at index 0 which is the BaseObj
+	// which is not the first element on the thrift obj, thus we need to skip
+	// this attribute
+	for i := 0; i < objTyp.NumField(); i++ {
+		objName := objTyp.Field(i).Name
+		//fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
+		if attrset[i] {
+			fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
+			if objName == "AggregateId" {
+
+				if updateconfig.AggregateId == "" {
+					lacp.DeleteLaAggPortFromAgg(GetKeyByAggName(origconfig.AggregateId), uint16(GetIdByName(origconfig.NameKey)))
+				} else {
+					lacp.AddLaAggPortToAgg(GetKeyByAggName(updateconfig.AggregateId), uint16(GetIdByName(origconfig.NameKey)))
+				}
+				return true, nil
+
+			}
+		}
+	}
 
 	return true, nil
 }
@@ -635,7 +661,6 @@ func (la LACPDServiceHandler) CreateLaAggPort(Id lacpd.Uint16,
 	}
 
 	mac, _ := net.ParseMAC(Mac)
-	sysId, _ := net.ParseMAC(SysId)
 	conf := &lacp.LaAggPortConfig{
 		Id:      uint16(Id),
 		Prio:    uint16(Prio),
@@ -652,7 +677,6 @@ func (la LACPDServiceHandler) CreateLaAggPort(Id lacpd.Uint16,
 		},
 		TraceEna: true,
 		IntfId:   IntfId,
-		SysId:    sysId,
 	}
 	lacp.CreateLaAggPort(conf)
 	return 0, nil
@@ -661,8 +685,8 @@ func (la LACPDServiceHandler) CreateLaAggPort(Id lacpd.Uint16,
 func (la LACPDServiceHandler) DeleteLaAggPort(Id lacpd.Uint16) (lacpd.Int, error) {
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(Id), &p) {
-		if p.AggId != 0 {
-			lacp.DeleteLaAggPortFromAgg(p.AggId, uint16(Id))
+		if p.AggId != 0 && p.Key != 0 {
+			lacp.DeleteLaAggPortFromAgg(p.Key, uint16(Id))
 		}
 		lacp.DeleteLaAggPort(uint16(Id))
 		return 0, nil

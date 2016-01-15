@@ -146,6 +146,10 @@ func (rxm *LacpRxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 func (rxm *LacpRxMachine) LacpRxMachineInitialize(m fsm.Machine, data interface{}) fsm.State {
 	p := rxm.p
 
+	if timeoutTime, ok := rxm.CurrentWhileTimerValid(); !ok {
+		rxm.CurrentWhileTimerTimeoutSet(timeoutTime)
+		rxm.CurrentWhileTimerStart()
+	}
 	// Lets ensure that the port moves to the correct defaulted State
 	// after initialization.  Default params will change after lacp
 	// packets have arrived
@@ -180,9 +184,10 @@ func (rxm *LacpRxMachine) LacpRxMachinePortDisabled(m fsm.Machine, data interfac
 	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
 
 	// inform partner cdm
-	p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
-		src: RxMachineModuleStr}
-
+	if p.PCdMachineFsm != nil {
+		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+			src: RxMachineModuleStr}
+	}
 	return LacpRxmStatePortDisabled
 }
 
@@ -195,9 +200,10 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	//rxm.LacpRxmLog("Clearing Partner Sync Bit")
 	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
 	// inform partner cdm
-	p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
-		src: RxMachineModuleStr}
-
+	if p.PCdMachineFsm != nil {
+		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+			src: RxMachineModuleStr}
+	}
 	// Short timeout
 	//rxm.LacpRxmLog("Setting Partner Timeout Bit")
 	LacpStateSet(&p.PartnerOper.State, LacpStateTimeoutBit)
@@ -323,7 +329,9 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
 	p := rxm.p
 
-	if p.MuxMachineFsm != nil {
+	if p.MuxMachineFsm != nil &&
+		p.PtxMachineFsm != nil &&
+		p.TxMachineFsm != nil {
 
 		if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
@@ -372,16 +380,16 @@ func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
 			p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventPartnerOperStateTimeoutLong,
 				src: RxMachineModuleStr}
 		}
-	}
 
-	// lets inform the PTX machine of change as this is an indication of
-	// no tx packets, case should occur on first bring up when transmission
-	// is based on admin provisioning.  Peer should respond to initial messages
-	if !LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit) &&
-		!LacpStateIsSet(p.PartnerOper.State, LacpStateActivityBit) &&
-		p.PtxMachineFsm != nil {
-		p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventActorPartnerOperActivityPassiveMode,
-			src: RxMachineModuleStr}
+		// lets inform the PTX machine of change as this is an indication of
+		// no tx packets, case should occur on first bring up when transmission
+		// is based on admin provisioning.  Peer should respond to initial messages
+		if !LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit) &&
+			!LacpStateIsSet(p.PartnerOper.State, LacpStateActivityBit) &&
+			p.PtxMachineFsm != nil {
+			p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventActorPartnerOperActivityPassiveMode,
+				src: RxMachineModuleStr}
+		}
 	}
 
 }
@@ -600,12 +608,13 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 				LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit))) {
 		if !LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
 			rxm.LacpRxmLog("Setting Partner Sync Bit")
+			LacpStateSet(&p.PartnerOper.State, LacpStateSyncBit)
+			if p.PCdMachineFsm != nil {
+				// inform partner cdm
+				p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOn,
+					src: RxMachineModuleStr}
+			}
 		}
-		LacpStateSet(&p.PartnerOper.State, LacpStateSyncBit)
-		// inform partner cdm
-		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
-			src: RxMachineModuleStr}
-
 	} else {
 		if LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
 			rxm.LacpRxmLog("Clearing Sync Bit")
@@ -643,14 +652,19 @@ func (rxm *LacpRxMachine) recordDefault() {
 	LacpCopyLacpPortInfo(&p.partnerAdmin, &p.PartnerOper)
 	//rxm.LacpRxmLog("Setting Actor Defaulted Bit")
 	LacpStateSet(&p.ActorOper.State, LacpStateDefaultedBit)
-	//rxm.LacpRxmLog("Setting Partner Sync Bit")
-	LacpStateSet(&p.PartnerOper.State, LacpStateSyncBit)
-	// inform partner cdm
-	p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
-		src: RxMachineModuleStr}
+	if !LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
+		//rxm.LacpRxmLog("Setting Partner Sync Bit")
+		LacpStateSet(&p.PartnerOper.State, LacpStateSyncBit)
+		// inform partner cdm
+		if p.PCdMachineFsm != nil {
+			p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOn,
+				src: RxMachineModuleStr}
+		}
+	}
 
-	if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
-		p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
+	if p.MuxMachineFsm != nil &&
+		(p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
+			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
 		p.aggSelected == LacpAggSelected {
 		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
 			src: RxMachineModuleStr}

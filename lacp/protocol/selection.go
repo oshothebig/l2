@@ -90,8 +90,8 @@ s) An Aggregation Port shall not select an Aggregator, which has been assigned t
 /*
 func (p *LaAggPort) LacpSelectAggrigator() bool {
 
-	p.aggId
-	if _, ok := gLacpSysGlobalInfo.AggMap[p.aggId] ok {
+	p.AggId
+	if _, ok := gLacpSysGlobalInfo.AggMap[p.AggId] ok {
 
 	}
 	else {
@@ -228,8 +228,8 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 	if p.AggId != 0 && LaFindAggById(p.AggId, &a) {
 		if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
-			p.Key == a.actorAdminKey {
-			//p.portEnabled {
+			p.Key == a.actorAdminKey &&
+			p.PortEnabled {
 
 			p.LaPortLog("checkConfigForSelection: selected")
 
@@ -245,7 +245,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 				src: PortConfigModuleStr})
 			// inform mux that port has been selected
 			// wait for response
-			p.DistributeMachineEvents(mEvtChan, evt, false)
+			p.DistributeMachineEvents(mEvtChan, evt, true)
 			//msg := <-p.portChan
 			return true
 		} else if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
@@ -265,7 +265,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 				src: PortConfigModuleStr})
 			// inform mux that port has been selected
 			// wait for response
-			p.DistributeMachineEvents(mEvtChan, evt, false)
+			p.DistributeMachineEvents(mEvtChan, evt, true)
 
 		}
 	}
