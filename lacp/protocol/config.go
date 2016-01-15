@@ -299,11 +299,8 @@ func DeleteLaAggPort(pId uint16) {
 	var p *LaAggPort
 	if LaFindPortById(pId, &p) {
 		DeleteLaAggPortFromAgg(p.Key, pId)
-		if p.PortEnabled {
-			DisableLaAggPort(p.PortNum)
-		}
-
-		p.DelLaAggPort()
+		DeleteLaAggPort(pId)
+		p.checkConfigForSelection()
 	} else {
 		fmt.Println("CONF: DeleteLaAggPort unable to find port", pId)
 	}
@@ -537,12 +534,13 @@ func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 				a.PortNumList = append(a.PortNumList[:idx], a.PortNumList[idx+1:]...)
 			}
 		}
-
 		LacpStateClear(&p.actorAdmin.State, LacpStateAggregationBit)
 
 		// if port is enabled and lacp is enabled
-		p.LaAggPortDisable()
+		//p.LaAggPortDisable()
 
+		// del reference to aggId
+		p.AggId = 0
 		// Port is now aggregatible
 		//LacpStateClear(&p.ActorOper.State, LacpStateAggregationBit)
 		// inform mux machine of change of State
