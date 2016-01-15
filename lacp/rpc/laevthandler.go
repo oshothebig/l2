@@ -2,21 +2,19 @@
 package rpc
 
 import (
-	"asicd/asicdConstDefs"
-	"bytes"
-	"encoding/binary"
 	"fmt"
-	"github.com/op/go-nanomsg"
-	"infra/portd/portdCommonDefs"
+    "encoding/json"
+    "utils/commonDefs"
+	"asicd/asicdConstDefs"
 	lacp "l2/lacp/protocol"
+	"github.com/op/go-nanomsg"
 )
 
 const (
-	SUB_PORTD = 0
-	SUB_ASICD = 1
+	SUB_ASICD = iota
 )
 
-var PortdSub *nanomsg.SubSocket
+var AsicdSub *nanomsg.SubSocket
 
 func processLinkDownEvent(linkType uint8, linkId uint8) {
 	var p *lacp.LaAggPort
@@ -49,26 +47,25 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 			return
 		}
 		fmt.Println("After recv rcvdMsg buf", rcvdMsg)
-		buf := bytes.NewReader(rcvdMsg)
-		var MsgType asicdConstDefs.AsicdNotifyMsg
-		err = binary.Read(buf, binary.LittleEndian, &MsgType)
+		buf := asicdConstDefs.AsicdNotification{}
+        err = json.Unmarshal(rcvdMsg, &buf)
 		if err != nil {
 			fmt.Println("Error in reading msgtype ", err)
 			return
 		}
-		switch MsgType {
-		case asicdConstDefs.NOTIFY_LINK_STATE_CHANGE:
-			var msg asicdConstDefs.LinkStateInfo
-			err = binary.Read(buf, binary.LittleEndian, &msg)
+		switch buf.MsgType {
+		case asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE:
+			var msg asicdConstDefs.L2IntfStateNotifyMsg
+            err := json.Unmarshal(buf.Msg, &msg)
 			if err != nil {
 				fmt.Println("Error in reading msg ", err)
 				return
 			}
-			fmt.Printf("Msg linkstatus = %d msg port = %d\n", msg.LinkStatus, msg.Port)
-			if msg.LinkStatus == asicdConstDefs.LINK_STATE_DOWN {
-				processLinkDownEvent(portdCommonDefs.PHY, msg.Port) //asicd always sends out link State events for PHY ports
+			fmt.Printf("Msg linkstatus = %d msg port = %d\n", msg.IfState, msg.IfId)
+			if msg.IfState == asicdConstDefs.INTF_STATE_DOWN {
+				processLinkDownEvent(commonDefs.L2RefTypePort, uint8(msg.IfId)) //asicd always sends out link State events for PHY ports
 			} else {
-				processLinkUpEvent(portdCommonDefs.PHY, msg.Port)
+				processLinkUpEvent(commonDefs.L2RefTypePort, uint8(msg.IfId))
 			}
 		}
 	}
@@ -77,7 +74,7 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 func processEvents(sub *nanomsg.SubSocket, subType int) {
 	fmt.Println("in process events for sub ", subType)
 	if subType == SUB_ASICD {
-		fmt.Println("process portd events")
+		fmt.Println("process asicd events")
 		processAsicdEvents(sub)
 	}
 }
@@ -110,5 +107,5 @@ func setupEventHandler(sub *nanomsg.SubSocket, address string, subtype int) {
 }
 
 func startEvtHandler() {
-	go setupEventHandler(PortdSub, asicdConstDefs.PUB_SOCKET_ADDR, SUB_ASICD)
+	go setupEventHandler(AsicdSub, asicdConstDefs.PUB_SOCKET_ADDR, SUB_ASICD)
 }
