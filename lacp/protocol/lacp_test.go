@@ -1049,7 +1049,7 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 		t.Error(str)
 	}
 
-	p.DelLaAggPort()
+	p.LaAggPortDelete()
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
 			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)

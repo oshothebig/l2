@@ -298,12 +298,11 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 func DeleteLaAggPort(pId uint16) {
 	var p *LaAggPort
 	if LaFindPortById(pId, &p) {
+		// detech the port from sw
 		DeleteLaAggPortFromAgg(p.Key, pId)
-		if p.PortEnabled {
-			DisableLaAggPort(p.PortNum)
-		}
-
-		p.DelLaAggPort()
+		// finally delete the stop all machines
+		// and delete the port
+		p.LaAggPortDelete()
 	} else {
 		fmt.Println("CONF: DeleteLaAggPort unable to find port", pId)
 	}
@@ -531,6 +530,17 @@ func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 		LaAggPortNumListPortIdExist(Key, pId) {
 		p.LaPortLog(fmt.Sprintf("deleting port from agg portList", pId, a.PortNumList))
 
+		LacpStateClear(&p.actorAdmin.State, LacpStateAggregationBit)
+
+		// disable the port
+		p.LaAggPortDisable()
+
+		// update selection to be unselected
+		p.checkConfigForSelection()
+
+		// del reference to aggId
+		p.AggId = 0
+
 		// detach the port from the agg port list
 		for idx, PortNum := range a.PortNumList {
 			if PortNum == pId {
@@ -538,16 +548,6 @@ func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 			}
 		}
 
-		LacpStateClear(&p.actorAdmin.State, LacpStateAggregationBit)
-
-		// if port is enabled and lacp is enabled
-		p.LaAggPortDisable()
-
-		// Port is now aggregatible
-		//LacpStateClear(&p.ActorOper.State, LacpStateAggregationBit)
-		// inform mux machine of change of State
-		// unnecessary as rx machine should set unselected to mux
-		//p.checkConfigForSelection()
 	}
 }
 
