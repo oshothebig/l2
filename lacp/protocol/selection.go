@@ -90,8 +90,8 @@ s) An Aggregation Port shall not select an Aggregator, which has been assigned t
 /*
 func (p *LaAggPort) LacpSelectAggrigator() bool {
 
-	p.aggId
-	if _, ok := gLacpSysGlobalInfo.AggMap[p.aggId] ok {
+	p.AggId
+	if _, ok := gLacpSysGlobalInfo.AggMap[p.AggId] ok {
 
 	}
 	else {

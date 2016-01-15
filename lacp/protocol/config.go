@@ -153,7 +153,7 @@ func SaveLaAggConfig(ac *LaAggConfig) {
 			Actor_System_priority: ac.Lacp.SystemPriority,
 		}
 		a.AggName = ac.Name
-		a.aggId = ac.Id
+		a.AggId = ac.Id
 		a.aggMacAddr = sysId.actor_System
 		a.actorAdminKey = ac.Key
 		a.AggType = ac.Type
@@ -507,7 +507,7 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 		// add port to port number list
 		a.PortNumList = append(a.PortNumList, p.PortNum)
 		// add reference to aggId
-		p.AggId = a.aggId
+		p.AggId = a.AggId
 
 		// attach the port to the aggregator
 		//LacpStateSet(&p.actorAdmin.State, LacpStateAggregationBit)
