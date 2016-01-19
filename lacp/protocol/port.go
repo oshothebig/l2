@@ -760,11 +760,6 @@ func (p *LaAggPort) LaAggPortDisable() {
 	evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpDisabled,
 		src: PortConfigModuleStr})
 
-	// Mux, force faster port down, rather than wait for timeout
-	mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
-		src: PortConfigModuleStr})
-
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, true)
 }

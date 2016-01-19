@@ -188,6 +188,11 @@ func (rxm *LacpRxMachine) LacpRxMachinePortDisabled(m fsm.Machine, data interfac
 		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
 			src: RxMachineModuleStr}
 	}
+	if p.MuxMachineFsm != nil {
+		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
+			src: RxMachineModuleStr}
+	}
+
 	return LacpRxmStatePortDisabled
 }
 
@@ -202,6 +207,11 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	// inform partner cdm
 	if p.PCdMachineFsm != nil {
 		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+			src: RxMachineModuleStr}
+	}
+
+	if p.MuxMachineFsm != nil {
+		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
 			src: RxMachineModuleStr}
 	}
 	// Short timeout
@@ -614,6 +624,7 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 				p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOn,
 					src: RxMachineModuleStr}
 			}
+			// NOTE Mux will be informed at a later time
 		}
 	} else {
 		if LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
