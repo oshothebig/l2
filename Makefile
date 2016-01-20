@@ -2,7 +2,8 @@ COMPS=lacp
 BUILD_DIR=out/bin
 DESTDIR=$(SR_CODE_BASE)/snaproute/src/$(BUILD_DIR)
 
-IPCS=lacp
+IPCS=lacp \
+	stp
 
 all: ipc exe install 
 
