@@ -29,10 +29,10 @@ struct AggregationLacpConfig{
 	12 : i32 	LagHash
 }
 struct AggregationLacpState{
-	1 : i32 	LagType
-	2 : bool 	Enabled
-	3 : string 	Description
-	4 : i16 	Mtu
+	1 : i16 	Mtu
+	2 : i32 	LagType
+	3 : bool 	Enabled
+	4 : string 	Description
 	5 : string 	Type
 	6 : i16 	MinLinks
 	7 : string 	NameKey
@@ -41,6 +41,7 @@ struct AggregationLacpState{
 	10 : string 	SystemIdMac
 	11 : i16 	SystemPriority
 	12 : i32 	LagHash
+	13 : i32 	Ifindex
 }
 struct AggregationLacpStateGetInfo {
 	1: int StartIdx
