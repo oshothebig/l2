@@ -7,7 +7,6 @@ import (
 	"git.apache.org/thrift.git/lib/go/thrift"
 	stp "l2/stp/protocol"
 	"l2/stp/rpc"
-	"net"
 	"stpd"
 )
 
@@ -25,7 +24,7 @@ func main() {
 	}
 	fileName := path + "clients.json"
 
-	port := lacp.GetClientPort(fileName, "stpd")
+	port := stp.GetClientPort(fileName, "stpd")
 	if port != 0 {
 		addr := fmt.Sprintf("localhost:%d", port)
 		transport, err = thrift.NewTServerSocket(addr)
@@ -34,7 +33,7 @@ func main() {
 		}
 
 		handler := rpc.NewSTPDServiceHandler()
-		processor := lacpd.NewSTPDServicesProcessor(handler)
+		processor := stpd.NewSTPDServicesProcessor(handler)
 		transportFactory := thrift.NewTBufferedTransportFactory(8192)
 		protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 		server := thrift.NewTSimpleServer4(processor, transport, transportFactory, protocolFactory)
