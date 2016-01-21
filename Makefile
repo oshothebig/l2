@@ -1,4 +1,5 @@
-COMPS=lacp
+COMPS=lacp\
+	stp
 BUILD_DIR=out/bin
 DESTDIR=$(SR_CODE_BASE)/snaproute/src/$(BUILD_DIR)
 

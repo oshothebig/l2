@@ -1,5 +1,5 @@
 // hw.go
-package lacp
+package stp
 
 import (
 	hwconst "asicd/asicdConstDefs"
