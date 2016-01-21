@@ -12,13 +12,6 @@ struct Dot1dStpPortEntryConfig{
 	8 : i32 	Dot1dStpPortAdminEdgePort
 	9 : i32 	Dot1dStpPortAdminPathCost
 }
-struct Dot1dStpPortEntryConfigGetInfo {
-	1: int StartIdx
-	2: int EndIdx
-	3: int Count
-	4: bool More
-	5: list<Dot1dStpPortEntryConfig> Dot1dStpPortEntryConfigList
-}
 struct Dot1dStpPortEntryState{
 	1 : i32 	Dot1dStpPortPathCost32
 	2 : i32 	Dot1dStpPortPriority
@@ -51,30 +44,27 @@ struct Dot1dStpBridgeConfig{
 	3 : i32 	Dot1dStpBridgeMaxAge
 	4 : i32 	Dot1dStpBridgeHelloTime
 	5 : i32 	Dot1dStpBridgeForwardDelay
-}
-struct Dot1dStpBridgeConfigGetInfo {
-	1: int StartIdx
-	2: int EndIdx
-	3: int Count
-	4: bool More
-	5: list<Dot1dStpBridgeConfig> Dot1dStpBridgeConfigList
+	6 : i32 	Dot1dStpBridgeForceVersion
+	7 : i32 	Dot1dStpBridgeTxHoldCount
 }
 struct Dot1dStpBridgeState{
-	1 : string 	Dot1dBridgeAddressKey
-	2 : i32 	Dot1dStpBridgeHelloTime
-	3 : i32 	Dot1dStpBridgeForwardDelay
-	4 : i32 	Dot1dStpBridgeMaxAge
-	5 : i32 	Dot1dStpPriorityKey
-	6 : i32 	Dot1dStpProtocolSpecification
-	7 : i32 	Dot1dStpTimeSinceTopologyChange
-	8 : i32 	Dot1dStpTopChanges
-	9 : string 	Dot1dStpDesignatedRoot
-	10 : i32 	Dot1dStpRootCost
-	11 : i32 	Dot1dStpRootPort
-	12 : i32 	Dot1dStpMaxAge
-	13 : i32 	Dot1dStpHelloTime
-	14 : i32 	Dot1dStpHoldTime
-	15 : i32 	Dot1dStpForwardDelay
+	1 : i32 	Dot1dStpBridgeForceVersion
+	2 : string 	Dot1dBridgeAddressKey
+	3 : i32 	Dot1dStpBridgeHelloTime
+	4 : i32 	Dot1dStpBridgeTxHoldCount
+	5 : i32 	Dot1dStpBridgeForwardDelay
+	6 : i32 	Dot1dStpBridgeMaxAge
+	7 : i32 	Dot1dStpPriorityKey
+	8 : i32 	Dot1dStpProtocolSpecification
+	9 : i32 	Dot1dStpTimeSinceTopologyChange
+	10 : i32 	Dot1dStpTopChanges
+	11 : string 	Dot1dStpDesignatedRoot
+	12 : i32 	Dot1dStpRootCost
+	13 : i32 	Dot1dStpRootPort
+	14 : i32 	Dot1dStpMaxAge
+	15 : i32 	Dot1dStpHelloTime
+	16 : i32 	Dot1dStpHoldTime
+	17 : i32 	Dot1dStpForwardDelay
 }
 struct Dot1dStpBridgeStateGetInfo {
 	1: int StartIdx
