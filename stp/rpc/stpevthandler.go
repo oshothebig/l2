@@ -2,12 +2,11 @@
 package rpc
 
 import (
-	"fmt"
-    "encoding/json"
-    "utils/commonDefs"
 	"asicd/asicdConstDefs"
-	lacp "l2/lacp/protocol"
+	"encoding/json"
+	"fmt"
 	"github.com/op/go-nanomsg"
+	lacp "l2/lacp/protocol"
 )
 
 const (
@@ -48,7 +47,7 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 		}
 		fmt.Println("After recv rcvdMsg buf", rcvdMsg)
 		buf := asicdConstDefs.AsicdNotification{}
-        err = json.Unmarshal(rcvdMsg, &buf)
+		err = json.Unmarshal(rcvdMsg, &buf)
 		if err != nil {
 			fmt.Println("Error in reading msgtype ", err)
 			return
@@ -56,16 +55,16 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 		switch buf.MsgType {
 		case asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE:
 			var msg asicdConstDefs.L2IntfStateNotifyMsg
-            err := json.Unmarshal(buf.Msg, &msg)
+			err := json.Unmarshal(buf.Msg, &msg)
 			if err != nil {
 				fmt.Println("Error in reading msg ", err)
 				return
 			}
-			fmt.Printf("Msg linkstatus = %d msg port = %d\n", msg.IfState, msg.IfId)
+			fmt.Printf("Msg linkstatus = %d msg port = %d\n", msg.IfState, asicdConstDefs.GetIntfIdFromIfIndex(msg.IfIndex))
 			if msg.IfState == asicdConstDefs.INTF_STATE_DOWN {
-				processLinkDownEvent(commonDefs.L2RefTypePort, uint8(msg.IfId)) //asicd always sends out link State events for PHY ports
+				processLinkDownEvent(uint8(asicdConstDefs.GetIntfTypeFromIfIndex(msg.IfIndex)), uint8(asicdConstDefs.GetIntfIdFromIfIndex(msg.IfIndex))) //asicd always sends out link State events for PHY ports
 			} else {
-				processLinkUpEvent(commonDefs.L2RefTypePort, uint8(msg.IfId))
+				processLinkUpEvent(uint8(asicdConstDefs.GetIntfTypeFromIfIndex(msg.IfIndex)), uint8(asicdConstDefs.GetIntfIdFromIfIndex(msg.IfIndex)))
 			}
 		}
 	}
