@@ -2,12 +2,11 @@
 package rpc
 
 import (
-	"fmt"
-    "encoding/json"
-    "utils/commonDefs"
 	"asicd/asicdConstDefs"
-	lacp "l2/lacp/protocol"
+	"encoding/json"
+	"fmt"
 	"github.com/op/go-nanomsg"
+	lacp "l2/lacp/protocol"
 )
 
 const (
@@ -16,9 +15,9 @@ const (
 
 var AsicdSub *nanomsg.SubSocket
 
-func processLinkDownEvent(linkType uint8, linkId uint8) {
+func processLinkDownEvent(linkType uint8, linkId uint16) {
 	var p *lacp.LaAggPort
-	if lacp.LaFindPortById(uint16(linkId), &p) {
+	if lacp.LaFindPortById(linkId, &p) {
 		//if p.IsPortEnabled() {
 		p.LaAggPortDisable()
 		p.LinkOperStatus = false
@@ -26,9 +25,9 @@ func processLinkDownEvent(linkType uint8, linkId uint8) {
 	}
 }
 
-func processLinkUpEvent(linkType uint8, linkId uint8) {
+func processLinkUpEvent(linkType uint8, linkId uint16) {
 	var p *lacp.LaAggPort
-	if lacp.LaFindPortById(uint16(linkId), &p) {
+	if lacp.LaFindPortById(linkId, &p) {
 		//if p.IsPortAdminEnabled() && !p.IsPortOperStatusUp() {
 		p.LaAggPortEnabled()
 		p.LinkOperStatus = true
@@ -48,7 +47,7 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 		}
 		fmt.Println("After recv rcvdMsg buf", rcvdMsg)
 		buf := asicdConstDefs.AsicdNotification{}
-        err = json.Unmarshal(rcvdMsg, &buf)
+		err = json.Unmarshal(rcvdMsg, &buf)
 		if err != nil {
 			fmt.Println("Error in reading msgtype ", err)
 			return
@@ -56,16 +55,16 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 		switch buf.MsgType {
 		case asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE:
 			var msg asicdConstDefs.L2IntfStateNotifyMsg
-            err := json.Unmarshal(buf.Msg, &msg)
+			err := json.Unmarshal(buf.Msg, &msg)
 			if err != nil {
 				fmt.Println("Error in reading msg ", err)
 				return
 			}
 			fmt.Printf("Msg linkstatus = %d msg port = %d\n", msg.IfState, msg.IfId)
 			if msg.IfState == asicdConstDefs.INTF_STATE_DOWN {
-				processLinkDownEvent(commonDefs.L2RefTypePort, uint8(msg.IfId)) //asicd always sends out link State events for PHY ports
+				processLinkDownEvent(msg.IfType, msg.IfId) //asicd always sends out link State events for PHY ports
 			} else {
-				processLinkUpEvent(commonDefs.L2RefTypePort, uint8(msg.IfId))
+				processLinkUpEvent(msg.IfType, msg.IfId)
 			}
 		}
 	}

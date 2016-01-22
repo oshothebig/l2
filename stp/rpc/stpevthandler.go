@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/op/go-nanomsg"
-	"utils/commonDefs"
 )
 
 const (
@@ -15,11 +14,11 @@ const (
 
 var AsicdSub *nanomsg.SubSocket
 
-func processLinkDownEvent(linkType uint8, linkId uint8) {
+func processLinkDownEvent(linkType uint8, linkId uint16) {
 	fmt.Println("STP: Link Down")
 }
 
-func processLinkUpEvent(linkType uint8, linkId uint8) {
+func processLinkUpEvent(linkType uint8, linkId uint16) {
 	fmt.Println("STP: Link Up")
 }
 
@@ -50,9 +49,9 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 			}
 			fmt.Printf("Msg linkstatus = %d msg port = %d\n", msg.IfState, msg.IfId)
 			if msg.IfState == asicdConstDefs.INTF_STATE_DOWN {
-				processLinkDownEvent(commonDefs.L2RefTypePort, uint8(msg.IfId)) //asicd always sends out link State events for PHY ports
+				processLinkDownEvent(msg.IfType, msg.IfId) //asicd always sends out link State events for PHY ports
 			} else {
-				processLinkUpEvent(commonDefs.L2RefTypePort, uint8(msg.IfId))
+				processLinkUpEvent(msg.IfType, msg.IfId)
 			}
 		}
 	}
