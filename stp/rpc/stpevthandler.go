@@ -2,12 +2,11 @@
 package rpc
 
 import (
-	"fmt"
-    "encoding/json"
-    "utils/commonDefs"
 	"asicd/asicdConstDefs"
-	lacp "l2/lacp/protocol"
+	"encoding/json"
+	"fmt"
 	"github.com/op/go-nanomsg"
+	"utils/commonDefs"
 )
 
 const (
@@ -17,23 +16,11 @@ const (
 var AsicdSub *nanomsg.SubSocket
 
 func processLinkDownEvent(linkType uint8, linkId uint8) {
-	var p *lacp.LaAggPort
-	if lacp.LaFindPortById(uint16(linkId), &p) {
-		//if p.IsPortEnabled() {
-		p.LaAggPortDisable()
-		p.LinkOperStatus = false
-		//}
-	}
+	fmt.Println("STP: Link Down")
 }
 
 func processLinkUpEvent(linkType uint8, linkId uint8) {
-	var p *lacp.LaAggPort
-	if lacp.LaFindPortById(uint16(linkId), &p) {
-		//if p.IsPortAdminEnabled() && !p.IsPortOperStatusUp() {
-		p.LaAggPortEnabled()
-		p.LinkOperStatus = true
-		//}
-	}
+	fmt.Println("STP: Link Up")
 }
 
 func processAsicdEvents(sub *nanomsg.SubSocket) {
@@ -48,7 +35,7 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 		}
 		fmt.Println("After recv rcvdMsg buf", rcvdMsg)
 		buf := asicdConstDefs.AsicdNotification{}
-        err = json.Unmarshal(rcvdMsg, &buf)
+		err = json.Unmarshal(rcvdMsg, &buf)
 		if err != nil {
 			fmt.Println("Error in reading msgtype ", err)
 			return
@@ -56,7 +43,7 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 		switch buf.MsgType {
 		case asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE:
 			var msg asicdConstDefs.L2IntfStateNotifyMsg
-            err := json.Unmarshal(buf.Msg, &msg)
+			err := json.Unmarshal(buf.Msg, &msg)
 			if err != nil {
 				fmt.Println("Error in reading msg ", err)
 				return

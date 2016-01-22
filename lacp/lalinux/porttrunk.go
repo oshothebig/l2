@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/vishvananda/netlink"
 	"net"
-	"os/exec"
+//	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -119,13 +119,13 @@ func DelLinkFromBond(bondname string, linkname string) (err error) {
 func main() {
 
 	BondedIfIdxBase = 51
-	bondname := "bond-0"
+	bondname := "bond0"
 	linkname := "eth0"
 	BondLinkCreate(bondname, "00:DD:EE:AA:DD:00", 0)
 
 	time.Sleep(time.Second * 1)
 	AddLinkToBond(bondname, linkname)
-
+/*
 	time.Sleep(time.Second * 1)
 
 	binary, lookErr := exec.LookPath("ifconfig")
@@ -163,5 +163,5 @@ func main() {
 		fmt.Println("Error executing ifconfig")
 	}
 	fmt.Println(string(out))
-
+*/
 }
