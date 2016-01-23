@@ -14,7 +14,7 @@ import (
 	"utils/ipcutils"
 )
 
-type LACPClientBase struct {
+type STPClientBase struct {
 	Address            string
 	Transport          thrift.TTransport
 	PtrProtocolFactory *thrift.TBinaryProtocolFactory
@@ -22,7 +22,7 @@ type LACPClientBase struct {
 }
 
 type AsicdClient struct {
-	LACPClientBase
+	STPClientBase
 	ClientHdl *asicdServices.ASICDServicesClient
 }
 
