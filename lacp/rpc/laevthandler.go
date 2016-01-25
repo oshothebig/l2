@@ -3,11 +3,11 @@ package rpc
 
 import (
 	"asicd/asicdConstDefs"
+	"asicd/pluginManager/pluginCommon"
 	"encoding/json"
 	"fmt"
 	"github.com/op/go-nanomsg"
 	lacp "l2/lacp/protocol"
-	"utils/commonDefs"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 
 var AsicdSub *nanomsg.SubSocket
 
-func processLinkDownEvent(linkType uint8, linkId uint8) {
+func processLinkDownEvent(linkId int) {
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(linkId), &p) {
 		//if p.IsPortEnabled() {
@@ -26,7 +26,7 @@ func processLinkDownEvent(linkType uint8, linkId uint8) {
 	}
 }
 
-func processLinkUpEvent(linkType uint8, linkId uint8) {
+func processLinkUpEvent(linkId int) {
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(linkId), &p) {
 		//if p.IsPortAdminEnabled() && !p.IsPortOperStatusUp() {
@@ -47,25 +47,25 @@ func processAsicdEvents(sub *nanomsg.SubSocket) {
 			return
 		}
 		fmt.Println("After recv rcvdMsg buf", rcvdMsg)
-		buf := asicdConstDefs.AsicdNotification{}
+		buf := pluginCommon.AsicdNotification{}
 		err = json.Unmarshal(rcvdMsg, &buf)
 		if err != nil {
 			fmt.Println("Error in reading msgtype ", err)
 			return
 		}
 		switch buf.MsgType {
-		case asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE:
-			var msg asicdConstDefs.L2IntfStateNotifyMsg
+		case pluginCommon.NOTIFY_L2INTF_STATE_CHANGE:
+			var msg pluginCommon.L2IntfStateNotifyMsg
 			err := json.Unmarshal(buf.Msg, &msg)
 			if err != nil {
 				fmt.Println("Error in reading msg ", err)
 				return
 			}
-			fmt.Printf("Msg linkstatus = %d msg port = %d\n", msg.IfState, asicdConstDefs.GetIntfIdFromIfIndex(msg.IfIndex))
-			if msg.IfState == asicdConstDefs.INTF_STATE_DOWN {
-				processLinkDownEvent(commonDefs.L2RefTypePort, uint8(asicdConstDefs.GetIntfIdFromIfIndex(msg.IfIndex))) //asicd always sends out link State events for PHY ports
+			fmt.Printf("Msg linkstatus = %d msg port = %d\n", msg.IfState, msg.IfIndex)
+			if msg.IfState == pluginCommon.INTF_STATE_DOWN {
+				processLinkDownEvent(pluginCommon.GetIdFromIfIndex(msg.IfIndex)) //asicd always sends out link State events for PHY ports
 			} else {
-				processLinkUpEvent(commonDefs.L2RefTypePort, uint8(asicdConstDefs.GetIntfIdFromIfIndex(msg.IfIndex)))
+				processLinkUpEvent(pluginCommon.GetIdFromIfIndex(msg.IfIndex))
 			}
 		}
 	}

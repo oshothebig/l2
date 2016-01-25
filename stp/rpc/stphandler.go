@@ -38,6 +38,19 @@ func NewSTPDServiceHandler() *STPDServiceHandler {
 func (s *STPDServiceHandler) CreateDot1dStpBridgeConfig(config *stpd.Dot1dStpBridgeConfig) (bool, error) {
 
 	fmt.Println("CreateDot1dStpBridgeConfig (server): created ")
+	fmt.Println("addr:", config.Dot1dBridgeAddressKey)
+	// parent restricted-int32
+	fmt.Println("prio:", config.Dot1dStpPriorityKey) // int32 `SNAPROUTE: KEY`
+	//yang_name: dot1dStpBridgeMaxAge class: restricted-int32
+	fmt.Println("age:", config.Dot1dStpBridgeMaxAge)
+	//yang_name: dot1dStpBridgeHelloTime class: restricted-int32
+	fmt.Println("hello:", config.Dot1dStpBridgeHelloTime) // int32
+	//yang_name: dot1dStpBridgeForwardDelay class: restricted-int32
+	fmt.Println("fwddelay:", config.Dot1dStpBridgeForwardDelay) // int32
+	//yang_name: dot1dStpBridgeForceVersion class: leaf
+	fmt.Println("version:", config.Dot1dStpBridgeForceVersion) // int32
+	//yang_name: dot1dStpBridgeTxHoldCount class: leaf
+	fmt.Println("txHoldCount", config.Dot1dStpBridgeTxHoldCount) //
 	return true, nil
 }
 
