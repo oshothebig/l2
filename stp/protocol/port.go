@@ -205,6 +205,11 @@ func (p *StpPort) Stop() {
 		p.PpmmMachineFsm = nil
 	}
 
+	if p.PtxmMachineFsm != nil {
+		p.PtxmMachineFsm.Stop()
+		p.PtxmMachineFsm = nil
+	}
+
 	// lets wait for the machines to close
 	p.wg.Wait()
 	close(p.portChan)
