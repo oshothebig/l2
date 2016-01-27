@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"io/ioutil"
+	"net"
 	"strconv"
 	"strings"
 	"utils/ipcutils"
@@ -68,6 +69,36 @@ func ConnectToClients(paramsFile string) {
 			fmt.Println("connecting to asicd\n")
 			asicdclnt.ClientHdl = asicdServices.NewASICDServicesClientFactory(asicdclnt.Transport, asicdclnt.PtrProtocolFactory)
 			asicdclnt.IsConnected = true
+			// lets gather all info needed from asicd such as the port
+			ConstructPortConfigMap()
+		}
+	}
+}
+
+func ConstructPortConfigMap() {
+	currMarker := int64(hwconst.MIN_SYS_PORTS)
+	if asicdclnt.IsConnected {
+		fmt.Println("Calling asicd for port config")
+		count := 10
+		for {
+			bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(int64(currMarker), int64(count))
+			if err != nil {
+				fmt.Println("Error: ", err)
+				return
+			}
+			objCount := int(bulkInfo.ObjCount)
+			more := bool(bulkInfo.More)
+			currMarker = int64(bulkInfo.NextMarker)
+			for i := 0; i < objCount; i++ {
+				portNum := bulkInfo.PortConfigList[i].IfIndex
+				ent := PortConfigMap[portNum]
+				ent.Name = bulkInfo.PortConfigList[i].Name
+				ent.HardwareAddr, _ = net.ParseMAC(bulkInfo.PortConfigList[i].MacAddr)
+				PortConfigMap[portNum] = ent
+			}
+			if more == false {
+				return
+			}
 		}
 	}
 }

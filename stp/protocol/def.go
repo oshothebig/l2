@@ -7,6 +7,18 @@ import (
 	"utils/fsm"
 )
 
+type BPDURxType int8
+
+// this is not to be confused with bpdu type as defined in message
+const (
+	BPDURxTypeUnknown BPDURxType = iota
+	BPDURxTypeUnknownBPDU
+	BPDURxTypeSTP
+	BPDURxTypeRSTP
+	BPDURxTypeTopo
+	BPDURxTypePVST
+)
+
 const (
 	MigrateTimeDefault        = 3
 	BridgeHelloTimeDefault    = 2
@@ -62,4 +74,16 @@ func (se *StpStateEvent) SetState(s fsm.State) {
 	if se.IsLoggerEna() && se.ps != se.s {
 		se.logger((strings.Join([]string{"Src", se.esrc, "OldState", se.strStateMap[se.ps], "Evt", strconv.Itoa(int(se.e)), "NewState", se.strStateMap[s]}, ":")))
 	}
+}
+
+func StpSetBpduFlags(topochangeack uint8, agreement uint8, forwarding uint8, learning uint8, role PortRole, proposal uint8, topochange uint8, flags *uint8) {
+
+	*flags |= topochangeack << 7
+	*flags |= agreement << 6
+	*flags |= forwarding << 5
+	*flags |= learning << 4
+	*flags |= uint8(role << 2)
+	*flags |= proposal << 1
+	*flags |= topochange << 0
+
 }

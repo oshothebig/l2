@@ -32,39 +32,26 @@ func TimerTypeStrStateMapInit() {
 	TimerTypeStrMap[TimerTypeTcWhile] = "topology Change Timer"
 }
 
-// WaitWhileTimerStart
-// Start the timer
-func (m *PtmMachine) TimerStart() {
-	p := m.p
+// TickTimerStart: Port Timers Tick timer
+func (m *PtmMachine) TickTimerStart() {
 
-	t := p.PortTimerMap[m.MachineTimerType].t
-	d := p.PortTimerMap[m.MachineTimerType].d
-
-	if t == nil {
-		t = time.NewTimer(d)
+	if m.TickTimer == nil {
+		m.TickTimer = time.NewTimer(time.Second * 1)
 	} else {
-		t.Reset(d)
+		m.TickTimer.Reset(time.Second * 1)
 	}
 }
 
-// WaitWhileTimerStop
-// Stop the timer, which should only happen
-// on creation as well as when the lacp mode is "on"
-func (m *PtmMachine) TimerStop() {
-	p := m.p
+// TickTimerStop
+// Stop the running timer
+func (m *PtmMachine) TickTimerStop() {
 
-	if p.PortTimerMap[m.MachineTimerType].t != nil {
-		p.PortTimerMap[m.MachineTimerType].t.Stop()
+	if m.TickTimer != nil {
+		m.TickTimer.Stop()
 	}
 }
 
-func (m *PtmMachine) TimerDurationSet(timeout time.Duration) {
-	p := m.p
-	p.PortTimerMap[m.MachineTimerType].d = timeout
-}
-
-func (m *PtmMachine) TimerDestroy() {
-	p := m.p
-	m.TimerStop()
-	p.PortTimerMap[m.MachineTimerType].t = nil
+func (m *PtmMachine) TickTimerDestroy() {
+	m.TickTimerStop()
+	m.TickTimer = nil
 }

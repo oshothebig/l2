@@ -22,10 +22,18 @@ const (
 type PortRole int
 
 const (
-	PortRoleBridgePort PortRole = iota
+	PortRoleBridgePort PortRole = iota + 1
 	PortRoleRootPort
 	PortRoleDesignatedPort
 	PortRoleAlternatePort
 	PortRoleBackupPort
 	PortRoleDisabledPort
+)
+
+type PointToPointMac int
+
+const (
+	StpPointToPointForceTrue  = 0
+	StpPointToPointForceFalse = 1
+	StpPointToPointAuto       = 2
 )
