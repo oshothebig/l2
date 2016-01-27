@@ -1,9 +1,11 @@
-// 17.22 Port Timers state machine
+// 17.23 Port Receive state machine
 package stp
 
 import (
 	"fmt"
 	//"time"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"utils/fsm"
 )
 
@@ -32,12 +34,16 @@ const (
 	PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg
 )
 
+type RxBpduPdu struct {
+	pdu          interface{}
+	ptype        BPDURxType
+	src          string
+	responseChan chan string
+}
+
 // LacpRxMachine holds FSM and current State
 // and event channels for State transitions
 type PrxmMachine struct {
-	// for debugging
-	PreviousState fsm.State
-
 	Machine *fsm.Machine
 
 	// State transition log
@@ -48,34 +54,25 @@ type PrxmMachine struct {
 
 	// machine specific events
 	PrxmEvents chan MachineEvent
+	// rx pkt
+	PrxmRxBpduPkt chan RxBpduPdu
+
 	// stop go routine
 	PrxmKillSignalEvent chan bool
 	// enable logging
 	PrxmLogEnableEvent chan bool
 }
 
-func (prxm *PrxmMachine) PrevState() fsm.State { return prxm.PreviousState }
-
-// PrevStateSet will set the previous State
-func (prxm *PrxmMachine) PrevStateSet(s fsm.State) { prxm.PreviousState = s }
-
-func (prxm *PrxmMachine) Stop() {
-
-	prxm.PrxmKillSignalEvent <- true
-
-	close(prxm.PrxmEvents)
-	close(prxm.PrxmKillSignalEvent)
-	close(prxm.PrxmLogEnableEvent)
-}
-
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewStpPrxmMachine(p *StpPort) *PrxmMachine {
 	prxm := &PrxmMachine{
 		p:                   p,
-		PreviousState:       PrxmStateNone,
 		PrxmEvents:          make(chan MachineEvent, 10),
+		PrxmRxBpduPkt:       make(chan RxBpduPdu, 20),
 		PrxmKillSignalEvent: make(chan bool),
 		PrxmLogEnableEvent:  make(chan bool)}
+
+	p.PrxmMachineFsm = prxm
 
 	return prxm
 }
@@ -95,9 +92,24 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		logEna: false,
 		//logger: fmt.Println,
 		owner: PrxmMachineModuleStr,
+		ps:    PrxmStateNone,
+		s:     PrxmStateNone,
 	}
 
 	return prxm.Machine
+}
+
+// Stop should clean up all resources
+func (prxm *PrxmMachine) Stop() {
+
+	// stop the go routine
+	prxm.PrxmKillSignalEvent <- true
+
+	close(prxm.PrxmEvents)
+	close(prxm.PrxmRxBpduPkt)
+	close(prxm.PrxmLogEnableEvent)
+	close(prxm.PrxmKillSignalEvent)
+
 }
 
 // PrmMachineDiscard
@@ -108,13 +120,24 @@ func (prxm *PrxmMachine) PrxmMachineDiscard(m fsm.Machine, data interface{}) fsm
 	p.RcvdSTP = false
 	p.RcvdMsg = false
 	// set to RSTP performance paramters Migrate Time
-	//p.EdgeDelayWhileTimer.count =
+	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
 	return PrxmStateDiscard
 }
 
 // LacpPtxMachineFastPeriodic sets the periodic transmission time to fast
 // and starts the timer
 func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm.State {
+	p := prxm.p
+
+	//17.23
+	// Decoding has been done as part of the Rx logic was a means of filtering
+	// TODO send rcvdMsg to Port Information Machine
+	p.RcvdMsg = prxm.UpdtBPDUVersion(data)
+
+	p.OperEdge = false
+	p.RcvdBPDU = false
+	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
+
 	return PrxmStateReceive
 }
 
@@ -126,6 +149,7 @@ func PrxmMachineFSMBuild(p *StpPort) *PrxmMachine {
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the DISCARD State
 	prxm := NewStpPrxmMachine(p)
+	p.wg.Add(1)
 
 	//BEGIN -> DISCARD
 	rules.AddRule(PrxmStateNone, PrxmEventBegin, prxm.PrxmMachineDiscard)
@@ -160,31 +184,43 @@ func (p *StpPort) PrxmMachineMain() {
 	prxm := PrxmMachineFSMBuild(p)
 
 	// set the inital State
-	prxm.Machine.Start(prxm.PrevState())
+	prxm.Machine.Start(prxm.Machine.Curr.PreviousState())
 
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PrxmMachine) {
 		fmt.Println("PRXM: Machine Start")
-		//defer m.p.wg.Done()
+		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PrxmKillSignalEvent:
 				fmt.Println("PRXM: Machine End")
 				return
-				/*
-					case <-m.periodicTxTimer.C:
-
-						//m.LacpPtxmLog("Timer expired current State")
-						//m.LacpPtxmLog(PtxmStateStrMap[m.Machine.Curr.CurrentState()])
-						m.Machine.ProcessEvent(PtxMachineModuleStr, PtmEventTickEqualsTrue, nil)
-				*/
 
 			case event := <-m.PrxmEvents:
-				m.Machine.ProcessEvent(event.src, event.e, nil)
+				fmt.Println("Event Rx", event.src, event.e)
+				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+				if rv != nil {
+					fmt.Println(rv)
+				}
+
+				// post processing
+				if m.Machine.Curr.CurrentState() == PrxmStateReceive &&
+					m.p.RcvdMsg {
+					rv := m.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, nil)
+					if rv != nil {
+						fmt.Println(rv)
+					}
+				}
 
 				if event.responseChan != nil {
 					SendResponse(PrxmMachineModuleStr, event.responseChan)
+				}
+			case rx := <-m.PrxmRxBpduPkt:
+				p.BpduRx++
+				//fmt.Println("Event PKT Rx", rx.src, PrxmEventRcvdBpduAndPortEnabled)
+				if p.PortEnabled {
+					m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)
 				}
 
 			case ena := <-m.PrxmLogEnableEvent:
@@ -192,4 +228,85 @@ func (p *StpPort) PrxmMachineMain() {
 			}
 		}
 	}(prxm)
+}
+
+func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
+	validPdu := false
+	p := prxm.p
+	bpdumsg := data.(RxBpduPdu)
+	packet := bpdumsg.pdu.(gopacket.Packet)
+	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
+	ptype := bpdumsg.ptype
+
+	if ptype != BPDURxTypeUnknownBPDU {
+		// 17.21.22
+		// some checks a bit redundant as the layers class has already validated
+		// the BPDUType, but for completness going to add the check anyways
+		if ptype == BPDURxTypeRSTP {
+			rstp := bpduLayer.(*layers.RSTP)
+			if rstp.ProtocolVersionId == layers.RSTPProtocolVersion &&
+				rstp.BPDUType == layers.BPDUTypeRSTP {
+				// Inform the Port Protocol Migration STate machine
+				// that we have received a RSTP packet when we were previously
+				// sending non-RSTP
+				if !p.RcvdRSTP &&
+					!p.SendRSTP &&
+					p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion {
+					if p.PpmmMachineFsm != nil {
+						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+							e:   PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
+							src: PrxmMachineModuleStr}
+					}
+				}
+				p.RcvdRSTP = true
+				// TODO send notification to Port Protocol Migration
+				validPdu = true
+			}
+		} else if ptype == BPDURxTypeSTP {
+			stp := bpduLayer.(*layers.STP)
+			if stp.ProtocolVersionId == layers.STPProtocolVersion &&
+				stp.BPDUType == layers.BPDUTypeSTP {
+				// Inform the Port Protocol Migration State Machine
+				// that we have received an STP packet when we were previously
+				// sending RSTP
+				if p.SendRSTP {
+					if p.PpmmMachineFsm != nil {
+						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+							e:   PpmmEventSendRSTPAndRcvdSTP,
+							src: PrxmMachineModuleStr}
+					}
+				}
+				p.RcvdSTP = true
+				validPdu = true
+			}
+		} else if ptype == BPDURxTypeTopo {
+			topo := bpduLayer.(*layers.BPDUTopology)
+			if (topo.ProtocolVersionId == layers.STPProtocolVersion &&
+				topo.BPDUType == layers.BPDUTypeTopoChange) ||
+				(topo.ProtocolVersionId == layers.TCNProtocolVersion &&
+					topo.BPDUType == layers.BPDUTypeTopoChange) {
+				// Inform the Port Protocol Migration State Machine
+				// that we have received an STP packet when we were previously
+				// sending RSTP
+				if p.SendRSTP {
+					if p.PpmmMachineFsm != nil {
+						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+							e:   PpmmEventSendRSTPAndRcvdSTP,
+							src: PrxmMachineModuleStr}
+					}
+				}
+				p.RcvdSTP = true
+				validPdu = true
+			}
+		} /* else if (bpdu.ProtocolVersionId == layers.STPProtocolVersion &&
+			(bpdu.BPDUType == layers.BPDUTypeSTP ||
+				bpdu.BPDUType == layers.BPDUTypeTopoChange)) ||
+			(bpdu.ProtocolVersionId == layers.TCNProtocolVersion &&
+				bpdu.BPDUType == layers.BPDUTypeTopoChange) {
+			p.RcvdSTP = true
+			// TODO send notification to Port Protocol Migration
+			validPdu = true
+		}*/
+	}
+	return validPdu
 }

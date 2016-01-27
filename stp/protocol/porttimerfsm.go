@@ -3,8 +3,7 @@ package stp
 
 import (
 	"fmt"
-	//"time"
-	"strings"
+	"time"
 	"utils/fsm"
 )
 
@@ -43,8 +42,8 @@ type PtmMachine struct {
 	log chan string
 
 	// timer type
-	MachineTimerType TimerType
-	Tick             bool
+	TickTimer *time.Timer
+	Tick      bool
 
 	// Reference to StpPort
 	p *StpPort
@@ -62,21 +61,9 @@ func (ptm *PtmMachine) PrevState() fsm.State { return ptm.PreviousState }
 // PrevStateSet will set the previous State
 func (ptm *PtmMachine) PrevStateSet(s fsm.State) { ptm.PreviousState = s }
 
-func (ptm *PtmMachine) Stop() {
-
-	ptm.TimerDestroy()
-
-	ptm.PtmKillSignalEvent <- true
-
-	close(ptm.PtmEvents)
-	close(ptm.PtmKillSignalEvent)
-	close(ptm.PtmLogEnableEvent)
-}
-
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
-func NewStpPtmMachine(p *StpPort, t TimerType) *PtmMachine {
+func NewStpPtmMachine(p *StpPort) *PtmMachine {
 	ptm := &PtmMachine{
-		MachineTimerType:   t,
 		p:                  p,
 		PreviousState:      PtmStateNone,
 		PtmEvents:          make(chan MachineEvent, 10),
@@ -84,8 +71,10 @@ func NewStpPtmMachine(p *StpPort, t TimerType) *PtmMachine {
 		PtmLogEnableEvent:  make(chan bool)}
 
 	// start then stop
-	ptm.TimerStart()
-	ptm.TimerStop()
+	ptm.TickTimerStart()
+	ptm.TickTimerStop()
+
+	p.PtmMachineFsm = ptm
 
 	return ptm
 }
@@ -104,10 +93,24 @@ func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
 		//logger: ptxm.LacpPtxmLog,
-		owner: strings.Join([]string{PtmMachineModuleStr, TimerTypeStrMap[ptm.MachineTimerType]}, ""),
+		owner: PtmMachineModuleStr,
 	}
 
 	return ptm.Machine
+}
+
+// Stop should clean up all resources
+func (ptm *PtmMachine) Stop() {
+
+	ptm.TickTimerDestroy()
+
+	// stop the go routine
+	ptm.PtmKillSignalEvent <- true
+
+	close(ptm.PtmEvents)
+	close(ptm.PtmLogEnableEvent)
+	close(ptm.PtmKillSignalEvent)
+
 }
 
 // LacpPtxMachineNoPeriodic stops the periodic transmission of packets
@@ -120,19 +123,20 @@ func (ptm *PtmMachine) PtmMachineOneSecond(m fsm.Machine, data interface{}) fsm.
 // and starts the timer
 func (ptm *PtmMachine) PtmMachineTick(m fsm.Machine, data interface{}) fsm.State {
 	p := ptm.p
-	p.DecramentCounter(ptm.MachineTimerType)
+	p.DecrementTimerCounters()
 
 	return PtmStateTick
 }
 
-func PtmMachineFSMBuild(p *StpPort, tt TimerType) *PtmMachine {
+func PtmMachineFSMBuild(p *StpPort) *PtmMachine {
 
 	rules := fsm.Ruleset{}
 
 	// Instantiate a new LacpPtxMachine
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the NO PERIODIC State
-	ptm := NewStpPtmMachine(p, tt)
+	ptm := NewStpPtmMachine(p)
+	p.wg.Add(1)
 
 	//BEGIN -> ONE SECOND
 	rules.AddRule(PtmStateNone, PtmEventBegin, ptm.PtmMachineOneSecond)
@@ -154,44 +158,40 @@ func PtmMachineFSMBuild(p *StpPort, tt TimerType) *PtmMachine {
 // LacpRxMachineMain:  802.1ax-2014 Table 6-18
 // Creation of Rx State Machine State transitions and callbacks
 // and create go routine to pend on events
-func (p *StpPort) PtmMachineMain(tt TimerType) {
+func (p *StpPort) PtmMachineMain() {
 
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
-	ptm := PtmMachineFSMBuild(p, tt)
+	ptm := PtmMachineFSMBuild(p)
 
 	// set the inital State
 	ptm.Machine.Start(ptm.PrevState())
 
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
-	go func(m *PtmMachine, tt TimerType) {
-		timerNameStr := TimerTypeStrMap[tt]
-		fmt.Println(fmt.Sprintf("PTM: %s Machine Start", timerNameStr))
-		//defer m.p.wg.Done()
+	go func(m *PtmMachine) {
+		fmt.Println("PTM: Machine Start")
+		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PtmKillSignalEvent:
-				fmt.Println(fmt.Sprintf("PTM: %s Machine End", TimerTypeStrMap[tt]))
+				fmt.Println("PTM: %s Machine End")
 				return
-				/*
-					case <-m.periodicTxTimer.C:
 
-						//m.LacpPtxmLog("Timer expired current State")
-						//m.LacpPtxmLog(PtxmStateStrMap[m.Machine.Curr.CurrentState()])
-						m.Machine.ProcessEvent(PtxMachineModuleStr, PtmEventTickEqualsTrue, nil)
-				*/
+			case <-m.TickTimer.C:
+
+				m.Machine.ProcessEvent(PtmMachineModuleStr, PtmEventTickEqualsTrue, nil)
 
 			case event := <-m.PtmEvents:
 				m.Machine.ProcessEvent(event.src, event.e, nil)
 
 				if event.responseChan != nil {
-					SendResponse(timerNameStr, event.responseChan)
+					SendResponse(PtmMachineModuleStr, event.responseChan)
 				}
 
 			case ena := <-m.PtmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}
 		}
-	}(ptm, tt)
+	}(ptm)
 }
