@@ -261,6 +261,10 @@ func (p *StpPort) BEGIN(restart bool) {
 		p.PtmMachineMain()
 		// Port Receive State Machine
 		p.PrxmMachineMain()
+		// Port Protocol Migration State Machine
+		p.PpmmMachineMain()
+		// Port Transmit State Machine
+		p.PtxmMachineMain()
 	}
 
 	// 1) Port Receive Machine
@@ -285,6 +289,14 @@ func (p *StpPort) BEGIN(restart bool) {
 		evt = append(evt, MachineEvent{e: PpmmEventBegin,
 			src: PortConfigModuleStr})
 	}
+
+	// Ppm
+	if p.PtxmMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.PtxmMachineFsm.PtxmEvents)
+		evt = append(evt, MachineEvent{e: PtxmEventBegin,
+			src: PortConfigModuleStr})
+	}
+
 	// call the begin event for each
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, true)
