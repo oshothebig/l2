@@ -41,21 +41,6 @@ func UsedForTestOnlyPpmmInitPortConfigTest() {
 }
 
 func UsedForTestOnlyCheckPpmStateSensing(p *StpPort, t *testing.T, trace string) {
-	if p.Mcheck != false {
-		t.Error(fmt.Sprintf("Failed mcheck not set to FALSE%s\n", trace))
-		t.FailNow()
-	}
-	/*
-		different when transitioning from checking rstp and selecting stp
-		if p.SendRSTP != true {
-			t.Error(fmt.Sprintf("Failed sendRSTP not set to true%s\n", trace))
-			t.FailNow()
-		}*/
-
-	if p.MdelayWhiletimer.count != 0 {
-		t.Error(fmt.Sprintf("Failed MdelayWhile was not reset%s\n", trace))
-		t.FailNow()
-	}
 
 	if p.RcvdRSTP != false {
 		t.Error(fmt.Sprintf("Failed RcvdRSTP was set%s\n", trace))
@@ -144,6 +129,44 @@ func UsedForTestOnlyStartPpmInSelectingSTPState(p *StpPort, t *testing.T, trace 
 
 }
 
+func UsedForTestOnlyStartPpmInSensingState(p *StpPort, t *testing.T, viaselectingstp int, trace string) {
+	testChan := make(chan string)
+
+	// lets transition the state machine to CHECKING RSTP
+	p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventBegin,
+		src:          "TestPpmCheckingRSTPStateTransitions",
+		responseChan: testChan}
+
+	<-testChan
+
+	p.MdelayWhiletimer.count = 0
+	// lets transition the state machine to SELECTING_STP
+	p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventMdelayWhileEqualZero,
+		src:          "TestPpmCheckingRSTPStateTransitions",
+		responseChan: testChan}
+
+	<-testChan
+
+	UsedForTestOnlyCheckPpmStateSensing(p, t, fmt.Sprintf("1 %s\n", trace))
+
+	if viaselectingstp == 1 {
+		p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventSendRSTPAndRcvdSTP,
+			src:          "TestPpmCheckingRSTPStateTransitions",
+			responseChan: testChan}
+		<-testChan
+
+		UsedForTestOnlyCheckPpmStateSelectingSTP(p, t, fmt.Sprintf("1 %s\n", trace))
+
+		p.MdelayWhiletimer.count = 0
+		p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventMdelayWhileEqualZero,
+			src:          "TestPpmCheckingRSTPStateTransitions",
+			responseChan: testChan}
+
+		<-testChan
+		UsedForTestOnlyCheckPpmStateSensing(p, t, fmt.Sprintf("1 %s\n", trace))
+	}
+}
+
 func TestPpmmBEGIN(t *testing.T) {
 	UsedForTestOnlyPpmmInitPortConfigTest()
 
@@ -180,7 +203,8 @@ func TestPpmmBEGIN(t *testing.T) {
 
 }
 
-func TestPpmCheckingRSTPStateTransitions(t *testing.T) {
+func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
+	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 
 	// configure a port
@@ -220,8 +244,6 @@ func TestPpmCheckingRSTPStateTransitions(t *testing.T) {
 		PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
 		PpmmEventSendRSTPAndRcvdSTP}
 
-	testChan := make(chan string)
-
 	// test the invalid states
 	for _, e := range invalidStateMap {
 		// one way to validate that a transition did not occur is to make sure
@@ -243,6 +265,46 @@ func TestPpmCheckingRSTPStateTransitions(t *testing.T) {
 		}
 	}
 
+	p.PtxmMachineFsm = nil
+
+	DelStpPort(p)
+}
+
+func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testing.T) {
+	testChan := make(chan string)
+	UsedForTestOnlyPpmmInitPortConfigTest()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	// create a port
+	p := NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PpmmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
+	if p.PpmmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
+		t.Error("Failed to Initial Rx machine state not set correctly", p.PpmmMachineFsm.Machine.Curr.PreviousState())
+		t.FailNow()
+	}
+
+	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
+
+	PtxmMachineFSMBuild(p)
+
 	// test valid states
 
 	// mdelaywhile != migratetime and not port enabled
@@ -257,6 +319,47 @@ func TestPpmCheckingRSTPStateTransitions(t *testing.T) {
 	<-testChan
 
 	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "2")
+
+	p.PtxmMachineFsm = nil
+
+	DelStpPort(p)
+}
+
+/*
+func TestPpmCheckingRSTP(t *testing.T) {
+	testChan := make(chan string)
+	UsedForTestOnlyPpmmInitPortConfigTest()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	// create a port
+	p := NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PpmmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
+	if p.PpmmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
+		t.Error("Failed to Initial Rx machine state not set correctly", p.PpmmMachineFsm.Machine.Curr.PreviousState())
+		t.FailNow()
+	}
+
+	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
+
+	PtxmMachineFSMBuild(p)
 
 	// reset state back to checking rstp BEGIN
 	// set pre-existing conditions for event to be raised
@@ -306,8 +409,9 @@ func TestPpmCheckingRSTPStateTransitions(t *testing.T) {
 	DelStpPort(p)
 
 }
-
-func TestPpmSelectingSTPStateTransitions(t *testing.T) {
+*/
+func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
+	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 
 	// configure a port
@@ -332,11 +436,6 @@ func TestPpmSelectingSTPStateTransitions(t *testing.T) {
 	// going just send event and not start main as we just did above
 	p.BEGIN(true)
 
-	if p.PpmmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
-		t.Error("Failed to Initial Rx machine state not set correctly", p.PpmmMachineFsm.Machine.Curr.PreviousState())
-		t.FailNow()
-	}
-
 	// lets transition the state machine to SELECTING_STP
 	UsedForTestOnlyStartPpmInSelectingSTPState(p, t, "1")
 
@@ -344,8 +443,6 @@ func TestPpmSelectingSTPStateTransitions(t *testing.T) {
 		PpmmEventMdelayNotEqualMigrateTimeAndNotPortEnabled,
 		PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
 		PpmmEventSendRSTPAndRcvdSTP}
-
-	testChan := make(chan string)
 
 	// test the invalid states
 	for _, e := range invalidStateMap {
@@ -367,8 +464,39 @@ func TestPpmSelectingSTPStateTransitions(t *testing.T) {
 			t.FailNow()
 		}
 	}
+	DelStpPort(p)
 
+}
+
+func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
+	testChan := make(chan string)
 	// test valid states
+	UsedForTestOnlyPpmmInitPortConfigTest()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	// create a port
+	p := NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PpmmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
+	// lets transition the state machine to SELECTING_STP
+	UsedForTestOnlyStartPpmInSelectingSTPState(p, t, "1")
 
 	// TEST mdelaywhile != migratetime and not port enabled
 	// set pre-existing conditions for event to be raised
@@ -398,6 +526,35 @@ func TestPpmSelectingSTPStateTransitions(t *testing.T) {
 		t.FailNow()
 	}
 
+	DelStpPort(p)
+}
+
+func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
+	testChan := make(chan string)
+	UsedForTestOnlyPpmmInitPortConfigTest()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	// create a port
+	p := NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PpmmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
 	// lets transition the state machine to SELECTING_STP
 	UsedForTestOnlyStartPpmInSelectingSTPState(p, t, "1")
 
@@ -418,8 +575,37 @@ func TestPpmSelectingSTPStateTransitions(t *testing.T) {
 
 	UsedForTestOnlyCheckPpmStateSensing(p, t, "1")
 
+	DelStpPort(p)
+}
+
+func TestPpmSelectingSTPMcheck(t *testing.T) {
+	testChan := make(chan string)
+	UsedForTestOnlyPpmmInitPortConfigTest()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	// create a port
+	p := NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PpmmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
 	// lets transition the state machine to SELECTING_STP
-	UsedForTestOnlyStartPpmInSelectingSTPState(p, t, "2")
+	UsedForTestOnlyStartPpmInSelectingSTPState(p, t, "1")
 
 	// mcheck == true
 	// set pre-existing conditions for event to be raised
@@ -460,8 +646,37 @@ func TestPpmSelectingSTPStateTransitions(t *testing.T) {
 		t.FailNow()
 	}
 
+	DelStpPort(p)
+}
+
+func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
+	testChan := make(chan string)
+	UsedForTestOnlyPpmmInitPortConfigTest()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	// create a port
+	p := NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PpmmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
 	// lets transition the state machine to SELECTING_STP
-	UsedForTestOnlyStartPpmInSelectingSTPState(p, t, "3")
+	UsedForTestOnlyStartPpmInSelectingSTPState(p, t, "1")
 
 	// Port Not Enabled
 	// set pre-existing conditions for event to be raised
@@ -493,5 +708,319 @@ func TestPpmSelectingSTPStateTransitions(t *testing.T) {
 	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
 
 	DelStpPort(p)
+}
 
+func TestPpmSensingInvalidStateTransitions(t *testing.T) {
+	testChan := make(chan string)
+	UsedForTestOnlyPpmmInitPortConfigTest()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	// create a port
+	p := NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PpmmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
+	PtxmMachineFSMBuild(p)
+
+	// lets transition the state machine to SENSING
+	UsedForTestOnlyStartPpmInSensingState(p, t, 0, "1")
+
+	invalidStateMap := [4]fsm.Event{
+		PpmmEventMdelayNotEqualMigrateTimeAndNotPortEnabled,
+		PpmmEventMdelayWhileEqualZero}
+
+	// test the invalid states
+	for _, e := range invalidStateMap {
+		// one way to validate that a transition did not occur is to make sure
+		// that mdelayWhiletimer is not set to MigrateTime
+		p.MdelayWhiletimer.count = 0
+
+		p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: e,
+			src:          "TestPpmCheckingRSTPStateTransitions",
+			responseChan: testChan}
+
+		<-testChan
+		if p.PpmmMachineFsm.Machine.Curr.CurrentState() != PpmmStateSensing {
+			t.Error(fmt.Sprintf("Failed e[%d] transitioned PPM to a new state state %d", e, p.PpmmMachineFsm.Machine.Curr.CurrentState()))
+			t.FailNow()
+		}
+		if p.MdelayWhiletimer.count != 0 {
+			t.Error(fmt.Sprintf("Failed e[%d] transitioned PPM to a back to same state %d", e, p.PpmmMachineFsm.Machine.Curr.CurrentState()))
+			t.FailNow()
+		}
+	}
+	p.PtxmMachineFsm = nil
+	DelStpPort(p)
+}
+
+// two part test will based on previous state
+func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
+	testChan := make(chan string)
+	UsedForTestOnlyPpmmInitPortConfigTest()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	// create a port
+	p := NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PpmmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
+	PtxmMachineFSMBuild(p)
+
+	// lets transition the state machine to SENSING
+	UsedForTestOnlyStartPpmInSensingState(p, t, 0, "1")
+
+	// Send RSTP and Received STP
+	// previous state was checking RSTP
+	// set pre-existing conditions for event to be raised
+	p.RcvdSTP = true                // set by port receive state machine
+	p.Selected = true               // assumed port role selection state machine set this
+	p.Role = PortRoleDesignatedPort // port role selection state machine sets this
+	p.UpdtInfo = false              // assume port role selection state machine already set this
+	p.TxCount = 0
+	p.NewInfo = true // owned by topo change machine, port role and port info
+	p.HelloWhenTimer.count = 1
+	p.PtxmMachineFsm.Machine.Curr.SetState(PtxmStateIdle)
+	// send test event
+	p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventSendRSTPAndRcvdSTP,
+		src:          "TestPpmCheckingRSTPStateTransitions",
+		responseChan: testChan}
+
+	<-testChan
+
+	UsedForTestOnlyCheckPpmStateSelectingSTP(p, t, "1")
+
+	// should receive a tx event cause send RSTP is being
+	// set to false
+	event, _ := <-p.PtxmMachineFsm.PtxmEvents
+
+	if event.e != PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo {
+		t.Error("Failed to send event to tx machine")
+		t.FailNow()
+
+	}
+
+	// lets transition the state machine to SENSING via SELECTING
+	// force the previous state to be that of
+	UsedForTestOnlyStartPpmInSensingState(p, t, 1, "1")
+
+	// previous state was checking RSTP
+	// set pre-existing conditions for event to be raised
+	p.RcvdRSTP = true               // set by port receive state machine
+	p.Selected = true               // assumed port role selection state machine set this
+	p.Role = PortRoleDesignatedPort // port role selection state machine sets this
+	p.UpdtInfo = false              // assume port role selection state machine already set this
+	p.TxCount = 0
+	p.NewInfo = true // owned by topo change machine, port role and port info
+	p.HelloWhenTimer.count = 1
+	p.PtxmMachineFsm.Machine.Curr.SetState(PtxmStateIdle)
+
+	// send test event
+	p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
+		src:          "TestPpmCheckingRSTPStateTransitions",
+		responseChan: testChan}
+
+	<-testChan
+
+	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
+
+	// should receive a tx event cause send RSTP is being
+	// set to false
+	event, _ = <-p.PtxmMachineFsm.PtxmEvents
+
+	if event.e != PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo {
+		t.Error("Failed to send event to tx machine")
+		t.FailNow()
+
+	}
+
+	p.PtxmMachineFsm = nil
+	DelStpPort(p)
+}
+
+// two part test will based on previous state
+func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
+	testChan := make(chan string)
+	UsedForTestOnlyPpmmInitPortConfigTest()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	// create a port
+	p := NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PpmmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
+	PtxmMachineFSMBuild(p)
+
+	// lets transition the state machine to SENSING
+	UsedForTestOnlyStartPpmInSensingState(p, t, 0, "1")
+
+	// Send RSTP and Received STP
+	// previous state was checking RSTP
+	// set pre-existing conditions for event to be raised
+	p.RcvdSTP = true          // set by port receive state machine
+	p.Selected = true         // assumed port role selection state machine set this
+	p.Role = PortRoleRootPort // port role selection state machine sets this
+	p.UpdtInfo = false        // assume port role selection state machine already set this
+	p.TxCount = 0
+	p.NewInfo = true // owned by topo change machine, port role and port info
+	p.HelloWhenTimer.count = 1
+	p.PtxmMachineFsm.Machine.Curr.SetState(PtxmStateIdle)
+	// send test event
+	p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventSendRSTPAndRcvdSTP,
+		src:          "TestPpmCheckingRSTPStateTransitions",
+		responseChan: testChan}
+
+	<-testChan
+
+	UsedForTestOnlyCheckPpmStateSelectingSTP(p, t, "1")
+
+	// should receive a tx event cause send RSTP is being
+	// set to false
+	event, _ := <-p.PtxmMachineFsm.PtxmEvents
+
+	if event.e != PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo {
+		t.Error("Failed to send event to tx machine")
+		t.FailNow()
+
+	}
+
+	// lets transition the state machine to SENSING via SELECTING
+	// force the previous state to be that of
+	UsedForTestOnlyStartPpmInSensingState(p, t, 0, "1")
+
+	// previous state was checking RSTP
+	// set pre-existing conditions for event to be raised
+	p.RcvdRSTP = true               // set by port receive state machine
+	p.Selected = true               // assumed port role selection state machine set this
+	p.Role = PortRoleDesignatedPort // port role selection state machine sets this
+	p.UpdtInfo = false              // assume port role selection state machine already set this
+	p.TxCount = 0
+	p.NewInfo = true // owned by topo change machine, port role and port info
+	p.HelloWhenTimer.count = 1
+	p.PtxmMachineFsm.Machine.Curr.SetState(PtxmStateIdle)
+
+	// send test event
+	p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
+		src:          "TestPpmCheckingRSTPStateTransitions",
+		responseChan: testChan}
+
+	<-testChan
+
+	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
+
+	// should receive a tx event cause send RSTP is being
+	// set to false
+	event, _ = <-p.PtxmMachineFsm.PtxmEvents
+
+	if event.e != PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo {
+		t.Error("Failed to send event to tx machine")
+		t.FailNow()
+
+	}
+
+	p.PtxmMachineFsm = nil
+	DelStpPort(p)
+}
+
+// two part test will based on previous state
+func TestPpmSensingNotPortEnabled(t *testing.T) {
+	testChan := make(chan string)
+	UsedForTestOnlyPpmmInitPortConfigTest()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	// create a port
+	p := NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PpmmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
+	PtxmMachineFSMBuild(p)
+
+	// lets transition the state machine to SENSING
+	UsedForTestOnlyStartPpmInSensingState(p, t, 0, "1")
+
+	// Send RSTP and Received STP
+	// previous state was checking RSTP
+	// set pre-existing conditions for event to be raised
+	p.RcvdSTP = true          // set by port receive state machine
+	p.Selected = true         // assumed port role selection state machine set this
+	p.Role = PortRoleRootPort // port role selection state machine sets this
+	p.UpdtInfo = false        // assume port role selection state machine already set this
+	p.TxCount = 0
+	p.NewInfo = true // owned by topo change machine, port role and port info
+	p.HelloWhenTimer.count = 1
+	p.PtxmMachineFsm.Machine.Curr.SetState(PtxmStateIdle)
+	// send test event
+	p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventNotPortEnabled,
+		src:          "TestPpmCheckingRSTPStateTransitions",
+		responseChan: testChan}
+
+	<-testChan
+
+	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
+
+	p.PtxmMachineFsm = nil
+	DelStpPort(p)
 }
