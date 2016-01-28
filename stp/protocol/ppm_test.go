@@ -474,25 +474,13 @@ func TestPpmSelectingSTPStateTransitions(t *testing.T) {
 
 	<-testChan
 
-	if p.PpmmMachineFsm.Machine.Curr.CurrentState() != PpmmStateCheckingRSTP {
+	if p.PpmmMachineFsm.Machine.Curr.PreviousState() != PpmmStateSensing {
 		t.Error(fmt.Sprintf("Failed event %d did not transition state expected %d\n", PpmmEventNotPortEnabled, PpmmStateSensing))
 		t.FailNow()
+
 	}
 
-	if p.Mcheck != false {
-		t.Error("Failed mcheck not set to FALSE")
-		t.FailNow()
-	}
-	if p.SendRSTP != true {
-		t.Error("Failed sendRSTP not set to true")
-		t.FailNow()
-	}
-
-	if p.MdelayWhiletimer.count != MigrateTimeDefault {
-		t.Error("Failed MdelayWhile was not reset")
-		t.FailNow()
-	}
-
+	// from transition from Sensing state
 	if p.RcvdRSTP != false {
 		t.Error("Failed RcvdRSTP was set")
 		t.FailNow()
@@ -501,6 +489,8 @@ func TestPpmSelectingSTPStateTransitions(t *testing.T) {
 		t.Error("Failed RcvdSTP was set")
 		t.FailNow()
 	}
+
+	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
 
 	DelStpPort(p)
 

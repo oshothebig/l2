@@ -1,9 +1,12 @@
-// 802.1D-2004 17.24 Port Protocol Migration state machine
-// The Port Protocol Migration state machine shall implement the function specified by the state diagram in
-// Figure 17-15, the definitions in 17.16, 17.20, and 17.21, and the variable declarations in 17.17, 17.18, and
-// 17.19. It updates sendRSTP (17.19.38) to tell the Port Transmit state machine (17.26) which BPDU types
-// (9.3) to transmit, to support interoperability (17.4) with the Spanning Tree Algorithm and Protocol specified
-// in previous revisions of this standard.
+// 802.1D-2004 17.27 Port Information State Machine
+//The Port Information state machine shall implement the function specified by the state diagram in Figure 17-
+//18, the definitions in 17.13, 17.16, 17.20, and 17.21, and the variable declarations in 17.17, 17.18, and 17.19.
+//This state machine is responsible for updating and recording the source (infoIs, 17.19.10) of the Spanning
+//Tree information (portPriority 17.19.21, portTimes 17.19.22) used to test the information conveyed
+//(msgPriority, 17.19.14; msgTimes, 17.19.15) by received Configuration Messages. If new, superior,
+//information arrives on the port, or the existing information is aged out, it sets the reselect variable to request
+//the Port Role Selection state machine to update the spanning tree priority vectors held by the Bridge and the
+//Bridge’s Port Roles.
 package stp
 
 import (

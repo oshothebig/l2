@@ -112,12 +112,6 @@ func (ppmm *PpmmMachine) InformPtxMachineSendRSTPChanged() {
 	p := ppmm.p
 	if p.PtxmMachineFsm != nil &&
 		p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
-		fmt.Println(p.SendRSTP,
-			p.NewInfo,
-			p.TxCount,
-			p.HelloWhenTimer.count,
-			p.Selected,
-			p.UpdtInfo)
 		if p.SendRSTP == true &&
 			p.NewInfo == true &&
 			p.TxCount < TransmitHoldCountDefault &&
