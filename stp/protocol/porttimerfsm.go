@@ -2,7 +2,7 @@
 package stp
 
 import (
-	"fmt"
+	//"fmt"
 	"time"
 	"utils/fsm"
 )
@@ -92,8 +92,8 @@ func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PtmStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		//logger: ptxm.LacpPtxmLog,
-		owner: PtmMachineModuleStr,
+		logger: StpLoggerInfo,
+		owner:  PtmMachineModuleStr,
 	}
 
 	return ptm.Machine
@@ -136,7 +136,6 @@ func PtmMachineFSMBuild(p *StpPort) *PtmMachine {
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the NO PERIODIC State
 	ptm := NewStpPtmMachine(p)
-	p.wg.Add(1)
 
 	//BEGIN -> ONE SECOND
 	rules.AddRule(PtmStateNone, PtmEventBegin, ptm.PtmMachineOneSecond)
@@ -163,6 +162,7 @@ func (p *StpPort) PtmMachineMain() {
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
 	ptm := PtmMachineFSMBuild(p)
+	p.wg.Add(1)
 
 	// set the inital State
 	ptm.Machine.Start(ptm.PrevState())
@@ -170,12 +170,12 @@ func (p *StpPort) PtmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PtmMachine) {
-		fmt.Println("PTM: Machine Start")
+		StpLogger("INFO", "PTM: Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PtmKillSignalEvent:
-				fmt.Println("PTM: %s Machine End")
+				StpLogger("INFO", "PTM: %s Machine End")
 				return
 
 			case <-m.TickTimer.C:

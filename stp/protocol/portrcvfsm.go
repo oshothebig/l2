@@ -90,10 +90,10 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PrxmStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		//logger: fmt.Println,
-		owner: PrxmMachineModuleStr,
-		ps:    PrxmStateNone,
-		s:     PrxmStateNone,
+		logger: StpLoggerInfo,
+		owner:  PrxmMachineModuleStr,
+		ps:     PrxmStateNone,
+		s:      PrxmStateNone,
 	}
 
 	return prxm.Machine
@@ -149,7 +149,6 @@ func PrxmMachineFSMBuild(p *StpPort) *PrxmMachine {
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the DISCARD State
 	prxm := NewStpPrxmMachine(p)
-	p.wg.Add(1)
 
 	//BEGIN -> DISCARD
 	rules.AddRule(PrxmStateNone, PrxmEventBegin, prxm.PrxmMachineDiscard)
@@ -182,6 +181,7 @@ func (p *StpPort) PrxmMachineMain() {
 	// Build the State machine for STP Receive Machine according to
 	// 802.1d Section 17.23
 	prxm := PrxmMachineFSMBuild(p)
+	p.wg.Add(1)
 
 	// set the inital State
 	prxm.Machine.Start(prxm.Machine.Curr.PreviousState())
@@ -189,19 +189,19 @@ func (p *StpPort) PrxmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PrxmMachine) {
-		fmt.Println("PRXM: Machine Start")
+		StpLogger("INFO", "PRXM: Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PrxmKillSignalEvent:
-				fmt.Println("PRXM: Machine End")
+				StpLogger("INFO", "PRXM: Machine End")
 				return
 
 			case event := <-m.PrxmEvents:
-				fmt.Println("Event Rx", event.src, event.e)
+				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					fmt.Println(rv)
+					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
 				}
 
 				// post processing
@@ -209,7 +209,7 @@ func (p *StpPort) PrxmMachineMain() {
 					m.p.RcvdMsg {
 					rv := m.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, nil)
 					if rv != nil {
-						fmt.Println(rv)
+						StpLogger("INFO", fmt.Sprintf("%s\n", rv))
 					}
 				}
 
@@ -221,6 +221,9 @@ func (p *StpPort) PrxmMachineMain() {
 				//fmt.Println("Event PKT Rx", rx.src, PrxmEventRcvdBpduAndPortEnabled)
 				if p.PortEnabled {
 					m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)
+				} else {
+
+					m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndNotPortEnabled, rx)
 				}
 
 			case ena := <-m.PrxmLogEnableEvent:

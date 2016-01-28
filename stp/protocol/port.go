@@ -89,6 +89,7 @@ type StpPort struct {
 	PtmMachineFsm  *PtmMachine
 	PpmmMachineFsm *PpmmMachine
 	PtxmMachineFsm *PtxmMachine
+	PpimMachineFsm *PpimMachine
 
 	begin bool
 
@@ -128,6 +129,8 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 			MaxAge:          BridgeMaxAgeDefault,    // TODO
 			MessageAge:      0,                      // TODO
 		},
+		SendRSTP:            true, // default
+		RcvdRSTP:            true, // default
 		EdgeDelayWhileTimer: PortTimer{count: MigrateTimeDefault},
 		FdWhileTimer:        PortTimer{count: BridgeMaxAgeDefault}, // TODO same as ForwardingDelay above
 		HelloWhenTimer:      PortTimer{count: BridgeHelloTimeDefault},
@@ -151,11 +154,11 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	if err != nil {
 		// failure here may be ok as this may be SIM
 		if !strings.Contains(ifName.Name, "SIM") {
-			fmt.Println("Error creating pcap OpenLive handle for port", p.IfIndex, ifName.Name, err)
+			StpLogger("ERROR", fmt.Sprintf("Error creating pcap OpenLive handle for port %d %s %s\n", p.IfIndex, ifName.Name, err))
 		}
 		return p
 	}
-	fmt.Println("Creating STP Listener for intf", p.IfIndex, ifName.Name)
+	StpLogger("INFO", fmt.Sprintf("Creating STP Listener for intf %d %s\n", p.IfIndex, ifName.Name))
 	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
 	p.handle = handle
 	src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
@@ -187,7 +190,7 @@ func (p *StpPort) Stop() {
 	// close rx/tx processing
 	if p.handle != nil {
 		p.handle.Close()
-		fmt.Println("RX/TX handle closed for port", p.IfIndex)
+		StpLogger("INFO", fmt.Sprintf("RX/TX handle closed for port %d\n", p.IfIndex))
 	}
 
 	if p.PrxmMachineFsm != nil {
@@ -208,6 +211,11 @@ func (p *StpPort) Stop() {
 	if p.PtxmMachineFsm != nil {
 		p.PtxmMachineFsm.Stop()
 		p.PtxmMachineFsm = nil
+	}
+
+	if p.PpimMachineFsm != nil {
+		p.PpimMachineFsm.Stop()
+		p.PpimMachineFsm = nil
 	}
 
 	// lets wait for the machines to close
@@ -265,6 +273,8 @@ func (p *StpPort) BEGIN(restart bool) {
 		p.PpmmMachineMain()
 		// Port Transmit State Machine
 		p.PtxmMachineMain()
+		// Port Information State Machine
+		p.PpimMachineMain()
 	}
 
 	// 1) Port Receive Machine
@@ -297,6 +307,13 @@ func (p *StpPort) BEGIN(restart bool) {
 			src: PortConfigModuleStr})
 	}
 
+	// Pim
+	if p.PpimMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.PpimMachineFsm.PpimEvents)
+		evt = append(evt, MachineEvent{e: PpimEventBegin,
+			src: PortConfigModuleStr})
+	}
+
 	// call the begin event for each
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, true)
@@ -310,7 +327,7 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 
 	length := len(mec)
 	if len(mec) != len(e) {
-		fmt.Println("STPPORT: Distributing of events failed")
+		StpLogger("ERROR", "STPPORT: Distributing of events failed")
 		return
 	}
 
@@ -332,7 +349,7 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 			select {
 			case mStr := <-p.portChan:
 				i++
-				fmt.Println(strings.Join([]string{"STPPORT:", mStr, "response received"}, " "))
+				StpLogger("INFO", strings.Join([]string{"STPPORT:", mStr, "response received"}, " "))
 				//fmt.Println("LAPORT: Waiting for response Delayed", length, "curr", i, time.Now())
 				if i >= length {
 					// 10/24/15 fixed hack by sending response after Machine.ProcessEvent

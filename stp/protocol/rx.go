@@ -36,13 +36,13 @@ func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
 						go ProcessBpduFrame(rxMainPort, ptype, packet)
 					}
 				} else {
-					fmt.Println("Channel closed")
+					StpLogger("INFO", "RXMAIN: Channel closed")
 					return
 				}
 			}
 		}
 
-		fmt.Println("RX go routine end")
+		StpLogger("INFO", "RXMAIN go routine end")
 	}(pId, rxPktChan)
 }
 
@@ -77,9 +77,9 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 			// lets get the actual type of BPDU
 			subLayerType := bpduLayer.LayerContents()[3]
 			if subLayerType == layers.BPDUTypeSTP {
-				if len(bpduLayer.LayerContents()) >= layers.BPDUTopologyLength &&
-					subLayerType == layers.BPDUTypeSTP {
-					stp := bpduLayer.(*layers.STP)
+				stp := bpduLayer.(*layers.STP)
+				if len(stp.Contents) >= layers.BPDUTopologyLength &&
+					stp.BPDUType == layers.BPDUTypeSTP {
 					// condition 9.3.4 (a)
 					if stp.ProtocolId == layers.RSTPProtocolIdentifier &&
 						len(stp.Contents) >= layers.STPProtocolLength &&
@@ -132,7 +132,7 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 			}
 		}
 	} else {
-		fmt.Println("STP: Unabled to port", pId)
+		StpLogger("INFO", fmt.Sprintf("RXMAIN: Unabled to find port %d\n", pId))
 	}
 	return bpduType
 }
@@ -152,6 +152,6 @@ func ProcessBpduFrame(pId int32, ptype BPDURxType, pdu interface{}) {
 			ptype: ptype,
 			src:   RxModuleStr}
 	} else {
-		fmt.Println("LACP: Unable to find port", pId)
+		StpLogger("ERROR", fmt.Sprintf("RXMAIN: Unabled to find port %d\n", pId))
 	}
 }

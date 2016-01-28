@@ -87,10 +87,10 @@ func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PpmmStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		//logger: fmt.Println,
-		owner: PpmmMachineModuleStr,
-		ps:    PpmmStateNone,
-		s:     PpmmStateNone,
+		logger: StpLoggerInfo,
+		owner:  PpmmMachineModuleStr,
+		ps:     PpmmStateNone,
+		s:      PpmmStateNone,
 	}
 
 	return ppmm.Machine
@@ -108,15 +108,65 @@ func (ppmm *PpmmMachine) Stop() {
 
 }
 
+func (ppmm *PpmmMachine) InformPtxMachineSendRSTPChanged() {
+	p := ppmm.p
+	if p.PtxmMachineFsm != nil &&
+		p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
+		fmt.Println(p.SendRSTP,
+			p.NewInfo,
+			p.TxCount,
+			p.HelloWhenTimer.count,
+			p.Selected,
+			p.UpdtInfo)
+		if p.SendRSTP == true &&
+			p.NewInfo == true &&
+			p.TxCount < TransmitHoldCountDefault &&
+			p.HelloWhenTimer.count != 0 &&
+			p.Selected == true &&
+			p.UpdtInfo == false {
+			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+				e:   PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+				src: PpmmMachineModuleStr}
+		} else if p.SendRSTP == false &&
+			p.NewInfo == true &&
+			p.Role == PortRoleRootPort &&
+			p.TxCount < TransmitHoldCountDefault &&
+			p.HelloWhenTimer.count != 0 &&
+			p.Selected == true &&
+			p.UpdtInfo == false {
+			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+				e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+				src: PpmmMachineModuleStr}
+		} else if p.SendRSTP == false &&
+			p.NewInfo == true &&
+			p.Role == PortRoleDesignatedPort &&
+			p.TxCount < TransmitHoldCountDefault &&
+			p.HelloWhenTimer.count != 0 &&
+			p.Selected == true &&
+			p.UpdtInfo == false {
+			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+				e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+				src: PpmmMachineModuleStr}
+		}
+	}
+}
+
 // PpmMachineCheckingRSTP
 func (ppmm *PpmmMachine) PpmmMachineCheckingRSTP(m fsm.Machine, data interface{}) fsm.State {
 	p := ppmm.p
 	p.Mcheck = false
-	p.SendRSTP = p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
+
+	sendRSTPchanged := p.SendRSTP != (p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion)
 	p.MdelayWhiletimer.count = MigrateTimeDefault
+
+	if sendRSTPchanged {
+		p.SendRSTP = p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion
+		// 17.24
+		// Inform Port Transmit State Machine what STP version to send and which BPDU types
+		// to support interoperability
+		ppmm.InformPtxMachineSendRSTPChanged()
+	}
+
 	return PpmmStateCheckingRSTP
 }
 
@@ -124,11 +174,15 @@ func (ppmm *PpmmMachine) PpmmMachineCheckingRSTP(m fsm.Machine, data interface{}
 func (ppmm *PpmmMachine) PpmmMachineSelectingSTP(m fsm.Machine, data interface{}) fsm.State {
 	p := ppmm.p
 
-	p.SendRSTP = false
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
+	sendRSTPchanged := p.SendRSTP != false
 	p.MdelayWhiletimer.count = MigrateTimeDefault
+	if sendRSTPchanged {
+		p.SendRSTP = false
+		// 17.24
+		// Inform Port Transmit State Machine what STP version to send and which BPDU types
+		// to support interoperability
+		ppmm.InformPtxMachineSendRSTPChanged()
+	}
 
 	return PpmmStateSelectingSTP
 }
@@ -151,7 +205,6 @@ func PpmmMachineFSMBuild(p *StpPort) *PpmmMachine {
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the DISCARD State
 	ppmm := NewStpPpmmMachine(p)
-	p.wg.Add(1)
 
 	//BEGIN -> CHECKING RSTP
 	rules.AddRule(PpmmStateNone, PpmmEventBegin, ppmm.PpmmMachineCheckingRSTP)
@@ -173,8 +226,12 @@ func PpmmMachineFSMBuild(p *StpPort) *PpmmMachine {
 	// RSTP VERSION and NOT SENDING RSTP AND RCVD RSTP -> CHECKING RSTP
 	rules.AddRule(PpmmStateSensing, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, ppmm.PpmmMachineCheckingRSTP)
 
-	//MDELAYWHILE EQUALS ZERO -> CHECKING RSTP
-	rules.AddRule(PpmmStateSensing, PpmmEventMdelayWhileEqualZero, ppmm.PpmmMachineSensing)
+	//MDELAYWHILE EQUALS ZERO -> SENSING
+	rules.AddRule(PpmmStateCheckingRSTP, PpmmEventMdelayWhileEqualZero, ppmm.PpmmMachineSensing)
+	rules.AddRule(PpmmStateSelectingSTP, PpmmEventMdelayWhileEqualZero, ppmm.PpmmMachineSensing)
+
+	// SEND RSTP and RCVD STP
+	rules.AddRule(PpmmStateSensing, PpmmEventSendRSTPAndRcvdSTP, ppmm.PpmmMachineSelectingSTP)
 
 	// Create a new FSM and apply the rules
 	ppmm.Apply(&rules)
@@ -188,6 +245,7 @@ func (p *StpPort) PpmmMachineMain() {
 	// Build the State machine for STP Receive Machine according to
 	// 802.1d Section 17.23
 	ppmm := PpmmMachineFSMBuild(p)
+	p.wg.Add(1)
 
 	// set the inital State
 	ppmm.Machine.Start(ppmm.Machine.Curr.PreviousState())
@@ -195,27 +253,40 @@ func (p *StpPort) PpmmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PpmmMachine) {
-		fmt.Println("PPMM: Machine Start")
+		StpLogger("INFO", "PPMM: Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PpmmKillSignalEvent:
-				fmt.Println("PPMM: Machine End")
+				StpLogger("INFO", "PPMM: Machine End")
 				return
 
 			case event := <-m.PpmmEvents:
-				fmt.Println("Event Rx", event.src, event.e)
+				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					fmt.Println(rv)
+					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
 				}
 
 				// post processing
-				if m.Machine.Curr.CurrentState() == PpmmStateSensing &&
-					(!m.p.PortEnabled || m.p.Mcheck) {
-					rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
-					if rv != nil {
-						fmt.Println(rv)
+				if m.Machine.Curr.CurrentState() == PpmmStateSensing {
+					if !m.p.PortEnabled {
+						rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
+						if rv != nil {
+							StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+						}
+					} else if m.p.Mcheck {
+						rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
+						if rv != nil {
+							StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+						}
+					} else if p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion &&
+						!p.SendRSTP &&
+						p.RcvdRSTP {
+						rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, nil)
+						if rv != nil {
+							StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+						}
 					}
 				}
 
