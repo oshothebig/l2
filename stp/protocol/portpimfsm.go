@@ -15,26 +15,59 @@ import (
 	"utils/fsm"
 )
 
-const PpimMachineModuleStr = "Port Information State Machine"
+const PimMachineModuleStr = "Port Information State Machine"
 
 const (
-	PpimStateNone = iota + 1
+	PimStateNone = iota + 1
+	PimStateDisabled
+	PimStateAged
+	PimStateUpdated
+	PimStateSuperiorDesignated
+	PimStateRepeatedDesignated
+	PimStateInferiorDesignated
+	PimStateNotDesignated
+	PimStateOther
+	PimStateCurrent
+	PimStateReceive
 )
 
-var PpimStateStrMap map[fsm.State]string
+var PimStateStrMap map[fsm.State]string
 
-func PpimMachineStrStateMapInit() {
-	PpimStateStrMap = make(map[fsm.State]string)
+func PimMachineStrStateMapInit() {
+	PimStateStrMap = make(map[fsm.State]string)
+	PimStateStrMap[PimStateNone] = "None"
+	PimStateStrMap[PimStateDisabled] = "Disabled"
+	PimStateStrMap[PimStateAged] = "Aged"
+	PimStateStrMap[PimStateUpdated] = "Updated"
+	PimStateStrMap[PimStateSuperiorDesignated] = "Superior Designated"
+	PimStateStrMap[PimStateRepeatedDesignated] = "Repeated Designated"
+	PimStateStrMap[PimStateInferiorDesignated] = "Inferior Designated"
+	PimStateStrMap[PimStateNotDesignated] = "Not Designated"
+	PimStateStrMap[PimStateOther] = "Other"
+	PimStateStrMap[PimStateCurrent] = "Current"
+	PimStateStrMap[PimStateReceive] = "Receive"
 
 }
 
 const (
-	PpimEventBegin = iota + 1
+	PimEventBegin = iota + 1
+	PimEventNotPortEnabledInfolsNotEqualDisabled
+	PimEventRcvdMsg
+	PimEventRcvdMsgAndNotUpdtInfo
+	PimEventPortEnabled
+	PimEventSelectedAndUpdtInfo
+	PimEventUnconditionalFallThrough
+	PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg
+	PimEventRcvdInfoEqualSuperiorDesignatedInfo
+	PimEventRcvdInfoEqualRepeatedDesignatedInfo
+	PimEventRcvdInfoEqualInferiorDesignatedInfo
+	PimEventRcvdInfoEqualRootAlternateInfo
+	PimEventRcvdInfoEqualOtherInfo
 )
 
-// LacpRxMachine holds FSM and current State
+// PimMachine holds FSM and current State
 // and event channels for State transitions
-type PpimMachine struct {
+type PimMachine struct {
 	Machine *fsm.Machine
 
 	// State transition log
@@ -44,62 +77,62 @@ type PpimMachine struct {
 	p *StpPort
 
 	// machine specific events
-	PpimEvents chan MachineEvent
+	PimEvents chan MachineEvent
 	// stop go routine
-	PpimKillSignalEvent chan bool
+	PimKillSignalEvent chan bool
 	// enable logging
-	PpimLogEnableEvent chan bool
+	PimLogEnableEvent chan bool
 }
 
-// NewLacpRxMachine will create a new instance of the LacpRxMachine
-func NewStpPpimMachine(p *StpPort) *PpimMachine {
-	ppim := &PpimMachine{
-		p:                   p,
-		PpimEvents:          make(chan MachineEvent, 10),
-		PpimKillSignalEvent: make(chan bool),
-		PpimLogEnableEvent:  make(chan bool)}
+// NewStpPimMachine will create a new instance of the LacpRxMachine
+func NewStpPimMachine(p *StpPort) *PimMachine {
+	pim := &PimMachine{
+		p:                  p,
+		PimEvents:          make(chan MachineEvent, 10),
+		PimKillSignalEvent: make(chan bool),
+		PimLogEnableEvent:  make(chan bool)}
 
-	p.PpimMachineFsm = ppim
+	p.PimMachineFsm = pim
 
-	return ppim
+	return pim
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
-func (ppim *PpimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
-	if ppim.Machine == nil {
-		ppim.Machine = &fsm.Machine{}
+func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
+	if pim.Machine == nil {
+		pim.Machine = &fsm.Machine{}
 	}
 
 	// Assign the ruleset to be used for this machine
-	ppim.Machine.Rules = r
-	ppim.Machine.Curr = &StpStateEvent{
-		strStateMap: PpimStateStrMap,
+	pim.Machine.Rules = r
+	pim.Machine.Curr = &StpStateEvent{
+		strStateMap: PimStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
 		logger: StpLoggerInfo,
-		owner:  PpimMachineModuleStr,
-		ps:     PpimStateNone,
-		s:      PpimStateNone,
+		owner:  PimMachineModuleStr,
+		ps:     PimStateNone,
+		s:      PimStateNone,
 	}
 
-	return ppim.Machine
+	return pim.Machine
 }
 
 // Stop should clean up all resources
-func (ppim *PpimMachine) Stop() {
+func (pim *PimMachine) Stop() {
 
 	// stop the go routine
-	ppim.PpimKillSignalEvent <- true
+	pim.PimKillSignalEvent <- true
 
-	close(ppim.PpimEvents)
-	close(ppim.PpimLogEnableEvent)
-	close(ppim.PpimKillSignalEvent)
+	close(pim.PimEvents)
+	close(pim.PimLogEnableEvent)
+	close(pim.PimKillSignalEvent)
 
 }
 
 /*
-// PpmMachineCheckingRSTP
+// PimMachineCheckingRSTP
 func (ppmm *PpmmMachine) PpmmMachineCheckingRSTP(m fsm.Machine, data interface{}) fsm.State {
 	p := ppmm.p
 	p.Mcheck = false
@@ -134,44 +167,44 @@ func (ppmm *PpmmMachine) PpmmMachineSensing(m fsm.Machine, data interface{}) fsm
 	return PpmmStateSensing
 }
 */
-func PpimMachineFSMBuild(p *StpPort) *PpimMachine {
+func PimMachineFSMBuild(p *StpPort) *PimMachine {
 
 	rules := fsm.Ruleset{}
 
 	// Instantiate a new PrxmMachine
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the DISCARD State
-	ppim := NewStpPpimMachine(p)
+	pim := NewStpPimMachine(p)
 
 	// Create a new FSM and apply the rules
-	ppim.Apply(&rules)
+	pim.Apply(&rules)
 
-	return ppim
+	return pim
 }
 
-// PrxmMachineMain:
-func (p *StpPort) PpimMachineMain() {
+// PimMachineMain:
+func (p *StpPort) PimMachineMain() {
 
 	// Build the State machine for STP Receive Machine according to
-	// 802.1d Section 17.23
-	ppim := PpimMachineFSMBuild(p)
+	// 802.1d Section 17.27
+	pim := PimMachineFSMBuild(p)
 	p.wg.Add(1)
 
 	// set the inital State
-	ppim.Machine.Start(ppim.Machine.Curr.PreviousState())
+	pim.Machine.Start(pim.Machine.Curr.PreviousState())
 
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
-	go func(m *PpimMachine) {
-		StpLogger("INFO", "PPIM: Machine Start")
+	go func(m *PimMachine) {
+		StpLogger("INFO", "PIM: Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PpimKillSignalEvent:
-				StpLogger("INFO", "PPIM: Machine End")
+			case <-m.PimKillSignalEvent:
+				StpLogger("INFO", "PIM: Machine End")
 				return
 
-			case event := <-m.PpimEvents:
+			case event := <-m.PimEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
@@ -179,12 +212,12 @@ func (p *StpPort) PpimMachineMain() {
 				}
 
 				if event.responseChan != nil {
-					SendResponse(PpimMachineModuleStr, event.responseChan)
+					SendResponse(PimMachineModuleStr, event.responseChan)
 				}
 
-			case ena := <-m.PpimLogEnableEvent:
+			case ena := <-m.PimLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}
 		}
-	}(ppim)
+	}(pim)
 }

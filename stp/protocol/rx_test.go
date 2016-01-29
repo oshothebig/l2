@@ -330,7 +330,7 @@ func TestRxValidStpPacket(t *testing.T) {
 	// 1) Port Information Machine
 	// 2) Port Protocol Migration Machine
 	PpmmMachineFSMBuild(p)
-	PpimMachineFSMBuild(p)
+	PimMachineFSMBuild(p)
 
 	// send a packet
 	UsedForTestOnlySendValidStpFrame(TEST_TX_PORT_CONFIG_IFINDEX, t)
@@ -389,11 +389,11 @@ func TestRxValidStpPacket(t *testing.T) {
 		t.FailNow()
 	}
 
-	// TODO add Ppim event to test
+	// TODO add Pim event to test
 
 	// remove reference to fsm allocated above
 	p.PpmmMachineFsm = nil
-	p.PpimMachineFsm = nil
+	p.PimMachineFsm = nil
 
 	DelStpPort(p)
 
@@ -439,7 +439,7 @@ func TestRxValidRStpPacket(t *testing.T) {
 	// 1) Port Information Machine
 	// 2) Port Protocol Migration Machine
 	PpmmMachineFSMBuild(p)
-	PpimMachineFSMBuild(p)
+	PimMachineFSMBuild(p)
 
 	// setup pre-condition, lets fake out and pretent we were in send STP mode
 	p.SendRSTP = false
@@ -503,7 +503,7 @@ func TestRxValidRStpPacket(t *testing.T) {
 
 	// remove reference to fsm allocated above
 	p.PpmmMachineFsm = nil
-	p.PpimMachineFsm = nil
+	p.PimMachineFsm = nil
 
 	DelStpPort(p)
 }
@@ -932,7 +932,7 @@ func TestRxValidTopoChange(t *testing.T) {
 	// 1) Port Information Machine
 	// 2) Port Protocol Migration Machine
 	PpmmMachineFSMBuild(p)
-	PpimMachineFSMBuild(p)
+	PimMachineFSMBuild(p)
 
 	// send a packet
 	UsedForTestOnlySendValidStpTopoFrame(TEST_TX_PORT_CONFIG_IFINDEX, t)
@@ -992,7 +992,7 @@ func TestRxValidTopoChange(t *testing.T) {
 	}
 
 	p.PpmmMachineFsm = nil
-	p.PpimMachineFsm = nil
+	p.PimMachineFsm = nil
 
 	DelStpPort(p)
 }

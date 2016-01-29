@@ -89,7 +89,11 @@ type StpPort struct {
 	PtmMachineFsm  *PtmMachine
 	PpmmMachineFsm *PpmmMachine
 	PtxmMachineFsm *PtxmMachine
-	PpimMachineFsm *PpimMachine
+	PimMachineFsm  *PimMachine
+	BdmMachineFsm  *BdmMachine
+	PrsMachineFsm  *PrsMachine
+	PrtMachineFsm  *PrtMachine
+	TcMachineFsm   *TcMachine
 
 	begin bool
 
@@ -213,9 +217,29 @@ func (p *StpPort) Stop() {
 		p.PtxmMachineFsm = nil
 	}
 
-	if p.PpimMachineFsm != nil {
-		p.PpimMachineFsm.Stop()
-		p.PpimMachineFsm = nil
+	if p.PimMachineFsm != nil {
+		p.PimMachineFsm.Stop()
+		p.PimMachineFsm = nil
+	}
+
+	if p.BdmMachineFsm != nil {
+		p.BdmMachineFsm.Stop()
+		p.BdmMachineFsm = nil
+	}
+
+	if p.PrsMachineFsm != nil {
+		p.PrsMachineFsm.Stop()
+		p.PrsMachineFsm = nil
+	}
+
+	if p.PrtMachineFsm != nil {
+		p.PrtMachineFsm.Stop()
+		p.PrtMachineFsm = nil
+	}
+
+	if p.TcMachineFsm != nil {
+		p.TcMachineFsm.Stop()
+		p.TcMachineFsm = nil
 	}
 
 	// lets wait for the machines to close
@@ -260,11 +284,7 @@ func (p *StpPort) BEGIN(restart bool) {
 	evt := make([]MachineEvent, 0)
 
 	if !restart {
-
 		// start all the State machines
-		// will send event to Mux machine
-		// thus machine must be up and
-		// running first
 		// Port Timer State Machine
 		p.PtmMachineMain()
 		// Port Receive State Machine
@@ -274,11 +294,17 @@ func (p *StpPort) BEGIN(restart bool) {
 		// Port Transmit State Machine
 		p.PtxmMachineMain()
 		// Port Information State Machine
-		p.PpimMachineMain()
+		p.PimMachineMain()
+		// Bridge Detection State Machine
+		p.BdmMachineMain()
+		// Port Role Selection State Machine
+		p.PrsMachineMain()
+		// Port Role Transitions State Machine
+		p.PrtMachineMain()
+		// Topology Change State Machine
+		p.TcMachineMain()
 	}
 
-	// 1) Port Receive Machine
-	// 2) Port Trasmit Machine
 	// Prxm
 	if p.PrxmMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
@@ -308,9 +334,38 @@ func (p *StpPort) BEGIN(restart bool) {
 	}
 
 	// Pim
-	if p.PpimMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.PpimMachineFsm.PpimEvents)
-		evt = append(evt, MachineEvent{e: PpimEventBegin,
+	if p.PimMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
+		evt = append(evt, MachineEvent{e: PimEventBegin,
+			src: PortConfigModuleStr})
+	}
+
+	// Bdm
+	if p.BdmMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
+		// TODO add logic to determin Admin Edge
+		evt = append(evt, MachineEvent{e: BdmEventBeginAdminEdge,
+			src: PortConfigModuleStr})
+	}
+
+	// Prsm
+	if p.PrsMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.PrsMachineFsm.PrsEvents)
+		evt = append(evt, MachineEvent{e: PrsEventBegin,
+			src: PortConfigModuleStr})
+	}
+
+	// Prtm
+	if p.PrtMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+		evt = append(evt, MachineEvent{e: PrtEventBegin,
+			src: PortConfigModuleStr})
+	}
+
+	// Tcm
+	if p.TcMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.TcMachineFsm.TcEvents)
+		evt = append(evt, MachineEvent{e: TcEventBegin,
 			src: PortConfigModuleStr})
 	}
 
