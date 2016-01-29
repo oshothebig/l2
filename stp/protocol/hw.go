@@ -40,13 +40,13 @@ func GetClientPort(paramsFile string, c string) int {
 
 	bytes, err := ioutil.ReadFile(paramsFile)
 	if err != nil {
-		fmt.Println("Error in reading configuration file:%s err:%s", paramsFile, err)
+		StpLogger("ERROR", fmt.Sprintf("Error in reading configuration file:%s err:%s\n", paramsFile, err))
 		return 0
 	}
 
 	err = json.Unmarshal(bytes, &clientsList)
 	if err != nil {
-		fmt.Println("Error in Unmarshalling Json")
+		StpLogger("ERROR", "Error in Unmarshalling Json")
 		return 0
 	}
 
@@ -62,7 +62,7 @@ func GetClientPort(paramsFile string, c string) int {
 func ConnectToClients(paramsFile string) {
 	port := GetClientPort(paramsFile, "asicd")
 	if port != 0 {
-		fmt.Printf("found asicd at port %d\n", port)
+		StpLogger("INFO", fmt.Sprintf("found asicd at port %d\n", port))
 		asicdclnt.Address = "localhost:" + strconv.Itoa(port)
 		asicdclnt.Transport, asicdclnt.PtrProtocolFactory, _ = ipcutils.CreateIPCHandles(asicdclnt.Address)
 		if asicdclnt.Transport != nil && asicdclnt.PtrProtocolFactory != nil {
@@ -78,12 +78,12 @@ func ConnectToClients(paramsFile string) {
 func ConstructPortConfigMap() {
 	currMarker := int64(hwconst.MIN_SYS_PORTS)
 	if asicdclnt.IsConnected {
-		fmt.Println("Calling asicd for port config")
+		StpLogger("INFO", "Calling asicd for port config")
 		count := 10
 		for {
 			bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(int64(currMarker), int64(count))
 			if err != nil {
-				fmt.Println("Error: ", err)
+				StpLogger("INFO", fmt.Sprintf("Error: %s", err))
 				return
 			}
 			objCount := int(bulkInfo.ObjCount)

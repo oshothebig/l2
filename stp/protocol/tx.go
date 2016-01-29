@@ -75,9 +75,10 @@ func (p *StpPort) TxRSTP() {
 	// Send one packet for every address.
 	gopacket.SerializeLayers(buf, opts, &eth, &llc, &rstp)
 	if err := p.handle.WritePacketData(buf.Bytes()); err != nil {
-		fmt.Println("Error writing packet to interface", err)
+		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
+		return
 	}
-	fmt.Println("Sent RSTP packet on interface", pIntf.Name)
+	StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s\n", pIntf.Name))
 }
 
 func (p *StpPort) TxTCN() {
@@ -100,9 +101,10 @@ func (p *StpPort) TxTCN() {
 	// Send one packet for every address.
 	gopacket.SerializeLayers(buf, opts, &eth, &llc, &topo)
 	if err := p.handle.WritePacketData(buf.Bytes()); err != nil {
-		fmt.Println("Error writing packet to interface", err)
+		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
+		return
 	}
-	fmt.Println("Sent Config packet on interface", pIntf.Name)
+	StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s\n", pIntf.Name))
 
 }
 
@@ -144,7 +146,8 @@ func (p *StpPort) TxConfig() {
 	// Send one packet for every address.
 	gopacket.SerializeLayers(buf, opts, &eth, &llc, &stp)
 	if err := p.handle.WritePacketData(buf.Bytes()); err != nil {
-		fmt.Println("Error writing packet to interface", err)
+		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
+		return
 	}
-	fmt.Println("Sent Config packet on interface", pIntf.Name)
+	StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s\n", pIntf.Name))
 }

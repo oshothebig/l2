@@ -91,10 +91,10 @@ func (ptxm *PtxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PtxmStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		//logger: fmt.Println,
-		owner: PtxmMachineModuleStr,
-		ps:    PtxmStateNone,
-		s:     PtxmStateNone,
+		logger: StpLoggerInfo,
+		owner:  PtxmMachineModuleStr,
+		ps:     PtxmStateNone,
+		s:      PtxmStateNone,
 	}
 
 	return ptxm.Machine
@@ -176,7 +176,6 @@ func PtxmMachineFSMBuild(p *StpPort) *PtxmMachine {
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the DISCARD State
 	ptxm := NewStpPtxmMachine(p)
-	p.wg.Add(1)
 
 	//BEGIN -> TRANSMIT INIT
 	rules.AddRule(PtxmStateNone, PtxmEventBegin, ptxm.PtxmMachineTransmitInit)
@@ -218,6 +217,7 @@ func (p *StpPort) PtxmMachineMain() {
 	// Build the State machine for STP Receive Machine according to
 	// 802.1d Section 17.23
 	ptxm := PtxmMachineFSMBuild(p)
+	p.wg.Add(1)
 
 	// set the inital State
 	ptxm.Machine.Start(ptxm.Machine.Curr.PreviousState())
@@ -225,19 +225,19 @@ func (p *StpPort) PtxmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PtxmMachine) {
-		fmt.Println("PTXM: Machine Start")
+		StpLogger("INFO", "PTXM: Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PtxmKillSignalEvent:
-				fmt.Println("PTXM: Machine End")
+				StpLogger("INFO", "PTXM: Machine End")
 				return
 
 			case event := <-m.PtxmEvents:
-				fmt.Println("Event Rx", event.src, event.e)
+				//StpLogger("INFO", "Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					fmt.Println(rv)
+					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
 				}
 
 				if event.responseChan != nil {
