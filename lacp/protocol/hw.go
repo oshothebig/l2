@@ -137,12 +137,12 @@ func asicDUpdateLag(a *LaAggregator) {
 func asicdGetPortLinkStatus(intfNum string) bool {
 
 	if asicdclnt.ClientHdl != nil {
-		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(hwconst.MIN_SYS_PORTS, hwconst.MIN_SYS_PORTS)
-		if err == nil && bulkInfo.ObjCount != 0 {
-			objCount := int64(bulkInfo.ObjCount)
+		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(hwconst.MIN_SYS_PORTS, hwconst.MIN_SYS_PORTS)
+		if err == nil && bulkInfo.Count != 0 {
+			objCount := int64(bulkInfo.Count)
 			for i := int64(0); i < objCount; i++ {
-				if bulkInfo.PortConfigList[i].Name == intfNum {
-					return bulkInfo.PortConfigList[i].OperState == pluginCommon.UpDownState[1]
+				if bulkInfo.PortStateList[i].Name == intfNum {
+					return bulkInfo.PortStateList[i].OperState == pluginCommon.UpDownState[1]
 				}
 			}
 		}
