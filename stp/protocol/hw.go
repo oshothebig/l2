@@ -76,24 +76,29 @@ func ConnectToClients(paramsFile string) {
 }
 
 func ConstructPortConfigMap() {
-	currMarker := int64(hwconst.MIN_SYS_PORTS)
+	currMarker := asicdServices.Int(hwconst.MIN_SYS_PORTS)
 	if asicdclnt.IsConnected {
 		StpLogger("INFO", "Calling asicd for port config")
-		count := 10
+		count := asicdServices.Int(10)
 		for {
-			bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(int64(currMarker), int64(count))
+			bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(currMarker, count)
 			if err != nil {
 				StpLogger("INFO", fmt.Sprintf("Error: %s", err))
 				return
 			}
-			objCount := int(bulkInfo.ObjCount)
+			bulkCfgInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(currMarker, count)
+			if err != nil {
+				StpLogger("INFO", fmt.Sprintf("Error: %s", err))
+				return
+			}
+			objCount := int(bulkInfo.Count)
 			more := bool(bulkInfo.More)
-			currMarker = int64(bulkInfo.NextMarker)
+			currMarker = asicdServices.Int(bulkInfo.EndIdx)
 			for i := 0; i < objCount; i++ {
-				portNum := bulkInfo.PortConfigList[i].IfIndex
+				portNum := bulkInfo.PortStateList[i].PortNum
 				ent := PortConfigMap[portNum]
-				ent.Name = bulkInfo.PortConfigList[i].Name
-				ent.HardwareAddr, _ = net.ParseMAC(bulkInfo.PortConfigList[i].MacAddr)
+				ent.Name = bulkInfo.PortStateList[i].Name
+				ent.HardwareAddr, _ = net.ParseMAC(bulkCfgInfo.PortConfigList[i].MacAddr)
 				PortConfigMap[portNum] = ent
 			}
 			if more == false {
@@ -123,12 +128,12 @@ func asicDPortBmpFormatGet(distPortList []string) string {
 func asicdGetPortLinkStatus(intfNum string) bool {
 
 	if asicdclnt.ClientHdl != nil {
-		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(hwconst.MIN_SYS_PORTS, hwconst.MIN_SYS_PORTS)
-		if err == nil && bulkInfo.ObjCount != 0 {
-			objCount := int64(bulkInfo.ObjCount)
+		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(asicdServices.Int(hwconst.MIN_SYS_PORTS), asicdServices.Int(hwconst.MIN_SYS_PORTS))
+		if err == nil && bulkInfo.Count != 0 {
+			objCount := int64(bulkInfo.Count)
 			for i := int64(0); i < objCount; i++ {
-				if bulkInfo.PortConfigList[i].Name == intfNum {
-					return bulkInfo.PortConfigList[i].OperState == pluginCommon.UpDownState[1]
+				if bulkInfo.PortStateList[i].Name == intfNum {
+					return bulkInfo.PortStateList[i].OperState == pluginCommon.UpDownState[1]
 				}
 			}
 		}
