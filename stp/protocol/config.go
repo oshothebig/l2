@@ -1,14 +1,17 @@
 // config.go
 package stp
 
-import ()
+import (
+	"fmt"
+	"net"
+)
 
 type StpBridgeConfig struct {
 	Dot1dBridgeAddressKey      string `SNAPROUTE: KEY`
-	Dot1dStpPriorityKey        int32  `SNAPROUTE: KEY`
-	Dot1dStpBridgeMaxAge       int32
-	Dot1dStpBridgeHelloTime    int32
-	Dot1dStpBridgeForwardDelay int32
+	Dot1dStpPriorityKey        uint16 `SNAPROUTE: KEY`
+	Dot1dStpBridgeMaxAge       uint16
+	Dot1dStpBridgeHelloTime    uint16
+	Dot1dStpBridgeForwardDelay uint16
 	Dot1dStpBridgeForceVersion int32
 	Dot1dStpBridgeTxHoldCount  int32
 }
@@ -23,12 +26,43 @@ type StpPortConfig struct {
 	Dot1dStpPortAdminPointToPoint int32
 	Dot1dStpPortAdminEdgePort     int32
 	Dot1dStpPortAdminPathCost     int32
+	Dot1dStpBridgeId              BridgeId
 }
 
-func StpPortCreate(config *StpPortConfig) {
+func StpBridgeCreate(c *StpBridgeConfig) {
+	var b *Bridge
+	var addr [6]uint8
+	netAddr, _ := net.ParseMAC(c.Dot1dBridgeAddressKey)
+	for i := 0; i < 6; i++ {
+		addr[i] = netAddr[i]
+
+	}
+	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriorityKey)
+	if !StpFindBridgeById(bridgeId, &b) {
+		b = NewStpBridge(c)
+		b.BEGIN(false)
+	}
+}
+
+func StpPortCreate(c *StpPortConfig) {
 	var p *StpPort
-	if !StpFindPortById(config.Dot1dStpPortKey, &p) {
-		p := NewStpPort(config)
+	var b *Bridge
+	if !StpFindPortById(c.Dot1dStpPortKey, &p) {
+		p := NewStpPort(c)
+		// nothing should happen until a birdge is assigned to the port
+		if StpFindBridgeById(p.BridgeId, &b) {
+			p.BEGIN(false)
+		}
+	}
+}
+
+func StpPortAddToBridge(pId int32, bridgeId BridgeId) {
+	var p *StpPort
+	var b *Bridge
+	if StpFindPortById(pId, &p) && StpFindBridgeById(bridgeId, &b) {
+		p.BridgeId = b.BridgeIdentifier
 		p.BEGIN(false)
+	} else {
+		StpLogger("ERROR", fmt.Sprintf("ERROR did not find bridge[%#v] or port[%d]", bridgeId, pId))
 	}
 }

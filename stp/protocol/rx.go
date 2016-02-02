@@ -139,16 +139,19 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 
 // ProcessBpduFrame will lookup the cooresponding port from which the
 // packet arrived and forward the packet to the Port Rx Machine for processing
-func ProcessBpduFrame(pId int32, ptype BPDURxType, pdu interface{}) {
+func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
 	var p *StpPort
 
+	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
+
+	//fmt.Printf("ProcessBpduFrame %T", bpduLayer)
 	// lets find the port via the info in the packet
 	if StpFindPortById(pId, &p) {
 		p.RcvdBPDU = true
 		//fmt.Println(lacp)
 		//fmt.Println("Sening rx message to Port Rcvd State Machine", p.IfIndex)
 		p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
-			pdu:   pdu,
+			pdu:   bpduLayer, // this is a pointer
 			ptype: ptype,
 			src:   RxModuleStr}
 	} else {

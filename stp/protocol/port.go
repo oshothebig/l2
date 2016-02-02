@@ -35,7 +35,7 @@ type StpPort struct {
 	FdbFlush           bool
 	Forward            bool
 	Forwarding         bool
-	Infols             PortInfoState
+	InfoIs             PortInfoState
 	Learn              bool
 	Learning           bool
 	Mcheck             bool
@@ -58,6 +58,7 @@ type StpPort struct {
 	RcvdTc             bool
 	RcvdTcAck          bool
 	RcvdTcn            bool
+	RstpVersion        bool
 	ReRoot             bool
 	Reselect           bool
 	Role               PortRole
@@ -71,6 +72,13 @@ type StpPort struct {
 	Tick               bool
 	TxCount            uint64
 	UpdtInfo           bool
+	// 6.4.3
+	OperPointToPointMAC   bool
+	AdminPoinrtToPointMAC PointToPointMac
+
+	// Associated Bridge Id
+	BridgeId BridgeId
+	b        *Bridge
 
 	// statistics
 	BpduRx uint64
@@ -94,6 +102,7 @@ type StpPort struct {
 	PrsMachineFsm  *PrsMachine
 	PrtMachineFsm  *PrtMachine
 	TcMachineFsm   *TcMachine
+	PstMachineFsm  *PstMachine
 
 	begin bool
 
@@ -111,7 +120,7 @@ type PortTimer struct {
 }
 
 func NewStpPort(c *StpPortConfig) *StpPort {
-
+	var b *Bridge
 	/*
 		MigrateTimeDefault = 3
 		BridgeHelloTimeDefault = 2
@@ -144,10 +153,11 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		RrWhileTimer:        PortTimer{count: BridgeMaxAgeDefault},
 		TcWhileTimer:        PortTimer{count: BridgeHelloTimeDefault}, // should be updated by newTcWhile func
 		portChan:            make(chan string),
+		BridgeId:            c.Dot1dStpBridgeId,
 	}
-	// add port to map table
-	if _, ok := PortMapTable[p.IfIndex]; !ok {
-		PortMapTable = make(map[int32]*StpPort, 0)
+
+	if StpFindBridgeById(p.BridgeId, &b) {
+		p.b = b
 	}
 
 	PortMapTable[p.IfIndex] = p
@@ -227,11 +237,6 @@ func (p *StpPort) Stop() {
 		p.BdmMachineFsm = nil
 	}
 
-	if p.PrsMachineFsm != nil {
-		p.PrsMachineFsm.Stop()
-		p.PrsMachineFsm = nil
-	}
-
 	if p.PrtMachineFsm != nil {
 		p.PrtMachineFsm.Stop()
 		p.PrtMachineFsm = nil
@@ -240,6 +245,11 @@ func (p *StpPort) Stop() {
 	if p.TcMachineFsm != nil {
 		p.TcMachineFsm.Stop()
 		p.TcMachineFsm = nil
+	}
+
+	if p.PstMachineFsm != nil {
+		p.PstMachineFsm.Stop()
+		p.PstMachineFsm = nil
 	}
 
 	// lets wait for the machines to close
@@ -297,12 +307,14 @@ func (p *StpPort) BEGIN(restart bool) {
 		p.PimMachineMain()
 		// Bridge Detection State Machine
 		p.BdmMachineMain()
-		// Port Role Selection State Machine
-		p.PrsMachineMain()
+		// Port Role Selection State Machine (one instance per bridge)
+		//p.PrsMachineMain()
 		// Port Role Transitions State Machine
 		p.PrtMachineMain()
 		// Topology Change State Machine
 		p.TcMachineMain()
+		// Port State Transition State Machine
+		p.PstMachineMain()
 	}
 
 	// Prxm
@@ -348,13 +360,6 @@ func (p *StpPort) BEGIN(restart bool) {
 			src: PortConfigModuleStr})
 	}
 
-	// Prsm
-	if p.PrsMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.PrsMachineFsm.PrsEvents)
-		evt = append(evt, MachineEvent{e: PrsEventBegin,
-			src: PortConfigModuleStr})
-	}
-
 	// Prtm
 	if p.PrtMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
@@ -366,6 +371,13 @@ func (p *StpPort) BEGIN(restart bool) {
 	if p.TcMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.TcMachineFsm.TcEvents)
 		evt = append(evt, MachineEvent{e: TcEventBegin,
+			src: PortConfigModuleStr})
+	}
+
+	// Pstm
+	if p.PstMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.PstMachineFsm.PstEvents)
+		evt = append(evt, MachineEvent{e: PstEventBegin,
 			src: PortConfigModuleStr})
 	}
 
@@ -425,6 +437,70 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 	}
 }
 
+/*
+BPDU info
+ProtocolId        uint16
+	ProtocolVersionId byte
+	BPDUType          byte
+	Flags             byte
+	RootId            [8]byte
+	RootCostPath      uint32
+	BridgeId          [8]byte
+	PortId            uint16
+	MsgAge            uint16
+	MaxAge            uint16
+	HelloTime         uint16
+	FwdDelay          uint16
+*/
+
+func (p *StpPort) SaveMsgRcvInfo(data interface{}) {
+
+	switch data.(type) {
+	case layers.STP:
+		stp := data.(*layers.STP)
+		// TODO revisit what the BridgePortId should be
+		p.MsgPriority.BridgePortId = stp.PortId
+		p.MsgPriority.DesignatedBridgeId = stp.BridgeId
+		p.MsgPriority.DesignatedPortId = stp.PortId
+		p.MsgPriority.RootBridgeId = stp.RootId
+		p.MsgPriority.RootPathCost = stp.RootPathCost
+
+		p.MsgTimes.ForwardingDelay = stp.FwdDelay
+		p.MsgTimes.HelloTime = stp.HelloTime
+		p.MsgTimes.MaxAge = stp.MaxAge
+		p.MsgTimes.MessageAge = stp.MsgAge
+
+	case layers.RSTP:
+		rstp := data.(*layers.RSTP)
+		// TODO revisit what the BridgePortId should be
+		p.MsgPriority.BridgePortId = rstp.PortId
+		p.MsgPriority.DesignatedBridgeId = rstp.BridgeId
+		p.MsgPriority.DesignatedPortId = rstp.PortId
+		p.MsgPriority.RootBridgeId = rstp.RootId
+		p.MsgPriority.RootPathCost = rstp.RootPathCost
+
+		p.MsgTimes.ForwardingDelay = rstp.FwdDelay
+		p.MsgTimes.HelloTime = rstp.HelloTime
+		p.MsgTimes.MaxAge = rstp.MaxAge
+		p.MsgTimes.MessageAge = rstp.MsgAge
+
+	case layers.PVST:
+		pvst := data.(*layers.PVST)
+		// TODO revisit what the BridgePortId should be
+		p.MsgPriority.BridgePortId = pvst.PortId
+		p.MsgPriority.DesignatedBridgeId = pvst.BridgeId
+		p.MsgPriority.DesignatedPortId = pvst.PortId
+		p.MsgPriority.RootBridgeId = pvst.RootId
+		p.MsgPriority.RootPathCost = pvst.RootPathCost
+
+		p.MsgTimes.ForwardingDelay = pvst.FwdDelay
+		p.MsgTimes.HelloTime = pvst.HelloTime
+		p.MsgTimes.MaxAge = pvst.MaxAge
+		p.MsgTimes.MessageAge = pvst.MsgAge
+
+	}
+}
+
 func (p *StpPort) BridgeProtocolVersionGet() uint8 {
 	// TODO get the protocol version from the bridge
 	// Below is the default
@@ -434,4 +510,100 @@ func (p *StpPort) BridgeProtocolVersionGet() uint8 {
 func (p *StpPort) BridgeRootPortGet() int32 {
 	// TODO get the bridge RootPortId
 	return 10
+}
+
+func (p *StpPort) PortEnableSet(src string, val bool) {
+	// The following Machines need to know about
+	// changes in PortEnable State
+	// 1) Port Receive
+	// 2) Port Protocol Migration
+	// 3) Port Information
+	// 4) Bridge Detection
+	if p.PortEnabled != val {
+		mEvtChan := make([]chan MachineEvent, 0)
+		evt := make([]MachineEvent, 0)
+		p.PortEnabled = val
+
+		// notify the state machines
+		if p.EdgeDelayWhileTimer.count != MigrateTimeDefault && val == false {
+			mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
+			evt = append(evt, MachineEvent{e: PrxmEventEdgeDelayWhileNotEqualMigrateTimeAndNotPortEnabled,
+				src: src})
+		}
+		if val == false {
+			mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
+			evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
+				src: src})
+			// TODO need AdminEdge variable
+			// if p.AdminEdge == false {
+			//BdEventNotPortEnabledAndNotAdminEdge
+			//} else {
+			//BdmEventNotPortEnabledAndAdminEdge
+			//}
+		} else {
+			mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
+			evt = append(evt, MachineEvent{e: PimEventPortEnabled,
+				src: src})
+		}
+		// distribute the events
+		p.DistributeMachineEvents(mEvtChan, evt, false)
+	}
+}
+
+func (p *StpPort) ForceVersionSet(src string, val int) {
+	// The following machines need to know about
+	// changes in forceVersion State
+	// 1) Port Protocol Migration
+	// 2) Port Role Transitions
+	// 3) Port Transmit
+}
+
+func (p *StpPort) UpdtInfoSet(src string, val bool) {
+	// The following machines need to know about
+	// changes in UpdtInfo State
+	// 1) Port Information
+	// 2) Port Role Transitions
+	// 3) Port Transmit
+	p.UpdtInfo = val
+}
+
+func (p *StpPort) DesignatedPrioritySet(src string, val *PriorityVector) {
+	// The following machines need to know about
+	// changes in DesignatedPriority State
+	// 1) Port Information
+	// 2) Port Transmit
+	p.DesignatedPriority = *val
+}
+
+func (p *StpPort) DesignatedTimesSet(src string, val *Times) {
+	// The following machines need to know about
+	// changes in DesignatedTimes State
+	// 1) Port Information
+	// 2) Port Transmit
+	p.DesignatedTimes = *val
+}
+
+func (p *StpPort) SelectedSet(src string, val bool) {
+	// The following machines need to know about
+	// changes in Selected State
+	// 1) Port Information
+	// 2) Port Role Selection
+	// 3) Port Role Transitions
+	p.Selected = val
+}
+
+func (p *StpPort) OperEdgeSet(src string, val bool) {
+	// The following machines need to know about
+	// changes in OperEdge State
+	// 1) Port Role Transitions
+	// 2) Bridge Detection
+	p.OperEdge = val
+}
+
+func (p *StpPort) RoleSet(src string, val PortRole) {
+	// The following machines need to know about
+	// changes in Role State
+	// 1) Port State Transitions
+	// 2) Topology Change
+	p.Role = val
 }

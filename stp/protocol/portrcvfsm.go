@@ -4,7 +4,6 @@ package stp
 import (
 	"fmt"
 	//"time"
-	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"utils/fsm"
 )
@@ -127,14 +126,18 @@ func (prxm *PrxmMachine) PrxmMachineDiscard(m fsm.Machine, data interface{}) fsm
 // LacpPtxMachineFastPeriodic sets the periodic transmission time to fast
 // and starts the timer
 func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm.State {
+
 	p := prxm.p
+
+	// save off the bpdu info
+	p.SaveMsgRcvInfo(data)
 
 	//17.23
 	// Decoding has been done as part of the Rx logic was a means of filtering
-	// TODO send rcvdMsg to Port Information Machine
-	p.RcvdMsg = prxm.UpdtBPDUVersion(data)
-
-	p.OperEdge = false
+	rcvdMsg := prxm.UpdtBPDUVersion(data)
+	// Figure 17-12
+	prxm.NotifyRcvdMsgChange(data, rcvdMsg)
+	prxm.NotifyOperEdgeChange(false)
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
 
@@ -233,83 +236,191 @@ func (p *StpPort) PrxmMachineMain() {
 	}(prxm)
 }
 
+// UpdtBPDUVersion:  17.21.22
+// This function will also inform Port Migration of
+// BPDU type rcvdRSTP or rcvdSTP Figure 17-12
 func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 	validPdu := false
 	p := prxm.p
 	bpdumsg := data.(RxBpduPdu)
-	packet := bpdumsg.pdu.(gopacket.Packet)
-	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
-	ptype := bpdumsg.ptype
-
-	if ptype != BPDURxTypeUnknownBPDU {
+	bpduLayer := bpdumsg.pdu
+	flags := uint8(0)
+	switch bpduLayer.(type) {
+	case *layers.RSTP:
 		// 17.21.22
 		// some checks a bit redundant as the layers class has already validated
 		// the BPDUType, but for completness going to add the check anyways
-		if ptype == BPDURxTypeRSTP {
-			rstp := bpduLayer.(*layers.RSTP)
-			if rstp.ProtocolVersionId == layers.RSTPProtocolVersion &&
-				rstp.BPDUType == layers.BPDUTypeRSTP {
-				// Inform the Port Protocol Migration STate machine
-				// that we have received a RSTP packet when we were previously
-				// sending non-RSTP
-				if !p.RcvdRSTP &&
-					!p.SendRSTP &&
-					p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion {
-					if p.PpmmMachineFsm != nil {
-						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
-							e:   PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
-							src: PrxmMachineModuleStr}
-					}
+		rstp := bpduLayer.(*layers.RSTP)
+		flags = rstp.Flags
+		if rstp.ProtocolVersionId == layers.RSTPProtocolVersion &&
+			rstp.BPDUType == layers.BPDUTypeRSTP {
+			// Inform the Port Protocol Migration STate machine
+			// that we have received a RSTP packet when we were previously
+			// sending non-RSTP
+			if !p.RcvdRSTP &&
+				!p.SendRSTP &&
+				p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion {
+				if p.PpmmMachineFsm != nil {
+					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+						e:    PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
+						data: bpduLayer,
+						src:  PrxmMachineModuleStr}
 				}
-				p.RcvdRSTP = true
-				// TODO send notification to Port Protocol Migration
-				validPdu = true
 			}
-		} else if ptype == BPDURxTypeSTP {
-			stp := bpduLayer.(*layers.STP)
-			if stp.ProtocolVersionId == layers.STPProtocolVersion &&
-				stp.BPDUType == layers.BPDUTypeSTP {
-				// Inform the Port Protocol Migration State Machine
-				// that we have received an STP packet when we were previously
-				// sending RSTP
-				if p.SendRSTP {
-					if p.PpmmMachineFsm != nil {
-						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
-							e:   PpmmEventSendRSTPAndRcvdSTP,
-							src: PrxmMachineModuleStr}
-					}
-				}
-				p.RcvdSTP = true
-				validPdu = true
-			}
-		} else if ptype == BPDURxTypeTopo {
-			topo := bpduLayer.(*layers.BPDUTopology)
-			if (topo.ProtocolVersionId == layers.STPProtocolVersion &&
-				topo.BPDUType == layers.BPDUTypeTopoChange) ||
-				(topo.ProtocolVersionId == layers.TCNProtocolVersion &&
-					topo.BPDUType == layers.BPDUTypeTopoChange) {
-				// Inform the Port Protocol Migration State Machine
-				// that we have received an STP packet when we were previously
-				// sending RSTP
-				if p.SendRSTP {
-					if p.PpmmMachineFsm != nil {
-						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
-							e:   PpmmEventSendRSTPAndRcvdSTP,
-							src: PrxmMachineModuleStr}
-					}
-				}
-				p.RcvdSTP = true
-				validPdu = true
-			}
-		} /* else if (bpdu.ProtocolVersionId == layers.STPProtocolVersion &&
-			(bpdu.BPDUType == layers.BPDUTypeSTP ||
-				bpdu.BPDUType == layers.BPDUTypeTopoChange)) ||
-			(bpdu.ProtocolVersionId == layers.TCNProtocolVersion &&
-				bpdu.BPDUType == layers.BPDUTypeTopoChange) {
-			p.RcvdSTP = true
-			// TODO send notification to Port Protocol Migration
+			p.RcvdRSTP = true
 			validPdu = true
-		}*/
+		}
+
+		StpLogger("INFO", "Received RSTP packet")
+
+		prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(StpGetBpduTopoChange(flags), false, false)
+	case *layers.STP:
+		stp := bpduLayer.(*layers.STP)
+		flags = stp.Flags
+		if stp.ProtocolVersionId == layers.STPProtocolVersion &&
+			stp.BPDUType == layers.BPDUTypeSTP {
+			// Inform the Port Protocol Migration State Machine
+			// that we have received an STP packet when we were previously
+			// sending RSTP
+			if p.SendRSTP {
+				if p.PpmmMachineFsm != nil {
+					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+						e:    PpmmEventSendRSTPAndRcvdSTP,
+						data: bpduLayer,
+						src:  PrxmMachineModuleStr}
+				}
+			}
+			p.RcvdSTP = true
+			validPdu = true
+		}
+
+		StpLogger("INFO", "Received STP packet")
+		prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(false, false, StpGetBpduTopoChangeAck(flags))
+	case *layers.BPDUTopology:
+		topo := bpduLayer.(*layers.BPDUTopology)
+		if (topo.ProtocolVersionId == layers.STPProtocolVersion &&
+			topo.BPDUType == layers.BPDUTypeTopoChange) ||
+			(topo.ProtocolVersionId == layers.TCNProtocolVersion &&
+				topo.BPDUType == layers.BPDUTypeTopoChange) {
+			// Inform the Port Protocol Migration State Machine
+			// that we have received an STP packet when we were previously
+			// sending RSTP
+			if p.SendRSTP {
+				if p.PpmmMachineFsm != nil {
+					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+						e:    PpmmEventSendRSTPAndRcvdSTP,
+						data: bpduLayer,
+						src:  PrxmMachineModuleStr}
+				}
+			}
+			p.RcvdSTP = true
+			validPdu = true
+			StpLogger("INFO", "Received TCN packet")
+			prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(false, true, false)
+
+		}
 	}
+
 	return validPdu
+}
+
+// NotifyRcvdMsgChange
+// Port Receive -> Port Information Figure 17-12
+func (prxm *PrxmMachine) NotifyRcvdMsgChange(data interface{}, rcvdMsg bool) {
+	p := prxm.p
+	if p.RcvdMsg != rcvdMsg {
+		bpdumsg := data.(RxBpduPdu)
+		bpduLayer := bpdumsg.pdu
+
+		p.RcvdMsg = rcvdMsg
+		if p.PimMachineFsm != nil {
+			if rcvdMsg {
+				if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
+					p.PimMachineFsm.PimEvents <- MachineEvent{
+						e:    PimEventRcvdMsg,
+						data: bpduLayer,
+						src:  PrxmMachineModuleStr}
+				} else if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent &&
+					!p.UpdtInfo {
+					p.PimMachineFsm.PimEvents <- MachineEvent{
+						e:    PimEventRcvdMsgAndNotUpdtInfo,
+						data: bpduLayer,
+						src:  PrxmMachineModuleStr}
+				}
+			} else if !rcvdMsg &&
+				p.InfoIs == PortInfoStateReceived &&
+				p.RcvdInfoWhiletimer.count == 0 &&
+				!p.UpdtInfo {
+				p.PimMachineFsm.PimEvents <- MachineEvent{
+					e:    PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg,
+					data: bpduLayer,
+					src:  PrxmMachineModuleStr}
+
+			}
+		}
+	}
+}
+
+func (prxm *PrxmMachine) NotifyOperEdgeChange(operedge bool) {
+	p := prxm.p
+	if p.OperEdge != operedge {
+
+		if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateEdge &&
+			!p.OperEdge {
+			p.BdmMachineFsm.BdmEvents <- MachineEvent{
+				e:   BdmEventNotOperEdge,
+				src: PrxmMachineModuleStr,
+			}
+		}
+	}
+}
+
+func (prxm *PrxmMachine) NotifyRcvdTcRcvdTcnRcvdTcAck(rcvdtc bool, rcvdtcn bool, rcvdtcack bool) {
+
+	p := prxm.p
+
+	// only care if there was a change
+	if p.RcvdTc != rcvdtc ||
+		p.RcvdTcn != rcvdtcn ||
+		p.RcvdTcAck != rcvdtcack {
+
+		p.RcvdTc = rcvdtc
+		p.RcvdTcn = rcvdtcn
+		p.RcvdTcAck = rcvdtcack
+
+		if rcvdtc &&
+			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
+				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
+			p.TcMachineFsm.TcEvents <- MachineEvent{
+				e:   TcEventRcvdTc,
+				src: RxModuleStr,
+			}
+		} else if rcvdtcn &&
+			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
+				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
+
+			p.TcMachineFsm.TcEvents <- MachineEvent{
+				e:   TcEventRcvdTcn,
+				src: RxModuleStr,
+			}
+		} else if rcvdtcack &&
+			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
+				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
+
+			p.TcMachineFsm.TcEvents <- MachineEvent{
+				e:   TcEventRcvdTcAck,
+				src: RxModuleStr,
+			}
+		} else if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning &&
+			p.Role != PortRoleRootPort &&
+			p.Role != PortRoleDesignatedPort &&
+			!(p.Learn || p.Learning) &&
+			!(rcvdtc || rcvdtcn || rcvdtcack || p.TcProp) {
+
+			p.TcMachineFsm.TcEvents <- MachineEvent{
+				e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
+				src: RxModuleStr,
+			}
+		}
+	}
 }

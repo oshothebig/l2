@@ -32,8 +32,8 @@ const (
 	BdmEventBeginNotAdminEdge
 	BdmEventNotPortEnabledAndAdminEdge
 	BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing
-	BdEventNotPortEnabledAndNotAdminEdge
-	BdEventNotOperEdge
+	BdmEventNotPortEnabledAndNotAdminEdge
+	BdmEventNotOperEdge
 )
 
 // BdmMachine holds FSM and current State
@@ -102,42 +102,22 @@ func (bdm *BdmMachine) Stop() {
 
 }
 
-/*
-// PimMachineCheckingRSTP
-func (ppmm *PpmmMachine) PpmmMachineCheckingRSTP(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
-	p.Mcheck = false
-	p.SendRSTP = p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
-	p.MdelayWhiletimer.count = MigrateTimeDefault
-	return PpmmStateCheckingRSTP
+// BdmMachineEdge
+func (bdm *BdmMachine) BdmMachineEdge(m fsm.Machine, data interface{}) fsm.State {
+
+	bdm.NotifyOperEdgeChanged(true)
+
+	return BdmStateEdge
 }
 
-// PpmmMachineSelectingSTP
-func (ppmm *PpmmMachine) PpmmMachineSelectingSTP(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
+// BdmMachineNotEdge
+func (bdm *BdmMachine) BdmMachineNotEdge(m fsm.Machine, data interface{}) fsm.State {
 
-	p.SendRSTP = false
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
-	p.MdelayWhiletimer.count = MigrateTimeDefault
+	bdm.NotifyOperEdgeChanged(false)
 
-	return PpmmStateSelectingSTP
+	return BdmStateNotEdge
 }
 
-// PpmmMachineSelectingSTP
-func (ppmm *PpmmMachine) PpmmMachineSensing(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
-
-	p.RcvdRSTP = false
-	p.RcvdSTP = false
-
-	return PpmmStateSensing
-}
-*/
 func BdmMachineFSMBuild(p *StpPort) *BdmMachine {
 
 	rules := fsm.Ruleset{}
@@ -146,6 +126,28 @@ func BdmMachineFSMBuild(p *StpPort) *BdmMachine {
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the DISCARD State
 	bdm := NewStpBdmMachine(p)
+
+	// BEGIN and ADMIN EDGE -> EDGE
+	rules.AddRule(BdmStateNone, BdmEventBeginAdminEdge, bdm.BdmMachineEdge)
+	rules.AddRule(BdmStateEdge, BdmEventBeginAdminEdge, bdm.BdmMachineEdge)
+	rules.AddRule(BdmStateNotEdge, BdmEventBeginAdminEdge, bdm.BdmMachineEdge)
+
+	// BEGIN and NOT ADMIN EDGE -> NOT EDGE
+	rules.AddRule(BdmStateNone, BdmEventBeginNotAdminEdge, bdm.BdmMachineNotEdge)
+	rules.AddRule(BdmStateNotEdge, BdmEventBeginNotAdminEdge, bdm.BdmMachineNotEdge)
+	rules.AddRule(BdmStateEdge, BdmEventBeginNotAdminEdge, bdm.BdmMachineNotEdge)
+
+	// NOT ENABLED and NOT ADMIN EDGE -> NOT EDGE
+	rules.AddRule(BdmStateEdge, BdmEventNotPortEnabledAndNotAdminEdge, bdm.BdmMachineNotEdge)
+
+	// NOT OPEREDGE -> NOT EDGE
+	rules.AddRule(BdmStateEdge, BdmEventNotOperEdge, bdm.BdmMachineNotEdge)
+
+	// NOT ENABLED and ADMINEDGE -> EDGE
+	rules.AddRule(BdmStateNotEdge, BdmEventNotPortEnabledAndAdminEdge, bdm.BdmMachineEdge)
+
+	// EDGEDELAYWHILE == 0 and AUTOEDGE && SENDRSTP && PROPOSING -> EDGE
+	rules.AddRule(BdmStateNotEdge, BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing, bdm.BdmMachineEdge)
 
 	// Create a new FSM and apply the rules
 	bdm.Apply(&rules)
@@ -191,4 +193,93 @@ func (p *StpPort) BdmMachineMain() {
 			}
 		}
 	}(bdm)
+}
+
+func (bdm *BdmMachine) NotifyOperEdgeChanged(operedge bool) {
+	p := bdm.p
+	if p.OperEdge != operedge {
+		p.OperEdge = operedge
+
+		// Prt update 17.29.3
+		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+			if !p.Forward &&
+				!p.Agreed &&
+				!p.Proposing &&
+				!p.OperEdge &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
+					src: BdmMachineModuleStr,
+				}
+			} else if p.OperEdge &&
+				!p.Synced &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo,
+					src: BdmMachineModuleStr,
+				}
+			} else if p.Sync &&
+				!p.Synced &&
+				!p.OperEdge &&
+				p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					src: BdmMachineModuleStr,
+				}
+			} else if p.Sync &&
+				!p.Synced &&
+				!p.OperEdge &&
+				p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+					src: BdmMachineModuleStr,
+				}
+			} else if p.ReRoot &&
+				p.RrWhileTimer.count != 0 &&
+				!p.OperEdge &&
+				p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					src: BdmMachineModuleStr,
+				}
+			} else if p.ReRoot &&
+				p.RrWhileTimer.count != 0 &&
+				!p.OperEdge &&
+				p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+					src: BdmMachineModuleStr,
+				}
+			} else if p.Disputed &&
+				!p.OperEdge &&
+				p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventDiputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					src: BdmMachineModuleStr,
+				}
+			} else if p.Disputed &&
+				!p.OperEdge &&
+				p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+					src: BdmMachineModuleStr,
+				}
+			}
+		}
+
+	}
 }

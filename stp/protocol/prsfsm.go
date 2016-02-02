@@ -48,7 +48,7 @@ type PrsMachine struct {
 	log chan string
 
 	// Reference to StpPort
-	p *StpPort
+	b *Bridge
 
 	// machine specific events
 	PrsEvents chan MachineEvent
@@ -59,14 +59,14 @@ type PrsMachine struct {
 }
 
 // NewStpPimMachine will create a new instance of the LacpRxMachine
-func NewStpPrsMachine(p *StpPort) *PrsMachine {
+func NewStpPrsMachine(b *Bridge) *PrsMachine {
 	prsm := &PrsMachine{
-		p:                  p,
+		b:                  b,
 		PrsEvents:          make(chan MachineEvent, 10),
 		PrsKillSignalEvent: make(chan bool),
 		PrsLogEnableEvent:  make(chan bool)}
 
-	p.PrsMachineFsm = prsm
+	b.PrsMachineFsm = prsm
 
 	return prsm
 }
@@ -105,50 +105,40 @@ func (prsm *PrsMachine) Stop() {
 
 }
 
-/*
 // PimMachineCheckingRSTP
-func (ppmm *PpmmMachine) PpmmMachineCheckingRSTP(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
-	p.Mcheck = false
-	p.SendRSTP = p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
-	p.MdelayWhiletimer.count = MigrateTimeDefault
-	return PpmmStateCheckingRSTP
+func (prsm *PrsMachine) PrsMachineInitBridge(m fsm.Machine, data interface{}) fsm.State {
+	b := prsm.b
+	b.updtRoleDisabledTree()
+	return PrsStateInitBridge
 }
 
 // PpmmMachineSelectingSTP
-func (ppmm *PpmmMachine) PpmmMachineSelectingSTP(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
+func (prsm *PrsMachine) PrsMachineRoleSelection(m fsm.Machine, data interface{}) fsm.State {
+	b := prsm.b
+	b.clearReselectTree()
+	b.updtRolesTree()
+	b.setSelectedTree()
 
-	p.SendRSTP = false
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
-	p.MdelayWhiletimer.count = MigrateTimeDefault
-
-	return PpmmStateSelectingSTP
+	return PrsStateRoleSelection
 }
 
-// PpmmMachineSelectingSTP
-func (ppmm *PpmmMachine) PpmmMachineSensing(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
-
-	p.RcvdRSTP = false
-	p.RcvdSTP = false
-
-	return PpmmStateSensing
-}
-*/
-func PrsMachineFSMBuild(p *StpPort) *PrsMachine {
+func PrsMachineFSMBuild(b *Bridge) *PrsMachine {
 
 	rules := fsm.Ruleset{}
 
 	// Instantiate a new PrxmMachine
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the DISCARD State
-	prsm := NewStpPrsMachine(p)
+	prsm := NewStpPrsMachine(b)
+
+	// BEGIN -> INIT_BRIDGE
+	rules.AddRule(PrsStateNone, PrsEventBegin, prsm.PrsMachineInitBridge)
+
+	// UNINTENTIONAL FALL THROUGH -> ROLE SELECTION
+	rules.AddRule(PrsStateInitBridge, PrsEventUnconditionallFallThrough, prsm.PrsMachineRoleSelection)
+
+	// RESLECT -> ROLE SELECTION
+	rules.AddRule(PrsStateInitBridge, PrsEventReselect, prsm.PrsMachineRoleSelection)
 
 	// Create a new FSM and apply the rules
 	prsm.Apply(&rules)
@@ -156,13 +146,13 @@ func PrsMachineFSMBuild(p *StpPort) *PrsMachine {
 	return prsm
 }
 
-// PimMachineMain:
-func (p *StpPort) PrsMachineMain() {
+// PrsMachineMain:
+func (b *Bridge) PrsMachineMain() {
 
 	// Build the State machine for STP Bridge Detection State Machine according to
 	// 802.1d Section 17.25
-	prsm := PrsMachineFSMBuild(p)
-	p.wg.Add(1)
+	prsm := PrsMachineFSMBuild(b)
+	b.wg.Add(1)
 
 	// set the inital State
 	prsm.Machine.Start(prsm.Machine.Curr.PreviousState())
@@ -171,7 +161,7 @@ func (p *StpPort) PrsMachineMain() {
 	// that the Port Timer State Machine should handle
 	go func(m *PrsMachine) {
 		StpLogger("INFO", "PRSM: Machine Start")
-		defer m.p.wg.Done()
+		defer m.b.wg.Done()
 		for {
 			select {
 			case <-m.PrsKillSignalEvent:
@@ -182,7 +172,14 @@ func (p *StpPort) PrsMachineMain() {
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+					StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+				} else {
+					if m.Machine.Curr.CurrentState() == PrsStateInitBridge {
+						rv := m.Machine.ProcessEvent(PrsMachineModuleStr, PrsEventUnconditionallFallThrough, nil)
+						if rv != nil {
+							StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PrsStateStrMap[m.Machine.Curr.CurrentState()]))
+						}
+					}
 				}
 
 				if event.responseChan != nil {
@@ -194,4 +191,57 @@ func (p *StpPort) PrsMachineMain() {
 			}
 		}
 	}(prsm)
+}
+
+// clearReselectTree: 17.21.2
+func (b *Bridge) clearReselectTree() {
+	var p *StpPort
+	for _, pId := range b.StpPorts {
+		if StpFindPortById(pId, &p) {
+			p.Reselect = false
+		}
+	}
+}
+
+func (b *Bridge) updtRoleDisabledTree() {
+	var p *StpPort
+	for _, pId := range b.StpPorts {
+		if StpFindPortById(pId, &p) {
+			p.SelectedRole = PortRoleDisabledPort
+		}
+	}
+}
+
+// updtRolesTree: 17.21.25
+func (b *Bridge) updtRolesTree() {
+
+	// recorded from received message
+	/* TOOD
+	rootPathVector := PriorityVector{}
+	bridgeRootPathVector := PriorityVector{}
+	bridgeRootTimes := Times{}
+	designatedPortVector := PriorityVector{}
+	designatedTimes := Times{}
+	*/
+}
+
+// setSelectedTree: 17.21.16
+func (b *Bridge) setSelectedTree() {
+	setAllSelectedTrue := true
+	var p *StpPort
+	for _, pId := range b.StpPorts {
+		if StpFindPortById(pId, &p) {
+			if p.Reselect == true {
+				setAllSelectedTrue = false
+				break
+			}
+		}
+	}
+	if setAllSelectedTrue {
+		for _, pId := range b.StpPorts {
+			if StpFindPortById(pId, &p) {
+				p.Selected = true
+			}
+		}
+	}
 }

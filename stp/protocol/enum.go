@@ -17,6 +17,7 @@ const (
 	RepeatedDesignatedInfo
 	InferiorDesignatedInfo
 	InferiorRootAlternateInfo
+	OtherInfo
 )
 
 type PortRole int
@@ -33,7 +34,7 @@ const (
 type PointToPointMac int
 
 const (
-	StpPointToPointForceTrue  = 0
-	StpPointToPointForceFalse = 1
-	StpPointToPointAuto       = 2
+	StpPointToPointForceTrue  PointToPointMac = 0
+	StpPointToPointForceFalse                 = 1
+	StpPointToPointAuto                       = 2
 )

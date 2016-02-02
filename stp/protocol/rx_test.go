@@ -47,6 +47,84 @@ func UsedForTestOnlyRxInitPortConfigTest() {
 	*/
 }
 
+func UsedForTestOnlyPrxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *StpPort) {
+	UsedForTestOnlyRxInitPortConfigTest()
+
+	// create a port
+	p = NewStpPort(stpconfig)
+
+	// lets only start the Port Receive State Machine
+	p.PrxmMachineMain()
+
+	// going just send event and not start main as we just did above
+	p.BEGIN(true)
+
+	if p.PrxmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
+		t.Error("Failed to Initial Rx machine state not set correctly", p.PrxmMachineFsm.Machine.Curr.PreviousState())
+		t.FailNow()
+	}
+
+	if p.PrxmMachineFsm.Machine.Curr.CurrentState() != PrxmStateDiscard {
+		t.Error("Failed to transition from None to Discard State")
+		t.FailNow()
+	}
+
+	// NOTE: must be called after BEGIN
+	// Lets Instatiate but not run the following Machines
+	// 1) Port Information Machine
+	// 2) Port Protocol Migration Machine
+	PrtMachineFSMBuild(p)
+	PimMachineFSMBuild(p)
+	PtxmMachineFSMBuild(p)
+	BdmMachineFSMBuild(p)
+	PtmMachineFSMBuild(p)
+	PtmMachineFSMBuild(p)
+	TcMachineFSMBuild(p)
+	PstMachineFSMBuild(p)
+	PpmmMachineFSMBuild(p)
+
+	return p
+
+}
+
+func UsedForTestOnlyPrxTestTeardown(p *StpPort, t *testing.T) {
+
+	if len(p.PpmmMachineFsm.PpmmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PimMachineFsm.PimEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PtxmMachineFsm.PtxmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.BdmMachineFsm.BdmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PtmMachineFsm.PtmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.TcMachineFsm.TcEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PstMachineFsm.PstEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PpmmMachineFsm.PpmmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	p.PrtMachineFsm = nil
+	p.PimMachineFsm = nil
+	p.PtxmMachineFsm = nil
+	p.BdmMachineFsm = nil
+	p.PtmMachineFsm = nil
+	p.TcMachineFsm = nil
+	p.PstMachineFsm = nil
+	p.PpmmMachineFsm = nil
+
+	DelStpPort(p)
+}
+
 func UsedForTestOnlySendValidStpTopoFrame(txifindex int32, t *testing.T) {
 	ifname, _ := PortConfigMap[TEST_TX_PORT_CONFIG_IFINDEX]
 	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
@@ -124,7 +202,7 @@ func UsedForTestOnlySendValidStpFrame(txifindex int32, t *testing.T) {
 		BPDUType:          byte(layers.BPDUTypeSTP),
 		Flags:             0,
 		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
-		RootCostPath:      1,
+		RootPathCost:      1,
 		BridgeId:          [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
 		PortId:            0x1111,
 		MsgAge:            0,
@@ -179,7 +257,7 @@ func UsedForTestOnlySendValidRStpFrame(txifindex int32, t *testing.T) {
 		BPDUType:          byte(layers.BPDUTypeRSTP),
 		Flags:             0,
 		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
-		RootCostPath:      1,
+		RootPathCost:      1,
 		BridgeId:          [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
 		PortId:            0x1111,
 		MsgAge:            0,
@@ -291,7 +369,6 @@ func UsedForTestOnlySendInvalidRStpFrame(txifindex int32, rstp *layers.RSTP, t *
 }
 
 func TestRxValidStpPacket(t *testing.T) {
-	UsedForTestOnlyRxInitPortConfigTest()
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -306,32 +383,7 @@ func TestRxValidStpPacket(t *testing.T) {
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
-	// create a port
-	p := NewStpPort(stpconfig)
-
-	// lets only start the Port Receive State Machine
-	p.PrxmMachineMain()
-
-	// going just send event and not start main as we just did above
-	p.BEGIN(true)
-
-	if p.PrxmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
-		t.Error("Failed to Initial Rx machine state not set correctly", p.PrxmMachineFsm.Machine.Curr.PreviousState())
-		t.FailNow()
-	}
-
-	if p.PrxmMachineFsm.Machine.Curr.CurrentState() != PrxmStateDiscard {
-		t.Error("Failed to transition from None to Discard State")
-		t.FailNow()
-	}
-
-	// NOTE: must be called after BEGIN
-	// Lets Instatiate but not run the following Machines
-	// 1) Port Information Machine
-	// 2) Port Protocol Migration Machine
-	PpmmMachineFSMBuild(p)
-	PimMachineFSMBuild(p)
-
+	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
 	// send a packet
 	UsedForTestOnlySendValidStpFrame(TEST_TX_PORT_CONFIG_IFINDEX, t)
 
@@ -392,16 +444,11 @@ func TestRxValidStpPacket(t *testing.T) {
 	// TODO add Pim event to test
 
 	// remove reference to fsm allocated above
-	p.PpmmMachineFsm = nil
-	p.PimMachineFsm = nil
-
-	DelStpPort(p)
+	UsedForTestOnlyPrxTestTeardown(p, t)
 
 }
 
 func TestRxValidRStpPacket(t *testing.T) {
-	UsedForTestOnlyRxInitPortConfigTest()
-
 	// configure a port
 	stpconfig := &StpPortConfig{
 		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
@@ -415,31 +462,7 @@ func TestRxValidRStpPacket(t *testing.T) {
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
-	// create a port
-	p := NewStpPort(stpconfig)
-
-	// lets only start the Port Receive State Machine
-	p.PrxmMachineMain()
-
-	// going just send event and not start main as we just did above
-	p.BEGIN(true)
-
-	if p.PrxmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
-		t.Error("Failed to Initial Rx machine state not set correctly", p.PrxmMachineFsm.Machine.Curr.PreviousState())
-		t.FailNow()
-	}
-
-	if p.PrxmMachineFsm.Machine.Curr.CurrentState() != PrxmStateDiscard {
-		t.Error("Failed to transition from None to Discard State")
-		t.FailNow()
-	}
-
-	// NOTE: must be called after BEGIN
-	// Lets Instatiate but not run the following Machines
-	// 1) Port Information Machine
-	// 2) Port Protocol Migration Machine
-	PpmmMachineFSMBuild(p)
-	PimMachineFSMBuild(p)
+	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
 
 	// setup pre-condition, lets fake out and pretent we were in send STP mode
 	p.SendRSTP = false
@@ -502,15 +525,10 @@ func TestRxValidRStpPacket(t *testing.T) {
 	}
 
 	// remove reference to fsm allocated above
-	p.PpmmMachineFsm = nil
-	p.PimMachineFsm = nil
-
-	DelStpPort(p)
+	UsedForTestOnlyPrxTestTeardown(p, t)
 }
 
 func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
-	UsedForTestOnlyRxInitPortConfigTest()
-
 	// configure a port
 	stpconfig := &StpPortConfig{
 		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
@@ -524,25 +542,7 @@ func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
-	// create a port
-	p := NewStpPort(stpconfig)
-
-	// lets only start the Port Receive State Machine
-	p.PrxmMachineMain()
-
-	// going just send event and not start main as we just did above
-	p.BEGIN(true)
-
-	if p.PrxmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
-		t.Error("Failed to Initial Rx machine state not set correctly", p.PrxmMachineFsm.Machine.Curr.PreviousState())
-		t.FailNow()
-	}
-
-	if p.PrxmMachineFsm.Machine.Curr.CurrentState() != PrxmStateDiscard {
-		t.Error("Failed to transition from None to Discard State")
-		t.FailNow()
-	}
-
+	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
 	// send a packet
 	rstp := layers.RSTP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
@@ -550,7 +550,7 @@ func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 		BPDUType:          byte(layers.BPDUTypeSTP),
 		Flags:             0,
 		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
-		RootCostPath:      1,
+		RootPathCost:      1,
 		BridgeId:          [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
 		PortId:            0x1111,
 		MsgAge:            0,
@@ -604,12 +604,10 @@ func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 		t.FailNow()
 	}
 
-	DelStpPort(p)
+	UsedForTestOnlyPrxTestTeardown(p, t)
 }
 
 func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
-	UsedForTestOnlyRxInitPortConfigTest()
-
 	// configure a port
 	stpconfig := &StpPortConfig{
 		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
@@ -623,24 +621,7 @@ func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
-	// create a port
-	p := NewStpPort(stpconfig)
-
-	// lets only start the Port Receive State Machine
-	p.PrxmMachineMain()
-
-	// going just send event and not start main as we just did above
-	p.BEGIN(true)
-
-	if p.PrxmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
-		t.Error("Failed to Initial Rx machine state not set correctly", p.PrxmMachineFsm.Machine.Curr.PreviousState())
-		t.FailNow()
-	}
-
-	if p.PrxmMachineFsm.Machine.Curr.CurrentState() != PrxmStateDiscard {
-		t.Error("Failed to transition from None to Discard State")
-		t.FailNow()
-	}
+	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
 
 	// send a packet
 	rstp := layers.RSTP{
@@ -649,7 +630,7 @@ func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 		BPDUType:          byte(layers.BPDUTypeRSTP),
 		Flags:             0,
 		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
-		RootCostPath:      1,
+		RootPathCost:      1,
 		BridgeId:          [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
 		PortId:            0x1111,
 		MsgAge:            0,
@@ -703,12 +684,10 @@ func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 		t.FailNow()
 	}
 
-	DelStpPort(p)
+	UsedForTestOnlyPrxTestTeardown(p, t)
 }
 
 func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
-	UsedForTestOnlyRxInitPortConfigTest()
-
 	// configure a port
 	stpconfig := &StpPortConfig{
 		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
@@ -722,24 +701,7 @@ func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
-	// create a port
-	p := NewStpPort(stpconfig)
-
-	// lets only start the Port Receive State Machine
-	p.PrxmMachineMain()
-
-	// going just send event and not start main as we just did above
-	p.BEGIN(true)
-
-	if p.PrxmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
-		t.Error("Failed to Initial Rx machine state not set correctly", p.PrxmMachineFsm.Machine.Curr.PreviousState())
-		t.FailNow()
-	}
-
-	if p.PrxmMachineFsm.Machine.Curr.CurrentState() != PrxmStateDiscard {
-		t.Error("Failed to transition from None to Discard State")
-		t.FailNow()
-	}
+	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
 
 	// send a packet
 	stp := layers.STP{
@@ -748,7 +710,7 @@ func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 		BPDUType:          byte(layers.BPDUTypeRSTP),
 		Flags:             0,
 		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
-		RootCostPath:      1,
+		RootPathCost:      1,
 		BridgeId:          [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
 		PortId:            0x1111,
 		MsgAge:            21,
@@ -801,11 +763,10 @@ func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 		t.FailNow()
 	}
 
-	DelStpPort(p)
+	UsedForTestOnlyPrxTestTeardown(p, t)
 }
 
 func TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
-	UsedForTestOnlyRxInitPortConfigTest()
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -820,24 +781,7 @@ func TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
-	// create a port
-	p := NewStpPort(stpconfig)
-
-	// lets only start the Port Receive State Machine
-	p.PrxmMachineMain()
-
-	// going just send event and not start main as we just did above
-	p.BEGIN(true)
-
-	if p.PrxmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
-		t.Error("Failed to Initial Rx machine state not set correctly", p.PrxmMachineFsm.Machine.Curr.PreviousState())
-		t.FailNow()
-	}
-
-	if p.PrxmMachineFsm.Machine.Curr.CurrentState() != PrxmStateDiscard {
-		t.Error("Failed to transition from None to Discard State")
-		t.FailNow()
-	}
+	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
 
 	// send a packet
 	UsedForTestOnlySendValidRStpFrame(TEST_TX_PORT_CONFIG_IFINDEX, t)
@@ -889,7 +833,7 @@ func TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
 		t.FailNow()
 	}
 
-	DelStpPort(p)
+	UsedForTestOnlyPrxTestTeardown(p, t)
 }
 
 func TestRxValidTopoChange(t *testing.T) {
@@ -908,31 +852,11 @@ func TestRxValidTopoChange(t *testing.T) {
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
-	// create a port
-	p := NewStpPort(stpconfig)
+	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
 
-	// lets only start the Port Receive State Machine
-	p.PrxmMachineMain()
-
-	// going just send event and not start main as we just did above
-	p.BEGIN(true)
-
-	if p.PrxmMachineFsm.Machine.Curr.PreviousState() != PrxmStateNone {
-		t.Error("Failed to Initial Rx machine state not set correctly", p.PrxmMachineFsm.Machine.Curr.PreviousState())
-		t.FailNow()
-	}
-
-	if p.PrxmMachineFsm.Machine.Curr.CurrentState() != PrxmStateDiscard {
-		t.Error("Failed to transition from None to Discard State")
-		t.FailNow()
-	}
-
-	// NOTE: must be called after BEGIN
-	// Lets Instatiate but not run the following Machines
-	// 1) Port Information Machine
-	// 2) Port Protocol Migration Machine
-	PpmmMachineFSMBuild(p)
-	PimMachineFSMBuild(p)
+	// force state of tc state machine
+	p.TcMachineFsm.Machine.Curr.SetState(TcStateLearning)
+	p.SendRSTP = true
 
 	// send a packet
 	UsedForTestOnlySendValidStpTopoFrame(TEST_TX_PORT_CONFIG_IFINDEX, t)
@@ -991,8 +915,10 @@ func TestRxValidTopoChange(t *testing.T) {
 		t.FailNow()
 	}
 
-	p.PpmmMachineFsm = nil
-	p.PimMachineFsm = nil
+	tc, _ := <-p.TcMachineFsm.TcEvents
+	if tc.e != TcEventRcvdTcn {
+		t.Error("Failed to get proper tc event")
+	}
 
-	DelStpPort(p)
+	UsedForTestOnlyPrxTestTeardown(p, t)
 }
