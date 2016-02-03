@@ -301,3 +301,55 @@ func (p *StpPort) PpmmMachineMain() {
 		}
 	}(ppmm)
 }
+
+func (ppmm *PpmmMachine) ProcessPostStateCheckingRSTP() {
+	// nothing to be done
+}
+func (ppmm *PpmmMachine) ProcessPostStateSensing() {
+	p := ppmm.p
+	if ppmm.Machine.Curr.CurrentState() == PpmmStateSensing {
+		if !p.PortEnabled {
+			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		} else if p.Mcheck {
+			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		} else if p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion &&
+			!p.SendRSTP &&
+			p.RcvdRSTP {
+			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		}
+	}
+}
+
+func (ppmm *PpmmMachine) ProcessPostStateSelectingSTP() {
+	p := ppmm.p
+	if ppmm.Machine.Curr.CurrentState() == PpmmStateSelectingSTP {
+		if !p.PortEnabled {
+			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		} else if p.Mcheck {
+			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		}
+	}
+}
+
+func (ppmm *PpmmMachine) ProcessPostStateProcessing() {
+
+	ppmm.ProcessPostStateCheckingRSTP()
+	ppmm.ProcessPostStateSensing()
+	ppmm.ProcessPostStateSelectingSTP()
+	ppmm.ProcessPostStateSensing()
+}

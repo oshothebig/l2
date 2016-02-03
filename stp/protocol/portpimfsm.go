@@ -419,6 +419,9 @@ func (p *StpPort) PimMachineMain() {
 	}(pim)
 }
 
+func (pim *PimMachine) ProcessPostStateProcessing() {
+}
+
 func (pim *PimMachine) NotifyPrsMachineReselectChanged(reselect bool) {
 	p := pim.p
 	StpLogger("INFO", fmt.Sprintf("notify prs machine reselectold[%t] reselect[%t]\n", p.Reselect, reselect))

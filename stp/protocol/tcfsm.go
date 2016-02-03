@@ -122,42 +122,88 @@ func (tcm *TcMachine) Stop() {
 
 }
 
-/*
-// TcMachineCheckingRSTP
-func (ppmm *PpmmMachine) PpmmMachineCheckingRSTP(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
-	p.Mcheck = false
-	p.SendRSTP = p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
-	p.MdelayWhiletimer.count = MigrateTimeDefault
-	return PpmmStateCheckingRSTP
+// TcmMachineInactive
+func (tcm *TcMachine) TcMachineInactive(m fsm.Machine, data interface{}) fsm.State {
+	p := tcm.p
+	tcm.NotifyFdbFlush()
+	p.TcWhileTimer.count = 0
+	p.TcAck = false
+	return TcStateInactive
 }
 
-// PpmmMachineSelectingSTP
-func (ppmm *PpmmMachine) PpmmMachineSelectingSTP(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
+// TcMachineLearning
+func (tcm *TcMachine) TcMachineLearning(m fsm.Machine, data interface{}) fsm.State {
+	p := tcm.p
 
-	p.SendRSTP = false
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
-	p.MdelayWhiletimer.count = MigrateTimeDefault
-
-	return PpmmStateSelectingSTP
+	p.RcvdTc = false
+	p.RcvdTcn = false
+	p.RcvdTcAck = false
+	p.TcProp = false
+	return TcStateLearning
 }
 
-// PpmmMachineSelectingSTP
-func (ppmm *PpmmMachine) PpmmMachineSensing(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
+// TcMachineDetected
+func (tcm *TcMachine) TcMachineDetected(m fsm.Machine, data interface{}) fsm.State {
 
-	p.RcvdRSTP = false
-	p.RcvdSTP = false
-
-	return PpmmStateSensing
+	newinfonotificationsent := tcm.newTcWhile()
+	tcm.setTcPropTree()
+	if !newinfonotificationsent {
+		tcm.NotifyNewInfoChanged(true)
+	}
+	return TcStateDetected
 }
-*/
+
+// TcMachineActive
+func (tcm *TcMachine) TcMachineActive(m fsm.Machine, data interface{}) fsm.State {
+
+	return TcStateActive
+}
+
+// TcMachineNotifyTcn
+func (tcm *TcMachine) TcMachineNotifiedTcn(m fsm.Machine, data interface{}) fsm.State {
+
+	tcm.newTcWhile()
+
+	return TcStateNotifiedTcn
+}
+
+// TcMachineNotifyTc
+func (tcm *TcMachine) TcMachineNotifiedTc(m fsm.Machine, data interface{}) fsm.State {
+	p := tcm.p
+
+	p.RcvdTcn = false
+	p.RcvdTc = false
+	if p.Role == PortRoleDesignatedPort {
+		p.TcAck = true
+	}
+	// Figure 17-25 says setTcPropBridge, but this is the only mention of this in
+	// the standard, assuming it should be Tree
+	tcm.setTcPropTree()
+
+	return TcStateNotifiedTc
+}
+
+// TcMachinePropagating
+func (tcm *TcMachine) TcMachinePropagating(m fsm.Machine, data interface{}) fsm.State {
+	p := tcm.p
+
+	tcm.newTcWhile()
+	tcm.NotifyFdbFlush()
+	p.TcProp = false
+
+	return TcStatePropagating
+}
+
+// TcMachineAcknowledged
+func (tcm *TcMachine) TcMachineAcknowledged(m fsm.Machine, data interface{}) fsm.State {
+	p := tcm.p
+
+	tcm.NotifyTcWhileChanged(0)
+	p.RcvdTcAck = false
+
+	return TcStateAcknowledged
+}
+
 func TcMachineFSMBuild(p *StpPort) *TcMachine {
 
 	rules := fsm.Ruleset{}
@@ -166,6 +212,68 @@ func TcMachineFSMBuild(p *StpPort) *TcMachine {
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the DISCARD State
 	tcm := NewStpTcMachine(p)
+
+	/*
+	   TcStateInactive
+	   	TcStateLearning
+	   	TcStateDetected
+	   	TcStateActive
+	   	TcStateNotifiedTcn
+	   	TcStateNotifiedTc
+	   	TcStatePropagating
+	   	TcStateAcknowledged
+	*/
+	// BEGIN -> INACTIVE
+	rules.AddRule(TcStateNone, TcEventBegin, tcm.TcMachineInactive)
+	rules.AddRule(TcStateInactive, TcEventBegin, tcm.TcMachineInactive)
+	rules.AddRule(TcStateLearning, TcEventBegin, tcm.TcMachineInactive)
+	rules.AddRule(TcStateDetected, TcEventBegin, tcm.TcMachineInactive)
+	rules.AddRule(TcStateActive, TcEventBegin, tcm.TcMachineInactive)
+	rules.AddRule(TcStateNotifiedTcn, TcEventBegin, tcm.TcMachineInactive)
+	rules.AddRule(TcStateNotifiedTc, TcEventBegin, tcm.TcMachineInactive)
+	rules.AddRule(TcStatePropagating, TcEventBegin, tcm.TcMachineInactive)
+	rules.AddRule(TcStateAcknowledged, TcEventBegin, tcm.TcMachineInactive)
+
+	// ROLE != ROOTPORT && ROLE != DESIGNATEDPORT and !(LEARN || LEARNING) and !(RCVDTC || RCVDTCN || RCVDTCACK || TCPROP) -> INACTIVE
+	rules.AddRule(TcStateLearning, TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp, tcm.TcMachineInactive)
+
+	// LEARN and NOTFLUSH -> LEARNING
+	rules.AddRule(TcStateInactive, TcEventLearnAndNotFdbFlush, tcm.TcMachineLearning)
+
+	// RCVDTC -> LEARNING or NOTIFIED_TC
+	rules.AddRule(TcStateLearning, TcEventRcvdTc, tcm.TcMachineLearning)
+	rules.AddRule(TcStateActive, TcEventRcvdTc, tcm.TcMachineNotifiedTc)
+
+	// RCVDTCN -> LEARNING or NOTIFIED_TCN
+	rules.AddRule(TcStateLearning, TcEventRcvdTcn, tcm.TcMachineLearning)
+	rules.AddRule(TcStateActive, TcEventRcvdTcn, tcm.TcMachineNotifiedTcn)
+
+	// RCVDTCACK -> LEARNING or ACKNOWLEDGED
+	rules.AddRule(TcStateLearning, TcEventRcvdTcAck, tcm.TcMachineLearning)
+	rules.AddRule(TcStateActive, TcEventRcvdTcAck, tcm.TcMachineAcknowledged)
+
+	// TCPROP -> LEARNING
+	rules.AddRule(TcStateLearning, TcEventTcProp, tcm.TcMachineLearning)
+
+	// (ROLE == ROOTPORT or ROLE == DESIGNATEDPORT) and FORWARD and NOT OPEREDGE -> DETECTED
+	rules.AddRule(TcStateLearning, TcEventRoleEqualRootPortAndForwardAndNotOperEdge, tcm.TcMachineDetected)
+	rules.AddRule(TcStateLearning, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, tcm.TcMachineDetected)
+
+	// UNCONDITIONAL FALL THROUGH -> ACTIVE
+	rules.AddRule(TcStateDetected, TcEventUnconditionalFallThrough, tcm.TcMachineActive)
+	rules.AddRule(TcStateNotifiedTcn, TcEventUnconditionalFallThrough, tcm.TcMachineActive)
+	rules.AddRule(TcStateNotifiedTc, TcEventUnconditionalFallThrough, tcm.TcMachineActive)
+	rules.AddRule(TcStatePropagating, TcEventUnconditionalFallThrough, tcm.TcMachineActive)
+	rules.AddRule(TcStateAcknowledged, TcEventUnconditionalFallThrough, tcm.TcMachineActive)
+
+	// ROLE != ROOT PORT and ROLE != DESIGNATEDPORT -> LEARNING
+	rules.AddRule(TcStateActive, TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPort, tcm.TcMachineLearning)
+
+	// OPEREDGE -> LEARNING
+	rules.AddRule(TcStateActive, TcEventOperEdge, tcm.TcMachineLearning)
+
+	// TCPROP and NOT OPEREDGE -> PROPAGATING
+	rules.AddRule(TcStateActive, TcEventTcPropAndNotOperEdge, tcm.TcMachinePropagating)
 
 	// Create a new FSM and apply the rules
 	tcm.Apply(&rules)
@@ -200,6 +308,9 @@ func (p *StpPort) TcMachineMain() {
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
 					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				} else {
+					// for faster transitions lets check all state events
+					m.ProcessPostStateProcessing()
 				}
 
 				if event.responseChan != nil {
@@ -211,4 +322,184 @@ func (p *StpPort) TcMachineMain() {
 			}
 		}
 	}(tcm)
+}
+
+func (tcm *TcMachine) ProcessPostStateInactive() {
+	p := tcm.p
+	if tcm.Machine.Curr.CurrentState() == TcStateInactive &&
+		p.Learn &&
+		!p.FdbFlush {
+		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventLearnAndNotFdbFlush, nil)
+		if rv != nil {
+			StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+		}
+
+	}
+}
+
+func (tcm *TcMachine) ProcessPostStateLearning() {
+	p := tcm.p
+	if tcm.Machine.Curr.CurrentState() == TcStateLearning &&
+		(p.Role == PortRoleRootPort || p.Role == PortRoleDesignatedPort) &&
+		p.Forward &&
+		!p.OperEdge {
+		if p.Role == PortRoleRootPort {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleEqualRootPortAndForwardAndNotOperEdge, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		} else {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		}
+	}
+}
+
+func (tcm *TcMachine) ProcessPostStateActive() {
+	p := tcm.p
+	if tcm.Machine.Curr.CurrentState() == TcStateActive {
+		if p.Role != PortRoleRootPort &&
+			p.Role != PortRoleDesignatedPort {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPort, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		} else if p.OperEdge {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventOperEdge, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		} else if p.RcvdTcn {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTcn, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		} else if p.RcvdTc {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTc, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		} else if p.TcProp && !p.OperEdge {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventTcPropAndNotOperEdge, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		} else if p.RcvdTcAck {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTcAck, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		}
+	}
+}
+
+// ProcessPostStateProcessing:
+// advance states after a given event for faster state transitions
+func (tcm *TcMachine) ProcessPostStateProcessing() {
+
+	tcm.ProcessPostStateInactive()
+	tcm.ProcessPostStateLearning()
+	if tcm.Machine.Curr.CurrentState() == TcStateDetected {
+		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+		}
+	}
+	tcm.ProcessPostStateActive()
+
+	if tcm.Machine.Curr.CurrentState() == TcStateNotifiedTcn ||
+		tcm.Machine.Curr.CurrentState() == TcStateNotifiedTc ||
+		tcm.Machine.Curr.CurrentState() == TcStatePropagating ||
+		tcm.Machine.Curr.CurrentState() == TcStateAcknowledged {
+		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+		}
+	}
+
+}
+
+func (tcm *TcMachine) NotifyFdbFlush() {
+	p := tcm.p
+	p.FdbFlush = true
+	// TODO send flush to asic d to flush macs
+	// spawn go routine to flush and wait for response
+	// but allow processing to continue
+}
+
+func (tcm *TcMachine) NotifyTcWhileChanged(val int32) {
+	p := tcm.p
+
+	p.TcWhileTimer.count = val
+	if val == 0 {
+		// this should stop transmit of tcn messages
+	}
+}
+
+func (tcm *TcMachine) NotifyNewInfoChanged(newinfo bool) {
+	p := tcm.p
+	if p.NewInfo != newinfo {
+		p.NewInfo = newinfo
+
+		if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
+			if p.SendRSTP &&
+				p.NewInfo &&
+				p.TxCount < TransmitHoldCountDefault &&
+				p.HelloWhenTimer.count != 0 {
+				p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+					e:   PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+					src: TcMachineModuleStr,
+				}
+			} else if !p.SendRSTP &&
+				p.NewInfo && p.Role == PortRoleRootPort &&
+				p.TxCount < TransmitHoldCountDefault &&
+				p.HelloWhenTimer.count != 0 {
+				p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+					e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+					src: TcMachineModuleStr,
+				}
+			} else if !p.SendRSTP &&
+				p.NewInfo && p.Role == PortRoleDesignatedPort &&
+				p.TxCount < TransmitHoldCountDefault &&
+				p.HelloWhenTimer.count != 0 {
+				p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+					e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+					src: TcMachineModuleStr,
+				}
+			}
+		}
+	}
+
+}
+
+// newTcWhile: 17.21.7
+func (tcm *TcMachine) newTcWhile() (newinfonotificationsent bool) {
+	p := tcm.p
+	newinfonotificationsent = false
+	if p.TcWhileTimer.count == 0 {
+		if p.SendRSTP {
+			p.TcWhileTimer.count = BridgeHelloTimeDefault + 2
+			tcm.NotifyNewInfoChanged(true)
+			newinfonotificationsent = true
+		} else {
+			p.TcWhileTimer.count = int32(p.b.RootTimes.MaxAge + p.b.RootTimes.ForwardingDelay)
+		}
+	}
+	return newinfonotificationsent
+}
+
+// setTcPropTree: 17.21.18
+func (tcm *TcMachine) setTcPropTree() {
+	p := tcm.p
+	b := p.b
+
+	var port *StpPort
+	for _, pId := range b.StpPorts {
+		if pId != p.IfIndex &&
+			StpFindPortById(pId, &port) {
+			port.TcProp = true
+		}
+	}
 }

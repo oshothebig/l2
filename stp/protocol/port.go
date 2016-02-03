@@ -29,6 +29,7 @@ type StpPort struct {
 	AgeingTime         int32
 	Agree              bool
 	Agreed             bool
+	AutoEdgePort       bool // optional
 	DesignatedPriority PriorityVector
 	DesignatedTimes    Times
 	Disputed           bool
@@ -265,28 +266,102 @@ func (p *StpPort) ResetCounter(counterType TimerType) {
 func (p *StpPort) DecrementTimerCounters() {
 	if p.EdgeDelayWhileTimer.count != 0 {
 		p.EdgeDelayWhileTimer.count--
+		if p.EdgeDelayWhileTimer.count == 0 {
+			p.NotifyEdgeDelayWhileTimerExpired()
+		}
 	}
 	if p.FdWhileTimer.count != 0 {
 		p.FdWhileTimer.count--
+		if p.FdWhileTimer.count == 0 {
+			p.NotifyFdWhileTimerExpired()
+		}
 	}
 	if p.HelloWhenTimer.count != 0 {
 		p.HelloWhenTimer.count--
+		if p.HelloWhenTimer.count == 0 {
+			p.NotifyHelloWhenTimerExpired()
+		}
 	}
 	if p.MdelayWhiletimer.count != 0 {
 		p.MdelayWhiletimer.count--
+		if p.MdelayWhiletimer.count == 0 {
+			p.NotifyMdelayWhileTimerExpired()
+		}
 	}
 	if p.RbWhileTimer.count != 0 {
 		p.RbWhileTimer.count--
+		if p.RbWhileTimer.count == 0 {
+			p.NotifyRbWhileTimerExpired()
+		}
 	}
 	if p.RcvdInfoWhiletimer.count != 0 {
 		p.RcvdInfoWhiletimer.count--
+		if p.RcvdInfoWhiletimer.count == 0 {
+			p.NotifyRcvdInfoWhileTimerExpired()
+		}
 	}
 	if p.RrWhileTimer.count != 0 {
 		p.RrWhileTimer.count--
+		if p.RrWhileTimer.count == 0 {
+			p.NotifyRrWhileTimerExpired()
+		}
 	}
 	if p.TcWhileTimer.count != 0 {
 		p.TcWhileTimer.count--
+		if p.TcWhileTimer.count == 0 {
+			p.NotifyTcWhileTimerExpired()
+		}
 	}
+}
+
+func (p *StpPort) NotifyEdgeDelayWhileTimerExpired() {
+}
+
+func (p *StpPort) NotifyFdWhileTimerExpired() {
+
+	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+		if p.RstpVersion &&
+			!p.Learn &&
+			p.Selected &&
+			!p.UpdtInfo {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo,
+				src: PtmMachineModuleStr,
+			}
+		} else if p.RstpVersion &&
+			p.Learn &&
+			!p.Forward {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+				src: PtmMachineModuleStr,
+			}
+		}
+	} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+		// TODO add events from 17.29.3
+	}
+}
+
+func (p *StpPort) NotifyHelloWhenTimerExpired() {
+
+}
+
+func (p *StpPort) NotifyMdelayWhileTimerExpired() {
+
+}
+
+func (p *StpPort) NotifyRbWhileTimerExpired() {
+
+}
+
+func (p *StpPort) NotifyRcvdInfoWhileTimerExpired() {
+
+}
+
+func (p *StpPort) NotifyRrWhileTimerExpired() {
+
+}
+func (p *StpPort) NotifyTcWhileTimerExpired() {
+
 }
 
 func (p *StpPort) BEGIN(restart bool) {
@@ -384,6 +459,11 @@ func (p *StpPort) BEGIN(restart bool) {
 	// call the begin event for each
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, true)
+
+	// lets start the tick timer
+	if p.PtmMachineFsm != nil {
+		p.PtmMachineFsm.TickTimerStart()
+	}
 
 	p.begin = false
 }

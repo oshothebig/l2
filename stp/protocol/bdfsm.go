@@ -182,6 +182,8 @@ func (p *StpPort) BdmMachineMain() {
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
 					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				} else {
+					m.ProcessPostStateProcessing()
 				}
 
 				if event.responseChan != nil {
@@ -193,6 +195,37 @@ func (p *StpPort) BdmMachineMain() {
 			}
 		}
 	}(bdm)
+}
+
+func (bdm *BdmMachine) ProcessPostStateEdge() {
+	p := bdm.p
+	if bdm.Machine.Curr.CurrentState() == BdmStateEdge {
+		if !p.OperEdge {
+			rv := bdm.Machine.ProcessEvent(BdmMachineModuleStr, BdmEventNotOperEdge, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		}
+	}
+}
+
+func (bdm *BdmMachine) ProcessPostStateNotEdge() {
+	p := bdm.p
+	if bdm.Machine.Curr.CurrentState() == BdmStateNotEdge {
+		if p.EdgeDelayWhileTimer.count == 0 &&
+			p.AutoEdgePort &&
+			p.SendRSTP &&
+			p.Proposing {
+			rv := bdm.Machine.ProcessEvent(BdmMachineModuleStr, BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing, nil)
+			if rv != nil {
+				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			}
+		}
+	}
+}
+
+func (bdm *BdmMachine) ProcessPostStateProcessing() {
+	// nothing to do here
 }
 
 func (bdm *BdmMachine) NotifyOperEdgeChanged(operedge bool) {

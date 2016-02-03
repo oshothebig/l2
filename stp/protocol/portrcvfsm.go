@@ -205,15 +205,9 @@ func (p *StpPort) PrxmMachineMain() {
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
 					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
-				}
-
-				// post processing
-				if m.Machine.Curr.CurrentState() == PrxmStateReceive &&
-					m.p.RcvdMsg {
-					rv := m.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, nil)
-					if rv != nil {
-						StpLogger("INFO", fmt.Sprintf("%s\n", rv))
-					}
+				} else {
+					// for faster state transitions
+					m.ProcessPostStateProcessing()
 				}
 
 				if event.responseChan != nil {
@@ -234,6 +228,37 @@ func (p *StpPort) PrxmMachineMain() {
 			}
 		}
 	}(prxm)
+}
+
+func (prxm *PrxmMachine) ProcessPostStateDiscard() {
+	p := prxm.p
+	if prxm.Machine.Curr.CurrentState() == PrxmStateDiscard &&
+		p.RcvdBPDU &&
+		p.PortEnabled {
+		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabled, nil)
+		if rv != nil {
+			StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+		}
+	}
+}
+
+func (prxm *PrxmMachine) ProcessPostStateReceive() {
+	p := prxm.p
+	if prxm.Machine.Curr.CurrentState() == PrxmStateReceive &&
+		p.RcvdBPDU &&
+		p.PortEnabled &&
+		!p.RcvdMsg {
+		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, nil)
+		if rv != nil {
+			StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+		}
+	}
+}
+
+func (prxm *PrxmMachine) ProcessPostStateProcessing() {
+	// post processing
+	prxm.ProcessPostStateDiscard()
+	prxm.ProcessPostStateReceive()
 }
 
 // UpdtBPDUVersion:  17.21.22
