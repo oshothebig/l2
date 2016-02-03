@@ -350,50 +350,50 @@ func (p *StpPort) PimMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PimMachine) {
-		StpLogger("INFO", "PIM: Machine Start")
+		StpMachineLogger("INFO", "PIM", "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PimKillSignalEvent:
-				StpLogger("INFO", "PIM: Machine End")
+				StpMachineLogger("INFO", "PIM", "Machine End")
 				return
 
 			case event := <-m.PimEvents:
-				StpLogger("INFO", fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
+				StpMachineLogger("INFO", "PIM", fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
 				rv := m.Machine.ProcessEvent(event.src, event.e, event.data)
 				if rv != nil {
-					StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+					StpMachineLogger("ERROR", "PIM", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
 				} else {
 					// POST events
 					if m.Machine.Curr.CurrentState() == PimStateReceive &&
 						p.RcvdfInfo == SuperiorDesignatedInfo {
 						rv := m.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualSuperiorDesignatedInfo, event.data)
 						if rv != nil {
-							StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualSuperiorDesignatedInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+							StpMachineLogger("ERROR", "PIM", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualSuperiorDesignatedInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
 						}
 					} else if m.Machine.Curr.CurrentState() == PimStateReceive &&
 						p.RcvdfInfo == RepeatedDesignatedInfo {
 						rv := m.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualRepeatedDesignatedInfo, event.data)
 						if rv != nil {
-							StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualRepeatedDesignatedInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+							StpMachineLogger("ERROR", "PIM", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualRepeatedDesignatedInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
 						}
 					} else if m.Machine.Curr.CurrentState() == PimStateReceive &&
 						p.RcvdfInfo == InferiorDesignatedInfo {
 						rv := m.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualInferiorDesignatedInfo, event.data)
 						if rv != nil {
-							StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualInferiorDesignatedInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+							StpMachineLogger("ERROR", "PIM", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualInferiorDesignatedInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
 						}
 					} else if m.Machine.Curr.CurrentState() == PimStateReceive &&
 						p.RcvdfInfo == InferiorRootAlternateInfo {
 						rv := m.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualInferiorRootAlternateInfo, event.data)
 						if rv != nil {
-							StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualInferiorRootAlternateInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+							StpMachineLogger("ERROR", "PIM", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualInferiorRootAlternateInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
 						}
 					} else if m.Machine.Curr.CurrentState() == PimStateReceive &&
 						p.RcvdfInfo == OtherInfo {
 						rv := m.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualOtherInfo, event.data)
 						if rv != nil {
-							StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualOtherInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+							StpMachineLogger("ERROR", "PIM", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualOtherInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
 						}
 					}
 					if m.Machine.Curr.CurrentState() == PimStateUpdate ||
@@ -404,7 +404,7 @@ func (p *StpPort) PimMachineMain() {
 						m.Machine.Curr.CurrentState() == PimStateOther {
 						rv := m.Machine.ProcessEvent(PimMachineModuleStr, PimEventUnconditionalFallThrough, event.data)
 						if rv != nil {
-							StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+							StpMachineLogger("ERROR", "PIM", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[m.Machine.Curr.CurrentState()]))
 						}
 					}
 				}
@@ -424,7 +424,7 @@ func (pim *PimMachine) ProcessPostStateProcessing() {
 
 func (pim *PimMachine) NotifyPrsMachineReselectChanged(reselect bool) {
 	p := pim.p
-	StpLogger("INFO", fmt.Sprintf("notify prs machine reselectold[%t] reselect[%t]\n", p.Reselect, reselect))
+	StpMachineLogger("INFO", "PIM", fmt.Sprintf("notify prs machine reselectold[%t] reselect[%t]\n", p.Reselect, reselect))
 	if p.Reselect != reselect {
 		p.Reselect = reselect
 		p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
@@ -467,7 +467,7 @@ func (pim *PimMachine) NotifyTxMachineNewInfoChange(newInfo bool) {
 func (pim *PimMachine) rcvInfo(role PortRole) PortDesignatedRcvInfo {
 	p := pim.p
 
-	StpLogger("INFO", fmt.Sprintf("role[%d] msgVector[%#v]\ndesignatedVector[%#v]\n", role, p.MsgPriority, p.DesignatedPriority))
+	StpMachineLogger("INFO", "PIM", fmt.Sprintf("role[%d] msgVector[%#v]\ndesignatedVector[%#v]\n", role, p.MsgPriority, p.DesignatedPriority))
 	if role == PortRoleDesignatedPort &&
 		(IsMsgPriorityVectorSuperiorThanPortPriorityVector(&p.MsgPriority, &p.DesignatedPriority) ||
 			p.MsgTimes != p.DesignatedTimes) {
@@ -497,20 +497,20 @@ func (pim *PimMachine) getRcvdMsgFlags(bpduLayer interface{}) uint8 {
 	var flags uint8
 	switch bpduLayer.(type) {
 	case *layers.STP:
-		StpLogger("INFO", "Found STP frame getting flags")
+		StpMachineLogger("INFO", "PIM", "Found STP frame getting flags")
 		stp := bpduLayer.(*layers.STP)
 		flags = stp.Flags
 	case *layers.RSTP:
-		StpLogger("INFO", "Found RSTP frame getting flags")
+		StpMachineLogger("INFO", "PIM", "Found RSTP frame getting flags")
 		rstp := bpduLayer.(*layers.RSTP)
 		flags = rstp.Flags
 	case *layers.PVST:
 
-		StpLogger("INFO", "Found PVST frame getting flags")
+		StpMachineLogger("INFO", "PIM", "Found PVST frame getting flags")
 		pvst := bpduLayer.(*layers.STP)
 		flags = pvst.Flags
 	default:
-		StpLogger("ERROR", fmt.Sprintf("%T\n", bpduLayer))
+		StpMachineLogger("ERROR", "PIM", fmt.Sprintf("%T\n", bpduLayer))
 	}
 	return flags
 }

@@ -160,24 +160,24 @@ func (b *Bridge) PrsMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PrsMachine) {
-		StpLogger("INFO", "PRSM: Machine Start")
+		StpMachineLogger("INFO", "PRSM", "Machine Start")
 		defer m.b.wg.Done()
 		for {
 			select {
 			case <-m.PrsKillSignalEvent:
-				StpLogger("INFO", "PRSM: Machine End")
+				StpMachineLogger("INFO", "PRSM", "Machine End")
 				return
 
 			case event := <-m.PrsEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+					StpMachineLogger("ERROR", "PRSM", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
 				} else {
 					if m.Machine.Curr.CurrentState() == PrsStateInitBridge {
 						rv := m.Machine.ProcessEvent(PrsMachineModuleStr, PrsEventUnconditionallFallThrough, nil)
 						if rv != nil {
-							StpLogger("ERROR", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PrsStateStrMap[m.Machine.Curr.CurrentState()]))
+							StpMachineLogger("ERROR", "PRSM", fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PrsStateStrMap[m.Machine.Curr.CurrentState()]))
 						}
 					}
 				}

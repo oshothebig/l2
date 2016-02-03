@@ -295,19 +295,19 @@ func (p *StpPort) TcMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *TcMachine) {
-		StpLogger("INFO", "TCM: Machine Start")
+		StpMachineLogger("INFO", "TCM", "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.TcKillSignalEvent:
-				StpLogger("INFO", "TCM: Machine End")
+				StpMachineLogger("INFO", "TCM", "Machine End")
 				return
 
 			case event := <-m.TcEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 				} else {
 					// for faster transitions lets check all state events
 					m.ProcessPostStateProcessing()
@@ -331,7 +331,7 @@ func (tcm *TcMachine) ProcessPostStateInactive() {
 		!p.FdbFlush {
 		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventLearnAndNotFdbFlush, nil)
 		if rv != nil {
-			StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 		}
 
 	}
@@ -346,12 +346,12 @@ func (tcm *TcMachine) ProcessPostStateLearning() {
 		if p.Role == PortRoleRootPort {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleEqualRootPortAndForwardAndNotOperEdge, nil)
 			if rv != nil {
-				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 			}
 		} else {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, nil)
 			if rv != nil {
-				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 			}
 		}
 	}
@@ -364,32 +364,32 @@ func (tcm *TcMachine) ProcessPostStateActive() {
 			p.Role != PortRoleDesignatedPort {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPort, nil)
 			if rv != nil {
-				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 			}
 		} else if p.OperEdge {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventOperEdge, nil)
 			if rv != nil {
-				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 			}
 		} else if p.RcvdTcn {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTcn, nil)
 			if rv != nil {
-				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 			}
 		} else if p.RcvdTc {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTc, nil)
 			if rv != nil {
-				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 			}
 		} else if p.TcProp && !p.OperEdge {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventTcPropAndNotOperEdge, nil)
 			if rv != nil {
-				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 			}
 		} else if p.RcvdTcAck {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTcAck, nil)
 			if rv != nil {
-				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 			}
 		}
 	}
@@ -404,7 +404,7 @@ func (tcm *TcMachine) ProcessPostStateProcessing() {
 	if tcm.Machine.Curr.CurrentState() == TcStateDetected {
 		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
 		if rv != nil {
-			StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 		}
 	}
 	tcm.ProcessPostStateActive()
@@ -415,7 +415,7 @@ func (tcm *TcMachine) ProcessPostStateProcessing() {
 		tcm.Machine.Curr.CurrentState() == TcStateAcknowledged {
 		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
 		if rv != nil {
-			StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "TCM", fmt.Sprintf("%s\n", rv))
 		}
 	}
 

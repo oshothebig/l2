@@ -17,7 +17,7 @@ var TEST_RX_PORT_CONFIG_IFINDEX int32
 var TEST_TX_PORT_CONFIG_IFINDEX int32
 
 const TIME_TO_DELAY_TO_WAIT_FOR_PACKET_ARRIVAL = time.Millisecond * 1
-const NUM_DELAY_TRIES = 30
+const NUM_DELAY_TRIES = 60
 
 func UsedForTestOnlyRxInitPortConfigTest() {
 

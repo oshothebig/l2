@@ -1,7 +1,9 @@
 // logger.go
 package stp
 
-import ()
+import (
+	"strings"
+)
 
 func StpLogger(t string, msg string) {
 
@@ -19,4 +21,8 @@ func StpLogger(t string, msg string) {
 
 func StpLoggerInfo(msg string) {
 	StpLogger("INFO", msg)
+}
+
+func StpMachineLogger(t string, m string, msg string) {
+	StpLogger(t, strings.Join([]string{m, msg}, ":"))
 }

@@ -169,19 +169,19 @@ func (p *StpPort) BdmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *BdmMachine) {
-		StpLogger("INFO", "PIM: Machine Start")
+		StpMachineLogger("INFO", "BDM", "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.BdmKillSignalEvent:
-				StpLogger("INFO", "BDM: Machine End")
+				StpMachineLogger("INFO", "BDM", "Machine End")
 				return
 
 			case event := <-m.BdmEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("INFO", "BDM", fmt.Sprintf("%s\n", rv))
 				} else {
 					m.ProcessPostStateProcessing()
 				}
@@ -203,7 +203,7 @@ func (bdm *BdmMachine) ProcessPostStateEdge() {
 		if !p.OperEdge {
 			rv := bdm.Machine.ProcessEvent(BdmMachineModuleStr, BdmEventNotOperEdge, nil)
 			if rv != nil {
-				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("INFO", "BDM", fmt.Sprintf("%s\n", rv))
 			}
 		}
 	}
@@ -218,7 +218,7 @@ func (bdm *BdmMachine) ProcessPostStateNotEdge() {
 			p.Proposing {
 			rv := bdm.Machine.ProcessEvent(BdmMachineModuleStr, BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing, nil)
 			if rv != nil {
-				StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("INFO", "BDM", fmt.Sprintf("%s\n", rv))
 			}
 		}
 	}

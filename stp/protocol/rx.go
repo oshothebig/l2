@@ -33,7 +33,7 @@ func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
 					//fmt.Println("RX:", packet, ptype)
 					if ptype != BPDURxTypeUnknown {
 
-						go ProcessBpduFrame(rxMainPort, ptype, packet)
+						ProcessBpduFrame(rxMainPort, ptype, packet)
 					}
 				} else {
 					StpLogger("INFO", "RXMAIN: Channel closed")
@@ -150,10 +150,14 @@ func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
 		p.RcvdBPDU = true
 		//fmt.Println(lacp)
 		//fmt.Println("Sening rx message to Port Rcvd State Machine", p.IfIndex)
-		p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
-			pdu:   bpduLayer, // this is a pointer
-			ptype: ptype,
-			src:   RxModuleStr}
+		if p.PrxmMachineFsm != nil {
+			p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
+				pdu:   bpduLayer, // this is a pointer
+				ptype: ptype,
+				src:   RxModuleStr}
+		} else {
+			StpLogger("ERROR", fmt.Sprintf("RXMAIN: rcvd FSM not running %d\n", pId))
+		}
 	} else {
 		StpLogger("ERROR", fmt.Sprintf("RXMAIN: Unabled to find port %d\n", pId))
 	}

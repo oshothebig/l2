@@ -115,7 +115,7 @@ const (
 	PrtEventDiputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo
 	PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo
 	PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo
-	PrtEventFdWhileEqualZeroAndReRootReNotReRootNotSyncAndNotLearnSelectedAndNotUpdtInfo
+	PrtEventFdWhileEqualZeroAndReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo
 	PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo
 	PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo
 	PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo
@@ -265,19 +265,19 @@ func (p *StpPort) PrtMachineMain() {
 
 	// lets create a go routing which will wait for the specific events
 	go func(m *PrtMachine) {
-		StpLogger("INFO", "PRTM: Machine Start")
+		StpMachineLogger("INFO", "PRTM", "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PrtKillSignalEvent:
-				StpLogger("INFO", "PRTM: Machine End")
+				StpMachineLogger("INFO", "PRTM", "Machine End")
 				return
 
 			case event := <-m.PrtEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("ERROR", "PRTM", fmt.Sprintf("%s\n", rv))
 				}
 
 				if event.responseChan != nil {

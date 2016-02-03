@@ -170,12 +170,12 @@ func (p *StpPort) PtmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PtmMachine) {
-		StpLogger("INFO", "PTM: Machine Start")
+		StpMachineLogger("INFO", "PTM", "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PtmKillSignalEvent:
-				StpLogger("INFO", "PTM: %s Machine End")
+				StpMachineLogger("INFO", "PTM", "Machine End")
 				return
 
 			case <-m.TickTimer.C:

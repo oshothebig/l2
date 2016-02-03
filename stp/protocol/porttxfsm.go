@@ -225,19 +225,19 @@ func (p *StpPort) PtxmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PtxmMachine) {
-		StpLogger("INFO", "PTXM: Machine Start")
+		StpMachineLogger("INFO", "PTXM", "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PtxmKillSignalEvent:
-				StpLogger("INFO", "PTXM: Machine End")
+				StpMachineLogger("INFO", "PTXM", "Machine End")
 				return
 
 			case event := <-m.PtxmEvents:
 				//StpLogger("INFO", "Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
 				}
 
 				if event.responseChan != nil {

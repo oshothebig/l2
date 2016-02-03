@@ -107,42 +107,29 @@ func (pstm *PstMachine) Stop() {
 
 }
 
-/*
-// PimMachineCheckingRSTP
-func (ppmm *PpmmMachine) PpmmMachineCheckingRSTP(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
-	p.Mcheck = false
-	p.SendRSTP = p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
-	p.MdelayWhiletimer.count = MigrateTimeDefault
-	return PpmmStateCheckingRSTP
+// PstMachineDiscarding
+func (pstm *PstMachine) PstMachineDiscarding(m fsm.Machine, data interface{}) fsm.State {
+	pstm.disableLearning()
+	pstm.NotifyLearningChanged(false)
+	pstm.disableForwarding()
+	pstm.NotifyForwardingChanged(false)
+	return PstStateDiscarding
 }
 
-// PpmmMachineSelectingSTP
-func (ppmm *PpmmMachine) PpmmMachineSelectingSTP(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
-
-	p.SendRSTP = false
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
-	p.MdelayWhiletimer.count = MigrateTimeDefault
-
-	return PpmmStateSelectingSTP
+// PstMachineLearning
+func (pstm *PstMachine) PstMachineLearning(m fsm.Machine, data interface{}) fsm.State {
+	pstm.enableLearning()
+	pstm.NotifyLearningChanged(true)
+	return PstStateLearning
 }
 
-// PpmmMachineSelectingSTP
-func (ppmm *PpmmMachine) PpmmMachineSensing(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
-
-	p.RcvdRSTP = false
-	p.RcvdSTP = false
-
-	return PpmmStateSensing
+// PstMachineForwarding
+func (pstm *PstMachine) PstMachineForwarding(m fsm.Machine, data interface{}) fsm.State {
+	pstm.enableForwarding()
+	pstm.NotifyForwardingChanged(true)
+	return PstStateForwarding
 }
-*/
+
 func PstMachineFSMBuild(p *StpPort) *PstMachine {
 
 	rules := fsm.Ruleset{}
@@ -151,6 +138,24 @@ func PstMachineFSMBuild(p *StpPort) *PstMachine {
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the DISCARD State
 	pstm := NewStpPstMachine(p)
+
+	// BEGIN -> DISCARDING
+	rules.AddRule(PstStateNone, PstEventBegin, pstm.PstMachineDiscarding)
+	rules.AddRule(PstStateDiscarding, PstEventBegin, pstm.PstMachineDiscarding)
+	rules.AddRule(PstStateLearning, PstEventBegin, pstm.PstMachineDiscarding)
+	rules.AddRule(PstStateForwarding, PstEventBegin, pstm.PstMachineDiscarding)
+
+	// LEARN -> LEARNING
+	rules.AddRule(PstStateDiscarding, PstEventLearn, pstm.PstMachineLearning)
+
+	// NOT LEARN -> LEARNING
+	rules.AddRule(PstStateLearning, PstEventNotLearn, pstm.PstMachineDiscarding)
+
+	// FORWARD -> FORWARDING
+	rules.AddRule(PstStateLearning, PstEventForward, pstm.PstMachineForwarding)
+
+	// NOT FORWARD -> FORWARDING
+	rules.AddRule(PstStateLearning, PstEventForward, pstm.PstMachineDiscarding)
 
 	// Create a new FSM and apply the rules
 	pstm.Apply(&rules)
@@ -171,19 +176,19 @@ func (p *StpPort) PstMachineMain() {
 
 	// lets create a go routing which will wait for the specific events
 	go func(m *PstMachine) {
-		StpLogger("INFO", "PRTM: Machine Start")
+		StpMachineLogger("INFO", "PRTM", "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PstKillSignalEvent:
-				StpLogger("INFO", "PSTM: Machine End")
+				StpMachineLogger("INFO", "PSTM", "Machine End")
 				return
 
 			case event := <-m.PstEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("ERROR", "PSTM", fmt.Sprintf("%s\n", rv))
 				}
 
 				if event.responseChan != nil {
@@ -195,4 +200,132 @@ func (p *StpPort) PstMachineMain() {
 			}
 		}
 	}(pstm)
+}
+
+func (pstm *PstMachine) NotifyLearningChanged(learning bool) {
+	p := pstm.p
+	if p.Learning != learning {
+		p.Learning = learning
+
+		// Prt
+		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisablePort {
+			if !p.Learning &&
+				!p.Forwarding &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
+					src: PstMachineModuleStr,
+				}
+			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+			if !p.Learning &&
+				!p.Forwarding &&
+				!p.Synced &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
+					src: PstMachineModuleStr,
+				}
+			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateBlockPort {
+			if !p.Learning &&
+				!p.Forwarding &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo,
+					src: PstMachineModuleStr,
+				}
+			}
+		}
+
+		// Tc
+		if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning {
+			if p.Role != PortRoleRootPort &&
+				p.Role != PortRoleDesignatedPort &&
+				!p.Learning &&
+				!(p.RcvdTc || p.RcvdTcn || p.RcvdTcAck || p.TcProp) {
+				p.TcMachineFsm.TcEvents <- MachineEvent{
+					e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
+					src: PstMachineModuleStr,
+				}
+			}
+		}
+	}
+}
+
+func (pstm *PstMachine) NotifyForwardingChanged(forwarding bool) {
+	p := pstm.p
+	if p.Forwarding != forwarding {
+		p.Forwarding = forwarding
+
+		// Prt
+		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisablePort {
+			if !p.Learning &&
+				!p.Forwarding &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
+					src: PstMachineModuleStr,
+				}
+			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+			if !p.Learning &&
+				!p.Forwarding &&
+				!p.Synced &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
+					src: PstMachineModuleStr,
+				}
+			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateBlockPort {
+			if !p.Learning &&
+				!p.Forwarding &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo,
+					src: PstMachineModuleStr,
+				}
+			}
+		}
+
+		// Tc
+		if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning {
+			if p.Role != PortRoleRootPort &&
+				p.Role != PortRoleDesignatedPort &&
+				!p.Learning &&
+				!(p.RcvdTc || p.RcvdTcn || p.RcvdTcAck || p.TcProp) {
+				p.TcMachineFsm.TcEvents <- MachineEvent{
+					e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
+					src: PstMachineModuleStr,
+				}
+			}
+		}
+	}
+}
+
+func (pstm *PstMachine) disableLearning() {
+	p := pstm.p
+	StpMachineLogger("INFO", "PSTM", fmt.Sprintf("Calling Asic to do disable learning for port %d", p.IfIndex))
+}
+
+func (pstm *PstMachine) disableForwarding() {
+	p := pstm.p
+	StpMachineLogger("INFO", "PSTM", fmt.Sprintf("Calling Asic to do disable forwarding for port %d", p.IfIndex))
+}
+
+func (pstm *PstMachine) enableLearning() {
+	p := pstm.p
+	StpMachineLogger("INFO", "PSTM", fmt.Sprintf("Calling Asic to do enable learning for port %d", p.IfIndex))
+}
+
+func (pstm *PstMachine) enableForwarding() {
+	p := pstm.p
+	StpMachineLogger("INFO", "PSTM", fmt.Sprintf("Calling Asic to do enable forwarding for port %d", p.IfIndex))
 }
