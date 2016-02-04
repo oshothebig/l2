@@ -104,16 +104,18 @@ func (bdm *BdmMachine) Stop() {
 
 // BdmMachineEdge
 func (bdm *BdmMachine) BdmMachineEdge(m fsm.Machine, data interface{}) fsm.State {
-
-	bdm.NotifyOperEdgeChanged(true)
+	p := bdm.p
+	defer bdm.NotifyOperEdgeChanged(p.OperEdge, true)
+	p.OperEdge = true
 
 	return BdmStateEdge
 }
 
 // BdmMachineNotEdge
 func (bdm *BdmMachine) BdmMachineNotEdge(m fsm.Machine, data interface{}) fsm.State {
-
-	bdm.NotifyOperEdgeChanged(false)
+	p := bdm.p
+	defer bdm.NotifyOperEdgeChanged(p.OperEdge, false)
+	p.OperEdge = false
 
 	return BdmStateNotEdge
 }
@@ -228,10 +230,9 @@ func (bdm *BdmMachine) ProcessPostStateProcessing() {
 	// nothing to do here
 }
 
-func (bdm *BdmMachine) NotifyOperEdgeChanged(operedge bool) {
+func (bdm *BdmMachine) NotifyOperEdgeChanged(oldoperedge bool, newoperedge bool) {
 	p := bdm.p
-	if p.OperEdge != operedge {
-		p.OperEdge = operedge
+	if oldoperedge != newoperedge {
 
 		// Prt update 17.29.3
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
@@ -299,7 +300,7 @@ func (bdm *BdmMachine) NotifyOperEdgeChanged(operedge bool) {
 				p.Selected &&
 				!p.UpdtInfo {
 				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventDiputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					e:   PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
 					src: BdmMachineModuleStr,
 				}
 			} else if p.Disputed &&

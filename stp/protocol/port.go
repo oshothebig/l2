@@ -582,3 +582,11 @@ func (p *StpPort) RoleSet(src string, val PortRole) {
 	// 2) Topology Change
 	p.Role = val
 }
+
+func (p *StpPort) EdgeDelay() uint16 {
+	if p.OperPointToPointMAC {
+		return MigrateTimeDefault
+	} else {
+		return p.b.RootTimes.MaxAge
+	}
+}

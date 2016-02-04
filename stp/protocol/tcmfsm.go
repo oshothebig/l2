@@ -125,7 +125,8 @@ func (tcm *TcMachine) Stop() {
 // TcmMachineInactive
 func (tcm *TcMachine) TcMachineInactive(m fsm.Machine, data interface{}) fsm.State {
 	p := tcm.p
-	tcm.NotifyFdbFlush()
+	defer tcm.NotifyFdbFlush()
+	p.FdbFlush = true
 	p.TcWhileTimer.count = 0
 	p.TcAck = false
 	return TcStateInactive
@@ -144,11 +145,12 @@ func (tcm *TcMachine) TcMachineLearning(m fsm.Machine, data interface{}) fsm.Sta
 
 // TcMachineDetected
 func (tcm *TcMachine) TcMachineDetected(m fsm.Machine, data interface{}) fsm.State {
-
+	p := tcm.p
 	newinfonotificationsent := tcm.newTcWhile()
 	tcm.setTcPropTree()
 	if !newinfonotificationsent {
-		tcm.NotifyNewInfoChanged(true)
+		defer tcm.NotifyNewInfoChanged(p.NewInfo, true)
+		p.NewInfo = true
 	}
 	return TcStateDetected
 }
@@ -188,7 +190,7 @@ func (tcm *TcMachine) TcMachinePropagating(m fsm.Machine, data interface{}) fsm.
 	p := tcm.p
 
 	tcm.newTcWhile()
-	tcm.NotifyFdbFlush()
+	defer tcm.NotifyFdbFlush()
 	p.TcProp = false
 
 	return TcStatePropagating
@@ -198,7 +200,8 @@ func (tcm *TcMachine) TcMachinePropagating(m fsm.Machine, data interface{}) fsm.
 func (tcm *TcMachine) TcMachineAcknowledged(m fsm.Machine, data interface{}) fsm.State {
 	p := tcm.p
 
-	tcm.NotifyTcWhileChanged(0)
+	defer tcm.NotifyTcWhileChanged(0)
+
 	p.RcvdTcAck = false
 
 	return TcStateAcknowledged
@@ -438,10 +441,9 @@ func (tcm *TcMachine) NotifyTcWhileChanged(val int32) {
 	}
 }
 
-func (tcm *TcMachine) NotifyNewInfoChanged(newinfo bool) {
+func (tcm *TcMachine) NotifyNewInfoChanged(oldnewinfo bool, newnewinfo bool) {
 	p := tcm.p
-	if p.NewInfo != newinfo {
-		p.NewInfo = newinfo
+	if oldnewinfo != newnewinfo {
 
 		if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
 			if p.SendRSTP &&
@@ -481,7 +483,7 @@ func (tcm *TcMachine) newTcWhile() (newinfonotificationsent bool) {
 	if p.TcWhileTimer.count == 0 {
 		if p.SendRSTP {
 			p.TcWhileTimer.count = BridgeHelloTimeDefault + 2
-			tcm.NotifyNewInfoChanged(true)
+			defer tcm.NotifyNewInfoChanged(p.NewInfo, true)
 			newinfonotificationsent = true
 		} else {
 			p.TcWhileTimer.count = int32(p.b.RootTimes.MaxAge + p.b.RootTimes.ForwardingDelay)

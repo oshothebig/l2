@@ -123,7 +123,7 @@ func (ptxm *PtxmMachine) PtxmMachineTransmitInit(m fsm.Machine, data interface{}
 // PtxmMachineTransmitIdle
 func (ptxm *PtxmMachine) PtxmMachineTransmitIdle(m fsm.Machine, data interface{}) fsm.State {
 	p := ptxm.p
-	p.HelloWhenTimer.count = BridgeHelloTimeDefault
+	p.HelloWhenTimer.count = int32(p.b.RootTimes.HelloTime)
 	return PtxmStateIdle
 }
 

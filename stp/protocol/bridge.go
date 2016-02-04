@@ -214,3 +214,16 @@ func CalcRootPathPriorityVector(msg *PriorityVector, port *PriorityVector) (root
 
 	return rootPriorityVector
 }
+
+func (b *Bridge) AllSynced() bool {
+
+	var p *StpPort
+	for _, pId := range b.StpPorts {
+		if StpFindPortById(pId, &p) {
+			if !p.Synced {
+				return false
+			}
+		}
+	}
+	return true
+}

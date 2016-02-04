@@ -109,24 +109,31 @@ func (pstm *PstMachine) Stop() {
 
 // PstMachineDiscarding
 func (pstm *PstMachine) PstMachineDiscarding(m fsm.Machine, data interface{}) fsm.State {
+	p := pstm.p
 	pstm.disableLearning()
-	pstm.NotifyLearningChanged(false)
+	defer pstm.NotifyLearningChanged(p.Learning, false)
+	p.Learning = false
 	pstm.disableForwarding()
-	pstm.NotifyForwardingChanged(false)
+	defer pstm.NotifyForwardingChanged(p.Forwarding, false)
+	p.Forwarding = false
 	return PstStateDiscarding
 }
 
 // PstMachineLearning
 func (pstm *PstMachine) PstMachineLearning(m fsm.Machine, data interface{}) fsm.State {
+	p := pstm.p
 	pstm.enableLearning()
-	pstm.NotifyLearningChanged(true)
+	defer pstm.NotifyLearningChanged(p.Learning, true)
+	p.Learning = true
 	return PstStateLearning
 }
 
 // PstMachineForwarding
 func (pstm *PstMachine) PstMachineForwarding(m fsm.Machine, data interface{}) fsm.State {
+	p := pstm.p
 	pstm.enableForwarding()
-	pstm.NotifyForwardingChanged(true)
+	defer pstm.NotifyForwardingChanged(p.Forwarding, true)
+	p.Forwarding = true
 	return PstStateForwarding
 }
 
@@ -202,10 +209,9 @@ func (p *StpPort) PstMachineMain() {
 	}(pstm)
 }
 
-func (pstm *PstMachine) NotifyLearningChanged(learning bool) {
+func (pstm *PstMachine) NotifyLearningChanged(oldlearning bool, newlearning bool) {
 	p := pstm.p
-	if p.Learning != learning {
-		p.Learning = learning
+	if oldlearning != newlearning {
 
 		// Prt
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisablePort {
@@ -256,10 +262,9 @@ func (pstm *PstMachine) NotifyLearningChanged(learning bool) {
 	}
 }
 
-func (pstm *PstMachine) NotifyForwardingChanged(forwarding bool) {
+func (pstm *PstMachine) NotifyForwardingChanged(oldforwarding bool, newforwarding bool) {
 	p := pstm.p
-	if p.Forwarding != forwarding {
-		p.Forwarding = forwarding
+	if oldforwarding != newforwarding {
 
 		// Prt
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisablePort {

@@ -66,7 +66,7 @@ func (p *StpPort) DecrementTimerCounters() {
 		p.EdgeDelayWhileTimer.count--
 	}
 	if p.EdgeDelayWhileTimer.count == 0 {
-		p.NotifyEdgeDelayWhileTimerExpired()
+		defer p.NotifyEdgeDelayWhileTimerExpired()
 	}
 
 	// Prt owner
@@ -83,14 +83,14 @@ func (p *StpPort) DecrementTimerCounters() {
 		p.FdWhileTimer.count--
 	}
 	if p.FdWhileTimer.count == 0 {
-		p.NotifyFdWhileTimerExpired()
+		defer p.NotifyFdWhileTimerExpired()
 	}
 	// ptx owner
 	if p.HelloWhenTimer.count != 0 {
 		p.HelloWhenTimer.count--
 	}
 	if p.HelloWhenTimer.count == 0 {
-		p.NotifyHelloWhenTimerExpired()
+		defer p.NotifyHelloWhenTimerExpired()
 	}
 
 	// ppm owner
@@ -98,7 +98,7 @@ func (p *StpPort) DecrementTimerCounters() {
 		p.MdelayWhiletimer.count--
 	}
 	if p.MdelayWhiletimer.count == 0 {
-		p.NotifyMdelayWhileTimerExpired()
+		defer p.NotifyMdelayWhileTimerExpired()
 	}
 	// prt owner
 	if p.RbWhileTimer.count != 0 {
@@ -115,14 +115,14 @@ func (p *StpPort) DecrementTimerCounters() {
 		p.RbWhileTimer.count--
 	}
 	if p.RbWhileTimer.count == 0 {
-		p.NotifyRbWhileTimerExpired()
+		defer p.NotifyRbWhileTimerExpired()
 	}
 	// pi owner
 	if p.RcvdInfoWhiletimer.count != 0 {
 		p.RcvdInfoWhiletimer.count--
 	}
 	if p.RcvdInfoWhiletimer.count == 0 {
-		p.NotifyRcvdInfoWhileTimerExpired()
+		defer p.NotifyRcvdInfoWhileTimerExpired()
 	}
 	// prt owner
 	if p.RrWhileTimer.count != 0 {
@@ -161,14 +161,14 @@ func (p *StpPort) DecrementTimerCounters() {
 		}
 	}
 	if p.RrWhileTimer.count == 0 {
-		p.NotifyRrWhileTimerExpired()
+		defer p.NotifyRrWhileTimerExpired()
 	}
 	// tc owner
 	if p.TcWhileTimer.count != 0 {
 		p.TcWhileTimer.count--
 	}
 	if p.TcWhileTimer.count == 0 {
-		p.NotifyTcWhileTimerExpired()
+		defer p.NotifyTcWhileTimerExpired()
 	}
 }
 
@@ -224,7 +224,7 @@ func (p *StpPort) NotifyFdWhileTimerExpired() {
 			p.Selected &&
 			!p.UpdtInfo {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   PrtEventFdWhileEqualZeroAndReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo,
+				e:   PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo,
 				src: PrtMachineModuleStr,
 			}
 

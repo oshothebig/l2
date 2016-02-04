@@ -387,7 +387,7 @@ func UsedForTestOnlyPimCheckUpdateState(p *StpPort, t *testing.T) {
 		p.Selected == true &&
 		p.UpdtInfo == false {
 		event, _ := <-p.PrtMachineFsm.PrtEvents
-		if event.e != PrtEventFdWhileEqualZeroAndReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo {
+		if event.e != PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo {
 			t.Error("Failed to send event to Port Role Transition Machine")
 		}
 	} else if p.Role == PortRoleDesignatedPort &&

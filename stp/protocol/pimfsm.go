@@ -144,7 +144,8 @@ func (pim *PimMachine) PimMachineDisabled(m fsm.Machine, data interface{}) fsm.S
 	p.RcvdInfoWhiletimer.count = 0
 	p.InfoIs = PortInfoStateDisabled
 	p.Selected = false
-	pim.NotifyPrsMachineReselectChanged(true)
+	defer pim.NotifyReselectChanged(p.Reselect, true)
+	p.Reselect = true
 	return PimStateDisabled
 }
 
@@ -153,7 +154,8 @@ func (pim *PimMachine) PimMachineAged(m fsm.Machine, data interface{}) fsm.State
 	p := pim.p
 	p.InfoIs = PortInfoStateAged
 	p.Selected = false
-	pim.NotifyPrsMachineReselectChanged(true)
+	defer pim.NotifyReselectChanged(p.Reselect, true)
+	p.Reselect = true
 	return PimStateAged
 }
 
@@ -168,7 +170,8 @@ func (pim *PimMachine) PimMachineUpdate(m fsm.Machine, data interface{}) fsm.Sta
 	p.PortTimes = p.DesignatedTimes
 	p.UpdtInfo = false
 	p.InfoIs = PortInfoStateMine
-	pim.NotifyTxMachineNewInfoChange(true)
+	defer pim.NotifyNewInfoChange(p.NewInfo, true)
+	p.NewInfo = true
 	return PimStateUpdate
 }
 
@@ -201,7 +204,8 @@ func (pim *PimMachine) PimMachineSuperiorDesignated(m fsm.Machine, data interfac
 
 	p.Selected = false
 	p.RcvdMsg = false
-	pim.NotifyPrsMachineReselectChanged(true)
+	defer pim.NotifyReselectChanged(p.Reselect, true)
+	p.Reselect = true
 	return PimStateSuperiorDesignated
 }
 
@@ -422,43 +426,43 @@ func (p *StpPort) PimMachineMain() {
 func (pim *PimMachine) ProcessPostStateProcessing() {
 }
 
-func (pim *PimMachine) NotifyPrsMachineReselectChanged(reselect bool) {
+func (pim *PimMachine) NotifyReselectChanged(oldreselect bool, newreselect bool) {
 	p := pim.p
-	StpMachineLogger("INFO", "PIM", fmt.Sprintf("notify prs machine reselectold[%t] reselect[%t]\n", p.Reselect, reselect))
-	if p.Reselect != reselect {
-		p.Reselect = reselect
-		p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
-			e:   PrsEventReselect,
-			src: PimMachineModuleStr,
+	if oldreselect != newreselect {
+		if p.PrsMachineFsm.Machine.Curr.CurrentState() == PrsStateRoleSelection {
+			p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
+				e:   PrsEventReselect,
+				src: PimMachineModuleStr,
+			}
 		}
 	}
 }
 
-func (pim *PimMachine) NotifyTxMachineNewInfoChange(newInfo bool) {
+func (pim *PimMachine) NotifyNewInfoChange(oldnewinfo bool, newnewinfo bool) {
 	p := pim.p
-	if p.NewInfo != newInfo {
-		p.NewInfo = newInfo
-
-		if !p.SendRSTP &&
-			p.NewInfo &&
-			p.Role == PortRoleDesignatedPort &&
-			p.TxCount < TransmitHoldCountDefault &&
-			p.HelloWhenTimer.count != 0 &&
-			p.Selected &&
-			!p.UpdtInfo {
-			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
-				e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
-				src: PimMachineModuleStr,
-			}
-		} else if !p.SendRSTP &&
-			p.NewInfo &&
-			p.Role == PortRoleRootPort &&
-			p.HelloWhenTimer.count != 0 &&
-			p.Selected &&
-			!p.UpdtInfo {
-			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
-				e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
-				src: PimMachineModuleStr,
+	if oldnewinfo != newnewinfo {
+		if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
+			if !p.SendRSTP &&
+				p.NewInfo &&
+				p.Role == PortRoleDesignatedPort &&
+				p.TxCount < TransmitHoldCountDefault &&
+				p.HelloWhenTimer.count != 0 &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+					e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+					src: PimMachineModuleStr,
+				}
+			} else if !p.SendRSTP &&
+				p.NewInfo &&
+				p.Role == PortRoleRootPort &&
+				p.HelloWhenTimer.count != 0 &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+					e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+					src: PimMachineModuleStr,
+				}
 			}
 		}
 	}

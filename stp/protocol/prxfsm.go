@@ -136,8 +136,10 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 	// Decoding has been done as part of the Rx logic was a means of filtering
 	rcvdMsg := prxm.UpdtBPDUVersion(data)
 	// Figure 17-12
-	prxm.NotifyRcvdMsgChange(data, rcvdMsg)
-	prxm.NotifyOperEdgeChange(false)
+	defer prxm.NotifyRcvdMsgChange(p.RcvdMsg, rcvdMsg, data)
+	p.RcvdMsg = rcvdMsg
+	defer prxm.NotifyOperEdgeChange(p.OperEdge, false)
+	p.OperEdge = false
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
 
@@ -298,7 +300,10 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 
 		StpMachineLogger("INFO", "PRXM", "Received RSTP packet")
 
-		prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(StpGetBpduTopoChange(flags), false, false)
+		defer prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, false)
+		p.RcvdTc = StpGetBpduTopoChange(flags)
+		p.RcvdTcn = false
+		p.RcvdTcAck = false
 	case *layers.STP:
 		stp := bpduLayer.(*layers.STP)
 		flags = stp.Flags
@@ -320,7 +325,10 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		}
 
 		StpMachineLogger("INFO", "PRXM", "Received STP packet")
-		prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(false, false, StpGetBpduTopoChangeAck(flags))
+		defer prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, false, false, StpGetBpduTopoChangeAck(flags))
+		p.RcvdTc = false
+		p.RcvdTcn = false
+		p.RcvdTcAck = StpGetBpduTopoChangeAck(flags)
 	case *layers.BPDUTopology:
 		topo := bpduLayer.(*layers.BPDUTopology)
 		if (topo.ProtocolVersionId == layers.STPProtocolVersion &&
@@ -341,7 +349,10 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			p.RcvdSTP = true
 			validPdu = true
 			StpMachineLogger("INFO", "PRXM", "Received TCN packet")
-			prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(false, true, false)
+			defer prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, false, true, false)
+			p.RcvdTc = false
+			p.RcvdTcn = true
+			p.RcvdTcAck = false
 
 		}
 	}
@@ -351,15 +362,14 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 
 // NotifyRcvdMsgChange
 // Port Receive -> Port Information Figure 17-12
-func (prxm *PrxmMachine) NotifyRcvdMsgChange(data interface{}, rcvdMsg bool) {
+func (prxm *PrxmMachine) NotifyRcvdMsgChange(oldrcvdmsg bool, newrcvdmsg, data interface{}) {
 	p := prxm.p
-	if p.RcvdMsg != rcvdMsg {
+	if oldrcvdmsg != newrcvdmsg {
 		bpdumsg := data.(RxBpduPdu)
 		bpduLayer := bpdumsg.pdu
 
-		p.RcvdMsg = rcvdMsg
 		if p.PimMachineFsm != nil {
-			if rcvdMsg {
+			if p.RcvdMsg {
 				if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
 					p.PimMachineFsm.PimEvents <- MachineEvent{
 						e:    PimEventRcvdMsg,
@@ -372,7 +382,7 @@ func (prxm *PrxmMachine) NotifyRcvdMsgChange(data interface{}, rcvdMsg bool) {
 						data: bpduLayer,
 						src:  PrxmMachineModuleStr}
 				}
-			} else if !rcvdMsg &&
+			} else if !p.RcvdMsg &&
 				p.InfoIs == PortInfoStateReceived &&
 				p.RcvdInfoWhiletimer.count == 0 &&
 				!p.UpdtInfo {
@@ -386,9 +396,9 @@ func (prxm *PrxmMachine) NotifyRcvdMsgChange(data interface{}, rcvdMsg bool) {
 	}
 }
 
-func (prxm *PrxmMachine) NotifyOperEdgeChange(operedge bool) {
+func (prxm *PrxmMachine) NotifyOperEdgeChange(oldoperedge bool, newoperedge bool) {
 	p := prxm.p
-	if p.OperEdge != operedge {
+	if oldoperedge != newoperedge {
 
 		if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateEdge &&
 			!p.OperEdge {
@@ -400,27 +410,23 @@ func (prxm *PrxmMachine) NotifyOperEdgeChange(operedge bool) {
 	}
 }
 
-func (prxm *PrxmMachine) NotifyRcvdTcRcvdTcnRcvdTcAck(rcvdtc bool, rcvdtcn bool, rcvdtcack bool) {
+func (prxm *PrxmMachine) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn bool, oldrcvdtcack bool, newrcvdtc bool, newrcvdtcn bool, newrcvdtcack bool) {
 
 	p := prxm.p
 
 	// only care if there was a change
-	if p.RcvdTc != rcvdtc ||
-		p.RcvdTcn != rcvdtcn ||
-		p.RcvdTcAck != rcvdtcack {
+	if oldrcvdtc != newrcvdtc ||
+		oldrcvdtcn != newrcvdtcn ||
+		oldrcvdtcack != newrcvdtcack {
 
-		p.RcvdTc = rcvdtc
-		p.RcvdTcn = rcvdtcn
-		p.RcvdTcAck = rcvdtcack
-
-		if rcvdtc &&
+		if p.RcvdTc &&
 			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
 				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
 			p.TcMachineFsm.TcEvents <- MachineEvent{
 				e:   TcEventRcvdTc,
 				src: RxModuleStr,
 			}
-		} else if rcvdtcn &&
+		} else if p.RcvdTcn &&
 			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
 				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
 
@@ -428,7 +434,7 @@ func (prxm *PrxmMachine) NotifyRcvdTcRcvdTcnRcvdTcAck(rcvdtc bool, rcvdtcn bool,
 				e:   TcEventRcvdTcn,
 				src: RxModuleStr,
 			}
-		} else if rcvdtcack &&
+		} else if p.RcvdTcAck &&
 			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
 				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
 
@@ -440,7 +446,7 @@ func (prxm *PrxmMachine) NotifyRcvdTcRcvdTcnRcvdTcAck(rcvdtc bool, rcvdtcn bool,
 			p.Role != PortRoleRootPort &&
 			p.Role != PortRoleDesignatedPort &&
 			!(p.Learn || p.Learning) &&
-			!(rcvdtc || rcvdtcn || rcvdtcack || p.TcProp) {
+			!(p.RcvdTc || p.RcvdTcn || p.RcvdTcAck || p.TcProp) {
 
 			p.TcMachineFsm.TcEvents <- MachineEvent{
 				e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
