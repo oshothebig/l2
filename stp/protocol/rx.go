@@ -28,12 +28,14 @@ func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
 				//fmt.Println("RxMain: port", rxMainPort)
 
 				if ok {
-					//fmt.Println("RxMain: port", rxMainPort)
-					ptype := ValidateBPDUFrame(rxMainPort, packet)
-					//fmt.Println("RX:", packet, ptype)
-					if ptype != BPDURxTypeUnknown {
+					if packet != nil {
+						//fmt.Println("RxMain: port", rxMainPort)
+						ptype := ValidateBPDUFrame(rxMainPort, packet)
+						//fmt.Println("RX:", packet, ptype)
+						if ptype != BPDURxTypeUnknown {
 
-						ProcessBpduFrame(rxMainPort, ptype, packet)
+							ProcessBpduFrame(rxMainPort, ptype, packet)
+						}
 					}
 				} else {
 					StpLogger("INFO", "RXMAIN: Channel closed")

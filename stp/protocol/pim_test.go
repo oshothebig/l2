@@ -73,20 +73,21 @@ func UsedForTestOnlyPimTestSetup(t *testing.T) (p *StpPort) {
 	p = NewStpPort(stpconfig)
 
 	// lets only start the Port Information State Machine
+	b.PrsMachineMain()
 	p.PimMachineMain()
 
 	// going just send event and not start main as we just did above
 	p.BEGIN(true)
 
 	// only instanciated object not starting go routine
-	PrtMachineFSMBuild(p)
 	PrxmMachineFSMBuild(p)
 	PtxmMachineFSMBuild(p)
 	BdmMachineFSMBuild(p)
 	PtmMachineFSMBuild(p)
-	PtmMachineFSMBuild(p)
 	TcMachineFSMBuild(p)
 	PstMachineFSMBuild(p)
+	PpmmMachineFSMBuild(p)
+	PrtMachineFSMBuild(p)
 
 	if p.PimMachineFsm.Machine.Curr.PreviousState() != PimStateNone {
 		t.Error("Failed to Initial Port Information machine state not set correctly", p.PpmmMachineFsm.Machine.Curr.PreviousState())
@@ -102,16 +103,51 @@ func UsedForTestOnlyPimTestSetup(t *testing.T) (p *StpPort) {
 }
 
 func UsedForTestOnlyPimTestTeardown(p *StpPort, t *testing.T) {
+	if len(p.b.PrsMachineFsm.PrsEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+
+	if len(p.PpmmMachineFsm.PpmmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PimMachineFsm.PimEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PtxmMachineFsm.PtxmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.BdmMachineFsm.BdmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PtmMachineFsm.PtmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.TcMachineFsm.TcEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PstMachineFsm.PstEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PpmmMachineFsm.PpmmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+	if len(p.PrxmMachineFsm.PrxmEvents) > 0 {
+		t.Error("Failed to check event sent")
+	}
+
 	p.PrtMachineFsm = nil
 	p.PrxmMachineFsm = nil
 	p.PtxmMachineFsm = nil
 	p.BdmMachineFsm = nil
 	p.PtmMachineFsm = nil
-	p.PtmMachineFsm = nil
 	p.TcMachineFsm = nil
 	p.PstMachineFsm = nil
+	p.PpmmMachineFsm = nil
+
+	p.b.PrsMachineFsm.Stop()
 
 	DelStpPort(p)
+
 }
 
 func UsedForTestOnlyPimCheckDisabled(p *StpPort, t *testing.T) {

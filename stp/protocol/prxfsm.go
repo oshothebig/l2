@@ -138,7 +138,7 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 	// Figure 17-12
 	defer prxm.NotifyRcvdMsgChange(p.RcvdMsg, rcvdMsg, data)
 	p.RcvdMsg = rcvdMsg
-	defer prxm.NotifyOperEdgeChange(p.OperEdge, false)
+	defer p.NotifyOperEdgeChanged(PrxmMachineModuleStr, p.OperEdge, false)
 	p.OperEdge = false
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
@@ -240,6 +240,8 @@ func (prxm *PrxmMachine) ProcessPostStateDiscard() {
 		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabled, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRXM", fmt.Sprintf("%s\n", rv))
+		} else {
+			prxm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -253,6 +255,8 @@ func (prxm *PrxmMachine) ProcessPostStateReceive() {
 		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRXM", fmt.Sprintf("%s\n", rv))
+		} else {
+			prxm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -391,20 +395,6 @@ func (prxm *PrxmMachine) NotifyRcvdMsgChange(oldrcvdmsg bool, newrcvdmsg, data i
 					data: bpduLayer,
 					src:  PrxmMachineModuleStr}
 
-			}
-		}
-	}
-}
-
-func (prxm *PrxmMachine) NotifyOperEdgeChange(oldoperedge bool, newoperedge bool) {
-	p := prxm.p
-	if oldoperedge != newoperedge {
-
-		if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateEdge &&
-			!p.OperEdge {
-			p.BdmMachineFsm.BdmEvents <- MachineEvent{
-				e:   BdmEventNotOperEdge,
-				src: PrxmMachineModuleStr,
 			}
 		}
 	}

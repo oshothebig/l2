@@ -105,7 +105,7 @@ func (bdm *BdmMachine) Stop() {
 // BdmMachineEdge
 func (bdm *BdmMachine) BdmMachineEdge(m fsm.Machine, data interface{}) fsm.State {
 	p := bdm.p
-	defer bdm.NotifyOperEdgeChanged(p.OperEdge, true)
+	defer p.NotifyOperEdgeChanged(BdmMachineModuleStr, p.OperEdge, true)
 	p.OperEdge = true
 
 	return BdmStateEdge
@@ -114,7 +114,7 @@ func (bdm *BdmMachine) BdmMachineEdge(m fsm.Machine, data interface{}) fsm.State
 // BdmMachineNotEdge
 func (bdm *BdmMachine) BdmMachineNotEdge(m fsm.Machine, data interface{}) fsm.State {
 	p := bdm.p
-	defer bdm.NotifyOperEdgeChanged(p.OperEdge, false)
+	defer p.NotifyOperEdgeChanged(BdmMachineModuleStr, p.OperEdge, false)
 	p.OperEdge = false
 
 	return BdmStateNotEdge
@@ -228,92 +228,4 @@ func (bdm *BdmMachine) ProcessPostStateNotEdge() {
 
 func (bdm *BdmMachine) ProcessPostStateProcessing() {
 	// nothing to do here
-}
-
-func (bdm *BdmMachine) NotifyOperEdgeChanged(oldoperedge bool, newoperedge bool) {
-	p := bdm.p
-	if oldoperedge != newoperedge {
-
-		// Prt update 17.29.3
-		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-			if !p.Forward &&
-				!p.Agreed &&
-				!p.Proposing &&
-				!p.OperEdge &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
-					src: BdmMachineModuleStr,
-				}
-			} else if p.OperEdge &&
-				!p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo,
-					src: BdmMachineModuleStr,
-				}
-			} else if p.Sync &&
-				!p.Synced &&
-				!p.OperEdge &&
-				p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
-					src: BdmMachineModuleStr,
-				}
-			} else if p.Sync &&
-				!p.Synced &&
-				!p.OperEdge &&
-				p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
-					src: BdmMachineModuleStr,
-				}
-			} else if p.ReRoot &&
-				p.RrWhileTimer.count != 0 &&
-				!p.OperEdge &&
-				p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
-					src: BdmMachineModuleStr,
-				}
-			} else if p.ReRoot &&
-				p.RrWhileTimer.count != 0 &&
-				!p.OperEdge &&
-				p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
-					src: BdmMachineModuleStr,
-				}
-			} else if p.Disputed &&
-				!p.OperEdge &&
-				p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
-					src: BdmMachineModuleStr,
-				}
-			} else if p.Disputed &&
-				!p.OperEdge &&
-				p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
-					src: BdmMachineModuleStr,
-				}
-			}
-		}
-
-	}
 }

@@ -29,6 +29,7 @@ type StpPort struct {
 	AgeingTime         int32
 	Agree              bool
 	Agreed             bool
+	AdminEdge          bool
 	AutoEdgePort       bool // optional
 	DesignatedPriority PriorityVector
 	DesignatedTimes    Times
@@ -100,7 +101,6 @@ type StpPort struct {
 	PtxmMachineFsm *PtxmMachine
 	PimMachineFsm  *PimMachine
 	BdmMachineFsm  *BdmMachine
-	PrsMachineFsm  *PrsMachine
 	PrtMachineFsm  *PrtMachine
 	TcMachineFsm   *TcMachine
 	PstMachineFsm  *PstMachine
@@ -156,7 +156,11 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		portChan:            make(chan string),
 		BridgeId:            c.Dot1dStpBridgeId,
 	}
-
+	if c.Dot1dStpPortAdminEdgePort == 0 {
+		p.AdminEdge = false
+	} else {
+		p.AdminEdge = true
+	}
 	if StpFindBridgeById(p.BridgeId, &b) {
 		p.b = b
 	}
@@ -325,9 +329,13 @@ func (p *StpPort) BEGIN(restart bool) {
 	// Bdm
 	if p.BdmMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
-		// TODO add logic to determin Admin Edge
-		evt = append(evt, MachineEvent{e: BdmEventBeginAdminEdge,
-			src: PortConfigModuleStr})
+		if p.AdminEdge {
+			evt = append(evt, MachineEvent{e: BdmEventBeginAdminEdge,
+				src: PortConfigModuleStr})
+		} else {
+			evt = append(evt, MachineEvent{e: BdmEventBeginNotAdminEdge,
+				src: PortConfigModuleStr})
+		}
 	}
 
 	// Prtm
@@ -567,12 +575,149 @@ func (p *StpPort) SelectedSet(src string, val bool) {
 	p.Selected = val
 }
 
-func (p *StpPort) OperEdgeSet(src string, val bool) {
+func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedge bool) {
 	// The following machines need to know about
 	// changes in OperEdge State
 	// 1) Port Role Transitions
 	// 2) Bridge Detection
-	p.OperEdge = val
+	if oldoperedge != newoperedge {
+
+		// Prt update 17.29.3
+		if p.PrtMachineFsm != nil &&
+			p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort &&
+			src != PrtMachineModuleStr {
+			if !p.Forward &&
+				!p.Agreed &&
+				!p.Proposing &&
+				!p.OperEdge &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.OperEdge &&
+				!p.Synced &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.Sync &&
+				!p.Synced &&
+				!p.OperEdge &&
+				p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.Sync &&
+				!p.Synced &&
+				!p.OperEdge &&
+				p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.ReRoot &&
+				p.RrWhileTimer.count != 0 &&
+				!p.OperEdge &&
+				p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.ReRoot &&
+				p.RrWhileTimer.count != 0 &&
+				!p.OperEdge &&
+				p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.Disputed &&
+				!p.OperEdge &&
+				p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.Disputed &&
+				!p.OperEdge &&
+				p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.OperEdge &&
+				p.RrWhileTimer.count == 0 &&
+				!p.Sync &&
+				!p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.OperEdge &&
+				!p.ReRoot &&
+				!p.Sync &&
+				!p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventOperEdgeAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.OperEdge &&
+				p.RrWhileTimer.count == 0 &&
+				!p.Sync &&
+				p.Learn &&
+				!p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.OperEdge &&
+				!p.ReRoot &&
+				!p.Sync &&
+				p.Learn &&
+				!p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventOperEdgeAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			}
+		}
+		// Bdm
+		if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateEdge &&
+			src != BdmMachineModuleStr {
+			if !p.OperEdge {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   BdmEventNotOperEdge,
+					src: src,
+				}
+			}
+		}
+
+	}
 }
 
 func (p *StpPort) RoleSet(src string, val PortRole) {

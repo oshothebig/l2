@@ -86,8 +86,11 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 			MaxAge:          c.Dot1dStpBridgeMaxAge,
 			MessageAge:      0,
 		},
-		RootPortId: 0,       // this will be set once a port is set as root
-		RootTimes:  Times{}, // this will be set once a port is set as root
+		RootPortId: 0, // this will be set once a port is set as root
+		RootTimes: Times{ForwardingDelay: c.Dot1dStpBridgeForwardDelay,
+			HelloTime:  c.Dot1dStpBridgeHelloTime,
+			MaxAge:     c.Dot1dStpBridgeMaxAge,
+			MessageAge: 0}, // this will be set once a port is set as root
 	}
 
 	BridgeMapTable[b.BridgeIdentifier] = b

@@ -29,8 +29,12 @@ func UsedForTestOnlyRxInitPortConfigTest() {
 	// to do this a couple of things must occur the PortConfig
 	// must be updated with "dummy" ifindex pointing to 'lo'
 	TEST_RX_PORT_CONFIG_IFINDEX = 0x0ADDBEEF
-	PortConfigMap[TEST_RX_PORT_CONFIG_IFINDEX] = portConfig{Name: "lo"}
-	PortConfigMap[TEST_TX_PORT_CONFIG_IFINDEX] = portConfig{Name: "lo"}
+	PortConfigMap[TEST_RX_PORT_CONFIG_IFINDEX] = portConfig{Name: "lo",
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
+	}
+	PortConfigMap[TEST_TX_PORT_CONFIG_IFINDEX] = portConfig{Name: "lo",
+		HardwareAddr: net.HardwareAddr{0x00, 0x33, 0x22, 0x22, 0x11, 0x11},
+	}
 	/*
 		intfs, err := net.Interfaces()
 		if err == nil {
@@ -484,26 +488,26 @@ func TestRxValidRStpPacket(t *testing.T) {
 	<-testWait
 
 	if p.RcvdBPDU == true {
-		t.Error("Failed to receive RcvdBPDU is set")
+		t.Error("Failed RcvdBPDU is set")
 		t.FailNow()
 	}
 
 	if p.OperEdge == true {
-		t.Error("Failed to receive OperEdge is set")
+		t.Error("Failed OperEdge is set")
 		t.FailNow()
 	}
 
 	if p.RcvdSTP != false {
-		t.Error("Failed to receive RcvdSTP is set")
+		t.Error("Failed RcvdSTP is set")
 		t.FailNow()
 	}
 	if p.RcvdRSTP != true {
-		t.Error("Failed received RcvdRSTP not set")
+		t.Error("Failed RcvdRSTP not set")
 		t.FailNow()
 	}
 
 	if p.RcvdMsg != true {
-		t.Error("Failed received RcvdMsg not set")
+		t.Error("Failed RcvdMsg not set")
 		t.FailNow()
 	}
 
@@ -874,27 +878,27 @@ func TestRxValidTopoChange(t *testing.T) {
 
 	<-testWait
 
-	if p.RcvdBPDU == true {
-		t.Error("Failed to receive RcvdBPDU is set")
+	if p.RcvdBPDU != false {
+		t.Error("Failed  RcvdBPDU is set")
 		t.FailNow()
 	}
 
-	if p.OperEdge == true {
-		t.Error("Failed to receive OperEdge is set")
+	if p.OperEdge != false {
+		t.Error("Failed OperEdge is set")
 		t.FailNow()
 	}
 
 	if p.RcvdSTP != true {
-		t.Error("Failed to receive RcvdSTP is set")
+		t.Error("Failed RcvdSTP is set")
 		t.FailNow()
 	}
-	if p.RcvdRSTP == true {
-		t.Error("Failed received RcvdRSTP is set")
+	if p.RcvdRSTP != false {
+		t.Error("Failed RcvdRSTP is set")
 		t.FailNow()
 	}
 
 	if p.RcvdMsg != true {
-		t.Error("Failed received RcvdMsg not set")
+		t.Error("Failed RcvdMsg not set")
 		t.FailNow()
 	}
 

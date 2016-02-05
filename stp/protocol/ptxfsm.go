@@ -234,10 +234,12 @@ func (p *StpPort) PtxmMachineMain() {
 				return
 
 			case event := <-m.PtxmEvents:
-				//StpLogger("INFO", "Event Rx", event.src, event.e)
+				StpMachineLogger("INFO", "PTXM", fmt.Sprintf("Event Rx", event.src, event.e))
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
 					StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
+				} else {
+					m.ProcessPostStateProcessing()
 				}
 
 				if event.responseChan != nil {
@@ -249,4 +251,135 @@ func (p *StpPort) PtxmMachineMain() {
 			}
 		}
 	}(ptxm)
+}
+
+func (ptxm *PtxmMachine) ProcessPostStateTransmitInit() {
+
+	if ptxm.Machine.Curr.CurrentState() == PtxmStateTransmitInit {
+		rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
+		} else {
+			ptxm.ProcessPostStateProcessing()
+		}
+	}
+}
+
+func (ptxm *PtxmMachine) ProcessPostStateTransmitPeriodic() {
+
+	if ptxm.Machine.Curr.CurrentState() == PtxmStateTransmitPeriodic {
+		rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
+		} else {
+			ptxm.ProcessPostStateProcessing()
+		}
+	}
+}
+
+func (ptxm *PtxmMachine) ProcessPostStateTransmitConfig() {
+
+	if ptxm.Machine.Curr.CurrentState() == PtxmStateTransmitConfig {
+		rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
+		} else {
+			ptxm.ProcessPostStateProcessing()
+		}
+	}
+}
+
+func (ptxm *PtxmMachine) ProcessPostStateTransmitTcn() {
+
+	if ptxm.Machine.Curr.CurrentState() == PtxmStateTransmitTCN {
+		rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
+		} else {
+			ptxm.ProcessPostStateProcessing()
+		}
+	}
+}
+
+func (ptxm *PtxmMachine) ProcessPostStateTransmitRstp() {
+
+	if ptxm.Machine.Curr.CurrentState() == PtxmStateTransmitRSTP {
+		rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
+		} else {
+			ptxm.ProcessPostStateProcessing()
+		}
+	}
+}
+
+func (ptxm *PtxmMachine) ProcessPostStateIdle() {
+	p := ptxm.p
+	if ptxm.Machine.Curr.CurrentState() == PtxmStateIdle {
+		StpMachineLogger("INFO", "PTX", fmt.Sprintf("sendRSTP[%t] newInfo[%t] txCount[%d] hellwhen[%d] selected[%t] updtinfo[%t]\n",
+			p.SendRSTP,
+			p.NewInfo,
+			p.TxCount,
+			p.HelloWhenTimer.count,
+			p.Selected,
+			!p.UpdtInfo))
+		if p.HelloWhenTimer.count == 0 &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventHelloWhenEqualsZeroAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
+			} else {
+				ptxm.ProcessPostStateProcessing()
+			}
+		} else if p.SendRSTP &&
+			p.NewInfo &&
+			p.TxCount < TransmitHoldCountDefault &&
+			p.HelloWhenTimer.count != 0 &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
+			} else {
+				ptxm.ProcessPostStateProcessing()
+			}
+		} else if !p.SendRSTP &&
+			p.NewInfo &&
+			p.Role == PortRoleRootPort &&
+			p.TxCount < TransmitHoldCountDefault &&
+			p.HelloWhenTimer.count != 0 &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
+			} else {
+				ptxm.ProcessPostStateProcessing()
+			}
+		} else if !p.SendRSTP &&
+			p.NewInfo &&
+			p.Role == PortRoleDesignatedPort &&
+			p.TxCount < TransmitHoldCountDefault &&
+			p.HelloWhenTimer.count != 0 &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
+			} else {
+				ptxm.ProcessPostStateProcessing()
+			}
+		}
+	}
+}
+
+func (ptxm *PtxmMachine) ProcessPostStateProcessing() {
+
+	ptxm.ProcessPostStateTransmitInit()
+	ptxm.ProcessPostStateTransmitPeriodic()
+	ptxm.ProcessPostStateTransmitConfig()
+	ptxm.ProcessPostStateTransmitTcn()
+	ptxm.ProcessPostStateTransmitRstp()
+	ptxm.ProcessPostStateIdle()
 }

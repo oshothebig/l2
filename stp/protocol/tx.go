@@ -17,6 +17,7 @@ func ConvertBoolToUint8(v bool) (rv uint8) {
 func (p *StpPort) BuildRSTPEthernetLlcHeaders() (eth layers.Ethernet, llc layers.LLC) {
 	pIntf, _ := PortConfigMap[p.IfIndex]
 
+	fmt.Println(pIntf.HardwareAddr)
 	eth = layers.Ethernet{
 		SrcMAC: pIntf.HardwareAddr,
 		DstMAC: layers.BpduDMAC,
