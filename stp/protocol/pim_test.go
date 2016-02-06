@@ -145,6 +145,7 @@ func UsedForTestOnlyPimTestTeardown(p *StpPort, t *testing.T) {
 	p.PpmmMachineFsm = nil
 
 	p.b.PrsMachineFsm.Stop()
+	p.b.PrsMachineFsm = nil
 
 	DelStpPort(p)
 

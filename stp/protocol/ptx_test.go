@@ -136,6 +136,8 @@ func UsedForTestOnlyPtxTestTeardown(p *StpPort, t *testing.T) {
 	if len(p.PpmmMachineFsm.PpmmEvents) > 0 {
 		t.Error("Failed to check event sent")
 	}
+
+	p.b.PrsMachineFsm = nil
 	p.PrtMachineFsm = nil
 	p.PimMachineFsm = nil
 	p.PrxmMachineFsm = nil
@@ -148,7 +150,7 @@ func UsedForTestOnlyPtxTestTeardown(p *StpPort, t *testing.T) {
 	DelStpPort(p)
 }
 
-func TestTxHelloWhenEqualZero(t *testing.T) {
+func TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
 
 	UsedForTestOnlyTxInitPortConfigTest()
 
@@ -221,6 +223,7 @@ func TestTxHelloWhenEqualZero(t *testing.T) {
 						t.Error("Did not get rstp packet as expected")
 					}
 					testWait <- true
+					return
 				}
 			}
 		}
@@ -232,4 +235,184 @@ func TestTxHelloWhenEqualZero(t *testing.T) {
 	UsedForTestOnlyPtxTestTeardown(p, t)
 	handle.Close()
 
+	close(testWait)
+	close(testChan)
+}
+
+func TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
+
+	UsedForTestOnlyTxInitPortConfigTest()
+
+	testWait := make(chan bool)
+	testChan := make(chan string)
+	ifname, _ := PortConfigMap[PTX_TEST_RX_PORT_CONFIG_IFINDEX]
+	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	if err != nil {
+		t.Error("Error opening pcap TX interface", PTX_TEST_RX_PORT_CONFIG_IFINDEX, ifname.Name, err)
+		return
+	}
+	src := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
+	in := src.Packets()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)
+
+	// setup event change, hellowhen expired should
+	// transmit an rstp packet
+	p.HelloWhenTimer.count = 0
+	p.TxCount = 1
+	p.Selected = true
+	p.UpdtInfo = false
+	p.NewInfo = false
+	p.SendRSTP = false
+	p.Role = PortRoleDesignatedPort
+
+	p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+		e:            PtxmEventHelloWhenEqualsZeroAndSelectedAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+	}
+
+	<-testChan
+
+	if p.PtxmMachineFsm.Machine.Curr.CurrentState() != PtxmStateIdle {
+		t.Error(fmt.Sprintf("Previous state not valid %d", p.PtxmMachineFsm.Machine.Curr.CurrentState()))
+		t.FailNow()
+	}
+
+	if p.PtxmMachineFsm.Machine.Curr.PreviousState() != PtxmStateTransmitConfig {
+		t.Error(fmt.Sprintf("Previous state not valid %d", p.PtxmMachineFsm.Machine.Curr.PreviousState()))
+		t.FailNow()
+	}
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(rx chan gopacket.Packet, t *testing.T) {
+		for {
+			select {
+			case packet, _ := <-rx:
+				if packet != nil {
+					bpduLayer := packet.Layer(layers.LayerTypeBPDU)
+					if bpduLayer == nil {
+						continue
+					}
+					stp := bpduLayer.(*layers.STP)
+					if stp == nil {
+						t.Error("Did not get rstp packet as expected")
+					}
+					testWait <- true
+					return
+				}
+			}
+		}
+	}(in, t)
+
+	<-testWait
+
+	// remove reference to fsm allocated above
+	UsedForTestOnlyPtxTestTeardown(p, t)
+	handle.Close()
+
+	close(testWait)
+	close(testChan)
+}
+
+func TestTxHelloWhenEqualZeroTransmitTCN(t *testing.T) {
+
+	UsedForTestOnlyTxInitPortConfigTest()
+
+	testWait := make(chan bool)
+	testChan := make(chan string)
+	ifname, _ := PortConfigMap[PTX_TEST_RX_PORT_CONFIG_IFINDEX]
+	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	if err != nil {
+		t.Error("Error opening pcap TX interface", PTX_TEST_RX_PORT_CONFIG_IFINDEX, ifname.Name, err)
+		return
+	}
+	src := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
+	in := src.Packets()
+
+	// configure a port
+	stpconfig := &StpPortConfig{
+		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPortPriority:          0x80,
+		Dot1dStpPortEnable:            true,
+		Dot1dStpPortPathCost:          1,
+		Dot1dStpPortPathCost32:        1,
+		Dot1dStpPortProtocolMigration: 0,
+		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
+		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminPathCost:     0,
+	}
+
+	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)
+
+	// setup event change, hellowhen expired should
+	// transmit an rstp packet
+	p.HelloWhenTimer.count = 0
+	p.TxCount = 1
+	p.Selected = true
+	p.UpdtInfo = false
+	p.NewInfo = false
+	p.SendRSTP = false
+	p.Role = PortRoleRootPort
+
+	p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+		e:            PtxmEventHelloWhenEqualsZeroAndSelectedAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+	}
+
+	<-testChan
+
+	if p.PtxmMachineFsm.Machine.Curr.CurrentState() != PtxmStateIdle {
+		t.Error(fmt.Sprintf("Previous state not valid %d", p.PtxmMachineFsm.Machine.Curr.CurrentState()))
+		t.FailNow()
+	}
+
+	if p.PtxmMachineFsm.Machine.Curr.PreviousState() != PtxmStateTransmitTCN {
+		t.Error(fmt.Sprintf("Previous state not valid %d", p.PtxmMachineFsm.Machine.Curr.PreviousState()))
+		t.FailNow()
+	}
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(rx chan gopacket.Packet, t *testing.T) {
+		for {
+			select {
+			case packet, _ := <-rx:
+				if packet != nil {
+					bpduLayer := packet.Layer(layers.LayerTypeBPDU)
+					if bpduLayer == nil {
+						continue
+					}
+					bpdu := bpduLayer.(*layers.BPDUTopology)
+					if bpdu == nil {
+						t.Error("Did not get rstp packet as expected")
+					}
+					testWait <- true
+					return
+				}
+			}
+		}
+	}(in, t)
+
+	<-testWait
+
+	// remove reference to fsm allocated above
+	UsedForTestOnlyPtxTestTeardown(p, t)
+	handle.Close()
+
+	close(testWait)
+	close(testChan)
 }

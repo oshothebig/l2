@@ -364,7 +364,7 @@ func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected &&
 			!p.UpdtInfo {
-			rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo, nil)
+			rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PTXM", fmt.Sprintf("%s\n", rv))
 			} else {
