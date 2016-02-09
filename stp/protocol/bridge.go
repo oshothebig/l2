@@ -65,12 +65,9 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 		Dot1dStpBridgeForceVersion int32
 		Dot1dStpBridgeTxHoldCount  int32
 	*/
-	var addr [6]uint8
 	netAddr, _ := net.ParseMAC(c.Dot1dBridgeAddressKey)
-	for i := 0; i < 6; i++ {
-		addr[i] = netAddr[i]
+	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
 
-	}
 	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriorityKey)
 
 	b := &Bridge{
@@ -98,6 +95,27 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 
 	BridgeMapTable[b.BridgeIdentifier] = b
 	return b
+}
+
+func DelStpBridge(b *Bridge, force bool) {
+	if b == nil {
+		return
+	}
+	if force {
+		var p *StpPort
+		for _, pId := range b.StpPorts {
+			if StpFindPortById(pId, &p) {
+				DelStpPort(p)
+			}
+		}
+	} else {
+		if len(b.StpPorts) > 0 {
+			StpLoggerInfo("ERROR BRIDGE STILL HAS PORTS ASSOCIATED")
+			return
+		}
+	}
+	b.Stop()
+	delete(BridgeMapTable, b.BridgeIdentifier)
 }
 
 func (b *Bridge) Stop() {

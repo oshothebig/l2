@@ -1022,5 +1022,6 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
 
 	p.PtxmMachineFsm = nil
+
 	DelStpPort(p)
 }

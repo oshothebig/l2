@@ -28,6 +28,9 @@ func UsedForTestOnlyBdmTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 
 	// lets only start the Port Information State Machine
 	p.BdmMachineMain()
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// going just send event and not start main as we just did above
 	p.BEGIN(true)
@@ -104,8 +107,10 @@ func UsedForTestOnlyBdmTestTeardown(p *StpPort, t *testing.T) {
 	p.PstMachineFsm = nil
 	p.PpmmMachineFsm = nil
 	p.b.PrsMachineFsm = nil
-
+	b := p.b
 	DelStpPort(p)
+
+	DelStpBridge(b, true)
 }
 
 func TestBdmMachineBEGINAdminEdge(t *testing.T) {

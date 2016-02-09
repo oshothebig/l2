@@ -217,15 +217,14 @@ func (p *StpPort) PrxmMachineMain() {
 					SendResponse(PrxmMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.PrxmRxBpduPkt:
-				p.BpduRx++
-				//fmt.Println("Event PKT Rx", rx.src, PrxmEventRcvdBpduAndPortEnabled)
+				//fmt.Println("Event PKT Rx", rx.src, rx.ptype)
 				if p.PortEnabled {
 					m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)
 				} else {
 
 					m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndNotPortEnabled, rx)
 				}
-
+				p.BpduRx++
 			case ena := <-m.PrxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}

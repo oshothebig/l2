@@ -183,10 +183,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	StpLogger("INFO", fmt.Sprintf("Creating STP Listener for intf %d %s\n", p.IfIndex, ifName.Name))
 	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
 	p.handle = handle
-	src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
-	in := src.Packets()
-	// start rx routine
-	BpduRxMain(p.IfIndex, in)
+
 	return p
 
 }
@@ -366,6 +363,12 @@ func (p *StpPort) BEGIN(restart bool) {
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, true)
 
+	if p.PrxmMachineFsm != nil {
+		// start rx routine
+		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+		in := src.Packets()
+		BpduRxMain(p.IfIndex, in)
+	}
 	// lets start the tick timer
 	if p.PtmMachineFsm != nil {
 		p.PtmMachineFsm.TickTimerStart()

@@ -126,7 +126,9 @@ func UsedForTestOnlyPrxTestTeardown(p *StpPort, t *testing.T) {
 	p.PstMachineFsm = nil
 	p.PpmmMachineFsm = nil
 
+	b := p.b
 	DelStpPort(p)
+	DelStpBridge(b, true)
 }
 
 func UsedForTestOnlySendValidStpTopoFrame(txifindex int32, t *testing.T) {
@@ -171,6 +173,7 @@ func UsedForTestOnlySendValidStpTopoFrame(txifindex int32, t *testing.T) {
 	if err = handle.WritePacketData(buf.Bytes()); err != nil {
 		t.Error("Error writing packet to interface")
 	}
+
 	handle.Close()
 	handle = nil
 }
@@ -226,6 +229,7 @@ func UsedForTestOnlySendValidStpFrame(txifindex int32, t *testing.T) {
 	if err = handle.WritePacketData(buf.Bytes()); err != nil {
 		t.Error("Error writing packet to interface")
 	}
+
 	handle.Close()
 	handle = nil
 }
@@ -405,26 +409,26 @@ func TestRxValidStpPacket(t *testing.T) {
 	<-testWait
 
 	if p.RcvdBPDU == true {
-		t.Error("Failed to receive RcvdBPDU is set")
+		t.Error("Failed receive RcvdBPDU is set")
 		t.FailNow()
 	}
 
 	if p.OperEdge == true {
-		t.Error("Failed to receive OperEdge is set")
+		t.Error("Failed  OperEdge is set")
 		t.FailNow()
 	}
 
 	if p.RcvdSTP != true {
-		t.Error("Failed to receive RcvdSTP not set")
+		t.Error("Failed RcvdSTP not set")
 		t.FailNow()
 	}
 	if p.RcvdRSTP == true {
-		t.Error("Failed received RcvdRSTP is set")
+		t.Error("Failed RcvdRSTP is set")
 		t.FailNow()
 	}
 
 	if p.RcvdMsg != true {
-		t.Error("Failed received RcvdMsg not set")
+		t.Error("Failed RcvdMsg not set")
 		t.FailNow()
 	}
 

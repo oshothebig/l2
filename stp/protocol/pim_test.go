@@ -144,10 +144,9 @@ func UsedForTestOnlyPimTestTeardown(p *StpPort, t *testing.T) {
 	p.PstMachineFsm = nil
 	p.PpmmMachineFsm = nil
 
-	p.b.PrsMachineFsm.Stop()
-	p.b.PrsMachineFsm = nil
-
+	b := p.b
 	DelStpPort(p)
+	DelStpBridge(b, true)
 
 }
 

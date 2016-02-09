@@ -31,16 +31,22 @@ type StpPortConfig struct {
 
 func StpBridgeCreate(c *StpBridgeConfig) {
 	var b *Bridge
-	var addr [6]uint8
 	netAddr, _ := net.ParseMAC(c.Dot1dBridgeAddressKey)
-	for i := 0; i < 6; i++ {
-		addr[i] = netAddr[i]
-
-	}
+	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
 	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriorityKey)
 	if !StpFindBridgeById(bridgeId, &b) {
 		b = NewStpBridge(c)
 		b.BEGIN(false)
+	}
+}
+
+func StpBridgeDelete(c *StpBridgeConfig) {
+	var b *Bridge
+	netAddr, _ := net.ParseMAC(c.Dot1dBridgeAddressKey)
+	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
+	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriorityKey)
+	if StpFindBridgeById(bridgeId, &b) {
+		DelStpBridge(b, true)
 	}
 }
 

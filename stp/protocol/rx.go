@@ -150,8 +150,7 @@ func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
 	// lets find the port via the info in the packet
 	if StpFindPortById(pId, &p) {
 		p.RcvdBPDU = true
-		//fmt.Println(lacp)
-		//fmt.Println("Sening rx message to Port Rcvd State Machine", p.IfIndex)
+		//fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex)
 		if p.PrxmMachineFsm != nil {
 			p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
 				pdu:   bpduLayer, // this is a pointer

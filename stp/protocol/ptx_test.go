@@ -137,7 +137,6 @@ func UsedForTestOnlyPtxTestTeardown(p *StpPort, t *testing.T) {
 		t.Error("Failed to check event sent")
 	}
 
-	p.b.PrsMachineFsm = nil
 	p.PrtMachineFsm = nil
 	p.PimMachineFsm = nil
 	p.PrxmMachineFsm = nil
@@ -146,8 +145,11 @@ func UsedForTestOnlyPtxTestTeardown(p *StpPort, t *testing.T) {
 	p.TcMachineFsm = nil
 	p.PstMachineFsm = nil
 	p.PpmmMachineFsm = nil
-
+	p.b.PrsMachineFsm = nil
+	b := p.b
 	DelStpPort(p)
+
+	DelStpBridge(b, true)
 }
 
 func TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
