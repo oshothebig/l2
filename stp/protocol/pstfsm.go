@@ -183,19 +183,19 @@ func (p *StpPort) PstMachineMain() {
 
 	// lets create a go routing which will wait for the specific events
 	go func(m *PstMachine) {
-		StpMachineLogger("INFO", "PRTM", "Machine Start")
+		StpMachineLogger("INFO", "PRTM", p.IfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PstKillSignalEvent:
-				StpMachineLogger("INFO", "PSTM", "Machine End")
+				StpMachineLogger("INFO", "PSTM", p.IfIndex, "Machine End")
 				return
 
 			case event := <-m.PstEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("ERROR", "PSTM", fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("ERROR", "PSTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
 				}
 
 				if event.responseChan != nil {
@@ -317,20 +317,20 @@ func (pstm *PstMachine) NotifyForwardingChanged(oldforwarding bool, newforwardin
 
 func (pstm *PstMachine) disableLearning() {
 	p := pstm.p
-	StpMachineLogger("INFO", "PSTM", fmt.Sprintf("Calling Asic to do disable learning for port %d", p.IfIndex))
+	StpMachineLogger("INFO", "PSTM", p.IfIndex, "Calling Asic to do disable learning")
 }
 
 func (pstm *PstMachine) disableForwarding() {
 	p := pstm.p
-	StpMachineLogger("INFO", "PSTM", fmt.Sprintf("Calling Asic to do disable forwarding for port %d", p.IfIndex))
+	StpMachineLogger("INFO", "PSTM", p.IfIndex, "Calling Asic to do disable forwarding")
 }
 
 func (pstm *PstMachine) enableLearning() {
 	p := pstm.p
-	StpMachineLogger("INFO", "PSTM", fmt.Sprintf("Calling Asic to do enable learning for port %d", p.IfIndex))
+	StpMachineLogger("INFO", "PSTM", p.IfIndex, "Calling Asic to do enable learning")
 }
 
 func (pstm *PstMachine) enableForwarding() {
 	p := pstm.p
-	StpMachineLogger("INFO", "PSTM", fmt.Sprintf("Calling Asic to do enable forwarding for port %d", p.IfIndex))
+	StpMachineLogger("INFO", "PSTM", p.IfIndex, "Calling Asic to do enable forwarding")
 }

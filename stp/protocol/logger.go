@@ -2,6 +2,7 @@
 package stp
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -23,6 +24,6 @@ func StpLoggerInfo(msg string) {
 	StpLogger("INFO", msg)
 }
 
-func StpMachineLogger(t string, m string, msg string) {
-	StpLogger(t, strings.Join([]string{m, msg}, ":"))
+func StpMachineLogger(t string, m string, p int32, msg string) {
+	StpLogger(t, strings.Join([]string{m, fmt.Sprintf("port %d", p), msg}, ":"))
 }

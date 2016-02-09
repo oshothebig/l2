@@ -32,6 +32,9 @@ type Bridge struct {
 
 	PrsMachineFsm *PrsMachine
 
+	// store the previous bridge id
+	OldRootBridgeIdentifier BridgeId
+
 	// a way to sync all machines
 	wg sync.WaitGroup
 }
@@ -152,6 +155,17 @@ func CreateBridgeId(bridgeAddress [6]uint8, bridgePriority uint16) BridgeId {
 
 }
 
+func GetBridgeAddrFromBridgeId(b BridgeId) [6]uint8 {
+	return [6]uint8{
+		b[2],
+		b[3],
+		b[4],
+		b[5],
+		b[6],
+		b[7],
+	}
+}
+
 // Compare BridgeId
 // 0 == equal
 // > 1 == greater than
@@ -178,18 +192,35 @@ func CompareBridgeId(b1 BridgeId, b2 BridgeId) int {
 	}
 }
 
+func CompareBridgeAddr(a1 [6]uint8, a2 [6]uint8) int {
+	if a1[0] < a2[0] ||
+		a1[1] < a2[1] ||
+		a1[2] < a2[2] ||
+		a1[3] < a2[3] ||
+		a1[4] < a2[4] ||
+		a1[5] < a2[5] {
+		return -1
+	} else if a1 == a2 {
+		return 0
+	}
+	return 1
+
+}
+
 // 17.6 Priority vector calculations
 func IsMsgPriorityVectorSuperiorThanPortPriorityVector(msg *PriorityVector, port *PriorityVector) bool {
 	return (CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) < 0) ||
 		((CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) && (msg.RootPathCost < port.RootPathCost)) ||
 		((CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) && (msg.RootPathCost == port.RootPathCost) && (CompareBridgeId(msg.DesignatedBridgeId, port.DesignatedBridgeId) < 0)) ||
 		((CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) && (msg.RootPathCost == port.RootPathCost) && (CompareBridgeId(msg.DesignatedBridgeId, port.DesignatedBridgeId) == 0) && (msg.DesignatedPortId < port.DesignatedPortId)) ||
-		((msg.DesignatedBridgeId[2] == port.DesignatedBridgeId[2] &&
+		(CompareBridgeAddr(GetBridgeAddrFromBridgeId(msg.DesignatedBridgeId),
+			GetBridgeAddrFromBridgeId(port.DesignatedBridgeId)) == 0 &&
+			/*((msg.DesignatedBridgeId[2] == port.DesignatedBridgeId[2] &&
 			msg.DesignatedBridgeId[3] == port.DesignatedBridgeId[3] &&
 			msg.DesignatedBridgeId[4] == port.DesignatedBridgeId[4] &&
 			msg.DesignatedBridgeId[5] == port.DesignatedBridgeId[5] &&
 			msg.DesignatedBridgeId[6] == port.DesignatedBridgeId[6] &&
-			msg.DesignatedBridgeId[7] == port.DesignatedBridgeId[7]) && (msg.DesignatedPortId == port.DesignatedPortId))
+			msg.DesignatedBridgeId[7] == port.DesignatedBridgeId[7]) &&*/(msg.DesignatedPortId == port.DesignatedPortId))
 }
 
 func IsMsgPriorityVectorTheSameOrWorseThanPortPriorityVector(msg *PriorityVector, port *PriorityVector) bool {
@@ -203,6 +234,11 @@ func IsMsgPriorityVectorWorseThanPortPriorityVector(msg *PriorityVector, port *P
 			((CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) && (msg.RootPathCost == port.RootPathCost) && (CompareBridgeId(msg.DesignatedBridgeId, port.DesignatedBridgeId) > 0))) ||
 		((CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) && (msg.RootPathCost == port.RootPathCost) && (CompareBridgeId(msg.DesignatedBridgeId, port.DesignatedBridgeId) == 0) && (msg.DesignatedPortId > port.DesignatedPortId))
 
+}
+
+func IsDesignatedPriorytVectorNotHigherThanPortPriorityVector(d *PriorityVector, p *PriorityVector) bool {
+	// re-use function
+	return IsMsgPriorityVectorWorseThanPortPriorityVector(p, d)
 }
 
 func CalcRootPathPriorityVector(msg *PriorityVector, port *PriorityVector) (rootPriorityVector *PriorityVector) {

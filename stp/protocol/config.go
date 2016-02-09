@@ -18,7 +18,7 @@ type StpBridgeConfig struct {
 
 type StpPortConfig struct {
 	Dot1dStpPortKey               int32 `SNAPROUTE: KEY`
-	Dot1dStpPortPriority          int32
+	Dot1dStpPortPriority          uint16
 	Dot1dStpPortEnable            bool
 	Dot1dStpPortPathCost          int32
 	Dot1dStpPortPathCost32        int32

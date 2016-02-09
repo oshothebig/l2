@@ -2,6 +2,7 @@
 package stp
 
 import (
+	"asicd/pluginManager/pluginCommon"
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -23,7 +24,8 @@ type portConfig struct {
 }
 
 type StpPort struct {
-	IfIndex int32
+	IfIndex        int32
+	ProtocolPortId uint16
 
 	// 17.19
 	AgeingTime         int32
@@ -46,10 +48,11 @@ type StpPort struct {
 	NewInfo            bool
 	OperEdge           bool
 	PortEnabled        bool
-	PortId             int32
-	PortPathCost       int32
+	PortId             uint16
+	PortPathCost       uint32
 	PortPriority       PriorityVector
 	PortTimes          Times
+	Priority           uint16
 	Proposed           bool
 	Proposing          bool
 	RcvdBPDU           bool
@@ -131,11 +134,11 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	*/
 
 	p := &StpPort{
-		IfIndex: c.Dot1dStpPortKey,
-		PortId:  c.Dot1dStpPortKey,
-		//PortPriority: c.Dot1dStpPortPriority,
+		IfIndex:      c.Dot1dStpPortKey,
+		PortId:       uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPortKey)),
+		Priority:     c.Dot1dStpPortPriority,
 		PortEnabled:  c.Dot1dStpPortEnable,
-		PortPathCost: c.Dot1dStpPortPathCost,
+		PortPathCost: uint32(c.Dot1dStpPortPathCost),
 		DesignatedTimes: Times{
 			// TODO fill in
 			ForwardingDelay: BridgeMaxAgeDefault,    // TOOD
@@ -541,15 +544,473 @@ func (p *StpPort) ForceVersionSet(src string, val int) {
 	// 3) Port Transmit
 }
 
-func (p *StpPort) UpdtInfoSet(src string, val bool) {
+func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinfo bool) {
 	// The following machines need to know about
 	// changes in UpdtInfo State
 	// 1) Port Information
 	// 2) Port Role Transitions
 	// 3) Port Transmit
-	p.UpdtInfo = val
+	if oldupdtinfo != newupdtinfo {
+		// PI
+		if p.UpdtInfo {
+			if src != PimMachineModuleStr &&
+				(p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateAged ||
+					p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent) {
+				if p.Selected {
+					p.PimMachineFsm.PimEvents <- MachineEvent{
+						e:   PimEventSelectedAndUpdtInfo,
+						src: src,
+					}
+				}
+			}
+		} else {
+			if src != PimMachineModuleStr &&
+				p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent {
+				if p.RcvdMsg {
+					p.PimMachineFsm.PimEvents <- MachineEvent{
+						e:   PimEventRcvdMsgAndNotUpdtInfo,
+						src: src,
+					}
+				} else if p.InfoIs == PortInfoStateReceived &&
+					p.RcvdInfoWhiletimer.count == 0 &&
+					!p.RcvdMsg {
+					p.PimMachineFsm.PimEvents <- MachineEvent{
+						e:   PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg,
+						src: src,
+					}
+				}
+			}
+			if src != PtxmMachineModuleStr &&
+				p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle &&
+				p.Selected {
+				if p.HelloWhenTimer.count == 0 {
+					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+						e:   PtxmEventHelloWhenEqualsZeroAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				} else if p.SendRSTP &&
+					p.NewInfo &&
+					p.TxCount < TransmitHoldCountDefault &&
+					p.HelloWhenTimer.count != 0 {
+					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+						e:   PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				} else if !p.SendRSTP &&
+					p.NewInfo &&
+					p.Role == PortRoleRootPort &&
+					p.TxCount < TransmitHoldCountDefault &&
+					p.HelloWhenTimer.count != 0 {
+					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+						e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				} else if !p.SendRSTP &&
+					p.NewInfo &&
+					p.Role == PortRoleDesignatedPort &&
+					p.TxCount < TransmitHoldCountDefault &&
+					p.HelloWhenTimer.count != 0 {
+					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+						e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+
+			}
+			if src != PrtMachineModuleStr &&
+				p.Selected {
+				if p.SelectedRole == PortRoleDisabledPort &&
+					p.Role != p.SelectedRole {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.SelectedRole == PortRoleRootPort &&
+					p.Role != p.SelectedRole {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.SelectedRole == PortRoleDesignatedPort &&
+					p.Role != p.SelectedRole {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.SelectedRole == PortRoleAlternatePort &&
+					p.Role != p.SelectedRole {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.SelectedRole == PortRoleBackupPort &&
+					p.Role != p.SelectedRole {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisablePort &&
+					!p.Learning &&
+					!p.Forwarding {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
+					if p.FdWhileTimer.count != int32(p.DesignatedTimes.MaxAge) {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if !p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					}
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+					if p.Proposed &&
+						!p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.b.AllSynced() &&
+						!p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Proposed &&
+						p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if !p.Forward &&
+						!p.ReRoot {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotForwardAndNotReRootAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.SelectedRole == PortRoleRootPort &&
+						p.Role != p.SelectedRole {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.RrWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot &&
+						p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootAndForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						p.RstpVersion &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot &&
+						p.RbWhileTimer.count == 0 &&
+						p.RstpVersion &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						p.RstpVersion &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot &&
+						p.RbWhileTimer.count == 0 &&
+						p.RstpVersion &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					}
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+					if !p.Forward &&
+						!p.Agreed &&
+						!p.Proposing &&
+						!p.OperEdge {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if !p.Learning &&
+						!p.Forwarding &&
+						!p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						!p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						!p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync &&
+						p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.RrWhileTimer.count == 0 &&
+						p.ReRoot {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventRrWhileEqualZeroAndReRootAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync &&
+						!p.Synced &&
+						!p.OperEdge &&
+						p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync &&
+						!p.Synced &&
+						!p.OperEdge &&
+						p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot &&
+						p.RrWhileTimer.count != 0 &&
+						!p.OperEdge &&
+						p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot &&
+						p.RrWhileTimer.count != 0 &&
+						!p.OperEdge &&
+						p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Disputed &&
+						!p.OperEdge &&
+						p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Disputed &&
+						!p.OperEdge &&
+						p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						!p.ReRoot &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						!p.ReRoot &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						!p.ReRoot &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						!p.ReRoot &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						!p.ReRoot &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						!p.ReRoot &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					}
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
+					if p.Proposed &&
+						!p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.b.AllSynced() &&
+						!p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Proposed &&
+						p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if !p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.RbWhileTimer.count != int32(2*p.DesignatedTimes.HelloTime) &&
+						p.Role == PortRoleBackupPort {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					}
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateBlockPort {
+					if !p.Learning &&
+						!p.Forwarding {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
+/*
+No need to when these parameters change as selected/updtInfo will
+be used as the trigger for update
 func (p *StpPort) DesignatedPrioritySet(src string, val *PriorityVector) {
 	// The following machines need to know about
 	// changes in DesignatedPriority State
@@ -565,14 +1026,452 @@ func (p *StpPort) DesignatedTimesSet(src string, val *Times) {
 	// 2) Port Transmit
 	p.DesignatedTimes = *val
 }
-
-func (p *StpPort) SelectedSet(src string, val bool) {
+*/
+func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselected bool) {
 	// The following machines need to know about
 	// changes in Selected State
 	// 1) Port Information
-	// 2) Port Role Selection
-	// 3) Port Role Transitions
-	p.Selected = val
+	// 2) Port Role Transitions
+	// 3) Port Transmit
+	if oldselected != newselected {
+		// PI
+		if p.Selected {
+			if src != PimMachineModuleStr &&
+				(p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateAged ||
+					p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent) {
+				if p.UpdtInfo {
+					p.PimMachineFsm.PimEvents <- MachineEvent{
+						e:   PimEventSelectedAndUpdtInfo,
+						src: src,
+					}
+				}
+			}
+			if src != PtxmMachineModuleStr &&
+				p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle &&
+				!p.UpdtInfo {
+				if p.HelloWhenTimer.count == 0 {
+					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+						e:   PtxmEventHelloWhenEqualsZeroAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				} else if p.SendRSTP &&
+					p.NewInfo &&
+					p.TxCount < TransmitHoldCountDefault &&
+					p.HelloWhenTimer.count != 0 {
+					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+						e:   PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				} else if !p.SendRSTP &&
+					p.NewInfo &&
+					p.Role == PortRoleRootPort &&
+					p.TxCount < TransmitHoldCountDefault &&
+					p.HelloWhenTimer.count != 0 {
+					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+						e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				} else if !p.SendRSTP &&
+					p.NewInfo &&
+					p.Role == PortRoleDesignatedPort &&
+					p.TxCount < TransmitHoldCountDefault &&
+					p.HelloWhenTimer.count != 0 {
+					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+						e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+
+			}
+			if src != PrtMachineModuleStr &&
+				!p.UpdtInfo {
+				if p.SelectedRole == PortRoleDisabledPort &&
+					p.Role != p.SelectedRole {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.SelectedRole == PortRoleRootPort &&
+					p.Role != p.SelectedRole {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.SelectedRole == PortRoleDesignatedPort &&
+					p.Role != p.SelectedRole {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.SelectedRole == PortRoleAlternatePort &&
+					p.Role != p.SelectedRole {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.SelectedRole == PortRoleBackupPort &&
+					p.Role != p.SelectedRole {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisablePort &&
+					!p.Learning &&
+					!p.Forwarding {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo,
+						src: src,
+					}
+				}
+				if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
+					if p.FdWhileTimer.count != int32(p.DesignatedTimes.MaxAge) {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if !p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					}
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+					if p.Proposed &&
+						!p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.b.AllSynced() &&
+						!p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Proposed &&
+						p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if !p.Forward &&
+						!p.ReRoot {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotForwardAndNotReRootAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.SelectedRole == PortRoleRootPort &&
+						p.Role != p.SelectedRole {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.RrWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot &&
+						p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootAndForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						p.RstpVersion &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot &&
+						p.RbWhileTimer.count == 0 &&
+						p.RstpVersion &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						p.RstpVersion &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot &&
+						p.RbWhileTimer.count == 0 &&
+						p.RstpVersion &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					}
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+					if !p.Forward &&
+						!p.Agreed &&
+						!p.Proposing &&
+						!p.OperEdge {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if !p.Learning &&
+						!p.Forwarding &&
+						!p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						!p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						!p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync &&
+						p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.RrWhileTimer.count == 0 &&
+						p.ReRoot {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventRrWhileEqualZeroAndReRootAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync &&
+						!p.Synced &&
+						!p.OperEdge &&
+						p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync &&
+						!p.Synced &&
+						!p.OperEdge &&
+						p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot &&
+						p.RrWhileTimer.count != 0 &&
+						!p.OperEdge &&
+						p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot &&
+						p.RrWhileTimer.count != 0 &&
+						!p.OperEdge &&
+						p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Disputed &&
+						!p.OperEdge &&
+						p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Disputed &&
+						!p.OperEdge &&
+						p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						!p.ReRoot &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						!p.ReRoot &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						!p.ReRoot &&
+						!p.Sync &&
+						!p.Learn {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count == 0 &&
+						!p.ReRoot &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						!p.ReRoot &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						p.RrWhileTimer.count == 0 &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						!p.ReRoot &&
+						!p.Sync &&
+						p.Learn &&
+						!p.Forward {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					}
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
+					if p.Proposed &&
+						!p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.b.AllSynced() &&
+						!p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Proposed &&
+						p.Agree {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.FdWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.ReRoot {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventReRootAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if !p.Synced {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.RbWhileTimer.count != int32(2*p.DesignatedTimes.HelloTime) &&
+						p.Role == PortRoleBackupPort {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					}
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateBlockPort {
+					if !p.Learning &&
+						!p.Forwarding {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedge bool) {
@@ -581,7 +1480,6 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 	// 1) Port Role Transitions
 	// 2) Bridge Detection
 	if oldoperedge != newoperedge {
-
 		// Prt update 17.29.3
 		if p.PrtMachineFsm != nil &&
 			p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort &&
@@ -720,12 +1618,38 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 	}
 }
 
-func (p *StpPort) RoleSet(src string, val PortRole) {
-	// The following machines need to know about
-	// changes in Role State
-	// 1) Port State Transitions
-	// 2) Topology Change
-	p.Role = val
+func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole, newselectedrole PortRole) {
+
+	if oldselectedrole != newselectedrole {
+		if p.Role != p.SelectedRole {
+			if p.SelectedRole == PortRoleDisabledPort {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.SelectedRole == PortRoleRootPort {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.SelectedRole == PortRoleDesignatedPort {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.SelectedRole == PortRoleAlternatePort {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			} else if p.SelectedRole == PortRoleBackupPort {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+					src: src,
+				}
+			}
+		}
+	}
 }
 
 func (p *StpPort) EdgeDelay() uint16 {
