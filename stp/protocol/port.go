@@ -536,6 +536,58 @@ func (p *StpPort) PortEnableSet(src string, val bool) {
 	}
 }
 
+func (p *StpPort) NotifyRcvdMsgChanged(src string, oldrcvdmsg bool, newrcvdmsg bool, data interface{}) {
+	// The following machines need to know about
+	// changed in rcvdMsg state
+	// 1) Port Receive
+	// 2) Port Information
+	if oldrcvdmsg != newrcvdmsg {
+		if src != PrxmMachineModuleStr {
+			if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateReceive &&
+				p.RcvdBPDU &&
+				p.PortEnabled &&
+				!p.RcvdMsg {
+				p.PrxmMachineFsm.PrxmEvents <- MachineEvent{
+					e:   PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg,
+					src: src,
+				}
+			}
+		}
+		if src != PimMachineModuleStr {
+			bpdumsg := data.(RxBpduPdu)
+			bpduLayer := bpdumsg.pdu
+
+			if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
+				if p.RcvdMsg {
+					p.PimMachineFsm.PimEvents <- MachineEvent{
+						e:    PimEventRcvdMsg,
+						src:  src,
+						data: bpduLayer,
+					}
+				}
+			} else if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent {
+				if p.RcvdMsg &&
+					!p.UpdtInfo {
+					p.PimMachineFsm.PimEvents <- MachineEvent{
+						e:    PimEventRcvdMsgAndNotUpdtInfo,
+						src:  src,
+						data: bpduLayer,
+					}
+				} else if p.InfoIs == PortInfoStateReceived &&
+					p.RcvdInfoWhiletimer.count == 0 &&
+					!p.UpdtInfo &&
+					!p.RcvdMsg {
+					p.PimMachineFsm.PimEvents <- MachineEvent{
+						e:    PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg,
+						src:  src,
+						data: bpduLayer,
+					}
+				}
+			}
+		}
+	}
+}
+
 func (p *StpPort) ForceVersionSet(src string, val int) {
 	// The following machines need to know about
 	// changes in forceVersion State

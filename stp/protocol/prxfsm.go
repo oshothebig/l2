@@ -117,6 +117,7 @@ func (prxm *PrxmMachine) PrxmMachineDiscard(m fsm.Machine, data interface{}) fsm
 	p.RcvdBPDU = false
 	p.RcvdRSTP = false
 	p.RcvdSTP = false
+	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
 	p.RcvdMsg = false
 	// set to RSTP performance paramters Migrate Time
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
@@ -136,7 +137,7 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 	// Decoding has been done as part of the Rx logic was a means of filtering
 	rcvdMsg := prxm.UpdtBPDUVersion(data)
 	// Figure 17-12
-	defer prxm.NotifyRcvdMsgChange(p.RcvdMsg, rcvdMsg, data)
+	defer p.NotifyRcvdMsgChanged(PrxmMachineModuleStr, p.RcvdMsg, rcvdMsg, data)
 	p.RcvdMsg = rcvdMsg
 	defer p.NotifyOperEdgeChanged(PrxmMachineModuleStr, p.OperEdge, false)
 	p.OperEdge = false
@@ -362,42 +363,6 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 	}
 
 	return validPdu
-}
-
-// NotifyRcvdMsgChange
-// Port Receive -> Port Information Figure 17-12
-func (prxm *PrxmMachine) NotifyRcvdMsgChange(oldrcvdmsg bool, newrcvdmsg, data interface{}) {
-	p := prxm.p
-	if oldrcvdmsg != newrcvdmsg {
-		bpdumsg := data.(RxBpduPdu)
-		bpduLayer := bpdumsg.pdu
-
-		if p.PimMachineFsm != nil {
-			if p.RcvdMsg {
-				if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
-					p.PimMachineFsm.PimEvents <- MachineEvent{
-						e:    PimEventRcvdMsg,
-						data: bpduLayer,
-						src:  PrxmMachineModuleStr}
-				} else if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent &&
-					!p.UpdtInfo {
-					p.PimMachineFsm.PimEvents <- MachineEvent{
-						e:    PimEventRcvdMsgAndNotUpdtInfo,
-						data: bpduLayer,
-						src:  PrxmMachineModuleStr}
-				}
-			} else if !p.RcvdMsg &&
-				p.InfoIs == PortInfoStateReceived &&
-				p.RcvdInfoWhiletimer.count == 0 &&
-				!p.UpdtInfo {
-				p.PimMachineFsm.PimEvents <- MachineEvent{
-					e:    PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg,
-					data: bpduLayer,
-					src:  PrxmMachineModuleStr}
-
-			}
-		}
-	}
 }
 
 func (prxm *PrxmMachine) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn bool, oldrcvdtcack bool, newrcvdtc bool, newrcvdtcn bool, newrcvdtcack bool) {

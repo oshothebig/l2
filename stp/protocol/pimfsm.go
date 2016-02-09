@@ -136,6 +136,7 @@ func (pim *PimMachine) Stop() {
 // PimMachineDisabled
 func (pim *PimMachine) PimMachineDisabled(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
+	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
 	p.RcvdMsg = false
 	p.Proposing = false
 	p.Proposed = false
@@ -207,6 +208,7 @@ func (pim *PimMachine) PimMachineSuperiorDesignated(m fsm.Machine, data interfac
 
 	defer p.NotifySelectedChanged(PimMachineModuleStr, p.Selected, false)
 	p.Selected = false
+	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
 	p.RcvdMsg = false
 	defer pim.NotifyReselectChanged(p.Reselect, true)
 	p.Reselect = true
@@ -221,6 +223,7 @@ func (pim *PimMachine) PimMachineRepeatedDesignated(m fsm.Machine, data interfac
 	pim.recordProposal(flags)
 	pim.setTcFlags(flags, data)
 	pim.updtRcvdInfoWhile()
+	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
 	p.RcvdMsg = false
 	return PimStateRepeatedDesignated
 }
@@ -231,6 +234,7 @@ func (pim *PimMachine) PimMachineInferiorDesignated(m fsm.Machine, data interfac
 
 	flags := pim.getRcvdMsgFlags(data)
 	pim.recordDispute(flags)
+	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
 	p.RcvdMsg = false
 	return PimStateInferiorDesignated
 }
@@ -242,6 +246,7 @@ func (pim *PimMachine) PimMachineNotDesignated(m fsm.Machine, data interface{}) 
 	flags := pim.getRcvdMsgFlags(data)
 	pim.recordAgreement(flags)
 	pim.setTcFlags(flags, data)
+	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
 	p.RcvdMsg = false
 	return PimStateNotDesignated
 }
@@ -250,6 +255,7 @@ func (pim *PimMachine) PimMachineNotDesignated(m fsm.Machine, data interface{}) 
 func (pim *PimMachine) PimMachineOther(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
 
+	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
 	p.RcvdMsg = false
 	return PimStateOther
 }
