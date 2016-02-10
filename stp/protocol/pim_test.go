@@ -61,12 +61,11 @@ func UsedForTestOnlyPimTestSetup(t *testing.T) (p *StpPort) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeId:              b.BridgeIdentifier,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -615,6 +614,7 @@ func TestPimBEGIN(t *testing.T) {
 	p := UsedForTestOnlyPimTestSetup(t)
 
 	UsedForTestOnlyPimCheckDisabled(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
 }
 
 func TestPimDisabledStateInvalidStateTransitions(t *testing.T) {
@@ -1057,6 +1057,7 @@ func TestPimCurrentStateSelectedAndUpdtInfo(t *testing.T) {
 	<-testChan
 
 	UsedForTestOnlyPimCheckUpdateState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
 }
 
 func TestPimCurrentStateInfoIsEqualReceivedAndrcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg(t *testing.T) {
@@ -1075,6 +1076,7 @@ func TestPimCurrentStateInfoIsEqualReceivedAndrcvdInfoWhileEqualZeroAndNotUpdtIn
 	<-testChan
 
 	UsedForTestOnlyPimCheckAgedState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
 }
 
 // TODO test Superior Designated

@@ -32,7 +32,7 @@ type Bridge struct {
 	StpPorts []int32
 
 	ForceVersion int32
-	TxHoldCount  int32
+	TxHoldCount  uint64
 
 	// Vlan
 	Vlan uint16
@@ -93,16 +93,20 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 			HelloTime:  c.Dot1dStpBridgeHelloTime,
 			MaxAge:     c.Dot1dStpBridgeMaxAge,
 			MessageAge: 0}, // this will be set once a port is set as root
-		TxHoldCount: c.Dot1dStpBridgeTxHoldCount,
+		TxHoldCount: uint64(c.Dot1dStpBridgeTxHoldCount),
 	}
 
 	BridgeMapTable[b.BridgeIdentifier] = b
+
+	if len(BridgeListTable) == 0 {
+		BridgeListTable = make([]*Bridge, 0)
+	}
 	BridgeListTable = append(BridgeListTable, b)
 
 	// TODO lets get the linux bridge
 	if c.Dot1dStpBridgeVlan == 0 {
 		// default vlan
-		b.BrgIfIndex = 1
+		b.BrgIfIndex = DEFAULT_STP_BRIDGE_VLAN
 	} else {
 		b.BrgIfIndex = int32(c.Dot1dStpBridgeVlan)
 	}
@@ -130,7 +134,11 @@ func DelStpBridge(b *Bridge, force bool) {
 	delete(BridgeMapTable, b.BridgeIdentifier)
 	for i, delBrg := range BridgeListTable {
 		if delBrg.BridgeIdentifier == b.BridgeIdentifier {
-			BridgeListTable = append(BridgeListTable[:i], BridgeListTable[i+1:]...)
+			if len(BridgeListTable) == 1 {
+				BridgeListTable = nil
+			} else {
+				BridgeListTable = append(BridgeListTable[:i], BridgeListTable[i+1:]...)
+			}
 		}
 	}
 }

@@ -7,6 +7,8 @@ import (
 	"utils/fsm"
 )
 
+const DEFAULT_STP_BRIDGE_VLAN = 1
+
 type BPDURxType int8
 
 // this is not to be confused with bpdu type as defined in message

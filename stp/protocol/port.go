@@ -172,26 +172,29 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	if c.Dot1dStpPortAdminPathCost == 0 {
 		// TODO need to get speed of port to automatically the port path cost
 		// Table 17-3
-		AutoPathCostDefaultMap := map[int32]int32{
-			100:         200000000,
-			1000:        20000000,
-			10000:       2000000,
-			100000:      200000,
-			1000000:     20000,
-			10000000:    2000,
-			100000000:   200,
-			1000000000:  20,
-			10000000000: 2,
+		AutoPathCostDefaultMap := map[int32]uint32{
+			10:         200000000,
+			100:        20000000,
+			1000:       2000000,
+			10000:      200000,
+			100000:     20000,
+			1000000:    2000,
+			10000000:   200,
+			100000000:  20,
+			1000000000: 2,
 		}
-		speed = PortConfigMap[p.IfIndex].Speed
+		speed := PortConfigMap[p.IfIndex].Speed
 		p.PortPathCost = AutoPathCostDefaultMap[speed]
 	}
 
-	if StpFindBridgeById(p.BridgeId, &b) {
+	if StpFindBridgeByIfIndex(p.BrgIfIndex, &b) {
 		p.b = b
 	}
 
 	PortMapTable[p.IfIndex] = p
+	if len(PortListTable) == 0 {
+		PortListTable = make([]*StpPort, 0)
+	}
 	PortListTable = append(PortListTable, p)
 
 	// lets setup the port receive/transmit handle
@@ -218,7 +221,11 @@ func DelStpPort(p *StpPort) {
 	delete(PortMapTable, p.IfIndex)
 	for i, delPort := range PortListTable {
 		if delPort.IfIndex == p.IfIndex {
-			PortListTable = append(PortListTable[:i], PortListTable[i+1:]...)
+			if len(PortListTable) == 1 {
+				PortListTable = nil
+			} else {
+				PortListTable = append(PortListTable[:i], PortListTable[i+1:]...)
+			}
 		}
 	}
 }

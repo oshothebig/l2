@@ -71,8 +71,6 @@ func UsedForTestOnlyPtxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
 	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
-	stpconfig.Dot1dStpBridgeId = b.BridgeIdentifier
-
 	// create a port
 	p = NewStpPort(stpconfig)
 
@@ -173,11 +171,11 @@ func TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     1,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)
@@ -262,11 +260,11 @@ func TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     1,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)
@@ -351,11 +349,11 @@ func TestTxHelloWhenEqualZeroTransmitTCN(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     1,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)

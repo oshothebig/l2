@@ -169,6 +169,21 @@ func UsedForTestOnlyStartPpmInSensingState(p *StpPort, t *testing.T, viaselectin
 
 func TestPpmmBEGIN(t *testing.T) {
 	UsedForTestOnlyPpmmInitPortConfigTest()
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -176,11 +191,11 @@ func TestPpmmBEGIN(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -198,14 +213,30 @@ func TestPpmmBEGIN(t *testing.T) {
 	}
 
 	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
-
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+	DelStpBridge(b, true)
 
 }
 
 func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -213,11 +244,11 @@ func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -266,13 +297,30 @@ func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 	}
 
 	p.PtxmMachineFsm = nil
-
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+
+	DelStpBridge(b, true)
 }
 
 func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -280,11 +328,11 @@ func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testin
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -321,8 +369,9 @@ func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testin
 	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "2")
 
 	p.PtxmMachineFsm = nil
-
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+	DelStpBridge(b, true)
 }
 
 /*
@@ -336,7 +385,6 @@ func TestPpmCheckingRSTP(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
@@ -413,6 +461,21 @@ func TestPpmCheckingRSTP(t *testing.T) {
 func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -420,11 +483,11 @@ func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -464,7 +527,9 @@ func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 			t.FailNow()
 		}
 	}
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+	DelStpBridge(b, true)
 
 }
 
@@ -472,6 +537,21 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 	testChan := make(chan string)
 	// test valid states
 	UsedForTestOnlyPpmmInitPortConfigTest()
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -479,11 +559,11 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -525,13 +605,29 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 		t.Error("Failed MdelayWhile was not reset")
 		t.FailNow()
 	}
-
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+	DelStpBridge(b, true)
 }
 
 func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -539,11 +635,11 @@ func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -574,13 +670,29 @@ func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 	}
 
 	UsedForTestOnlyCheckPpmStateSensing(p, t, "1")
-
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+	DelStpBridge(b, true)
 }
 
 func TestPpmSelectingSTPMcheck(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -588,11 +700,11 @@ func TestPpmSelectingSTPMcheck(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -645,13 +757,29 @@ func TestPpmSelectingSTPMcheck(t *testing.T) {
 		t.Error("Failed RcvdSTP was set")
 		t.FailNow()
 	}
-
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+	DelStpBridge(b, true)
 }
 
 func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -659,11 +787,11 @@ func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -706,13 +834,29 @@ func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 	}
 
 	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
-
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+	DelStpBridge(b, true)
 }
 
 func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -720,11 +864,11 @@ func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -766,7 +910,9 @@ func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 		}
 	}
 	p.PtxmMachineFsm = nil
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+	DelStpBridge(b, true)
 }
 
 // two part test will based on previous state
@@ -774,17 +920,33 @@ func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
+
 	// configure a port
 	stpconfig := &StpPortConfig{
 		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -866,13 +1028,30 @@ func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
 	}
 
 	p.PtxmMachineFsm = nil
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+	DelStpBridge(b, true)
 }
 
 // two part test will based on previous state
 func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -880,11 +1059,11 @@ func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -966,7 +1145,9 @@ func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 	}
 
 	p.PtxmMachineFsm = nil
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
+	DelStpBridge(b, true)
 }
 
 // two part test will based on previous state
@@ -974,17 +1155,33 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
+
 	// configure a port
 	stpconfig := &StpPortConfig{
 		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
 		Dot1dStpPortAdminPathCost:     0,
+		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -1022,6 +1219,8 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
 
 	p.PtxmMachineFsm = nil
+	p.b.PrsMachineFsm = nil
 
 	DelStpPort(p)
+	DelStpBridge(b, true)
 }

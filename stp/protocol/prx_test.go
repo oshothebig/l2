@@ -54,6 +54,24 @@ func UsedForTestOnlyRxInitPortConfigTest() {
 func UsedForTestOnlyPrxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *StpPort) {
 	UsedForTestOnlyRxInitPortConfigTest()
 
+	bridgeconfig := &StpBridgeConfig{
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
+		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
+		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
+		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
+		Dot1dStpBridgeForceVersion: 2,
+		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+	}
+
+	//StpBridgeCreate
+	b := NewStpBridge(bridgeconfig)
+	PrsMachineFSMBuild(b)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
+	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
+
+	stpconfig.Dot1dStpBridgeIfIndex = DEFAULT_STP_BRIDGE_VLAN
+
 	// create a port
 	p = NewStpPort(stpconfig)
 
@@ -127,6 +145,7 @@ func UsedForTestOnlyPrxTestTeardown(p *StpPort, t *testing.T) {
 	p.PpmmMachineFsm = nil
 
 	b := p.b
+	p.b.PrsMachineFsm = nil
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
@@ -384,7 +403,6 @@ func TestRxValidStpPacket(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
@@ -463,7 +481,6 @@ func TestRxValidRStpPacket(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
@@ -543,7 +560,6 @@ func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
@@ -622,7 +638,6 @@ func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
@@ -702,7 +717,6 @@ func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
@@ -782,7 +796,6 @@ func TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            false,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
@@ -853,7 +866,6 @@ func TestRxValidTopoChange(t *testing.T) {
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortPathCost32:        1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
 		Dot1dStpPortAdminEdgePort:     0,
