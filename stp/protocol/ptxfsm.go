@@ -334,7 +334,7 @@ func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 			}
 		} else if p.SendRSTP &&
 			p.NewInfo &&
-			p.TxCount < TransmitHoldCountDefault &&
+			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected &&
 			!p.UpdtInfo {
@@ -347,7 +347,7 @@ func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 		} else if !p.SendRSTP &&
 			p.NewInfo &&
 			p.Role == PortRoleRootPort &&
-			p.TxCount < TransmitHoldCountDefault &&
+			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected &&
 			!p.UpdtInfo {
@@ -360,7 +360,7 @@ func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 		} else if !p.SendRSTP &&
 			p.NewInfo &&
 			p.Role == PortRoleDesignatedPort &&
-			p.TxCount < TransmitHoldCountDefault &&
+			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected &&
 			!p.UpdtInfo {

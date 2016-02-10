@@ -9,8 +9,8 @@ import (
 func UsedForTestOnlyBdmTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *StpPort) {
 
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddressKey:      "00:55:55:55:55:55",
-		Dot1dStpPriorityKey:        0x20,
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
 		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
 		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
 		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
@@ -117,7 +117,7 @@ func TestBdmMachineBEGINAdminEdge(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -145,7 +145,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_1(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -204,7 +204,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_2(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -266,7 +266,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_3(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -328,7 +328,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_4(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -391,7 +391,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_5(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -454,7 +454,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_6(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -518,7 +518,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_7(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -583,7 +583,7 @@ func TestBdmMachineNotOperEdge_1(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -641,7 +641,7 @@ func TestBdmMachineNotOperEdge_2(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -699,7 +699,7 @@ func TestBdmMachineNotOperEdge_3(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -757,7 +757,7 @@ func TestBdmMachineNotOperEdge_4(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -816,7 +816,7 @@ func TestBdmMachineNotOperEdge_5(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -875,7 +875,7 @@ func TestBdmMachineNotOperEdge_6(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -935,7 +935,7 @@ func TestBdmMachineNotOperEdge_7(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -995,7 +995,7 @@ func TestBdmMachineBEGINAndNotAdminEdge(t *testing.T) {
 	//testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -1023,7 +1023,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_1(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -1080,7 +1080,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_2(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -1140,7 +1140,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_3(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -1198,7 +1198,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_4(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -1258,7 +1258,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_5(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -1317,7 +1317,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_1(t
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -1378,7 +1378,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_2(t
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -1442,7 +1442,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_3(t
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -1504,7 +1504,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_4(t
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -1568,7 +1568,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_5(t
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,

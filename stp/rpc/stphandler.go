@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
-	//stp "l2/stp/protocol"
+	stp "l2/stp/protocol"
 	"reflect"
 	"stpd"
 	//"time"
@@ -23,20 +23,54 @@ func NewSTPDServiceHandler() *STPDServiceHandler {
 	return &STPDServiceHandler{}
 }
 
-// CreateAggregationLacpConfig will create an lacp lag
-//	1 : i32 	LagType  (0 == LACP, 1 == STATIC)
-//	2 : string 	Description
-//	3 : bool 	Enabled
-//	4 : i16 	Mtu
-//	5 : i16 	MinLinks
-//	6 : string 	Type
-//	7 : string 	NameKey
-//	8 : i32 	Interval (0 == LONG, 1 == SHORT)
-//	9 : i32 	LacpMode (0 == ACTIVE, 1 == PASSIVE)
-//	10 : string SystemIdMac
-//	11 : i16 	SystemPriority
+//
+func ConvertThriftBrgConfigToStpBrgConfig(config *stpd.Dot1dStpBridgeConfig, brgconfig *stp.StpBridgeConfig) {
+
+	brgconfig.Dot1dBridgeAddress = config.Dot1dBridgeAddressKey
+	brgconfig.Dot1dStpPriority = uint16(config.Dot1dStpPriorityKey)
+	brgconfig.Dot1dStpBridgeMaxAge = uint16(config.Dot1dStpBridgeMaxAge)
+	brgconfig.Dot1dStpBridgeHelloTime = uint16(config.Dot1dStpBridgeHelloTime)
+	brgconfig.Dot1dStpBridgeForwardDelay = uint16(config.Dot1dStpBridgeForwardDelay)
+	brgconfig.Dot1dStpBridgeForceVersion = int32(config.Dot1dStpBridgeForceVersion)
+	brgconfig.Dot1dStpBridgeTxHoldCount = int32(config.Dot1dStpBridgeTxHoldCount)
+}
+
+func ConvertInt32ToBool(val int32) bool {
+	if val == 0 {
+		return false
+	}
+	return true
+}
+
+func ConvertThriftPortConfigToStpPortConfig(config *stpd.Dot1dStpPortEntryConfig, portconfig *stp.StpPortConfig) {
+
+	portconfig.Dot1dStpPort = int32(config.Dot1dStpPortKey)
+	portconfig.Dot1dStpPortPriority = uint16(config.Dot1dStpPortPriority)
+	portconfig.Dot1dStpPortEnable = ConvertInt32ToBool(config.Dot1dStpPortEnable)
+	portconfig.Dot1dStpPortPathCost = int32(config.Dot1dStpPortPathCost)
+	portconfig.Dot1dStpPortProtocolMigration = int32(config.Dot1dStpPortProtocolMigration)
+	portconfig.Dot1dStpPortAdminPointToPoint = int32(config.Dot1dStpPortAdminPointToPoint)
+	portconfig.Dot1dStpPortAdminEdgePort = int32(config.Dot1dStpPortAdminEdgePort)
+	portconfig.Dot1dStpPortAdminPathCost = int32(config.Dot1dStpPortAdminPathCost)
+}
+
+func ConvertBridgeIdToString(bridgeid stp.BridgeId) string {
+
+	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:",
+		bridgeid[0],
+		bridgeid[1],
+		bridgeid[2],
+		bridgeid[3],
+		bridgeid[4],
+		bridgeid[5],
+		bridgeid[6],
+		bridgeid[7])
+}
+
+// CreateDot1dStpBridgeConfig
 func (s *STPDServiceHandler) CreateDot1dStpBridgeConfig(config *stpd.Dot1dStpBridgeConfig) (bool, error) {
 
+	brgconfig := &stp.StpBridgeConfig{}
 	fmt.Println("CreateDot1dStpBridgeConfig (server): created ")
 	fmt.Println("addr:", config.Dot1dBridgeAddressKey)
 	// parent restricted-int32
@@ -51,6 +85,10 @@ func (s *STPDServiceHandler) CreateDot1dStpBridgeConfig(config *stpd.Dot1dStpBri
 	fmt.Println("version:", config.Dot1dStpBridgeForceVersion) // int32
 	//yang_name: dot1dStpBridgeTxHoldCount class: leaf
 	fmt.Println("txHoldCount", config.Dot1dStpBridgeTxHoldCount) //
+
+	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
+
+	stp.StpBridgeCreate(brgconfig)
 	return true, nil
 }
 
@@ -156,7 +194,12 @@ func (s *STPDServiceHandler) UpdateDot1dStpBridgeConfig(origconfig *stpd.Dot1dSt
 }
 
 func (s *STPDServiceHandler) CreateDot1dStpPortEntryConfig(config *stpd.Dot1dStpPortEntryConfig) (bool, error) {
+	portconfig := &stp.StpPortConfig{}
 	fmt.Println("CreateDot1dStpPortEntryConfig (server): created ")
+
+	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
+
+	stp.StpPortCreate(portconfig)
 	return true, nil
 }
 
@@ -191,14 +234,53 @@ func (s *STPDServiceHandler) UpdateDot1dStpPortEntryConfig(origconfig *stpd.Dot1
 // otherwise can get inconsistent results
 func (s *STPDServiceHandler) GetBulkDot1dStpBridgeState(fromIndex stpd.Int, count stpd.Int) (obj *stpd.Dot1dStpBridgeStateGetInfo, err error) {
 
-	//var stpBridgeStateList []stpd.Dot1dStpBridgeState = make([]stpd.Dot1dStpBridgeState, count)
-	//var nextStpBridgeState *stpd.Dot1dStpBridgeState
+	var stpBridgeStateList []stpd.Dot1dStpBridgeState = make([]stpd.Dot1dStpBridgeState, count)
+	var nextStpBridgeState *stpd.Dot1dStpBridgeState
 	var returnStpBridgeStates []*stpd.Dot1dStpBridgeState
 	var returnStpBridgeStateGetInfo stpd.Dot1dStpBridgeStateGetInfo
-	//var a *lacp.LaAggregator
+	var b *stp.Bridge
 	validCount := stpd.Int(0)
 	toIndex := fromIndex
 	obj = &returnStpBridgeStateGetInfo
+	for currIndex := fromIndex; validCount != count; currIndex++ {
+
+		if currIndex < len(stp.BridgeListTable) {
+			b = stp.BridgeListTable[currIndex]
+			nextStpBridgeState = &lagStateList[validCount]
+
+			nextStpBridgeState.Dot1dStpBridgeForceVersion = b.ForceVersion
+			nextStpBridgeState.Dot1dBridgeAddressKey = ConvertBridgeIdToString(b.BridgeIdentifier)
+			nextStpBridgeState.Dot1dStpBridgeHelloTime = b.BridgeTimes.HelloTime
+			nextStpBridgeState.Dot1dStpBridgeTxHoldCount = stp.TransmitHoldCountDefault
+			nextStpBridgeState.Dot1dStpBridgeForwardDelay = b.BridgeTimes.ForwardingDelay
+			nextStpBridgeState.Dot1dStpBridgeMaxAge = b.BridgeTimes.MaxAge
+			nextStpBridgeState.Dot1dStpPriorityKey = b.BridgePriority
+			nextStpBridgeState.Dot1dBrgIfIndex = b.BrgIfIndex
+			nextStpBridgeState.Dot1dStpProtocolSpecification = 2
+			//nextStpBridgeState.Dot1dStpTimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
+			//nextStpBridgeState.Dot1dStpTopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
+			nextStpBridgeState.Dot1dStpDesignatedRoot = b.BridgePriority.DesignatedPortId
+			nextStpBridgeState.Dot1dStpRootCost = b.BridgePriority.RootPathCost
+			nextStpBridgeState.Dot1dStpRootPort = b.BridgePriority.DesignatedPortId
+			//nextStpBridgeState.Dot1dStpMaxAge                  int32  //The maximum age of Spanning Tree Protocol information learned from the network on any port before it is discarded, in units of hundredths of a second.  This is the actual value that this bridge is currently using.
+			nextStpBridgeState.Dot1dStpHelloTime = b.RootTimes.HelloTime
+			//nextStpBridgeState.Dot1dStpHoldTime = b.RootTimes.              int32  //This time value determines the interval length during which no more than two Configuration bridge PDUs shall be transmitted by this node, in units of hundredths of a second.
+			nextStpBridgeState.Dot1dStpForwardDelay = b.RootTimes.ForwardingDelay
+			nextStpBridgeState.Dot1dStpVlan = b.Vlan
+
+			if len(returnStpBridgeStates) == 0 {
+				returnStpBridgeStates = make([]*stp.Dot1dStpBridgeState, 0)
+			}
+			returnLagStates = append(returnStpBridgeStates, nextStpBridgeState)
+			validCount++
+			toIndex++
+		}
+	}
+	// lets try and get the next agg if one exists then there are more routes
+	moreRoutes := false
+	if a != nil {
+		moreRoutes = lacp.LaGetAggNext(&a)
+	}
 
 	// lets try and get the next agg if one exists then there are more routes
 	moreRoutes := false

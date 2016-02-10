@@ -172,7 +172,7 @@ func TestPpmmBEGIN(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -209,7 +209,7 @@ func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -276,7 +276,7 @@ func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testin
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -332,7 +332,7 @@ func TestPpmCheckingRSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:               TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -416,7 +416,7 @@ func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -475,7 +475,7 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -535,7 +535,7 @@ func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -584,7 +584,7 @@ func TestPpmSelectingSTPMcheck(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -655,7 +655,7 @@ func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -716,7 +716,7 @@ func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -776,7 +776,7 @@ func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -876,7 +876,7 @@ func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -976,7 +976,7 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,

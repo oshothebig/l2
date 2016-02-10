@@ -448,7 +448,7 @@ func (tcm *TcMachine) NotifyNewInfoChanged(oldnewinfo bool, newnewinfo bool) {
 		if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
 			if p.SendRSTP &&
 				p.NewInfo &&
-				p.TxCount < TransmitHoldCountDefault &&
+				p.TxCount < p.b.TxHoldCount &&
 				p.HelloWhenTimer.count != 0 {
 				p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 					e:   PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
@@ -456,7 +456,7 @@ func (tcm *TcMachine) NotifyNewInfoChanged(oldnewinfo bool, newnewinfo bool) {
 				}
 			} else if !p.SendRSTP &&
 				p.NewInfo && p.Role == PortRoleRootPort &&
-				p.TxCount < TransmitHoldCountDefault &&
+				p.TxCount < p.b.TxHoldCount &&
 				p.HelloWhenTimer.count != 0 {
 				p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 					e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
@@ -464,7 +464,7 @@ func (tcm *TcMachine) NotifyNewInfoChanged(oldnewinfo bool, newnewinfo bool) {
 				}
 			} else if !p.SendRSTP &&
 				p.NewInfo && p.Role == PortRoleDesignatedPort &&
-				p.TxCount < TransmitHoldCountDefault &&
+				p.TxCount < p.b.TxHoldCount &&
 				p.HelloWhenTimer.count != 0 {
 				p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 					e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,

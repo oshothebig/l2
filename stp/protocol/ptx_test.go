@@ -56,8 +56,8 @@ func UsedForTestOnlyPtxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 	UsedForTestOnlyTxInitPortConfigTest()
 
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddressKey:      "00:55:55:55:55:55",
-		Dot1dStpPriorityKey:        0x20,
+		Dot1dBridgeAddress:         "00:55:55:55:55:55",
+		Dot1dStpPriority:           0x20,
 		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
 		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
 		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
@@ -169,7 +169,7 @@ func TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -258,7 +258,7 @@ func TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -347,7 +347,7 @@ func TestTxHelloWhenEqualZeroTransmitTCN(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,

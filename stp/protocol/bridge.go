@@ -9,6 +9,7 @@ import (
 const BridgeConfigModuleStr = "Bridge Config"
 
 var BridgeMapTable map[BridgeId]*Bridge
+var BridgeListTable []*Bridge
 
 type BridgeId [8]uint8
 
@@ -30,10 +31,19 @@ type Bridge struct {
 	// Stp IfIndex
 	StpPorts []int32
 
+	ForceVersion int32
+	TxHoldCount  int32
+
+	// Vlan
+	Vlan uint16
+
 	PrsMachineFsm *PrsMachine
 
 	// store the previous bridge id
 	OldRootBridgeIdentifier BridgeId
+
+	// bridge ifIndex
+	BrgIfIndex int32
 
 	// a way to sync all machines
 	wg sync.WaitGroup
@@ -56,22 +66,14 @@ type Times struct {
 
 func NewStpBridge(c *StpBridgeConfig) *Bridge {
 
-	/*
-		Dot1dBridgeAddressKey      string `SNAPROUTE: KEY`
-		Dot1dStpPriorityKey        int32  `SNAPROUTE: KEY`
-		Dot1dStpBridgeMaxAge       int32
-		Dot1dStpBridgeHelloTime    int32
-		Dot1dStpBridgeForwardDelay int32
-		Dot1dStpBridgeForceVersion int32
-		Dot1dStpBridgeTxHoldCount  int32
-	*/
-	netAddr, _ := net.ParseMAC(c.Dot1dBridgeAddressKey)
+	netAddr, _ := net.ParseMAC(c.Dot1dBridgeAddress)
 	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
 
-	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriorityKey)
+	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriority)
 
 	b := &Bridge{
 		Begin:            true,
+		ForceVersion:     2,
 		BridgeIdentifier: bridgeId,
 		BridgePriority: PriorityVector{
 			RootBridgeId:       bridgeId,
@@ -91,9 +93,19 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 			HelloTime:  c.Dot1dStpBridgeHelloTime,
 			MaxAge:     c.Dot1dStpBridgeMaxAge,
 			MessageAge: 0}, // this will be set once a port is set as root
+		TxHoldCount: c.Dot1dStpBridgeTxHoldCount,
 	}
 
 	BridgeMapTable[b.BridgeIdentifier] = b
+	BridgeListTable = append(BridgeListTable, b)
+
+	// TODO lets get the linux bridge
+	if c.Dot1dStpBridgeVlan == 0 {
+		// default vlan
+		b.BrgIfIndex = 1
+	} else {
+		b.BrgIfIndex = int32(c.Dot1dStpBridgeVlan)
+	}
 	return b
 }
 
@@ -116,6 +128,11 @@ func DelStpBridge(b *Bridge, force bool) {
 	}
 	b.Stop()
 	delete(BridgeMapTable, b.BridgeIdentifier)
+	for i, delBrg := range BridgeListTable {
+		if delBrg.BridgeIdentifier == b.BridgeIdentifier {
+			BridgeListTable = append(BridgeListTable[:i], BridgeListTable[i+1:]...)
+		}
+	}
 }
 
 func (b *Bridge) Stop() {
@@ -154,6 +171,16 @@ func StpFindBridgeById(bridgeId BridgeId, brg **Bridge) bool {
 
 	for bId, b := range BridgeMapTable {
 		if bridgeId == bId {
+			*brg = b
+			return true
+		}
+	}
+	return false
+}
+
+func StpFindBridgeByIfIndex(brgIfIndex int32, brg **Bridge) bool {
+	for _, b := range BridgeMapTable {
+		if brgIfIndex == b.BrgIfIndex {
 			*brg = b
 			return true
 		}

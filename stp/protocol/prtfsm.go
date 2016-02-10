@@ -949,7 +949,7 @@ func (prtm *PrtMachine) NotifyNewInfoChanged(oldnewinfo bool, newnewinfo bool) {
 		if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
 			if p.SendRSTP &&
 				p.NewInfo &&
-				p.TxCount < TransmitHoldCountDefault &&
+				p.TxCount < p.b.TxHoldCount &&
 				p.HelloWhenTimer.count != 0 &&
 				p.Selected &&
 				!p.UpdtInfo {

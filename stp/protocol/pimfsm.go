@@ -455,7 +455,7 @@ func (pim *PimMachine) NotifyNewInfoChange(oldnewinfo bool, newnewinfo bool) {
 			if !p.SendRSTP &&
 				p.NewInfo &&
 				p.Role == PortRoleDesignatedPort &&
-				p.TxCount < TransmitHoldCountDefault &&
+				p.TxCount < p.b.TxHoldCount &&
 				p.HelloWhenTimer.count != 0 &&
 				p.Selected &&
 				!p.UpdtInfo {

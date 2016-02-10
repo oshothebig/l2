@@ -3,17 +3,18 @@ typedef i32 int
 typedef i16 uint16
 struct Dot1dStpPortEntryConfig{
 	1 : i32 	Dot1dStpPortKey
-	2 : i32 	Dot1dStpPortPriority
-	3 : i32 	Dot1dStpPortEnable
-	4 : i32 	Dot1dStpPortPathCost
-	5 : i32 	Dot1dStpPortPathCost32
-	6 : i32 	Dot1dStpPortProtocolMigration
-	7 : i32 	Dot1dStpPortAdminPointToPoint
-	8 : i32 	Dot1dStpPortAdminEdgePort
-	9 : i32 	Dot1dStpPortAdminPathCost
+	2 : i32 	Dot1dBrgIfIndex
+	3 : i32 	Dot1dStpPortPriority
+	4 : i32 	Dot1dStpPortEnable
+	5 : i32 	Dot1dStpPortPathCost
+	6 : i32 	Dot1dStpPortPathCost32
+	7 : i32 	Dot1dStpPortProtocolMigration
+	8 : i32 	Dot1dStpPortAdminPointToPoint
+	9 : i32 	Dot1dStpPortAdminEdgePort
+	10 : i32 	Dot1dStpPortAdminPathCost
 }
 struct Dot1dStpPortEntryState{
-	1 : i32 	Dot1dStpPortPathCost32
+	1 : i32 	Dot1dBrgIfIndex
 	2 : i32 	Dot1dStpPortPriority
 	3 : i32 	Dot1dStpPortAdminPointToPoint
 	4 : i32 	Dot1dStpPortProtocolMigration
@@ -22,14 +23,15 @@ struct Dot1dStpPortEntryState{
 	7 : i32 	Dot1dStpPortPathCost
 	8 : i32 	Dot1dStpPortAdminPathCost
 	9 : i32 	Dot1dStpPortEnable
-	10 : i32 	Dot1dStpPortState
-	11 : string 	Dot1dStpPortDesignatedRoot
-	12 : i32 	Dot1dStpPortDesignatedCost
-	13 : string 	Dot1dStpPortDesignatedBridge
-	14 : string 	Dot1dStpPortDesignatedPort
-	15 : i32 	Dot1dStpPortForwardTransitions
-	16 : i32 	Dot1dStpPortOperEdgePort
-	17 : i32 	Dot1dStpPortOperPointToPoint
+	10 : i32 	Dot1dStpPortPathCost32
+	11 : i32 	Dot1dStpPortState
+	12 : string 	Dot1dStpPortDesignatedRoot
+	13 : i32 	Dot1dStpPortDesignatedCost
+	14 : string 	Dot1dStpPortDesignatedBridge
+	15 : string 	Dot1dStpPortDesignatedPort
+	16 : i32 	Dot1dStpPortForwardTransitions
+	17 : i32 	Dot1dStpPortOperEdgePort
+	18 : i32 	Dot1dStpPortOperPointToPoint
 }
 struct Dot1dStpPortEntryStateGetInfo {
 	1: int StartIdx
@@ -46,6 +48,7 @@ struct Dot1dStpBridgeConfig{
 	5 : i32 	Dot1dStpBridgeForwardDelay
 	6 : i32 	Dot1dStpBridgeForceVersion
 	7 : i32 	Dot1dStpBridgeTxHoldCount
+	8 : i16 	Dot1dStpVlan
 }
 struct Dot1dStpBridgeState{
 	1 : i32 	Dot1dStpBridgeForceVersion
@@ -55,16 +58,18 @@ struct Dot1dStpBridgeState{
 	5 : i32 	Dot1dStpBridgeForwardDelay
 	6 : i32 	Dot1dStpBridgeMaxAge
 	7 : i32 	Dot1dStpPriorityKey
-	8 : i32 	Dot1dStpProtocolSpecification
-	9 : i32 	Dot1dStpTimeSinceTopologyChange
-	10 : i32 	Dot1dStpTopChanges
-	11 : string 	Dot1dStpDesignatedRoot
-	12 : i32 	Dot1dStpRootCost
-	13 : i32 	Dot1dStpRootPort
-	14 : i32 	Dot1dStpMaxAge
-	15 : i32 	Dot1dStpHelloTime
-	16 : i32 	Dot1dStpHoldTime
-	17 : i32 	Dot1dStpForwardDelay
+	8 : i32 	Dot1dBrgIfIndex
+	9 : i32 	Dot1dStpProtocolSpecification
+	10 : i32 	Dot1dStpTimeSinceTopologyChange
+	11 : i32 	Dot1dStpTopChanges
+	12 : string 	Dot1dStpDesignatedRoot
+	13 : i32 	Dot1dStpRootCost
+	14 : i32 	Dot1dStpRootPort
+	15 : i32 	Dot1dStpMaxAge
+	16 : i32 	Dot1dStpHelloTime
+	17 : i32 	Dot1dStpHoldTime
+	18 : i32 	Dot1dStpForwardDelay
+	19 : i16 	Dot1dStpVlan
 }
 struct Dot1dStpBridgeStateGetInfo {
 	1: int StartIdx

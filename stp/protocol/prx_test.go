@@ -380,7 +380,7 @@ func TestRxValidStpPacket(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -459,7 +459,7 @@ func TestRxValidStpPacket(t *testing.T) {
 func TestRxValidRStpPacket(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -539,7 +539,7 @@ func TestRxValidRStpPacket(t *testing.T) {
 func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -618,7 +618,7 @@ func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -698,7 +698,7 @@ func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,
@@ -778,7 +778,7 @@ func TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            false,
 		Dot1dStpPortPathCost:          1,
@@ -849,7 +849,7 @@ func TestRxValidTopoChange(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPortKey:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
 		Dot1dStpPortEnable:            true,
 		Dot1dStpPortPathCost:          1,

@@ -14,6 +14,7 @@ import (
 )
 
 var PortMapTable map[int32]*StpPort
+var PortListTable []*StpPort
 var PortConfigMap map[int32]portConfig
 
 const PortConfigModuleStr = "Port Config"
@@ -21,6 +22,7 @@ const PortConfigModuleStr = "Port Config"
 type portConfig struct {
 	Name         string
 	HardwareAddr net.HardwareAddr
+	Speed        int32
 }
 
 type StpPort struct {
@@ -82,8 +84,9 @@ type StpPort struct {
 	AdminPoinrtToPointMAC PointToPointMac
 
 	// Associated Bridge Id
-	BridgeId BridgeId
-	b        *Bridge
+	BridgeId   BridgeId
+	BrgIfIndex int32
+	b          *Bridge
 
 	// statistics
 	BpduRx uint64
@@ -134,8 +137,8 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	*/
 
 	p := &StpPort{
-		IfIndex:      c.Dot1dStpPortKey,
-		PortId:       uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPortKey)),
+		IfIndex:      c.Dot1dStpPort,
+		PortId:       uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
 		Priority:     c.Dot1dStpPortPriority,
 		PortEnabled:  c.Dot1dStpPortEnable,
 		PortPathCost: uint32(c.Dot1dStpPortPathCost),
@@ -157,18 +160,39 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		RrWhileTimer:        PortTimer{count: BridgeMaxAgeDefault},
 		TcWhileTimer:        PortTimer{count: BridgeHelloTimeDefault}, // should be updated by newTcWhile func
 		portChan:            make(chan string),
-		BridgeId:            c.Dot1dStpBridgeId,
+		BrgIfIndex:          c.Dot1dStpBridgeIfIndex,
 	}
+
 	if c.Dot1dStpPortAdminEdgePort == 0 {
 		p.AdminEdge = false
 	} else {
 		p.AdminEdge = true
 	}
+
+	if c.Dot1dStpPortAdminPathCost == 0 {
+		// TODO need to get speed of port to automatically the port path cost
+		// Table 17-3
+		AutoPathCostDefaultMap := map[int32]int32{
+			100:         200000000,
+			1000:        20000000,
+			10000:       2000000,
+			100000:      200000,
+			1000000:     20000,
+			10000000:    2000,
+			100000000:   200,
+			1000000000:  20,
+			10000000000: 2,
+		}
+		speed = PortConfigMap[p.IfIndex].Speed
+		p.PortPathCost = AutoPathCostDefaultMap[speed]
+	}
+
 	if StpFindBridgeById(p.BridgeId, &b) {
 		p.b = b
 	}
 
 	PortMapTable[p.IfIndex] = p
+	PortListTable = append(PortListTable, p)
 
 	// lets setup the port receive/transmit handle
 	ifName, _ := PortConfigMap[p.IfIndex]
@@ -192,6 +216,11 @@ func DelStpPort(p *StpPort) {
 	p.Stop()
 	// remove from global port table
 	delete(PortMapTable, p.IfIndex)
+	for i, delPort := range PortListTable {
+		if delPort.IfIndex == p.IfIndex {
+			PortListTable = append(PortListTable[:i], PortListTable[i+1:]...)
+		}
+	}
 }
 
 func StpFindPortById(pId int32, p **StpPort) bool {
@@ -645,7 +674,7 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 					}
 				} else if p.SendRSTP &&
 					p.NewInfo &&
-					p.TxCount < TransmitHoldCountDefault &&
+					p.TxCount < p.b.TxHoldCount &&
 					p.HelloWhenTimer.count != 0 {
 					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 						e:   PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
@@ -654,7 +683,7 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 				} else if !p.SendRSTP &&
 					p.NewInfo &&
 					p.Role == PortRoleRootPort &&
-					p.TxCount < TransmitHoldCountDefault &&
+					p.TxCount < p.b.TxHoldCount &&
 					p.HelloWhenTimer.count != 0 {
 					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 						e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
@@ -663,7 +692,7 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 				} else if !p.SendRSTP &&
 					p.NewInfo &&
 					p.Role == PortRoleDesignatedPort &&
-					p.TxCount < TransmitHoldCountDefault &&
+					p.TxCount < p.b.TxHoldCount &&
 					p.HelloWhenTimer.count != 0 {
 					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 						e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
@@ -1111,7 +1140,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 					}
 				} else if p.SendRSTP &&
 					p.NewInfo &&
-					p.TxCount < TransmitHoldCountDefault &&
+					p.TxCount < p.b.TxHoldCount &&
 					p.HelloWhenTimer.count != 0 {
 					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 						e:   PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
@@ -1120,7 +1149,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 				} else if !p.SendRSTP &&
 					p.NewInfo &&
 					p.Role == PortRoleRootPort &&
-					p.TxCount < TransmitHoldCountDefault &&
+					p.TxCount < p.b.TxHoldCount &&
 					p.HelloWhenTimer.count != 0 {
 					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 						e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
@@ -1129,7 +1158,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 				} else if !p.SendRSTP &&
 					p.NewInfo &&
 					p.Role == PortRoleDesignatedPort &&
-					p.TxCount < TransmitHoldCountDefault &&
+					p.TxCount < p.b.TxHoldCount &&
 					p.HelloWhenTimer.count != 0 {
 					p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 						e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,

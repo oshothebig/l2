@@ -120,7 +120,7 @@ func (ppmm *PpmmMachine) InformPtxMachineSendRSTPChanged() {
 		p.UpdtInfo)*/
 		if p.SendRSTP == true &&
 			p.NewInfo == true &&
-			p.TxCount < TransmitHoldCountDefault &&
+			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected == true &&
 			p.UpdtInfo == false {
@@ -130,7 +130,7 @@ func (ppmm *PpmmMachine) InformPtxMachineSendRSTPChanged() {
 		} else if p.SendRSTP == false &&
 			p.NewInfo == true &&
 			p.Role == PortRoleRootPort &&
-			p.TxCount < TransmitHoldCountDefault &&
+			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected == true &&
 			p.UpdtInfo == false {
@@ -140,7 +140,7 @@ func (ppmm *PpmmMachine) InformPtxMachineSendRSTPChanged() {
 		} else if p.SendRSTP == false &&
 			p.NewInfo == true &&
 			p.Role == PortRoleDesignatedPort &&
-			p.TxCount < TransmitHoldCountDefault &&
+			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected == true &&
 			p.UpdtInfo == false {
