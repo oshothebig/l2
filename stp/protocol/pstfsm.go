@@ -11,6 +11,7 @@ package stp
 import (
 	"fmt"
 	//"time"
+	"asicd/pluginManager/pluginCommon"
 	"utils/fsm"
 )
 
@@ -73,6 +74,10 @@ func NewStpPstMachine(p *StpPort) *PstMachine {
 	return pstm
 }
 
+func (pstm *PstMachine) PstmLogger(s string) {
+	StpMachineLogger("INFO", "PSTM", pstm.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (pstm *PstMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -86,7 +91,7 @@ func (pstm *PstMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PstStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		logger: StpLoggerInfo,
+		logger: pstm.PstmLogger,
 		owner:  PstMachineModuleStr,
 		ps:     PstStateNone,
 		s:      PstStateNone,
@@ -318,19 +323,23 @@ func (pstm *PstMachine) NotifyForwardingChanged(oldforwarding bool, newforwardin
 func (pstm *PstMachine) disableLearning() {
 	p := pstm.p
 	StpMachineLogger("INFO", "PSTM", p.IfIndex, "Calling Asic to do disable learning")
+	asicdSetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_BLOCKING)
 }
 
 func (pstm *PstMachine) disableForwarding() {
 	p := pstm.p
 	StpMachineLogger("INFO", "PSTM", p.IfIndex, "Calling Asic to do disable forwarding")
+	asicdSetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_BLOCKING)
 }
 
 func (pstm *PstMachine) enableLearning() {
 	p := pstm.p
 	StpMachineLogger("INFO", "PSTM", p.IfIndex, "Calling Asic to do enable learning")
+	asicdSetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_LEARNING)
 }
 
 func (pstm *PstMachine) enableForwarding() {
 	p := pstm.p
 	StpMachineLogger("INFO", "PSTM", p.IfIndex, "Calling Asic to do enable forwarding")
+	asicdSetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_FORWARDING)
 }

@@ -79,27 +79,34 @@ func ConstructPortConfigMap() {
 	currMarker := asicdServices.Int(hwconst.MIN_SYS_PORTS)
 	if asicdclnt.IsConnected {
 		StpLogger("INFO", "Calling asicd for port config")
-		count := asicdServices.Int(10)
+		count := asicdServices.Int(hwconst.MAX_SYS_PORTS)
 		for {
 			bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(currMarker, count)
 			if err != nil {
-				StpLogger("INFO", fmt.Sprintf("Error: %s", err))
+				StpLogger("ERROR", fmt.Sprintf("GetBulkPortState Error: %s", err))
 				return
 			}
+			StpLogger("INFO", fmt.Sprintf("Length of GetBulkPortState: %d", bulkInfo.Count))
+
 			bulkCfgInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(currMarker, count)
 			if err != nil {
-				StpLogger("INFO", fmt.Sprintf("Error: %s", err))
+				StpLogger("ERROR", fmt.Sprintf("Error: %s", err))
 				return
 			}
+
+			StpLogger("INFO", fmt.Sprintf("Length of GetBulkPortConfig: %d", bulkCfgInfo.Count))
 			objCount := int(bulkInfo.Count)
 			more := bool(bulkInfo.More)
 			currMarker = asicdServices.Int(bulkInfo.EndIdx)
 			for i := 0; i < objCount; i++ {
-				portNum := bulkInfo.PortStateList[i].PortNum
-				ent := PortConfigMap[portNum]
+				ifindex := bulkInfo.PortStateList[i].IfIndex
+				ent := PortConfigMap[ifindex]
+				ent.PortNum = bulkInfo.PortStateList[i].PortNum
+				ent.IfIndex = ifindex
 				ent.Name = bulkInfo.PortStateList[i].Name
 				ent.HardwareAddr, _ = net.ParseMAC(bulkCfgInfo.PortConfigList[i].MacAddr)
-				PortConfigMap[portNum] = ent
+				PortConfigMap[ifindex] = ent
+				StpLogger("INIT", fmt.Sprintf("Found Port %d IfIndex %d Name %s\n", ent.PortNum, ent.IfIndex, ent.Name))
 			}
 			if more == false {
 				return
@@ -141,4 +148,43 @@ func asicdGetPortLinkStatus(intfNum string) bool {
 	}
 	return true
 
+}
+
+func asicdCreateStgBridge(vlanList []uint16) int32 {
+
+	vl := make([]int32, len(vlanList))
+	if asicdclnt.ClientHdl != nil {
+		for v := range vlanList {
+			vl = append(vl, int32(v))
+		}
+		stgId, err := asicdclnt.ClientHdl.CreateStg(vl)
+		if err == nil {
+			return stgId
+		}
+	}
+	return -1
+}
+
+func asicdDeleteStgBridge(stgid int32) error {
+
+	if asicdclnt.ClientHdl != nil {
+
+		_, err := asicdclnt.ClientHdl.DeleteStg(stgid)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func asicdSetStgPortState(stgid int32, ifindex int32, state int) error {
+	if asicdclnt.ClientHdl != nil {
+		for _, pc := range PortConfigMap {
+			if pc.IfIndex == ifindex {
+				_, err := asicdclnt.ClientHdl.SetPortStpState(stgid, pc.PortNum, int32(state))
+				return err
+			}
+		}
+	}
+	return nil
 }

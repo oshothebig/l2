@@ -76,6 +76,10 @@ func NewStpPrxmMachine(p *StpPort) *PrxmMachine {
 	return prxm
 }
 
+func (prxm *PrxmMachine) PrxmLogger(s string) {
+	StpMachineLogger("INFO", "PRXM", prxm.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -89,7 +93,7 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PrxmStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		logger: StpLoggerInfo,
+		logger: prxm.PrxmLogger,
 		owner:  PrxmMachineModuleStr,
 		ps:     PrxmStateNone,
 		s:      PrxmStateNone,
@@ -224,7 +228,7 @@ func (p *StpPort) PrxmMachineMain() {
 
 					m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndNotPortEnabled, rx)
 				}
-				p.BpduRx++
+				p.SetRxPortCounters(rx.ptype)
 			case ena := <-m.PrxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}

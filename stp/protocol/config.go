@@ -24,14 +24,18 @@ type StpPortConfig struct {
 	Dot1dStpPortPathCost          int32
 	Dot1dStpPortProtocolMigration int32
 	Dot1dStpPortAdminPointToPoint int32
-	Dot1dStpPortAdminEdgePort     int32
+	Dot1dStpPortAdminEdgePort     bool
 	Dot1dStpPortAdminPathCost     int32
 	Dot1dStpBridgeIfIndex         int32
 }
 
 func StpBridgeCreate(c *StpBridgeConfig) {
 	var b *Bridge
-	netAddr, _ := net.ParseMAC(c.Dot1dBridgeAddress)
+	tmpaddr := c.Dot1dBridgeAddress
+	if tmpaddr == "" {
+		tmpaddr = "00:AA:AA:BB:BB:DD"
+	}
+	netAddr, _ := net.ParseMAC(tmpaddr)
 	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
 	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriority)
 	if !StpFindBridgeById(bridgeId, &b) {
@@ -71,4 +75,21 @@ func StpPortAddToBridge(pId int32, brgifindex int32) {
 	} else {
 		StpLogger("ERROR", fmt.Sprintf("ERROR did not find bridge[%#v] or port[%d]", brgifindex, pId))
 	}
+}
+
+func StpPortLinkUp(pId int32) {
+	var p *StpPort
+	if StpFindPortById(pId, &p) {
+		p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, true)
+		p.PortEnabled = true
+	}
+}
+
+func StpPortLinkDown(pId int32) {
+	var p *StpPort
+	if StpFindPortById(pId, &p) {
+		p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, false)
+		p.PortEnabled = false
+	}
+
 }

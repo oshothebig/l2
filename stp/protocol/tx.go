@@ -78,6 +78,8 @@ func (p *StpPort) TxRSTP() {
 		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
 		return
 	}
+	p.SetTxPortCounters(BPDURxTypeRSTP)
+
 	StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s\n", pIntf.Name))
 }
 
@@ -104,6 +106,8 @@ func (p *StpPort) TxTCN() {
 		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
 		return
 	}
+
+	p.SetTxPortCounters(BPDURxTypeTopo)
 	StpLogger("INFO", fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
 
 }
@@ -149,5 +153,7 @@ func (p *StpPort) TxConfig() {
 		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
 		return
 	}
+
+	p.SetTxPortCounters(BPDURxTypeSTP)
 	StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s\n", pIntf.Name))
 }

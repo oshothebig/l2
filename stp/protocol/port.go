@@ -7,9 +7,11 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/vishvananda/netlink"
 	"net"
 	"strings"
 	"sync"
+	//"syscall"
 	"time"
 )
 
@@ -23,6 +25,8 @@ type portConfig struct {
 	Name         string
 	HardwareAddr net.HardwareAddr
 	Speed        int32
+	PortNum      int32
+	IfIndex      int32
 }
 
 type StpPort struct {
@@ -90,6 +94,15 @@ type StpPort struct {
 
 	// statistics
 	BpduRx uint64
+	BpduTx uint64
+	StpRx  uint64
+	StpTx  uint64
+	TcRx   uint64
+	TcTx   uint64
+	RstpRx uint64
+	RstpTx uint64
+	PvstRx uint64
+	PvstTx uint64
 
 	// 17.17
 	EdgeDelayWhileTimer PortTimer
@@ -135,12 +148,21 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		BridgeForwardDelayDefault = 15
 		TransmitHoldCountDefault = 6
 	*/
+	enabled := false
+	// TODO get the status from asicd
+	netif, _ := netlink.LinkByName(PortConfigMap[c.Dot1dStpPort].Name)
+	netifattr := netif.Attrs()
+	//if netifattr.Flags&syscall.IFF_RUNNING == syscall.IFF_RUNNING {
+	if (netifattr.Flags & 1) == 1 {
+
+		enabled = true
+	}
 
 	p := &StpPort{
 		IfIndex:      c.Dot1dStpPort,
 		PortId:       uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
 		Priority:     c.Dot1dStpPortPriority,
-		PortEnabled:  c.Dot1dStpPortEnable,
+		PortEnabled:  enabled,
 		PortPathCost: uint32(c.Dot1dStpPortPathCost),
 		DesignatedTimes: Times{
 			// TODO fill in
@@ -161,12 +183,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		TcWhileTimer:        PortTimer{count: BridgeHelloTimeDefault}, // should be updated by newTcWhile func
 		portChan:            make(chan string),
 		BrgIfIndex:          c.Dot1dStpBridgeIfIndex,
-	}
-
-	if c.Dot1dStpPortAdminEdgePort == 0 {
-		p.AdminEdge = false
-	} else {
-		p.AdminEdge = true
+		AdminEdge:           c.Dot1dStpPortAdminEdgePort,
 	}
 
 	if c.Dot1dStpPortAdminPathCost == 0 {
@@ -210,11 +227,44 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	StpLogger("INFO", fmt.Sprintf("Creating STP Listener for intf %d %s\n", p.IfIndex, ifName.Name))
 	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
 	p.handle = handle
+	StpLogger("INFO", fmt.Sprintf("NEW PORT: %#v\n", p))
+
+	if strings.Contains(ifName.Name, "eth") {
+		p.PollLinuxLinkStatus()
+	}
 
 	return p
 
 }
 
+func (p *StpPort) PollLinuxLinkStatus() {
+
+	var PollingTimer *time.Timer = time.NewTimer(time.Second * 1)
+
+	go func(p *StpPort, t *time.Timer) {
+		StpMachineLogger("INFO", "LINUX POLLING", p.IfIndex, "Start")
+		for {
+			select {
+			case <-t.C:
+				// TODO get link status from asicd
+				netif, _ := netlink.LinkByName(PortConfigMap[p.IfIndex].Name)
+				netifattr := netif.Attrs()
+				//StpLogger("INFO", fmt.Sprintf("Polling link flags%#v, running=0x%x up=0x%x check1 %t check2 %t", netifattr.Flags, syscall.IFF_RUNNING, syscall.IFF_UP, ((netifattr.Flags>>6)&0x1) == 1, (netifattr.Flags&1) == 1))
+				//if (((netifattr.Flags >> 6) & 0x1) == 1) && (netifattr.Flags&1) == 1 {
+				if (netifattr.Flags & 1) == 1 {
+					//StpLogger("INFO", "LINUX LINK UP")
+					p.NotifyPortEnabled("LINUX LINK STATUS", p.PortEnabled, true)
+					p.PortEnabled = true
+				} else {
+					//StpLogger("INFO", "LINUX LINK DOWN")
+					p.NotifyPortEnabled("LINUX LINK STATUS", p.PortEnabled, false)
+					p.PortEnabled = false
+				}
+				t.Reset(time.Second * 1)
+			}
+		}
+	}(p, PollingTimer)
+}
 func DelStpPort(p *StpPort) {
 	p.Stop()
 	// remove from global port table
@@ -462,6 +512,34 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 	}
 }
 
+func (p *StpPort) SetRxPortCounters(ptype BPDURxType) {
+	p.BpduRx++
+	switch ptype {
+	case BPDURxTypeSTP:
+		p.StpRx++
+	case BPDURxTypeRSTP:
+		p.RstpRx++
+	case BPDURxTypeTopo:
+		p.TcRx++
+	case BPDURxTypePVST:
+		p.PvstRx++
+	}
+}
+
+func (p *StpPort) SetTxPortCounters(ptype BPDURxType) {
+	p.BpduTx++
+	switch ptype {
+	case BPDURxTypeSTP:
+		p.StpTx++
+	case BPDURxTypeRSTP:
+		p.RstpTx++
+	case BPDURxTypeTopo:
+		p.TcTx++
+	case BPDURxTypePVST:
+		p.PvstTx++
+	}
+}
+
 /*
 BPDU info
 ProtocolId        uint16
@@ -537,34 +615,39 @@ func (p *StpPort) BridgeRootPortGet() int32 {
 	return 10
 }
 
-func (p *StpPort) PortEnableSet(src string, val bool) {
+func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenabled bool) {
 	// The following Machines need to know about
 	// changes in PortEnable State
 	// 1) Port Receive
 	// 2) Port Protocol Migration
 	// 3) Port Information
 	// 4) Bridge Detection
-	if p.PortEnabled != val {
+	if oldportenabled != newportenabled {
 		mEvtChan := make([]chan MachineEvent, 0)
 		evt := make([]MachineEvent, 0)
-		p.PortEnabled = val
 
 		// notify the state machines
-		if p.EdgeDelayWhileTimer.count != MigrateTimeDefault && val == false {
+		if p.EdgeDelayWhileTimer.count != MigrateTimeDefault && newportenabled == false {
 			mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
 			evt = append(evt, MachineEvent{e: PrxmEventEdgeDelayWhileNotEqualMigrateTimeAndNotPortEnabled,
 				src: src})
 		}
-		if val == false {
+		if newportenabled == false {
 			mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
 			evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
 				src: src})
-			// TODO need AdminEdge variable
-			// if p.AdminEdge == false {
-			//BdEventNotPortEnabledAndNotAdminEdge
-			//} else {
-			//BdmEventNotPortEnabledAndAdminEdge
-			//}
+
+			if p.AdminEdge == false {
+				//BdEventNotPortEnabledAndNotAdminEdge
+				mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
+				evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndNotAdminEdge,
+					src: src})
+			} else {
+				//BdmEventNotPortEnabledAndAdminEdge
+				mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
+				evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndAdminEdge,
+					src: src})
+			}
 		} else {
 			mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
 			evt = append(evt, MachineEvent{e: PimEventPortEnabled,

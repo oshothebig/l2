@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/op/go-nanomsg"
+	stp "l2/stp/protocol"
 )
 
 const (
@@ -16,11 +17,13 @@ const (
 var AsicdSub *nanomsg.SubSocket
 
 func processLinkDownEvent(linkId int) {
-	fmt.Println("STP: Link Down", linkId)
+	fmt.Println("STP EVT: Link Down", linkId)
+	stp.StpPortLinkDown(int32(linkId))
 }
 
 func processLinkUpEvent(linkId int) {
-	fmt.Println("STP: Link Up", linkId)
+	fmt.Println("STP EVT: Link Up", linkId)
+	stp.StpPortLinkUp(int32(linkId))
 }
 
 func processAsicdEvents(sub *nanomsg.SubSocket) {

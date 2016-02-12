@@ -167,6 +167,10 @@ func NewStpPrtMachine(p *StpPort) *PrtMachine {
 	return prtm
 }
 
+func (prtm *PrtMachine) PrtLogger(s string) {
+	StpMachineLogger("INFO", "PRTM", prtm.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (prtm *PrtMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -180,7 +184,7 @@ func (prtm *PrtMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PrtStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		logger: StpLoggerInfo,
+		logger: prtm.PrtLogger,
 		owner:  PrtMachineModuleStr,
 		ps:     PrtStateNone,
 		s:      PrtStateNone,
@@ -781,7 +785,7 @@ func (p *StpPort) PrtMachineMain() {
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrtStateStrMap[m.Machine.Curr.CurrentState()], event.e))
 				} else {
 					// for faster state transitions
 					m.ProcessPostStateProcessing()

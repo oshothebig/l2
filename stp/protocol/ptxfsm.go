@@ -78,6 +78,10 @@ func NewStpPtxmMachine(p *StpPort) *PtxmMachine {
 	return ptxm
 }
 
+func (ptxm *PtxmMachine) PtxmLogger(s string) {
+	StpMachineLogger("INFO", "PTXM", ptxm.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (ptxm *PtxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -91,7 +95,7 @@ func (ptxm *PtxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PtxmStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		logger: StpLoggerInfo,
+		logger: ptxm.PtxmLogger,
 		owner:  PtxmMachineModuleStr,
 		ps:     PtxmStateNone,
 		s:      PtxmStateNone,

@@ -71,6 +71,10 @@ func NewStpPrsMachine(b *Bridge) *PrsMachine {
 	return prsm
 }
 
+func (prsm *PrsMachine) PrsLogger(s string) {
+	StpMachineLogger("INFO", "PRSM", prsm.b.BrgIfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (prsm *PrsMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -84,7 +88,7 @@ func (prsm *PrsMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PrsStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		logger: StpLoggerInfo,
+		logger: prsm.PrsLogger,
 		owner:  PrsMachineModuleStr,
 		ps:     PrsStateNone,
 		s:      PrsStateNone,
@@ -105,13 +109,13 @@ func (prsm *PrsMachine) Stop() {
 
 }
 
-// PimMachineCheckingRSTP
+// PrsMachineInitBridge
 func (prsm *PrsMachine) PrsMachineInitBridge(m fsm.Machine, data interface{}) fsm.State {
 	prsm.updtRoleDisabledTree()
 	return PrsStateInitBridge
 }
 
-// PpmmMachineSelectingSTP
+// PrsMachineRoleSelection
 func (prsm *PrsMachine) PrsMachineRoleSelection(m fsm.Machine, data interface{}) fsm.State {
 	prsm.clearReselectTree()
 	prsm.updtRolesTree()
@@ -136,7 +140,7 @@ func PrsMachineFSMBuild(b *Bridge) *PrsMachine {
 	rules.AddRule(PrsStateInitBridge, PrsEventUnconditionallFallThrough, prsm.PrsMachineRoleSelection)
 
 	// RESLECT -> ROLE SELECTION
-	rules.AddRule(PrsStateInitBridge, PrsEventReselect, prsm.PrsMachineRoleSelection)
+	rules.AddRule(PrsStateRoleSelection, PrsEventReselect, prsm.PrsMachineRoleSelection)
 
 	// Create a new FSM and apply the rules
 	prsm.Apply(&rules)
@@ -170,7 +174,7 @@ func (b *Bridge) PrsMachineMain() {
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("ERROR", "PRSM", 0, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+					StpMachineLogger("ERROR", "PRSM", 0, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PrsStateStrMap[m.Machine.Curr.CurrentState()]))
 				} else {
 					if m.Machine.Curr.CurrentState() == PrsStateInitBridge {
 						rv := m.Machine.ProcessEvent(PrsMachineModuleStr, PrsEventUnconditionallFallThrough, nil)
@@ -336,6 +340,8 @@ func (prsm *PrsMachine) updtRolesTree() {
 			// 17.21.25 (e)
 			p.DesignatedTimes = b.RootTimes
 			p.DesignatedTimes.HelloTime = b.BridgeTimes.HelloTime
+
+			StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: portEnabled %t, infoIs %d\n", p.PortEnabled, p.InfoIs))
 
 			// Assign the port roles
 			if !p.PortEnabled || p.InfoIs == PortInfoStateDisabled {

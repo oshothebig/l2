@@ -68,6 +68,10 @@ func NewStpBdmMachine(p *StpPort) *BdmMachine {
 	return bdm
 }
 
+func (bdm *BdmMachine) BdmLogger(s string) {
+	StpMachineLogger("INFO", "BDM", bdm.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (bdm *BdmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -81,7 +85,7 @@ func (bdm *BdmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: BdmStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		logger: StpLoggerInfo,
+		logger: bdm.BdmLogger,
 		owner:  BdmMachineModuleStr,
 		ps:     BdmStateNone,
 		s:      BdmStateNone,

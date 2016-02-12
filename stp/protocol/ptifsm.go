@@ -79,6 +79,10 @@ func NewStpPtmMachine(p *StpPort) *PtmMachine {
 	return ptm
 }
 
+func (ptm *PtmMachine) PtmLogger(s string) {
+	StpMachineLogger("INFO", "PTM", ptm.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -92,8 +96,10 @@ func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PtmStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		logger: StpLoggerInfo,
+		logger: ptm.PtmLogger,
 		owner:  PtmMachineModuleStr,
+		ps:     PtmStateNone,
+		s:      PtmStateNone,
 	}
 
 	return ptm.Machine
@@ -180,7 +186,16 @@ func (p *StpPort) PtmMachineMain() {
 
 			case <-m.TickTimer.C:
 
+				m.Tick = true
 				m.Machine.ProcessEvent(PtmMachineModuleStr, PtmEventTickEqualsTrue, nil)
+
+				// post state processing
+				if m.Machine.Curr.CurrentState() == PtmStateOneSecond {
+					m.Machine.ProcessEvent(PtmMachineModuleStr, PtmEventUnconditionalFallthrough, nil)
+
+				}
+				// restart the timer
+				m.TickTimerStart()
 
 			case event := <-m.PtmEvents:
 				m.Machine.ProcessEvent(event.src, event.e, nil)

@@ -99,6 +99,10 @@ func NewStpPimMachine(p *StpPort) *PimMachine {
 	return pim
 }
 
+func (pim *PimMachine) PimLogger(s string) {
+	StpMachineLogger("INFO", "PIM", pim.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -112,7 +116,7 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PimStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		logger: StpLoggerInfo,
+		logger: pim.PimLogger,
 		owner:  PimMachineModuleStr,
 		ps:     PimStateNone,
 		s:      PimStateNone,
@@ -379,6 +383,13 @@ func (p *StpPort) PimMachineMain() {
 					StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
 				} else {
 					// POST events
+					if m.Machine.Curr.CurrentState() == PimStateDisabled &&
+						p.PortEnabled {
+						rv := m.Machine.ProcessEvent(PimMachineModuleStr, PimEventPortEnabled, event.data)
+						if rv != nil {
+							StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualSuperiorDesignatedInfo, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+						}
+					}
 					if m.Machine.Curr.CurrentState() == PimStateReceive &&
 						p.RcvdfInfo == SuperiorDesignatedInfo {
 						rv := m.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualSuperiorDesignatedInfo, event.data)

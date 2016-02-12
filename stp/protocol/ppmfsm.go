@@ -74,6 +74,10 @@ func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 	return ppmm
 }
 
+func (ppm *PpmmMachine) PpmLogger(s string) {
+	StpMachineLogger("INFO", "PPM", ppm.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -87,7 +91,7 @@ func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: PpmmStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		logger: StpLoggerInfo,
+		logger: ppmm.PpmLogger,
 		owner:  PpmmMachineModuleStr,
 		ps:     PpmmStateNone,
 		s:      PpmmStateNone,

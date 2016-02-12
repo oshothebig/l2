@@ -2,6 +2,7 @@
 package stp
 
 import (
+	"fmt"
 	"net"
 	"sync"
 )
@@ -44,6 +45,8 @@ type Bridge struct {
 
 	// bridge ifIndex
 	BrgIfIndex int32
+	// hw stgId
+	StgId int32
 
 	// a way to sync all machines
 	wg sync.WaitGroup
@@ -65,8 +68,11 @@ type Times struct {
 }
 
 func NewStpBridge(c *StpBridgeConfig) *Bridge {
-
-	netAddr, _ := net.ParseMAC(c.Dot1dBridgeAddress)
+	tmpaddr := c.Dot1dBridgeAddress
+	if tmpaddr == "" {
+		tmpaddr = "00:AA:AA:BB:BB:DD"
+	}
+	netAddr, _ := net.ParseMAC(tmpaddr)
 	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
 
 	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriority)
@@ -110,6 +116,10 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 	} else {
 		b.BrgIfIndex = int32(c.Dot1dStpBridgeVlan)
 	}
+
+	StpLogger("INFO", fmt.Sprintf("NEW BRIDGE: %#v\n", b))
+	// lets create the stg group
+	asicdCreateStgBridge([]uint16{b.Vlan})
 	return b
 }
 
@@ -138,6 +148,7 @@ func DelStpBridge(b *Bridge, force bool) {
 				BridgeListTable = nil
 			} else {
 				BridgeListTable = append(BridgeListTable[:i], BridgeListTable[i+1:]...)
+				asicdDeleteStgBridge(b.StgId)
 			}
 		}
 	}
@@ -208,6 +219,18 @@ func CreateBridgeId(bridgeAddress [6]uint8, bridgePriority uint16) BridgeId {
 
 }
 
+func CreateBridgeIdStr(bId BridgeId) string {
+	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+		bId[0],
+		bId[1],
+		bId[2],
+		bId[3],
+		bId[4],
+		bId[5],
+		bId[6],
+		bId[7])
+}
+
 func GetBridgeAddrFromBridgeId(b BridgeId) [6]uint8 {
 	return [6]uint8{
 		b[2],
@@ -217,6 +240,10 @@ func GetBridgeAddrFromBridgeId(b BridgeId) [6]uint8 {
 		b[6],
 		b[7],
 	}
+}
+
+func GetBridgePriorityFromBridgeId(b BridgeId) uint16 {
+	return uint16(b[0]<<8 | b[1])
 }
 
 // Compare BridgeId

@@ -19,6 +19,7 @@ func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
 	go func(portId int32, rx chan gopacket.Packet) {
 		rxMainPort := portId
 		rxMainChan := rx
+		fmt.Println("RxMain START")
 		// TODO add logic to either wait on a socket or wait on a channel,
 		// maybe both?  Can spawn a seperate go thread to wait on a socket
 		// and send the packet to this thread
@@ -31,7 +32,7 @@ func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
 					if packet != nil {
 						//fmt.Println("RxMain: port", rxMainPort)
 						ptype := ValidateBPDUFrame(rxMainPort, packet)
-						//fmt.Println("RX:", packet, ptype)
+						fmt.Println("RX:", packet, ptype)
 						if ptype != BPDURxTypeUnknown {
 
 							ProcessBpduFrame(rxMainPort, ptype, packet)

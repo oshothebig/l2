@@ -88,6 +88,10 @@ func NewStpTcMachine(p *StpPort) *TcMachine {
 	return tcm
 }
 
+func (tcm *TcMachine) TcmLogger(s string) {
+	StpMachineLogger("INFO", "TCM", tcm.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (tcm *TcMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -101,7 +105,7 @@ func (tcm *TcMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 		strStateMap: TcStateStrMap,
 		//logEna:      ptxm.p.logEna,
 		logEna: false,
-		logger: StpLoggerInfo,
+		logger: tcm.TcmLogger,
 		owner:  TcMachineModuleStr,
 		ps:     TcStateNone,
 		s:      TcStateNone,
