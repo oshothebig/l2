@@ -177,7 +177,7 @@ func PrxmMachineFSMBuild(p *StpPort) *PrxmMachine {
 	rules.AddRule(PrxmStateDiscard, PrxmEventRcvdBpduAndPortEnabled, prxm.PrxmMachineReceive)
 
 	// RX BPDU && PORT ENABLED && NOT RCVDMSG
-	rules.AddRule(PrxmStateDiscard, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, prxm.PrxmMachineReceive)
+	rules.AddRule(PrxmStateReceive, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, prxm.PrxmMachineReceive)
 
 	// Create a new FSM and apply the rules
 	prxm.Apply(&rules)
@@ -211,23 +211,57 @@ func (p *StpPort) PrxmMachineMain() {
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], event.e))
 				} else {
 					// for faster state transitions
-					m.ProcessPostStateProcessing()
+					m.ProcessPostStateProcessing(event.data)
 				}
 
 				if event.responseChan != nil {
 					SendResponse(PrxmMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.PrxmRxBpduPkt:
-				//fmt.Println("Event PKT Rx", rx.src, rx.ptype)
-				if p.PortEnabled {
-					m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)
+				fmt.Println("Event PKT Rx", rx.src, rx.ptype, p.PortEnabled)
+				if m.Machine.Curr.CurrentState() == PrxmStateDiscard {
+					if p.PortEnabled {
+						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)
+						if rv != nil {
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+						} else {
+							// for faster state transitions
+							m.ProcessPostStateProcessing(rx)
+						}
+					} else {
+						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndNotPortEnabled, rx)
+						if rv != nil {
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+						} else {
+							// for faster state transitions
+							m.ProcessPostStateProcessing(rx)
+						}
+					}
 				} else {
+					if p.PortEnabled &&
+						!p.RcvdMsg {
+						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, rx)
+						if rv != nil {
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+						} else {
+							// for faster state transitions
+							m.ProcessPostStateProcessing(rx)
+						}
+					} else if !p.PortEnabled {
+						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndNotPortEnabled, rx)
+						if rv != nil {
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+						} else {
+							// for faster state transitions
+							m.ProcessPostStateProcessing(rx)
+						}
+					}
 
-					m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndNotPortEnabled, rx)
 				}
+
 				p.SetRxPortCounters(rx.ptype)
 			case ena := <-m.PrxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
@@ -236,39 +270,39 @@ func (p *StpPort) PrxmMachineMain() {
 	}(prxm)
 }
 
-func (prxm *PrxmMachine) ProcessPostStateDiscard() {
+func (prxm *PrxmMachine) ProcessPostStateDiscard(data interface{}) {
 	p := prxm.p
 	if prxm.Machine.Curr.CurrentState() == PrxmStateDiscard &&
 		p.RcvdBPDU &&
 		p.PortEnabled {
-		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabled, nil)
+		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabled, data)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
-			prxm.ProcessPostStateProcessing()
+			prxm.ProcessPostStateProcessing(data)
 		}
 	}
 }
 
-func (prxm *PrxmMachine) ProcessPostStateReceive() {
+func (prxm *PrxmMachine) ProcessPostStateReceive(data interface{}) {
 	p := prxm.p
 	if prxm.Machine.Curr.CurrentState() == PrxmStateReceive &&
 		p.RcvdBPDU &&
 		p.PortEnabled &&
 		!p.RcvdMsg {
-		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, nil)
+		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, data)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
-			prxm.ProcessPostStateProcessing()
+			prxm.ProcessPostStateProcessing(data)
 		}
 	}
 }
 
-func (prxm *PrxmMachine) ProcessPostStateProcessing() {
+func (prxm *PrxmMachine) ProcessPostStateProcessing(data interface{}) {
 	// post processing
-	prxm.ProcessPostStateDiscard()
-	prxm.ProcessPostStateReceive()
+	prxm.ProcessPostStateDiscard(data)
+	prxm.ProcessPostStateReceive(data)
 }
 
 // UpdtBPDUVersion:  17.21.22

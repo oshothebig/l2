@@ -80,7 +80,7 @@ func NewStpPtmMachine(p *StpPort) *PtmMachine {
 }
 
 func (ptm *PtmMachine) PtmLogger(s string) {
-	StpMachineLogger("INFO", "PTM", ptm.p.IfIndex, s)
+	//StpMachineLogger("INFO", "PTM", ptm.p.IfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -190,7 +190,7 @@ func (p *StpPort) PtmMachineMain() {
 				m.Machine.ProcessEvent(PtmMachineModuleStr, PtmEventTickEqualsTrue, nil)
 
 				// post state processing
-				if m.Machine.Curr.CurrentState() == PtmStateOneSecond {
+				if m.Machine.Curr.CurrentState() == PtmStateTick {
 					m.Machine.ProcessEvent(PtmMachineModuleStr, PtmEventUnconditionalFallthrough, nil)
 
 				}

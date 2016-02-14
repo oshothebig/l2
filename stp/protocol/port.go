@@ -157,22 +157,22 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 
 		enabled = true
 	}
-
+	var RootTimes Times
+	if StpFindBridgeByIfIndex(c.Dot1dStpBridgeIfIndex, &b) {
+		RootTimes = b.RootTimes
+	}
 	p := &StpPort{
-		IfIndex:      c.Dot1dStpPort,
-		PortId:       uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
-		Priority:     c.Dot1dStpPortPriority,
-		PortEnabled:  enabled,
-		PortPathCost: uint32(c.Dot1dStpPortPathCost),
-		DesignatedTimes: Times{
-			// TODO fill in
-			ForwardingDelay: BridgeMaxAgeDefault,    // TOOD
-			HelloTime:       BridgeHelloTimeDefault, // TODO
-			MaxAge:          BridgeMaxAgeDefault,    // TODO
-			MessageAge:      0,                      // TODO
-		},
-		SendRSTP:            true, // default
-		RcvdRSTP:            true, // default
+		IfIndex: c.Dot1dStpPort,
+		// protocol portId
+		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
+		Priority:            c.Dot1dStpPortPriority,
+		PortEnabled:         enabled,
+		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
+		Role:                PortRoleDisabledPort,
+		DesignatedTimes:     RootTimes,
+		PortTimes:           RootTimes,
+		SendRSTP:            true,  // default
+		RcvdRSTP:            false, // default
 		EdgeDelayWhileTimer: PortTimer{count: MigrateTimeDefault},
 		FdWhileTimer:        PortTimer{count: BridgeMaxAgeDefault}, // TODO same as ForwardingDelay above
 		HelloWhenTimer:      PortTimer{count: BridgeHelloTimeDefault},
@@ -184,6 +184,13 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		portChan:            make(chan string),
 		BrgIfIndex:          c.Dot1dStpBridgeIfIndex,
 		AdminEdge:           c.Dot1dStpPortAdminEdgePort,
+		DesignatedPriority: PriorityVector{
+			RootBridgeId:       b.BridgeIdentifier,
+			RootPathCost:       0,
+			DesignatedBridgeId: b.BridgeIdentifier,
+			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)) | c.Dot1dStpPortPriority<<8),
+		},
+		b: b, // reference to brige
 	}
 
 	if c.Dot1dStpPortAdminPathCost == 0 {
@@ -202,10 +209,6 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		}
 		speed := PortConfigMap[p.IfIndex].Speed
 		p.PortPathCost = AutoPathCostDefaultMap[speed]
-	}
-
-	if StpFindBridgeByIfIndex(p.BrgIfIndex, &b) {
-		p.b = b
 	}
 
 	PortMapTable[p.IfIndex] = p
@@ -253,12 +256,16 @@ func (p *StpPort) PollLinuxLinkStatus() {
 				//if (((netifattr.Flags >> 6) & 0x1) == 1) && (netifattr.Flags&1) == 1 {
 				if (netifattr.Flags & 1) == 1 {
 					//StpLogger("INFO", "LINUX LINK UP")
-					p.NotifyPortEnabled("LINUX LINK STATUS", p.PortEnabled, true)
+					prevPortEnabled := p.PortEnabled
 					p.PortEnabled = true
+					p.NotifyPortEnabled("LINUX LINK STATUS", prevPortEnabled, true)
+
 				} else {
 					//StpLogger("INFO", "LINUX LINK DOWN")
-					p.NotifyPortEnabled("LINUX LINK STATUS", p.PortEnabled, false)
+					prevPortEnabled := p.PortEnabled
 					p.PortEnabled = false
+					p.NotifyPortEnabled("LINUX LINK STATUS", prevPortEnabled, false)
+
 				}
 				t.Reset(time.Second * 1)
 			}
@@ -1208,6 +1215,9 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 	// 2) Port Role Transitions
 	// 3) Port Transmit
 	if oldselected != newselected {
+		StpMachineLogger("INFO", src, p.IfIndex, fmt.Sprintf("NotifySelectedChanged Role[%d] SelectedRole[%d] Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+			p.Role, p.SelectedRole, p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
+
 		// PI
 		if p.Selected {
 			if src != PimMachineModuleStr &&
@@ -1259,6 +1269,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 			}
 			if src != PrtMachineModuleStr &&
 				!p.UpdtInfo {
+
 				if p.SelectedRole == PortRoleDisabledPort &&
 					p.Role != p.SelectedRole {
 					p.PrtMachineFsm.PrtEvents <- MachineEvent{
@@ -1795,6 +1806,7 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole, newselectedrole PortRole) {
 
 	if oldselectedrole != newselectedrole {
+		StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
 		if p.Role != p.SelectedRole {
 			if p.SelectedRole == PortRoleDisabledPort {
 				p.PrtMachineFsm.PrtEvents <- MachineEvent{

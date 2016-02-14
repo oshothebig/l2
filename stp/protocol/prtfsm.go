@@ -969,6 +969,8 @@ func (prtm *PrtMachine) NotifyNewInfoChanged(oldnewinfo bool, newnewinfo bool) {
 func (prtm *PrtMachine) ProcessPostStateInitPort() {
 	p := prtm.p
 	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateInitPort {
+		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateInitPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+			p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
@@ -1166,7 +1168,7 @@ func (prtm *PrtMachine) ProcessPostStateRootPort() {
 func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 	p := prtm.p
 	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDesignatedPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDesignatedPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Synced[%t] Sync[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 			p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if !p.Forwarding &&
 			!p.Agreed &&
@@ -1177,6 +1179,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if !p.Learning &&
 			!p.Forwarding &&
@@ -1186,6 +1190,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.Agreed &&
 			!p.Synced &&
@@ -1194,6 +1200,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.OperEdge &&
 			!p.Synced &&
@@ -1202,6 +1210,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.Sync &&
 			p.Synced &&
@@ -1210,14 +1220,18 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.RrWhileTimer.count == 0 &&
 			p.ReRoot &&
 			p.Selected &&
 			!p.UpdtInfo {
-			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo, nil)
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventRrWhileEqualZeroAndReRootAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.Sync &&
 			!p.Synced &&
@@ -1228,6 +1242,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.Sync &&
 			!p.Synced &&
@@ -1238,6 +1254,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.ReRoot &&
 			p.RrWhileTimer.count != 0 &&
@@ -1248,6 +1266,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.ReRoot &&
 			p.RrWhileTimer.count != 0 &&
@@ -1258,6 +1278,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.Disputed &&
 			!p.OperEdge &&
@@ -1267,6 +1289,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.Disputed &&
 			!p.OperEdge &&
@@ -1276,6 +1300,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.FdWhileTimer.count == 0 &&
 			p.RrWhileTimer.count == 0 &&
@@ -1286,6 +1312,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.FdWhileTimer.count == 0 &&
 			!p.ReRoot &&
@@ -1296,6 +1324,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.Agreed &&
 			p.RrWhileTimer.count == 0 &&
@@ -1306,6 +1336,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.Agreed &&
 			!p.ReRoot &&
@@ -1316,6 +1348,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.OperEdge &&
 			p.RrWhileTimer.count == 0 &&
@@ -1326,6 +1360,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.OperEdge &&
 			!p.ReRoot &&
@@ -1336,6 +1372,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventOperEdgeAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.FdWhileTimer.count == 0 &&
 			p.RrWhileTimer.count == 0 &&
@@ -1347,6 +1385,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.FdWhileTimer.count == 0 &&
 			!p.ReRoot &&
@@ -1358,6 +1398,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.Agreed &&
 			p.RrWhileTimer.count == 0 &&
@@ -1369,6 +1411,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.Agreed &&
 			!p.ReRoot &&
@@ -1380,6 +1424,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventAgreedAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.OperEdge &&
 			p.RrWhileTimer.count == 0 &&
@@ -1391,6 +1437,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		} else if p.OperEdge &&
 			!p.ReRoot &&
@@ -1402,6 +1450,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventOperEdgeAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		}
 	}
@@ -1413,6 +1463,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPropose() {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			prtm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -1422,6 +1474,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedSynced() {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			prtm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -1431,6 +1485,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedRetired() {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			prtm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -1440,6 +1496,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedForward() {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			prtm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -1449,6 +1507,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedLearn() {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			prtm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -1458,6 +1518,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedDiscard() {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			prtm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -1472,6 +1534,8 @@ func (prtm *PrtMachine) ProcessingPostStateBlockedPort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		}
 	}
@@ -1483,6 +1547,8 @@ func (prtm *PrtMachine) ProcessingPostStateAlternateProposed() {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			prtm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -1493,6 +1559,8 @@ func (prtm *PrtMachine) ProcessingPostStateAlternateAgreed() {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			prtm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -1503,6 +1571,8 @@ func (prtm *PrtMachine) ProcessingPostStateBackupPort() {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			prtm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -1517,59 +1587,140 @@ func (prtm *PrtMachine) ProcessingPostStateAlternatePort() {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
+		} else if p.b.AllSynced() &&
+			!p.Agree &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
+		} else if p.Proposed &&
+			p.Agree &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
+		} else if p.FdWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
+		} else if p.Sync &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventSyncAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
+		} else if p.ReRoot &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventReRootAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
+		} else if !p.Synced &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotSyncedAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
+		} else if p.RbWhileTimer.count != int32(2*p.DesignatedTimes.HelloTime) &&
+			p.Role == PortRoleBackupPort &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		}
-	} else if p.b.AllSynced() &&
-		!p.Agree &&
-		p.Selected &&
-		!p.UpdtInfo {
-		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo, nil)
-		if rv != nil {
-			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+	}
+}
+
+func (prtm *PrtMachine) ProcessingPostStateDisable() {
+	p := prtm.p
+	if prtm.Machine.Curr.CurrentState() == PrtStateDisablePort {
+		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDisablePort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+			p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
+
+		if !p.Learning &&
+			!p.Forwarding &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
 		}
-	} else if p.Proposed &&
-		p.Agree &&
-		p.Selected &&
-		!p.UpdtInfo {
-		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo, nil)
-		if rv != nil {
-			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
-		}
-	} else if p.FdWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) &&
-		p.Selected &&
-		!p.UpdtInfo {
-		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo, nil)
-		if rv != nil {
-			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
-		}
-	} else if p.Sync &&
-		p.Selected &&
-		!p.UpdtInfo {
-		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventSyncAndSelectedAndNotUpdtInfo, nil)
-		if rv != nil {
-			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
-		}
-	} else if p.ReRoot &&
-		p.Selected &&
-		!p.UpdtInfo {
-		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventReRootAndSelectedAndNotUpdtInfo, nil)
-		if rv != nil {
-			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
-		}
-	} else if !p.Synced &&
-		p.Selected &&
-		!p.UpdtInfo {
-		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotSyncedAndSelectedAndNotUpdtInfo, nil)
-		if rv != nil {
-			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
-		}
-	} else if p.RbWhileTimer.count != int32(2*p.DesignatedTimes.HelloTime) &&
-		p.Role == PortRoleBackupPort &&
-		p.Selected &&
-		!p.UpdtInfo {
-		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo, nil)
-		if rv != nil {
-			StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+	}
+}
+
+func (prtm *PrtMachine) ProcessingPostStateDisabled() {
+	p := prtm.p
+	if prtm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
+		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDisabledPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+			p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
+		if p.FdWhileTimer.count != int32(p.DesignatedTimes.MaxAge) &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
+		} else if p.Sync &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventSyncAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
+		} else if p.ReRoot &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventReRootAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
+		} else if !p.Synced &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotSyncedAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				prtm.ProcessPostStateProcessing()
+			}
 		}
 	}
 }
@@ -1577,6 +1728,8 @@ func (prtm *PrtMachine) ProcessingPostStateAlternatePort() {
 func (prtm *PrtMachine) ProcessPostStateProcessing() {
 	// Disabled states
 	prtm.ProcessPostStateInitPort()
+	prtm.ProcessingPostStateDisable()
+	prtm.ProcessingPostStateDisabled()
 	// Root states
 	prtm.ProcessPostStateRootPort()
 	prtm.ProcessingPostStateRootProposed()

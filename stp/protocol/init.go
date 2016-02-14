@@ -23,7 +23,8 @@ func init() {
 	PpmmMachineStrStateMapInit()
 	TcMachineStrStateMapInit()
 	PtxmMachineStrStateMapInit()
+	PstMachineStrStateMapInit()
 
 	// create the logger used by this module
-	gLogger, _ = syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "STP")
+	gLogger, _ = syslog.New(syslog.LOG_NOTICE|syslog.LOG_INFO|syslog.LOG_DAEMON, "STP")
 }

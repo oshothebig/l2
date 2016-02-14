@@ -449,7 +449,7 @@ func (pim *PimMachine) ProcessPostStateProcessing() {
 
 func (pim *PimMachine) NotifyReselectChanged(oldreselect bool, newreselect bool) {
 	p := pim.p
-	if oldreselect != newreselect {
+	if newreselect {
 		if p.b.PrsMachineFsm.Machine.Curr.CurrentState() == PrsStateRoleSelection {
 			p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
 				e:   PrsEventReselect,

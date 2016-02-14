@@ -188,7 +188,7 @@ func (p *StpPort) PstMachineMain() {
 
 	// lets create a go routing which will wait for the specific events
 	go func(m *PstMachine) {
-		StpMachineLogger("INFO", "PRTM", p.IfIndex, "Machine Start")
+		StpMachineLogger("INFO", "PSTM", p.IfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {

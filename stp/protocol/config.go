@@ -61,7 +61,7 @@ func StpPortCreate(c *StpPortConfig) {
 		p := NewStpPort(c)
 		// nothing should happen until a birdge is assigned to the port
 		if StpFindBridgeByIfIndex(p.BrgIfIndex, &b) {
-			p.BEGIN(false)
+			StpPortAddToBridge(p.IfIndex, p.BrgIfIndex)
 		}
 	}
 }
@@ -71,6 +71,7 @@ func StpPortAddToBridge(pId int32, brgifindex int32) {
 	var b *Bridge
 	if StpFindPortById(pId, &p) && StpFindBridgeByIfIndex(brgifindex, &b) {
 		p.BridgeId = b.BridgeIdentifier
+		b.StpPorts = append(b.StpPorts, pId)
 		p.BEGIN(false)
 	} else {
 		StpLogger("ERROR", fmt.Sprintf("ERROR did not find bridge[%#v] or port[%d]", brgifindex, pId))
@@ -80,7 +81,7 @@ func StpPortAddToBridge(pId int32, brgifindex int32) {
 func StpPortLinkUp(pId int32) {
 	var p *StpPort
 	if StpFindPortById(pId, &p) {
-		p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, true)
+		defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, true)
 		p.PortEnabled = true
 	}
 }
@@ -88,7 +89,7 @@ func StpPortLinkUp(pId int32) {
 func StpPortLinkDown(pId int32) {
 	var p *StpPort
 	if StpFindPortById(pId, &p) {
-		p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, false)
+		defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, false)
 		p.PortEnabled = false
 	}
 

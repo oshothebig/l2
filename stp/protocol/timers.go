@@ -2,6 +2,7 @@
 package stp
 
 import (
+	//"fmt"
 	"time"
 )
 
@@ -61,8 +62,22 @@ func (p *StpPort) ResetTimerCounters(counterType TimerType) {
 }
 
 func (p *StpPort) DecrementTimerCounters() {
+	/*StpMachineLogger("INFO", "PTIM", p.IfIndex, fmt.Sprintf("EdgeDelayWhile[%d] FdWhileTimer[%d] HelloWhen[%d] MdelayWhile[%d] RbWhile[%d] RcvdInfoWhile[%d] RrWhile[%d] TcWhile[%d]",
+	p.EdgeDelayWhileTimer.count,
+	p.FdWhileTimer.count,
+	p.HelloWhenTimer.count,
+	p.MdelayWhiletimer.count,
+	p.RbWhileTimer.count,
+	p.RcvdInfoWhiletimer.count,
+	p.RrWhileTimer.count,
+	p.TcWhileTimer.count))*/
+	// 17.19.44
+	if p.TxCount > 0 {
+		p.TxCount--
+	}
+
 	// ed owner
-	if p.EdgeDelayWhileTimer.count != 0 {
+	if p.EdgeDelayWhileTimer.count > 0 {
 		p.EdgeDelayWhileTimer.count--
 	}
 	if p.EdgeDelayWhileTimer.count == 0 {
@@ -70,7 +85,7 @@ func (p *StpPort) DecrementTimerCounters() {
 	}
 
 	// Prt owner
-	if p.FdWhileTimer.count != 0 {
+	if p.FdWhileTimer.count > 0 {
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort &&
 			uint16(p.FdWhileTimer.count) == p.DesignatedTimes.MaxAge &&
 			p.Selected &&
@@ -86,7 +101,7 @@ func (p *StpPort) DecrementTimerCounters() {
 		defer p.NotifyFdWhileTimerExpired()
 	}
 	// ptx owner
-	if p.HelloWhenTimer.count != 0 {
+	if p.HelloWhenTimer.count > 0 {
 		p.HelloWhenTimer.count--
 	}
 	if p.HelloWhenTimer.count == 0 {
@@ -94,14 +109,14 @@ func (p *StpPort) DecrementTimerCounters() {
 	}
 
 	// ppm owner
-	if p.MdelayWhiletimer.count != 0 {
+	if p.MdelayWhiletimer.count > 0 {
 		p.MdelayWhiletimer.count--
 	}
 	if p.MdelayWhiletimer.count == 0 {
 		defer p.NotifyMdelayWhileTimerExpired()
 	}
 	// prt owner
-	if p.RbWhileTimer.count != 0 {
+	if p.RbWhileTimer.count > 0 {
 		// this case should reset the rbwhiletimer
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort &&
 			p.Role == PortRoleBackupPort &&
@@ -118,14 +133,14 @@ func (p *StpPort) DecrementTimerCounters() {
 		defer p.NotifyRbWhileTimerExpired()
 	}
 	// pi owner
-	if p.RcvdInfoWhiletimer.count != 0 {
+	if p.RcvdInfoWhiletimer.count > 0 {
 		p.RcvdInfoWhiletimer.count--
 	}
 	if p.RcvdInfoWhiletimer.count == 0 {
 		defer p.NotifyRcvdInfoWhileTimerExpired()
 	}
 	// prt owner
-	if p.RrWhileTimer.count != 0 {
+	if p.RrWhileTimer.count > 0 {
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
 			if p.Selected &&
 				!p.UpdtInfo {
@@ -164,7 +179,7 @@ func (p *StpPort) DecrementTimerCounters() {
 		defer p.NotifyRrWhileTimerExpired()
 	}
 	// tc owner
-	if p.TcWhileTimer.count != 0 {
+	if p.TcWhileTimer.count > 0 {
 		p.TcWhileTimer.count--
 	}
 	if p.TcWhileTimer.count == 0 {
@@ -254,10 +269,10 @@ func (p *StpPort) NotifyFdWhileTimerExpired() {
 
 func (p *StpPort) NotifyHelloWhenTimerExpired() {
 
-	if p.PtmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
+	if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
 		if p.Selected &&
 			!p.UpdtInfo {
-			p.PtmMachineFsm.PtmEvents <- MachineEvent{
+			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 				e:   PtxmEventHelloWhenEqualsZeroAndSelectedAndNotUpdtInfo,
 				src: PtxmMachineModuleStr,
 			}
