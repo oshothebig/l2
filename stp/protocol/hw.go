@@ -12,6 +12,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 	"utils/ipcutils"
 )
 
@@ -63,15 +64,21 @@ func ConnectToClients(paramsFile string) {
 	port := GetClientPort(paramsFile, "asicd")
 	if port != 0 {
 
-		asicdclnt.Address = "localhost:" + strconv.Itoa(port)
-		asicdclnt.Transport, asicdclnt.PtrProtocolFactory, _ = ipcutils.CreateIPCHandles(asicdclnt.Address)
-		StpLogger("INFO", fmt.Sprintf("found asicd at port %d Transport %#v PrtProtocolFactory %#v\n", port, asicdclnt.Transport, asicdclnt.PtrProtocolFactory))
-		if asicdclnt.Transport != nil && asicdclnt.PtrProtocolFactory != nil {
-			StpLogger("INFO", "connecting to asicd\n")
-			asicdclnt.ClientHdl = asicdServices.NewASICDServicesClientFactory(asicdclnt.Transport, asicdclnt.PtrProtocolFactory)
-			asicdclnt.IsConnected = true
-			// lets gather all info needed from asicd such as the port
-			ConstructPortConfigMap()
+		for {
+			asicdclnt.Address = "localhost:" + strconv.Itoa(port)
+			asicdclnt.Transport, asicdclnt.PtrProtocolFactory, _ = ipcutils.CreateIPCHandles(asicdclnt.Address)
+			//StpLogger("INFO", fmt.Sprintf("found asicd at port %d Transport %#v PrtProtocolFactory %#v\n", port, asicdclnt.Transport, asicdclnt.PtrProtocolFactory))
+			if asicdclnt.Transport != nil && asicdclnt.PtrProtocolFactory != nil {
+				StpLogger("INFO", "connecting to asicd\n")
+				asicdclnt.ClientHdl = asicdServices.NewASICDServicesClientFactory(asicdclnt.Transport, asicdclnt.PtrProtocolFactory)
+				asicdclnt.IsConnected = true
+				// lets gather all info needed from asicd such as the port
+				ConstructPortConfigMap()
+				break
+			} else {
+				StpLogger("WARNING", "Unable to connect to ASICD, retrying in 500ms")
+				time.Sleep(time.Millisecond * 500)
+			}
 		}
 	}
 }
