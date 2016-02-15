@@ -66,7 +66,7 @@ func ConnectToClients(paramsFile string) {
 		asicdclnt.Address = "localhost:" + strconv.Itoa(port)
 		asicdclnt.Transport, asicdclnt.PtrProtocolFactory, _ = ipcutils.CreateIPCHandles(asicdclnt.Address)
 		if asicdclnt.Transport != nil && asicdclnt.PtrProtocolFactory != nil {
-			fmt.Println("connecting to asicd\n")
+			StpLogger("INFO", "connecting to asicd\n")
 			asicdclnt.ClientHdl = asicdServices.NewASICDServicesClientFactory(asicdclnt.Transport, asicdclnt.PtrProtocolFactory)
 			asicdclnt.IsConnected = true
 			// lets gather all info needed from asicd such as the port
