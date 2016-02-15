@@ -405,7 +405,7 @@ func TestRxValidStpPacket(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -483,7 +483,7 @@ func TestRxValidRStpPacket(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -562,7 +562,7 @@ func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -640,7 +640,7 @@ func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -719,7 +719,7 @@ func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -798,7 +798,7 @@ func TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -868,7 +868,7 @@ func TestRxValidTopoChange(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 

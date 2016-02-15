@@ -173,7 +173,7 @@ func TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -262,7 +262,7 @@ func TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -351,7 +351,7 @@ func TestTxHelloWhenEqualZeroTransmitTCN(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}

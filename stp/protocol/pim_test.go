@@ -36,7 +36,7 @@ func UsedForTestOnlyPimInitPortConfigTest() {
 	*/
 }
 
-func UsedForTestOnlyPimTestSetup(t *testing.T) (p *StpPort) {
+func UsedForTestOnlyPimTestSetup(t *testing.T, enable bool) (p *StpPort) {
 	UsedForTestOnlyPimInitPortConfigTest()
 
 	bridgeconfig := &StpBridgeConfig{
@@ -59,11 +59,11 @@ func UsedForTestOnlyPimTestSetup(t *testing.T) (p *StpPort) {
 	stpconfig := &StpPortConfig{
 		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
 		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
+		Dot1dStpPortEnable:            enable,
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -88,14 +88,29 @@ func UsedForTestOnlyPimTestSetup(t *testing.T) (p *StpPort) {
 	PpmmMachineFSMBuild(p)
 	PrtMachineFSMBuild(p)
 
-	if p.PimMachineFsm.Machine.Curr.PreviousState() != PimStateNone {
-		t.Error("Failed to Initial Port Information machine state not set correctly", p.PpmmMachineFsm.Machine.Curr.PreviousState())
-		t.FailNow()
-	}
+	if enable {
+		// previous state is this because we default to enable
+		if p.PimMachineFsm.Machine.Curr.PreviousState() != PimStateDisabled {
+			t.Error("Failed to Initial Port Information machine state not set correctly", p.PpmmMachineFsm.Machine.Curr.PreviousState())
+			t.FailNow()
+		}
 
-	if p.PimMachineFsm.Machine.Curr.CurrentState() != PimStateDisabled {
-		t.Error("Failed to Initial Port Information machine state not set correctly", p.PpmmMachineFsm.Machine.Curr.CurrentState())
-		t.FailNow()
+		if p.PimMachineFsm.Machine.Curr.CurrentState() != PimStateAged {
+			t.Error("Failed to Initial Port Information machine state not set correctly", p.PpmmMachineFsm.Machine.Curr.CurrentState())
+			t.FailNow()
+		}
+	} else {
+		// previous state is this because we default to enable
+		if p.PimMachineFsm.Machine.Curr.PreviousState() != PimStateNone {
+			t.Error("Failed to Initial Port Information machine state not set correctly", p.PpmmMachineFsm.Machine.Curr.PreviousState())
+			t.FailNow()
+		}
+
+		if p.PimMachineFsm.Machine.Curr.CurrentState() != PimStateDisabled {
+			t.Error("Failed to Initial Port Information machine state not set correctly", p.PpmmMachineFsm.Machine.Curr.CurrentState())
+			t.FailNow()
+		}
+
 	}
 
 	return p
@@ -241,7 +256,7 @@ func UsedForTestOnlyPimCheckAgedState(p *StpPort, t *testing.T) {
 
 func UsedForTestOnlyPimStartInAgedState(t *testing.T) *StpPort {
 	testChan := make(chan string)
-	p := UsedForTestOnlyPimTestSetup(t)
+	p := UsedForTestOnlyPimTestSetup(t, false)
 
 	p.PortEnabled = true
 
@@ -611,7 +626,7 @@ func UsedForTestOnlyPimCheckSuperiorDesignatedState(p *StpPort, t *testing.T) {
 
 func TestPimBEGIN(t *testing.T) {
 	// NOTE setup starts with BEGIN
-	p := UsedForTestOnlyPimTestSetup(t)
+	p := UsedForTestOnlyPimTestSetup(t, false)
 
 	UsedForTestOnlyPimCheckDisabled(p, t)
 	UsedForTestOnlyPimTestTeardown(p, t)
@@ -619,7 +634,7 @@ func TestPimBEGIN(t *testing.T) {
 
 func TestPimDisabledStateInvalidStateTransitions(t *testing.T) {
 	testChan := make(chan string)
-	p := UsedForTestOnlyPimTestSetup(t)
+	p := UsedForTestOnlyPimTestSetup(t, false)
 
 	invalidStateMap := [9]fsm.Event{
 		PimEventRcvdMsgAndNotUpdtInfo,
@@ -659,7 +674,7 @@ func TestPimDisabledStateInvalidStateTransitions(t *testing.T) {
 
 func TestPimDisabledStateRcvdMsg(t *testing.T) {
 	testChan := make(chan string)
-	p := UsedForTestOnlyPimTestSetup(t)
+	p := UsedForTestOnlyPimTestSetup(t, false)
 
 	p.PimMachineFsm.PimEvents <- MachineEvent{
 		e:            PimEventRcvdMsg,
@@ -680,7 +695,7 @@ func TestPimDisabledStateRcvdMsg(t *testing.T) {
 func TestPimDisabledStateNotPortEnabledandInfoIsNotDisabled(t *testing.T) {
 	testChan := make(chan string)
 
-	p := UsedForTestOnlyPimTestSetup(t)
+	p := UsedForTestOnlyPimTestSetup(t, false)
 
 	p.PimMachineFsm.PimEvents <- MachineEvent{
 		e:            PimEventNotPortEnabledInfoIsNotEqualDisabled,
@@ -700,7 +715,7 @@ func TestPimDisabledStateNotPortEnabledandInfoIsNotDisabled(t *testing.T) {
 
 func TestPimDisabledStatePortEnabled(t *testing.T) {
 	testChan := make(chan string)
-	p := UsedForTestOnlyPimTestSetup(t)
+	p := UsedForTestOnlyPimTestSetup(t, false)
 
 	p.PimMachineFsm.PimEvents <- MachineEvent{
 		e:            PimEventPortEnabled,
@@ -757,6 +772,7 @@ func TestPimAgedStateSelectedAndUpdtInfo(t *testing.T) {
 	testChan := make(chan string)
 
 	p := UsedForTestOnlyPimStartInAgedState(t)
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDisabledPort)
 	p.Selected = true
 	p.UpdtInfo = true
 	p.PimMachineFsm.PimEvents <- MachineEvent{
@@ -1048,9 +1064,9 @@ func TestPimCurrentStateSelectedAndUpdtInfo(t *testing.T) {
 	p := UsedForTestOnlyPimStartInCurrentState(t)
 
 	p.Selected = true
-	p.UpdtInfo = false
-
-	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+	p.UpdtInfo = true
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDisabledPort)
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventSelectedAndUpdtInfo,
 		src:          "TEST",
 		responseChan: testChan,
 	}

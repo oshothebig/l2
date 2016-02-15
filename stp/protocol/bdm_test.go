@@ -123,7 +123,7 @@ func TestBdmMachineBEGINAdminEdge(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -150,7 +150,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_1(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -208,7 +208,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_2(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -269,7 +269,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_3(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -330,7 +330,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_4(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -392,7 +392,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_5(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -454,7 +454,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_6(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -517,7 +517,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_7(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -581,7 +581,7 @@ func TestBdmMachineNotOperEdge_1(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -638,7 +638,7 @@ func TestBdmMachineNotOperEdge_2(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -695,7 +695,7 @@ func TestBdmMachineNotOperEdge_3(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -752,7 +752,7 @@ func TestBdmMachineNotOperEdge_4(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -810,7 +810,7 @@ func TestBdmMachineNotOperEdge_5(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -868,7 +868,7 @@ func TestBdmMachineNotOperEdge_6(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -927,7 +927,7 @@ func TestBdmMachineNotOperEdge_7(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     1,
+		Dot1dStpPortAdminEdgePort:     true,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -986,7 +986,7 @@ func TestBdmMachineBEGINAndNotAdminEdge(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -1013,7 +1013,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_1(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -1069,7 +1069,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_2(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -1128,7 +1128,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_3(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -1185,7 +1185,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_4(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -1244,7 +1244,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_5(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -1302,7 +1302,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_1(t
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -1362,7 +1362,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_2(t
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -1425,7 +1425,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_3(t
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -1486,7 +1486,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_4(t
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -1549,7 +1549,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_5(t
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 

@@ -148,15 +148,26 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		BridgeForwardDelayDefault = 15
 		TransmitHoldCountDefault = 6
 	*/
-	enabled := false
-	// TODO get the status from asicd
-	netif, _ := netlink.LinkByName(PortConfigMap[c.Dot1dStpPort].Name)
-	netifattr := netif.Attrs()
-	//if netifattr.Flags&syscall.IFF_RUNNING == syscall.IFF_RUNNING {
-	if (netifattr.Flags & 1) == 1 {
+	enabled := c.Dot1dStpPortEnable
+	if enabled {
+		// TODO get the status from asicd
+		netif, err := netlink.LinkByName(PortConfigMap[c.Dot1dStpPort].Name)
+		StpLogger("INFO", fmt.Sprintf("LinkByName err %#v", err))
 
-		enabled = true
+		if err == nil {
+			netifattr := netif.Attrs()
+			//if netifattr.Flags&syscall.IFF_RUNNING == syscall.IFF_RUNNING {
+			if (netifattr.Flags & 1) == 1 {
+				enabled = true
+			}
+		}
+	} else {
+		// in the case of tests we may not find the actual link so lets force
+		// enabled to configured value
+		StpLogger("INFO", fmt.Sprintf("Did not find port, forcing enabled to %t", c.Dot1dStpPortEnable))
+		enabled = c.Dot1dStpPortEnable
 	}
+
 	var RootTimes Times
 	if StpFindBridgeByIfIndex(c.Dot1dStpBridgeIfIndex, &b) {
 		RootTimes = b.RootTimes
@@ -732,6 +743,7 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 	// 2) Port Role Transitions
 	// 3) Port Transmit
 	if oldupdtinfo != newupdtinfo {
+		StpMachineLogger("INFO", src, p.IfIndex, fmt.Sprintf("updateinfo changed %d", newupdtinfo))
 		// PI
 		if p.UpdtInfo {
 			if src != PimMachineModuleStr &&

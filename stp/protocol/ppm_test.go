@@ -193,7 +193,7 @@ func TestPpmmBEGIN(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -246,7 +246,7 @@ func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -330,7 +330,7 @@ func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testin
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -387,7 +387,7 @@ func TestPpmCheckingRSTP(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 	}
 
@@ -485,7 +485,7 @@ func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -561,7 +561,7 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -637,7 +637,7 @@ func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -702,7 +702,7 @@ func TestPpmSelectingSTPMcheck(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -789,7 +789,7 @@ func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -866,7 +866,7 @@ func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -944,7 +944,7 @@ func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -1061,7 +1061,7 @@ func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
@@ -1179,7 +1179,7 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 		Dot1dStpPortPathCost:          1,
 		Dot1dStpPortProtocolMigration: 0,
 		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     0,
+		Dot1dStpPortAdminEdgePort:     false,
 		Dot1dStpPortAdminPathCost:     0,
 		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
