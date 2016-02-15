@@ -44,9 +44,9 @@ func main() {
 		// lets replay any config that is in the db
 		handler.ReadConfigFromDB(path)
 
-		fmt.Println("Starting STP Thrift daemon")
+		stp.StpLogger("INFO", "Starting STP Thrift daemon")
 		err = server.Serve()
-		fmt.Println("ERROR server not started")
+		stp.StpLogger("ERROR", "ERROR server not started")
 		panic(err)
 	}
 }

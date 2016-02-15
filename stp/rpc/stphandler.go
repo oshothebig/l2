@@ -117,15 +117,15 @@ func GetPortState(p *stp.StpPort) (state int32) {
 func (s *STPDServiceHandler) CreateDot1dStpBridgeConfig(config *stpd.Dot1dStpBridgeConfig) (bool, error) {
 
 	brgconfig := &stp.StpBridgeConfig{}
-	fmt.Println("CreateDot1dStpBridgeConfig (server): created ")
-	fmt.Println("addr:", config.Dot1dBridgeAddress)
-	fmt.Println("prio:", config.Dot1dStpPriority)
-	fmt.Println("vlan:", config.Dot1dStpVlan)
-	fmt.Println("age:", config.Dot1dStpBridgeMaxAge)
-	fmt.Println("hello:", config.Dot1dStpBridgeHelloTime)        // int32
-	fmt.Println("fwddelay:", config.Dot1dStpBridgeForwardDelay)  // int32
-	fmt.Println("version:", config.Dot1dStpBridgeForceVersion)   // int32
-	fmt.Println("txHoldCount", config.Dot1dStpBridgeTxHoldCount) //
+	stp.StpLogger("INFO", "CreateDot1dStpBridgeConfig (server): created ")
+	stp.StpLogger("INFO", fmt.Sprintf("addr:", config.Dot1dBridgeAddress))
+	stp.StpLogger("INFO", fmt.Sprintf("prio:", config.Dot1dStpPriority))
+	stp.StpLogger("INFO", fmt.Sprintf("vlan:", config.Dot1dStpVlan))
+	stp.StpLogger("INFO", fmt.Sprintf("age:", config.Dot1dStpBridgeMaxAge))
+	stp.StpLogger("INFO", fmt.Sprintf("hello:", config.Dot1dStpBridgeHelloTime))        // int32
+	stp.StpLogger("INFO", fmt.Sprintf("fwddelay:", config.Dot1dStpBridgeForwardDelay))  // int32
+	stp.StpLogger("INFO", fmt.Sprintf("version:", config.Dot1dStpBridgeForceVersion))   // int32
+	stp.StpLogger("INFO", fmt.Sprintf("txHoldCount", config.Dot1dStpBridgeTxHoldCount)) //
 
 	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
 
@@ -137,7 +137,7 @@ func (s *STPDServiceHandler) HandleDbReadDot1dStpBridgeConfig(dbHdl *sql.DB) err
 	dbCmd := "select * from Dot1dStpBridgeConfig"
 	rows, err := dbHdl.Query(dbCmd)
 	if err != nil {
-		fmt.Println(fmt.Sprintf("DB method Query failed for 'Dot1dStpBridgeConfig' with error", dbCmd, err))
+		stp.StpLogger("ERROR", fmt.Sprintf("DB method Query failed for 'Dot1dStpBridgeConfig' with error", dbCmd, err))
 		return err
 	}
 
@@ -154,7 +154,7 @@ func (s *STPDServiceHandler) HandleDbReadDot1dStpBridgeConfig(dbHdl *sql.DB) err
 			&object.Dot1dStpBridgeForwardDelay,
 			&object.Dot1dStpBridgeForceVersion,
 			&object.Dot1dStpBridgeTxHoldCount); err != nil {
-			fmt.Println("Db method Scan failed when interating over Dot1dStpBridgeConfig")
+			stp.StpLogger("ERROR", "Db method Scan failed when interating over Dot1dStpBridgeConfig")
 			return err
 		}
 		_, err = s.CreateDot1dStpBridgeConfig(object)
@@ -169,7 +169,7 @@ func (s *STPDServiceHandler) HandleDbReadDot1dStpPortEntryConfig(dbHdl *sql.DB) 
 	dbCmd := "select * from Dot1dStpPortEntryConfig"
 	rows, err := dbHdl.Query(dbCmd)
 	if err != nil {
-		fmt.Println(fmt.Sprintf("DB method Query failed for 'Dot1dStpBridgeConfig' with error", dbCmd, err))
+		stp.StpLogger("ERROR", fmt.Sprintf("DB method Query failed for 'Dot1dStpBridgeConfig' with error", dbCmd, err))
 		return err
 	}
 
@@ -188,7 +188,7 @@ func (s *STPDServiceHandler) HandleDbReadDot1dStpPortEntryConfig(dbHdl *sql.DB) 
 			&object.Dot1dStpPortAdminPointToPoint,
 			&object.Dot1dStpPortAdminEdgePort,
 			&object.Dot1dStpPortAdminPathCost); err != nil {
-			fmt.Println("Db method Scan failed when interating over Dot1dStpPortEntryConfig")
+			stp.StpLogger("ERROR", "Db method Scan failed when interating over Dot1dStpPortEntryConfig")
 			return err
 		}
 		_, err = s.CreateDot1dStpPortEntryConfig(object)
@@ -205,19 +205,19 @@ func (s *STPDServiceHandler) ReadConfigFromDB(filePath string) error {
 	dbHdl, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		//h.logger.Err(fmt.Sprintf("Failed to open the DB at %s with error %s", dbPath, err))
-		fmt.Printf("Failed to open the DB at %s with error %s", dbPath, err)
+		stp.StpLogger("ERROR", fmt.Sprintf("Failed to open the DB at %s with error %s", dbPath, err))
 		return err
 	}
 
 	defer dbHdl.Close()
 
 	if err := s.HandleDbReadDot1dStpBridgeConfig(dbHdl); err != nil {
-		fmt.Println("Error getting All Dot1dStpBridgeConfig objects")
+		stp.StpLogger("ERROR", "Error getting All Dot1dStpBridgeConfig objects")
 		return err
 	}
 
 	if err = s.HandleDbReadDot1dStpPortEntryConfig(dbHdl); err != nil {
-		fmt.Println("Error getting All Dot1dStpPortEntryConfig objects")
+		stp.StpLogger("ERROR", "Error getting All Dot1dStpPortEntryConfig objects")
 		return err
 	}
 
@@ -228,7 +228,7 @@ func (s *STPDServiceHandler) DeleteDot1dStpBridgeConfig(config *stpd.Dot1dStpBri
 
 	// Aggregation found now lets delete
 	//lacp.DeleteLaAgg(GetIdByName(config.NameKey))
-	fmt.Println("DeleteDot1dStpBridgeConfig (server): deleted ")
+	stp.StpLogger("INFO", "DeleteDot1dStpBridgeConfig (server): deleted ")
 	return true, nil
 }
 
@@ -244,7 +244,7 @@ func (s *STPDServiceHandler) UpdateDot1dStpBridgeConfig(origconfig *stpd.Dot1dSt
 		objName := objTyp.Field(i).Name
 		//fmt.Println("UpdateDot1dStpBridgeConfig (server): (index, objName) ", i, objName)
 		if attrset[i] {
-			fmt.Println("UpdateDot1dStpBridgeConfig (server): changed ", objName)
+			stp.StpLogger("INFO", fmt.Sprintf("UpdateDot1dStpBridgeConfig (server): changed ", objName))
 		}
 	}
 	return true, nil
@@ -252,7 +252,7 @@ func (s *STPDServiceHandler) UpdateDot1dStpBridgeConfig(origconfig *stpd.Dot1dSt
 
 func (s *STPDServiceHandler) CreateDot1dStpPortEntryConfig(config *stpd.Dot1dStpPortEntryConfig) (bool, error) {
 	portconfig := &stp.StpPortConfig{}
-	fmt.Println("CreateDot1dStpPortEntryConfig (server): created ")
+	stp.StpLogger("INFO", "CreateDot1dStpPortEntryConfig (server): created ")
 
 	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
 
@@ -261,7 +261,7 @@ func (s *STPDServiceHandler) CreateDot1dStpPortEntryConfig(config *stpd.Dot1dStp
 }
 
 func (s *STPDServiceHandler) DeleteDot1dStpPortEntryConfig(config *stpd.Dot1dStpPortEntryConfig) (bool, error) {
-	fmt.Println("DeleteDot1dStpPortEntryConfig (server): deleted ")
+	stp.StpLogger("INFO", "DeleteDot1dStpPortEntryConfig (server): deleted ")
 	return true, nil
 }
 
@@ -277,7 +277,7 @@ func (s *STPDServiceHandler) UpdateDot1dStpPortEntryConfig(origconfig *stpd.Dot1
 		objName := objTyp.Field(i).Name
 		//fmt.Println("UpdateDot1dStpBridgeConfig (server): (index, objName) ", i, objName)
 		if attrset[i] {
-			fmt.Println("UpdateDot1dStpBridgeConfig (server): changed ", objName)
+			stp.StpLogger("INFO", fmt.Sprintf("UpdateDot1dStpBridgeConfig (server): changed ", objName))
 		}
 	}
 
