@@ -364,50 +364,48 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCounters(fromIndex stp
 	obj = &returnStpPortStateGetInfo
 	stpPortListLen := stpd.Int(len(stp.PortListTable))
 	stp.StpLogger("INFO", fmt.Sprintf("Total configured ports %d fromIndex %d count %d", stpPortListLen, fromIndex, count))
-	for currIndex := fromIndex; validCount != count; currIndex++ {
+	for currIndex := fromIndex; validCount != count && currIndex < stpPortListLen; currIndex++ {
 
-		if currIndex < stpPortListLen {
-			stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
+		stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
 
-			p := stp.PortListTable[currIndex]
-			nextStpPortState = &stpPortStateList[validCount]
+		p := stp.PortListTable[currIndex]
+		nextStpPortState = &stpPortStateList[validCount]
 
-			nextStpPortState.Dot1dStpPortOperPointToPoint = ConvertBoolToInt32(p.OperPointToPointMAC)
-			nextStpPortState.Dot1dBrgIfIndex = p.BrgIfIndex
-			nextStpPortState.Dot1dStpPortOperEdgePort = ConvertBoolToInt32(p.OperEdge)
-			nextStpPortState.Dot1dStpPortDesignatedPort = fmt.Sprintf("%d", p.DesignatedPriority.DesignatedPortId)
-			nextStpPortState.Dot1dStpPortAdminEdgePort = ConvertBoolToInt32(p.AdminEdge)
-			//nextStpPortState.Dot1dStpPortForwardTransitions uint32 //The number of times this port has transitioned from the Learning state to the Forwarding state.
-			//nextStpPortState.Dot1dStpPortProtocolMigration  int32  //When operating in RSTP (version 2) mode, writing true(1) to this object forces this port to transmit RSTP BPDUs. Any other operation on this object has no effect and it always returns false(2) when read.
-			nextStpPortState.Dot1dStpPort = p.IfIndex
-			nextStpPortState.Dot1dStpPortPathCost = int32(p.PortPathCost) //The contribution of this port to the path cost of paths towards the spanning tree root which include this port.  802.1D-1998 recommends that the default value of this parameter be in inverse proportion to    the speed of the attached LAN.  New implementations should support dot1dStpPortPathCost32. If the port path costs exceeds the maximum value of this object then this object should report the maximum value, namely 65535.  Applications should try to read the dot1dStpPortPathCost32 object if this object reports the maximum value.
-			//nextStpPortState.Dot1dStpPortPriority         = int32(GetBridgePriorityFromBridgeId(p.PortPriority.DesignatedBridgeId))  //The value of the priority field that is contained in the first (in network byte order) octet of the (2 octet long) Port ID.  The other octet of the Port ID is given by the value of dot1dStpPort. On bridges supporting IEEE 802.1t or IEEE 802.1w, permissible values are 0-240, in steps of 16.
-			nextStpPortState.Dot1dStpPortDesignatedBridge = stp.CreateBridgeIdStr(p.DesignatedPriority.DesignatedBridgeId)
-			//nextStpPortState.Dot1dStpPortAdminPointToPoint  int32(p.)  //The administrative point-to-point status of the LAN segment attached to this port, using the enumeration values of the IEEE 802.1w clause.  A value of forceTrue(0) indicates that this port should always be treated as if it is connected to a point-to-point link.  A value of forceFalse(1) indicates that this port should be treated as having a shared media connection.  A value of auto(2) indicates that this port is considered to have a point-to-point link if it is an Aggregator and all of its    members are aggregatable, or if the MAC entity is configured for full duplex operation, either through auto-negotiation or by management means.  Manipulating this object changes the underlying adminPortToPortMAC.  The value of this object MUST be retained across reinitializations of the management system.
-			nextStpPortState.Dot1dStpPortState = GetPortState(p)
-			nextStpPortState.Dot1dStpPortEnable = ConvertBoolToInt32(p.PortEnabled)
-			nextStpPortState.Dot1dStpPortDesignatedRoot = stp.CreateBridgeIdStr(p.DesignatedPriority.RootBridgeId)
-			nextStpPortState.Dot1dStpPortDesignatedCost = int32(p.DesignatedPriority.RootPathCost)
-			nextStpPortState.Dot1dStpPortAdminPathCost = int32(0) //The administratively assigned value for the contribution of this port to the path cost of paths toward the spanning tree root.  Writing a value of '0' assigns the automatically calculated default Path Cost value to the port.  If the default Path Cost is being used, this object returns '0' when read.  This complements the object dot1dStpPortPathCost or dot1dStpPortPathCost32, which returns the operational value of the path cost.    The value of this object MUST be retained across reinitializations of the management system.
-			nextStpPortState.Dot1dStpPortPathCost32 = int32(p.PortPathCost)
-			nextStpPortState.StpInPkts = int64(p.StpRx)
-			nextStpPortState.StpOutPkts = int64(p.StpTx)
-			nextStpPortState.RstpInPkts = int64(p.RstpRx)
-			nextStpPortState.RstpOutPkts = int64(p.RstpTx)
-			nextStpPortState.TcInPkts = int64(p.TcRx)
-			nextStpPortState.TcOutPkts = int64(p.TcTx)
-			nextStpPortState.PvstInPkts = int64(p.PvstRx)
-			nextStpPortState.PvstOutPkts = int64(p.PvstTx)
-			nextStpPortState.BpduInPkts = int64(p.BpduRx)
-			nextStpPortState.BpduOutPkts = int64(p.BpduTx)
+		nextStpPortState.Dot1dStpPortOperPointToPoint = ConvertBoolToInt32(p.OperPointToPointMAC)
+		nextStpPortState.Dot1dBrgIfIndex = p.BrgIfIndex
+		nextStpPortState.Dot1dStpPortOperEdgePort = ConvertBoolToInt32(p.OperEdge)
+		nextStpPortState.Dot1dStpPortDesignatedPort = fmt.Sprintf("%d", p.DesignatedPriority.DesignatedPortId)
+		nextStpPortState.Dot1dStpPortAdminEdgePort = ConvertBoolToInt32(p.AdminEdge)
+		//nextStpPortState.Dot1dStpPortForwardTransitions uint32 //The number of times this port has transitioned from the Learning state to the Forwarding state.
+		//nextStpPortState.Dot1dStpPortProtocolMigration  int32  //When operating in RSTP (version 2) mode, writing true(1) to this object forces this port to transmit RSTP BPDUs. Any other operation on this object has no effect and it always returns false(2) when read.
+		nextStpPortState.Dot1dStpPort = p.IfIndex
+		nextStpPortState.Dot1dStpPortPathCost = int32(p.PortPathCost) //The contribution of this port to the path cost of paths towards the spanning tree root which include this port.  802.1D-1998 recommends that the default value of this parameter be in inverse proportion to    the speed of the attached LAN.  New implementations should support dot1dStpPortPathCost32. If the port path costs exceeds the maximum value of this object then this object should report the maximum value, namely 65535.  Applications should try to read the dot1dStpPortPathCost32 object if this object reports the maximum value.
+		//nextStpPortState.Dot1dStpPortPriority         = int32(GetBridgePriorityFromBridgeId(p.PortPriority.DesignatedBridgeId))  //The value of the priority field that is contained in the first (in network byte order) octet of the (2 octet long) Port ID.  The other octet of the Port ID is given by the value of dot1dStpPort. On bridges supporting IEEE 802.1t or IEEE 802.1w, permissible values are 0-240, in steps of 16.
+		nextStpPortState.Dot1dStpPortDesignatedBridge = stp.CreateBridgeIdStr(p.DesignatedPriority.DesignatedBridgeId)
+		//nextStpPortState.Dot1dStpPortAdminPointToPoint  int32(p.)  //The administrative point-to-point status of the LAN segment attached to this port, using the enumeration values of the IEEE 802.1w clause.  A value of forceTrue(0) indicates that this port should always be treated as if it is connected to a point-to-point link.  A value of forceFalse(1) indicates that this port should be treated as having a shared media connection.  A value of auto(2) indicates that this port is considered to have a point-to-point link if it is an Aggregator and all of its    members are aggregatable, or if the MAC entity is configured for full duplex operation, either through auto-negotiation or by management means.  Manipulating this object changes the underlying adminPortToPortMAC.  The value of this object MUST be retained across reinitializations of the management system.
+		nextStpPortState.Dot1dStpPortState = GetPortState(p)
+		nextStpPortState.Dot1dStpPortEnable = ConvertBoolToInt32(p.PortEnabled)
+		nextStpPortState.Dot1dStpPortDesignatedRoot = stp.CreateBridgeIdStr(p.DesignatedPriority.RootBridgeId)
+		nextStpPortState.Dot1dStpPortDesignatedCost = int32(p.DesignatedPriority.RootPathCost)
+		nextStpPortState.Dot1dStpPortAdminPathCost = int32(0) //The administratively assigned value for the contribution of this port to the path cost of paths toward the spanning tree root.  Writing a value of '0' assigns the automatically calculated default Path Cost value to the port.  If the default Path Cost is being used, this object returns '0' when read.  This complements the object dot1dStpPortPathCost or dot1dStpPortPathCost32, which returns the operational value of the path cost.    The value of this object MUST be retained across reinitializations of the management system.
+		nextStpPortState.Dot1dStpPortPathCost32 = int32(p.PortPathCost)
+		nextStpPortState.StpInPkts = int64(p.StpRx)
+		nextStpPortState.StpOutPkts = int64(p.StpTx)
+		nextStpPortState.RstpInPkts = int64(p.RstpRx)
+		nextStpPortState.RstpOutPkts = int64(p.RstpTx)
+		nextStpPortState.TcInPkts = int64(p.TcRx)
+		nextStpPortState.TcOutPkts = int64(p.TcTx)
+		nextStpPortState.PvstInPkts = int64(p.PvstRx)
+		nextStpPortState.PvstOutPkts = int64(p.PvstTx)
+		nextStpPortState.BpduInPkts = int64(p.BpduRx)
+		nextStpPortState.BpduOutPkts = int64(p.BpduTx)
 
-			if len(returnStpPortStates) == 0 {
-				returnStpPortStates = make([]*stpd.Dot1dStpPortEntryStateCounters, 0)
-			}
-			returnStpPortStates = append(returnStpPortStates, nextStpPortState)
-			validCount++
-			toIndex++
+		if len(returnStpPortStates) == 0 {
+			returnStpPortStates = make([]*stpd.Dot1dStpPortEntryStateCounters, 0)
 		}
+		returnStpPortStates = append(returnStpPortStates, nextStpPortState)
+		validCount++
+		toIndex++
 	}
 	// lets try and get the next agg if one exists then there are more routes
 	moreRoutes := false
