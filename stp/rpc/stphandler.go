@@ -367,6 +367,8 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCounters(fromIndex stp
 	for currIndex := fromIndex; validCount != count; currIndex++ {
 
 		if currIndex < stpPortListLen {
+			stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
+
 			p := stp.PortListTable[currIndex]
 			nextStpPortState = &stpPortStateList[validCount]
 
