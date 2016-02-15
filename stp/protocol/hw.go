@@ -62,9 +62,10 @@ func GetClientPort(paramsFile string, c string) int {
 func ConnectToClients(paramsFile string) {
 	port := GetClientPort(paramsFile, "asicd")
 	if port != 0 {
-		StpLogger("INFO", fmt.Sprintf("found asicd at port %d\n", port))
+
 		asicdclnt.Address = "localhost:" + strconv.Itoa(port)
 		asicdclnt.Transport, asicdclnt.PtrProtocolFactory, _ = ipcutils.CreateIPCHandles(asicdclnt.Address)
+		StpLogger("INFO", fmt.Sprintf("found asicd at port %d Transport %#v PrtProtocolFactory %#v\n", port, asicdclnt.Transport, asicdclnt.PtrProtocolFactory))
 		if asicdclnt.Transport != nil && asicdclnt.PtrProtocolFactory != nil {
 			StpLogger("INFO", "connecting to asicd\n")
 			asicdclnt.ClientHdl = asicdServices.NewASICDServicesClientFactory(asicdclnt.Transport, asicdclnt.PtrProtocolFactory)
