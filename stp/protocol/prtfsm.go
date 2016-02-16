@@ -308,7 +308,7 @@ func (prtm *PrtMachine) PrtMachineRootPort(m fsm.Machine, data interface{}) fsm.
 //PrtMachineDesignatedPropose
 func (prtm *PrtMachine) PrtMachineDesignatedPropose(m fsm.Machine, data interface{}) fsm.State {
 	p := prtm.p
-	defer prtm.NotifyProposingChanged(p.Proposing, true)
+	defer p.NotifyProposingChanged(PrtMachineModuleStr, p.Proposing, true)
 	p.Proposing = true
 	p.EdgeDelayWhileTimer.count = int32(p.EdgeDelay())
 	defer prtm.NotifyNewInfoChanged(p.NewInfo, true)
@@ -800,23 +800,6 @@ func (p *StpPort) PrtMachineMain() {
 			}
 		}
 	}(prtm)
-}
-
-func (prtm *PrtMachine) NotifyProposingChanged(oldproposing bool, newproposing bool) {
-	p := prtm.p
-	if oldproposing != newproposing {
-		if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateNotEdge {
-			if p.EdgeDelayWhileTimer.count == 0 &&
-				p.AutoEdgePort &&
-				p.SendRSTP &&
-				p.Proposing {
-				p.BdmMachineFsm.BdmEvents <- MachineEvent{
-					e:   BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing,
-					src: PrtMachineModuleStr,
-				}
-			}
-		}
-	}
 }
 
 func (prtm *PrtMachine) NotifyRoleChanged(oldrole PortRole, newrole PortRole) {

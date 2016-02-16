@@ -1850,6 +1850,40 @@ func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole
 	}
 }
 
+func (p *StpPort) NotifyProposingChanged(src string, oldproposing bool, newproposing bool) {
+	if oldproposing != newproposing {
+		if src != BdmMachineModuleStr {
+			if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateNotEdge {
+				if p.EdgeDelayWhileTimer.count == 0 &&
+					p.AutoEdgePort &&
+					p.SendRSTP &&
+					p.Proposing {
+					p.BdmMachineFsm.BdmEvents <- MachineEvent{
+						e:   BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing,
+						src: PrtMachineModuleStr,
+					}
+				}
+			}
+		}
+		if src != PrsMachineModuleStr {
+			if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+				if !p.Forward &&
+					!p.Agreed &&
+					!p.Proposing &&
+					!p.OperEdge &&
+					p.Selected &&
+					!p.UpdtInfo {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
+						src: PrtMachineModuleStr,
+					}
+				}
+			}
+		}
+
+	}
+}
+
 func (p *StpPort) EdgeDelay() uint16 {
 	if p.OperPointToPointMAC {
 		return MigrateTimeDefault
