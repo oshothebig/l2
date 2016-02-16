@@ -220,6 +220,12 @@ func (prsm *PrsMachine) updtRoleDisabledTree() {
 }
 
 // updtRolesTree: 17.21.25
+//STP_VECT_create (OUT PRIO_VECTOR_T* t,
+//                 IN BRIDGE_ID* root_br,
+//                IN unsigned long root_path_cost,
+//                 IN BRIDGE_ID* design_bridge,
+//                 IN PORT_ID design_port,
+//                 IN PORT_ID bridge_port)
 func (prsm *PrsMachine) updtRolesTree() {
 
 	b := prsm.b
@@ -240,15 +246,16 @@ func (prsm *PrsMachine) updtRolesTree() {
 		MessageAge:      b.BridgeTimes.MessageAge,
 	}
 
-	tmpVector := PriorityVector{}
+	tmpVector := rootPathVector
 
 	// lets consider each port a root to begin with
-	portPathVector := rootPathVector
 	myBridgeId := rootPathVector.RootBridgeId
 
 	// lets find the root port
 	for _, pId := range b.StpPorts {
 		if StpFindPortById(pId, &p) {
+			StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: InfoIs %d", p.InfoIs))
+
 			if p.InfoIs == PortInfoStateReceived {
 
 				if CompareBridgeAddr(GetBridgeAddrFromBridgeId(myBridgeId),
@@ -256,7 +263,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 					continue
 				}
 
-				compare := CompareBridgeId(portPathVector.RootBridgeId, p.DesignatedPriority.RootBridgeId)
+				compare := CompareBridgeId(tmpVector.RootBridgeId, p.DesignatedPriority.RootBridgeId)
 				switch compare {
 				case 1:
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: Root Bridge Received is SUPERIOR")
