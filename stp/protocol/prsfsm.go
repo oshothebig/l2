@@ -232,13 +232,8 @@ func (prsm *PrsMachine) updtRolesTree() {
 
 	var p *StpPort
 	var rootPortId int32
-	rootPathVector := PriorityVector{
-		RootBridgeId:       b.BridgeIdentifier,
-		RootPathCost:       0,
-		DesignatedBridgeId: b.BridgeIdentifier,
-		DesignatedPortId:   0,
-		BridgePortId:       0,
-	}
+	rootPathVector := b.BridgePriority
+
 	rootTimes := Times{
 		ForwardingDelay: b.BridgeTimes.ForwardingDelay,
 		HelloTime:       b.BridgeTimes.HelloTime,

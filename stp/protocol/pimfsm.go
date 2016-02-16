@@ -201,7 +201,7 @@ func (pim *PimMachine) PimMachineCurrent(m fsm.Machine, data interface{}) fsm.St
 // PimMachineReceive
 func (pim *PimMachine) PimMachineReceive(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
-	p.RcvdfInfo = pim.rcvInfo(StpGetBpduRole(pim.getRcvdMsgFlags(data)))
+	p.RcvdfInfo = pim.rcvInfo(data)
 	return PimStateReceive
 }
 
@@ -215,14 +215,13 @@ func (pim *PimMachine) PimMachineSuperiorDesignated(m fsm.Machine, data interfac
 	flags := pim.getRcvdMsgFlags(data)
 	pim.recordProposal(flags)
 	pim.setTcFlags(flags, data)
-	tmp := p.Agree && pim.betterorsameinfo(p.InfoIs)
+	betterorsame := pim.recordPriority(pim.getRcvdMsgPriority(data))
+	pim.recordTimes(pim.getRcvdMsgTimes(data))
+	tmp := p.Agree && betterorsame
 	defer pim.NotifyAgreeChanged(p.Agree, tmp)
 	p.Agree = tmp
-	pim.recordPriority(pim.getRcvdMsgPriority(data))
-	pim.recordTimes(pim.getRcvdMsgTimes(data))
 	pim.updtRcvdInfoWhile()
 	p.InfoIs = PortInfoStateReceived
-
 	defer p.NotifySelectedChanged(PimMachineModuleStr, p.Selected, false)
 	p.Selected = false
 	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
@@ -958,26 +957,29 @@ func (pim *PimMachine) NotifyNewInfoChange(oldnewinfo bool, newnewinfo bool) {
 	}
 }
 
-func (pim *PimMachine) rcvInfo(role PortRole) PortDesignatedRcvInfo {
+func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 	p := pim.p
+	msgRole := StpGetBpduRole(pim.getRcvdMsgFlags(data))
+	msgpriority := pim.getRcvdMsgPriority(data)
+	msgtimes := pim.getRcvdMsgTimes(data)
 
-	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] designatedVector[%#v] msgTimes[%#v] designatedTimes[%#v]", role, p.MsgPriority, p.DesignatedPriority, p.MsgTimes, p.DesignatedTimes))
-	if role == PortRoleDesignatedPort &&
-		(IsMsgPriorityVectorSuperiorThanPortPriorityVector(&p.MsgPriority, &p.DesignatedPriority) ||
-			(p.MsgPriority == p.DesignatedPriority &&
-				p.MsgTimes != p.DesignatedTimes)) {
+	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] designatedVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.DesignatedPriority, msgtimes, p.DesignatedTimes))
+	if msgRole == PortRoleDesignatedPort &&
+		(IsMsgPriorityVectorSuperiorThanPortPriorityVector(msgpriority, &p.DesignatedPriority) ||
+			(*msgpriority == p.DesignatedPriority &&
+				*msgtimes != p.DesignatedTimes)) {
 		return SuperiorDesignatedInfo
-	} else if role == PortRoleDesignatedPort &&
-		p.MsgPriority == p.DesignatedPriority &&
-		p.MsgTimes == p.DesignatedTimes {
+	} else if msgRole == PortRoleDesignatedPort &&
+		*msgpriority == p.DesignatedPriority &&
+		*msgtimes == p.DesignatedTimes {
 		return RepeatedDesignatedInfo
-	} else if role == PortRoleDesignatedPort &&
-		IsMsgPriorityVectorWorseThanPortPriorityVector(&p.MsgPriority, &p.DesignatedPriority) {
+	} else if msgRole == PortRoleDesignatedPort &&
+		IsMsgPriorityVectorWorseThanPortPriorityVector(msgpriority, &p.DesignatedPriority) {
 		return InferiorDesignatedInfo
-	} else if (role == PortRoleRootPort ||
-		role == PortRoleAlternatePort ||
-		role == PortRoleBackupPort) &&
-		IsMsgPriorityVectorTheSameOrWorseThanPortPriorityVector(&p.MsgPriority, &p.DesignatedPriority) {
+	} else if (msgRole == PortRoleRootPort ||
+		msgRole == PortRoleAlternatePort ||
+		msgRole == PortRoleBackupPort) &&
+		IsMsgPriorityVectorTheSameOrWorseThanPortPriorityVector(msgpriority, &p.DesignatedPriority) {
 		return InferiorRootAlternateInfo
 	} else {
 		return OtherInfo
@@ -1098,6 +1100,8 @@ func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 	p := pim.p
 
+	// recordPriority should be called when this is called from superior designated
+	// this way we don't need to pass the message around
 	if (newInfoIs == PortInfoStateReceived &&
 		p.InfoIs == PortInfoStateReceived &&
 		IsMsgPriorityVectorSuperiorThanPortPriorityVector(&p.MsgPriority, &p.PortPriority)) ||
@@ -1110,9 +1114,18 @@ func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 }
 
 // recordPriority  17.21.12
-func (pim *PimMachine) recordPriority(rcvdMsgPriority *PriorityVector) {
+func (pim *PimMachine) recordPriority(rcvdMsgPriority *PriorityVector) bool {
 	p := pim.p
 	p.MsgPriority = *rcvdMsgPriority
+	// 17.6
+	//This message priority vector is superior to the port priority vector and will replace it if, and only if, the
+	//message priority vector is better than the port priority vector, or the message has been transmitted from the
+	//same Designated Bridge and Designated Port as the port priority vector, i.e., if the following is true
+	betterorsame := pim.betterorsameinfo(p.InfoIs)
+	if betterorsame {
+		p.PortPriority = *rcvdMsgPriority
+	}
+	return betterorsame
 }
 
 // recordTimes 17.21.13
