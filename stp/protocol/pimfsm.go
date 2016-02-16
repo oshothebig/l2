@@ -963,23 +963,23 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 	msgpriority := pim.getRcvdMsgPriority(data)
 	msgtimes := pim.getRcvdMsgTimes(data)
 
-	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] designatedVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.DesignatedPriority, msgtimes, p.DesignatedTimes))
+	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] designatedVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.PortPriority, msgtimes, p.DesignatedTimes))
 	if msgRole == PortRoleDesignatedPort &&
-		(IsMsgPriorityVectorSuperiorThanPortPriorityVector(msgpriority, &p.DesignatedPriority) ||
-			(*msgpriority == p.DesignatedPriority &&
-				*msgtimes != p.DesignatedTimes)) {
+		(IsMsgPriorityVectorSuperiorThanPortPriorityVector(msgpriority, &p.PortPriority) ||
+			(*msgpriority == p.PortPriority &&
+				*msgtimes != p.PortTimes)) {
 		return SuperiorDesignatedInfo
 	} else if msgRole == PortRoleDesignatedPort &&
-		*msgpriority == p.DesignatedPriority &&
-		*msgtimes == p.DesignatedTimes {
+		*msgpriority == p.PortPriority &&
+		*msgtimes == p.PortTimes {
 		return RepeatedDesignatedInfo
 	} else if msgRole == PortRoleDesignatedPort &&
-		IsMsgPriorityVectorWorseThanPortPriorityVector(msgpriority, &p.DesignatedPriority) {
+		IsMsgPriorityVectorWorseThanPortPriorityVector(msgpriority, &p.PortPriority) {
 		return InferiorDesignatedInfo
 	} else if (msgRole == PortRoleRootPort ||
 		msgRole == PortRoleAlternatePort ||
 		msgRole == PortRoleBackupPort) &&
-		IsMsgPriorityVectorTheSameOrWorseThanPortPriorityVector(msgpriority, &p.DesignatedPriority) {
+		IsMsgPriorityVectorTheSameOrWorseThanPortPriorityVector(msgpriority, &p.PortPriority) {
 		return InferiorRootAlternateInfo
 	} else {
 		return OtherInfo
