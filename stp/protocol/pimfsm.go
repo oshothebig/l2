@@ -634,10 +634,11 @@ func (pim *PimMachine) NotifyNewInfoChange(oldnewinfo bool, newnewinfo bool) {
 func (pim *PimMachine) rcvInfo(role PortRole) PortDesignatedRcvInfo {
 	p := pim.p
 
-	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v]\ndesignatedVector[%#v]\n", role, p.MsgPriority, p.DesignatedPriority))
+	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] designatedVector[%#v] msgTimes[%#v] designatedTimes[%#v]", role, p.MsgPriority, p.DesignatedPriority, p.MsgTimes, p.DesignatedTimes))
 	if role == PortRoleDesignatedPort &&
 		(IsMsgPriorityVectorSuperiorThanPortPriorityVector(&p.MsgPriority, &p.DesignatedPriority) ||
-			p.MsgTimes != p.DesignatedTimes) {
+			(p.MsgPriority == p.DesignatedPriority &&
+				p.MsgTimes != p.DesignatedTimes)) {
 		return SuperiorDesignatedInfo
 	} else if role == PortRoleDesignatedPort &&
 		p.MsgPriority == p.DesignatedPriority &&
