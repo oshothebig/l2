@@ -1805,7 +1805,7 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 		if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateEdge &&
 			src != BdmMachineModuleStr {
 			if !p.OperEdge {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				p.BdmMachineFsm.BdmEvents <- MachineEvent{
 					e:   BdmEventNotOperEdge,
 					src: src,
 				}
