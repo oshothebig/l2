@@ -201,7 +201,7 @@ func (pim *PimMachine) PimMachineCurrent(m fsm.Machine, data interface{}) fsm.St
 // PimMachineReceive
 func (pim *PimMachine) PimMachineReceive(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
-	p.RcvdfInfo = pim.rcvInfo(data)
+	p.RcvdInfo = pim.rcvInfo(data)
 	return PimStateReceive
 }
 
@@ -547,35 +547,35 @@ func (pim *PimMachine) ProcessingPostStateCurrent(data interface{}) {
 func (pim *PimMachine) ProcessingPostStateReceive(data interface{}) {
 	p := pim.p
 	if pim.Machine.Curr.CurrentState() == PimStateReceive {
-		if p.RcvdfInfo == SuperiorDesignatedInfo {
+		if p.RcvdInfo == SuperiorDesignatedInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualSuperiorDesignatedInfo, data)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualSuperiorDesignatedInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
-		} else if p.RcvdfInfo == RepeatedDesignatedInfo {
+		} else if p.RcvdInfo == RepeatedDesignatedInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualRepeatedDesignatedInfo, data)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualRepeatedDesignatedInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
-		} else if p.RcvdfInfo == InferiorDesignatedInfo {
+		} else if p.RcvdInfo == InferiorDesignatedInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualInferiorDesignatedInfo, data)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualRepeatedDesignatedInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
-		} else if p.RcvdfInfo == InferiorRootAlternateInfo {
+		} else if p.RcvdInfo == InferiorRootAlternateInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualInferiorRootAlternateInfo, data)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualInferiorRootAlternateInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
-		} else if p.RcvdfInfo == OtherInfo {
+		} else if p.RcvdInfo == OtherInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualOtherInfo, data)
 			if rv != nil {
 				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualOtherInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
@@ -911,6 +911,24 @@ func (pim *PimMachine) NotifyProposedChanged(oldproposed bool, newproposed bool)
 					src: PimMachineModuleStr,
 				}
 			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
+			if p.Proposed &&
+				!p.Agree &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+					src: PimMachineModuleStr,
+				}
+			} else if p.Proposed &&
+				p.Agree &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+					src: PimMachineModuleStr,
+				}
+			}
 		}
 	}
 }
@@ -957,13 +975,40 @@ func (pim *PimMachine) NotifyNewInfoChange(oldnewinfo bool, newnewinfo bool) {
 	}
 }
 
+func (pim *PimMachine) NotifyDisputedChanged(olddisputed bool, newdisputed bool) {
+	p := pim.p
+	if olddisputed != newdisputed {
+		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+			if p.Disputed &&
+				!p.OperEdge &&
+				p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					src: PimMachineModuleStr,
+				}
+			} else if p.Disputed &&
+				!p.OperEdge &&
+				p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+					src: PrsMachineModuleStr,
+				}
+			}
+		}
+	}
+}
+
 func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 	p := pim.p
 	msgRole := StpGetBpduRole(pim.getRcvdMsgFlags(data))
 	msgpriority := pim.getRcvdMsgPriority(data)
 	msgtimes := pim.getRcvdMsgTimes(data)
 
-	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] designatedVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.PortPriority, msgtimes, p.DesignatedTimes))
+	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] portVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.PortPriority, msgtimes, p.DesignatedTimes))
 	if msgRole == PortRoleDesignatedPort &&
 		(IsMsgPriorityVectorSuperiorThanPortPriorityVector(msgpriority, &p.PortPriority) ||
 			(*msgpriority == p.PortPriority &&
@@ -1073,6 +1118,7 @@ func (pim *PimMachine) recordProposal(rcvdMsgFlags uint8) {
 	p := pim.p
 	if StpGetBpduRole(rcvdMsgFlags) == PortRoleDesignatedPort &&
 		StpGetBpduProposal(rcvdMsgFlags) {
+		StpMachineLogger("INFO", "PIM", p.IfIndex, "recording proposal set")
 		defer pim.NotifyProposedChanged(p.Proposed, true)
 		p.Proposed = true
 	}
@@ -1096,7 +1142,6 @@ func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 }
 
 // betterorsameinfo 17.21.1
-// TODO add logic
 func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 	p := pim.p
 
@@ -1154,11 +1199,20 @@ func (pim *PimMachine) updtRcvdInfoWhile() {
 
 func (pim *PimMachine) recordDispute(rcvdMsgFlags uint8) {
 	p := pim.p
-	if StpGetBpduLearning(rcvdMsgFlags) {
-		defer pim.NotifyAgreedChanged(p.Agreed, true)
-		p.Agreed = true
-		defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
-		p.Proposing = false
+	msgRole := StpGetBpduRole(rcvdMsgFlags)
+
+	if msgRole == PortRoleDesignatedPort &&
+		(StpGetBpduLearning(rcvdMsgFlags) ||
+			StpGetBpduForwarding(rcvdMsgFlags)) {
+		pim.NotifyDisputedChanged(p.Disputed, true)
+		p.Disputed = true
+		defer pim.NotifyAgreedChanged(p.Agreed, false)
+		p.Agreed = false
+
+		//defer pim.NotifyAgreedChanged(p.Agreed, true)
+		//p.Agreed = true
+		//defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
+		//p.Proposing = false
 	}
 }
 

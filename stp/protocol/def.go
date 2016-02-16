@@ -141,6 +141,10 @@ func StpGetBpduLearning(flags uint8) bool {
 	return flags>>4&0x1 == 1
 }
 
+func StpGetBpduForwarding(flags uint8) bool {
+	return flags>>5&0x1 == 1
+}
+
 func StpGetBpduAgreement(flags uint8) bool {
 	return flags>>6&0x1 == 1
 }

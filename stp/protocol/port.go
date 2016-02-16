@@ -62,7 +62,7 @@ type StpPort struct {
 	Proposed           bool
 	Proposing          bool
 	RcvdBPDU           bool
-	RcvdfInfo          PortDesignatedRcvInfo
+	RcvdInfo           PortDesignatedRcvInfo
 	RcvdMsg            bool
 	RcvdRSTP           bool
 	RcvdSTP            bool
