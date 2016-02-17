@@ -202,7 +202,9 @@ func (prsm *PrsMachine) clearReselectTree() {
 
 	for _, pId := range b.StpPorts {
 		if StpFindPortById(pId, &p) {
-			p.Reselect = false
+			if p.PortEnabled {
+				p.Reselect = false
+			}
 		}
 	}
 }
@@ -349,32 +351,32 @@ func (prsm *PrsMachine) updtRolesTree() {
 			// Assign the port roles
 			if !p.PortEnabled || p.InfoIs == PortInfoStateDisabled {
 				// 17.21.25 (f) if port is disabled
-				//defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDisabledPort)
+				defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDisabledPort)
 				p.SelectedRole = PortRoleDisabledPort
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:1 port role selected DISABLED")
 			} else if p.InfoIs == PortInfoStateAged {
 				// 17.21.25 (g)
-				//defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
+				defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
 				p.UpdtInfo = true
-				//defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
+				defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
 				p.SelectedRole = PortRoleDesignatedPort
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:1 port role selected DESIGNATED")
 			} else if p.InfoIs == PortInfoStateMine {
 				// 17.21.25 (h)
-				//defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
+				defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
 				p.SelectedRole = PortRoleDesignatedPort
 				if p.b.BridgePriority == p.PortPriority ||
 					p.PortTimes != b.RootTimes {
-					//defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
+					defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
 					p.UpdtInfo = true
 				}
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:2 port role selected DESIGNATED")
 			} else if p.InfoIs == PortInfoStateReceived {
 				// 17.21.25 (i)
-				if rootPortId == p.IfIndex {
-					//defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleRootPort)
+				if rootPortId == int32(p.Priority<<8|p.PortId) {
+					defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleRootPort)
 					p.SelectedRole = PortRoleRootPort
-					//defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
+					defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
 					p.UpdtInfo = false
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: port role selected ROOT")
 				} else {
@@ -383,32 +385,34 @@ func (prsm *PrsMachine) updtRolesTree() {
 					if IsDesignatedPriorytVectorNotHigherThanPortPriorityVector(&p.b.BridgePriority, &p.PortPriority) {
 						if CompareBridgeAddr(GetBridgeAddrFromBridgeId(p.PortPriority.DesignatedBridgeId),
 							GetBridgeAddrFromBridgeId(myBridgeId)) != 0 {
-							//defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleAlternatePort)
+							defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleAlternatePort)
 							p.SelectedRole = PortRoleAlternatePort
-							//defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
+							defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
 							p.UpdtInfo = false
 							StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: port role selected ALTERNATE")
 						} else {
 
 							if (p.Priority<<8 | p.PortId) != p.PortPriority.DesignatedPortId {
-								//defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleBackupPort)
+								defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleBackupPort)
 								p.SelectedRole = PortRoleBackupPort
-								//defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
+								defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
 								p.UpdtInfo = false
 								StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: port role selected BACKUP")
 							} else {
 								defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
 								p.SelectedRole = PortRoleDesignatedPort
-								//defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
+								defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
 								p.UpdtInfo = true
 								StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:3 port role selected DESIGNATED")
 							}
 						}
 					} else {
-						//defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
-						p.SelectedRole = PortRoleDesignatedPort
-						//defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
-						p.UpdtInfo = true
+						defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
+						if p.SelectedRole != PortRoleDesignatedPort {
+							p.SelectedRole = PortRoleDesignatedPort
+							defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
+							p.UpdtInfo = true
+						}
 						StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:4 port role selected DESIGNATED")
 					}
 				}
