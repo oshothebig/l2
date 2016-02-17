@@ -1147,12 +1147,15 @@ func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 
 	// recordPriority should be called when this is called from superior designated
 	// this way we don't need to pass the message around
-	if (newInfoIs == PortInfoStateReceived &&
+	if newInfoIs == PortInfoStateReceived &&
 		p.InfoIs == PortInfoStateReceived &&
-		IsMsgPriorityVectorSuperiorThanPortPriorityVector(&p.MsgPriority, &p.PortPriority)) ||
-		(newInfoIs == PortInfoStateMine &&
-			p.InfoIs == PortInfoStateMine &&
-			IsMsgPriorityVectorSuperiorThanPortPriorityVector(&p.DesignatedPriority, &p.PortPriority)) {
+		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.MsgPriority, &p.PortPriority) {
+		StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: UPDATE InfoIs=Receive and msg vector superior or same as port")
+		return true
+	} else if newInfoIs == PortInfoStateMine &&
+		p.InfoIs == PortInfoStateMine &&
+		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.DesignatedPriority, &p.PortPriority) {
+		StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: InfoIs=Mine and designated vector superior or same as port")
 		return true
 	}
 	return false

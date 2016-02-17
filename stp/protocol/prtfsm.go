@@ -79,60 +79,60 @@ func PrtMachineStrStateMapInit() {
 }
 
 const (
-	PrtEventBegin = iota + 1
-	PrtEventUnconditionallFallThrough
+	PrtEventBegin                     = iota + 1
+	PrtEventUnconditionallFallThrough // 2
 	// events taken from Figure 17.20 Disabled Port role transitions
-	PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo
-	PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo
+	PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo // 3
+	PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo                              //4
 	PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo
-	PrtEventSyncAndSelectedAndNotUpdtInfo      // also applies to Alternate and Backup Port role
-	PrtEventReRootAndSelectedAndNotUpdtInfo    // also applies to Alternate and Backup Port role
-	PrtEventNotSyncedAndSelectedAndNotUpdtInfo // also applies to Alternate and Backup Port role
+	PrtEventSyncAndSelectedAndNotUpdtInfo      // 5 also applies to Alternate and Backup Port role
+	PrtEventReRootAndSelectedAndNotUpdtInfo    // 6 also applies to Alternate and Backup Port role
+	PrtEventNotSyncedAndSelectedAndNotUpdtInfo // 7 also applies to Alternate and Backup Port role
 	// events taken from Figure 17.21 Root Port role transitions
-	PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo
-	PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo  // also applies to Alternate and Backup Port role
-	PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo // also applies to Alternate and Backup Port role
-	PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo     // also applies to Alternate and Backup Port role
-	PrtEventNotForwardAndNotReRootAndSelectedAndNotUpdtInfo
-	PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo
-	PrtEventReRootAndForwardAndSelectedAndNotUpdtInfo
-	PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo
-	PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo
-	PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo
-	PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo
+	PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo           // 8
+	PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo                                            // 9 also applies to Alternate and Backup Port role
+	PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo                                           // 10 also applies to Alternate and Backup Port role
+	PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo                                               // 11 also applies to Alternate and Backup Port role
+	PrtEventNotForwardAndNotReRootAndSelectedAndNotUpdtInfo                                         // 12
+	PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo                                        // 13
+	PrtEventReRootAndForwardAndSelectedAndNotUpdtInfo                                               // 14
+	PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo                      // 15
+	PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo           // 16
+	PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo            // 17
+	PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo // 18
 	// events take from Figure 17-22 Designated port role transitions
-	PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo
-	PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo
-	PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo
-	PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo
-	PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo
-	PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo
-	PrtEventRrWhileEqualZeroAndReRootAndSelectedAndNotUpdtInfo
-	PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo
-	PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo
-	PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo
-	PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo
-	PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo
-	PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo
-	PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo
-	PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo
-	PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo
-	PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo
-	PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo
-	PrtEventOperEdgeAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo
-	PrtEventNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo
-	PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo
-	PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo
-	PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo
-	PrtEventAgreedAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo
-	PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo
-	PrtEventOperEdgeAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo
-	PrtEventNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo
+	PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo      // 19
+	PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo             // 20
+	PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo                         // 21
+	PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo                                              // 22
+	PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo                                            // 23
+	PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo                                                   // 24
+	PrtEventRrWhileEqualZeroAndReRootAndSelectedAndNotUpdtInfo                                       // 25
+	PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo                          // 26
+	PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo                        // 27
+	PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo              // 28
+	PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo            // 29
+	PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo                                  // 30
+	PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo                                // 31
+	PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo        // 32
+	PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo                  // 33
+	PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                  // 34
+	PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                         // 35
+	PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                // 36
+	PrtEventOperEdgeAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                       // 37
+	PrtEventNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                                  // 38
+	PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo // 39
+	PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo        // 40
+	PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo        // 41
+	PrtEventAgreedAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo               // 42
+	PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo      // 43
+	PrtEventOperEdgeAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo             // 44
+	PrtEventNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo                        // 45
 	// events taken from Figure 17-23 Alternate and Backup Port role transitions
-	PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo
-	PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo
-	PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo
-	PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo
+	PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo   // 46
+	PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo  // 47
+	PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo // 48
+	PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo                             // 49
 )
 
 // PrtMachine holds FSM and current State
@@ -1151,8 +1151,8 @@ func (prtm *PrtMachine) ProcessPostStateRootPort() {
 func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 	p := prtm.p
 	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDesignatedPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Synced[%t] Sync[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
-			p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
+		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDesignatedPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Synced[%t] Sync[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+			p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if !p.Forwarding &&
 			!p.Agreed &&
 			!p.Proposing &&
