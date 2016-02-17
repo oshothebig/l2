@@ -260,7 +260,7 @@ func CompareBridgeId(b1 BridgeId, b2 BridgeId) int {
 		b1[6] < b2[6] ||
 		b1[7] < b2[7] {
 		StpLogger("INFO", "CompareBridgeId returns B1 SUPERIOR")
-		return 1
+		return -1
 	} else if b1 == b2 {
 
 		StpLogger("INFO", "CompareBridgeId returns B1 SAME")
@@ -268,7 +268,7 @@ func CompareBridgeId(b1 BridgeId, b2 BridgeId) int {
 	} else {
 
 		StpLogger("INFO", "CompareBridgeId returns B1 INFERIOR")
-		return -1
+		return 1
 	}
 }
 
