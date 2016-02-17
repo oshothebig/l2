@@ -234,7 +234,10 @@ func (prsm *PrsMachine) updtRolesTree() {
 
 	var p *StpPort
 	var rootPortId int32
-	rootPathVector := b.BridgePriority
+	rootPathVector := PriorityVector{
+		RootBridgeId:       b.BridgePriority.DesignatedBridgeId,
+		DesignatedBridgeId: b.BridgePriority.DesignatedBridgeId,
+	}
 
 	rootTimes := Times{
 		ForwardingDelay: b.BridgeTimes.ForwardingDelay,
@@ -401,20 +404,22 @@ func (prsm *PrsMachine) updtRolesTree() {
 								p.UpdtInfo = false
 								StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: port role selected BACKUP")
 							} else {
-								defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
-								p.SelectedRole = PortRoleDesignatedPort
-								defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
-								p.UpdtInfo = true
+								if p.SelectedRole != PortRoleDesignatedPort {
+									defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
+									p.SelectedRole = PortRoleDesignatedPort
+									defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
+									p.UpdtInfo = true
+								}
 								StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:3 port role selected DESIGNATED")
 							}
 						}
 					} else {
-						defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
-						//if p.SelectedRole != PortRoleDesignatedPort {
-						p.SelectedRole = PortRoleDesignatedPort
-						defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
-						p.UpdtInfo = true
-						//}
+						if p.SelectedRole != PortRoleDesignatedPort {
+							defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
+							p.SelectedRole = PortRoleDesignatedPort
+							defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
+							p.UpdtInfo = true
+						}
 						StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:4 port role selected DESIGNATED")
 					}
 				}
