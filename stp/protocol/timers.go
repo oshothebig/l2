@@ -87,7 +87,7 @@ func (p *StpPort) DecrementTimerCounters() {
 	// Prt owner
 	if p.FdWhileTimer.count > 0 {
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort &&
-			uint16(p.FdWhileTimer.count) == p.DesignatedTimes.MaxAge &&
+			uint16(p.FdWhileTimer.count) == p.PortTimes.MaxAge &&
 			p.Selected &&
 			!p.UpdtInfo {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{

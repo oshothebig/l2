@@ -217,8 +217,8 @@ func (prtm *PrtMachine) PrtMachineInitPort(m fsm.Machine, data interface{}) fsm.
 	p.Synced = false
 	p.Sync = true
 	p.ReRoot = true
-	p.RrWhileTimer.count = int32(p.DesignatedTimes.ForwardingDelay)
-	p.FdWhileTimer.count = int32(p.DesignatedTimes.MaxAge)
+	p.RrWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
+	p.FdWhileTimer.count = int32(p.PortTimes.MaxAge)
 	p.RbWhileTimer.count = 0
 	return PrtStateInitPort
 }
@@ -238,7 +238,7 @@ func (prtm *PrtMachine) PrtMachineDisablePort(m fsm.Machine, data interface{}) f
 //PrtMachineDisablePort
 func (prtm *PrtMachine) PrtMachineDisabledPort(m fsm.Machine, data interface{}) fsm.State {
 	p := prtm.p
-	p.FdWhileTimer.count = int32(p.DesignatedTimes.MaxAge)
+	p.FdWhileTimer.count = int32(p.PortTimes.MaxAge)
 	p.Synced = true
 	p.RrWhileTimer.count = 0
 	p.Sync = false
@@ -283,7 +283,7 @@ func (prtm *PrtMachine) PrtMachineRootForward(m fsm.Machine, data interface{}) f
 //PrtMachineRootLearn
 func (prtm *PrtMachine) PrtMachineRootLearn(m fsm.Machine, data interface{}) fsm.State {
 	p := prtm.p
-	p.FdWhileTimer.count = int32(p.DesignatedTimes.ForwardingDelay)
+	p.FdWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
 	defer prtm.NotifyLearnChanged(p.Learn, true)
 	p.Learn = true
 	return PrtStateRootLearn
@@ -301,7 +301,7 @@ func (prtm *PrtMachine) PrtMachineRootPort(m fsm.Machine, data interface{}) fsm.
 	p := prtm.p
 	defer prtm.NotifyRoleChanged(p.Role, PortRoleRootPort)
 	p.Role = PortRoleRootPort
-	p.RrWhileTimer.count = int32(p.DesignatedTimes.ForwardingDelay)
+	p.RrWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
 	return PrtStateRootPort
 }
 
@@ -347,7 +347,7 @@ func (prtm *PrtMachine) PrtMachineDesignatedLearn(m fsm.Machine, data interface{
 	p := prtm.p
 	defer prtm.NotifyLearnChanged(p.Learn, true)
 	p.Learn = true
-	p.FdWhileTimer.count = int32(p.DesignatedTimes.ForwardingDelay)
+	p.FdWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
 	return PrtStateDesignatedLearn
 }
 
@@ -359,7 +359,7 @@ func (prtm *PrtMachine) PrtMachineDesignatedDiscard(m fsm.Machine, data interfac
 	defer prtm.NotifyForwardChanged(p.Forward, false)
 	p.Forward = false
 	p.Disputed = false
-	p.FdWhileTimer.count = int32(p.DesignatedTimes.ForwardingDelay)
+	p.FdWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
 	return PrtStateDesignatedDiscard
 }
 
@@ -404,14 +404,14 @@ func (prtm *PrtMachine) PrtMachineBlockPort(m fsm.Machine, data interface{}) fsm
 //PrtMachineBackupPort
 func (prtm *PrtMachine) PrtMachineBackupPort(m fsm.Machine, data interface{}) fsm.State {
 	p := prtm.p
-	p.RbWhileTimer.count = int32(2 * p.DesignatedTimes.HelloTime)
+	p.RbWhileTimer.count = int32(2 * p.PortTimes.HelloTime)
 	return PrtStateBackupPort
 }
 
 //PrtMachineAlternatePort
 func (prtm *PrtMachine) PrtMachineAlternatePort(m fsm.Machine, data interface{}) fsm.State {
 	p := prtm.p
-	p.FdWhileTimer.count = int32(p.DesignatedTimes.ForwardingDelay)
+	p.FdWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
 	p.Synced = true
 	p.RrWhileTimer.count = 0
 	p.Sync = false
@@ -1593,7 +1593,7 @@ func (prtm *PrtMachine) ProcessingPostStateAlternatePort() {
 			} else {
 				prtm.ProcessPostStateProcessing()
 			}
-		} else if p.FdWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) &&
+		} else if p.FdWhileTimer.count != int32(p.PortTimes.ForwardingDelay) &&
 			p.Selected &&
 			!p.UpdtInfo {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo, nil)
@@ -1629,7 +1629,7 @@ func (prtm *PrtMachine) ProcessingPostStateAlternatePort() {
 			} else {
 				prtm.ProcessPostStateProcessing()
 			}
-		} else if p.RbWhileTimer.count != int32(2*p.DesignatedTimes.HelloTime) &&
+		} else if p.RbWhileTimer.count != int32(2*p.PortTimes.HelloTime) &&
 			p.Role == PortRoleBackupPort &&
 			p.Selected &&
 			!p.UpdtInfo {
@@ -1668,7 +1668,7 @@ func (prtm *PrtMachine) ProcessingPostStateDisabled() {
 	if prtm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
 		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDisabledPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 			p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
-		if p.FdWhileTimer.count != int32(p.DesignatedTimes.MaxAge) &&
+		if p.FdWhileTimer.count != int32(p.PortTimes.MaxAge) &&
 			p.Selected &&
 			!p.UpdtInfo {
 			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo, nil)

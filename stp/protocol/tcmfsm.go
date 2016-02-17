@@ -490,7 +490,7 @@ func (tcm *TcMachine) newTcWhile() (newinfonotificationsent bool) {
 			defer tcm.NotifyNewInfoChanged(p.NewInfo, true)
 			newinfonotificationsent = true
 		} else {
-			p.TcWhileTimer.count = int32(p.DesignatedTimes.MaxAge + p.DesignatedTimes.ForwardingDelay)
+			p.TcWhileTimer.count = int32(p.PortTimes.MaxAge + p.PortTimes.ForwardingDelay)
 		}
 	}
 	return newinfonotificationsent

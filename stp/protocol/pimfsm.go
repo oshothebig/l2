@@ -183,8 +183,17 @@ func (pim *PimMachine) PimMachineUpdate(m fsm.Machine, data interface{}) fsm.Sta
 	tmp = p.Synced && p.Agreed
 	defer pim.NotifySyncedChanged(p.Synced, tmp)
 	p.Synced = tmp
-	p.PortPriority = p.DesignatedPriority
-	p.PortTimes = p.DesignatedTimes
+	// root has not been assigned yet so lets make this the root
+	if p.b.RootPortId == 0 {
+		p.PortPriority.RootBridgeId = p.b.BridgeIdentifier
+		p.PortPriority.RootPathCost = 0
+	} else {
+		p.PortPriority.RootBridgeId = p.b.BridgeIdentifier
+		p.PortPriority.RootPathCost = p.b.BridgePriority.RootPathCost
+	}
+	p.PortPriority.DesignatedBridgeId = p.b.BridgeIdentifier
+	p.PortPriority.DesignatedPortId = uint16(p.Priority<<8 | p.PortId)
+	p.PortTimes = p.b.BridgeTimes
 	defer p.NotifyUpdtInfoChanged(PimMachineModuleStr, p.UpdtInfo, false)
 	p.UpdtInfo = false
 	p.InfoIs = PortInfoStateMine
@@ -1008,7 +1017,15 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 	msgpriority := pim.getRcvdMsgPriority(data)
 	msgtimes := pim.getRcvdMsgTimes(data)
 
-	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] portVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.PortPriority, msgtimes, p.DesignatedTimes))
+	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] portVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.PortPriority, msgtimes, p.PortTimes))
+
+	// TODO find where this is in spec
+	if CompareBridgeAddr(GetBridgeAddrFromBridgeId(msgpriority.RootBridgeId), GetBridgeAddrFromBridgeId(p.b.BridgeIdentifier)) == 0 {
+		if GetBridgePriorityFromBridgeId(msgpriority.RootBridgeId) != GetBridgePriorityFromBridgeId(p.b.BridgeIdentifier) {
+			return OtherInfo
+		}
+	}
+
 	if msgRole == PortRoleDesignatedPort &&
 		(IsMsgPriorityVectorSuperiorThanPortPriorityVector(msgpriority, &p.PortPriority) ||
 			(*msgpriority == p.PortPriority &&
@@ -1154,7 +1171,7 @@ func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 		return true
 	} else if newInfoIs == PortInfoStateMine &&
 		p.InfoIs == PortInfoStateMine &&
-		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.DesignatedPriority, &p.PortPriority) {
+		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.b.BridgePriority, &p.PortPriority) {
 		StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: InfoIs=Mine and designated vector superior or same as port")
 		return true
 	}
@@ -1170,9 +1187,7 @@ func (pim *PimMachine) recordPriority(rcvdMsgPriority *PriorityVector) bool {
 	//message priority vector is better than the port priority vector, or the message has been transmitted from the
 	//same Designated Bridge and Designated Port as the port priority vector, i.e., if the following is true
 	betterorsame := pim.betterorsameinfo(p.InfoIs)
-	if betterorsame {
-		p.PortPriority = *rcvdMsgPriority
-	}
+	p.PortPriority = *rcvdMsgPriority
 	return betterorsame
 }
 

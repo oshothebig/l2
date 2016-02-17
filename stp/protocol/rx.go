@@ -87,8 +87,8 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 					if stp.ProtocolId == layers.RSTPProtocolIdentifier &&
 						len(stp.Contents) >= layers.STPProtocolLength &&
 						stp.MsgAge < stp.MaxAge &&
-						stp.BridgeId != p.DesignatedPriority.DesignatedBridgeId &&
-						stp.PortId != uint16(p.DesignatedPriority.DesignatedPortId) {
+						stp.BridgeId != p.PortPriority.DesignatedBridgeId &&
+						stp.PortId != uint16(p.PortPriority.DesignatedPortId) {
 						bpduType = BPDURxTypeSTP
 					}
 				} else {

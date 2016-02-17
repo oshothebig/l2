@@ -34,55 +34,55 @@ type StpPort struct {
 	ProtocolPortId uint16
 
 	// 17.19
-	AgeingTime         int32
-	Agree              bool
-	Agreed             bool
-	AdminEdge          bool
-	AutoEdgePort       bool // optional
-	DesignatedPriority PriorityVector
-	DesignatedTimes    Times
-	Disputed           bool
-	FdbFlush           bool
-	Forward            bool
-	Forwarding         bool
-	InfoIs             PortInfoState
-	Learn              bool
-	Learning           bool
-	Mcheck             bool
-	MsgPriority        PriorityVector
-	MsgTimes           Times
-	NewInfo            bool
-	OperEdge           bool
-	PortEnabled        bool
-	PortId             uint16
-	PortPathCost       uint32
-	PortPriority       PriorityVector
-	PortTimes          Times
-	Priority           uint16
-	Proposed           bool
-	Proposing          bool
-	RcvdBPDU           bool
-	RcvdInfo           PortDesignatedRcvInfo
-	RcvdMsg            bool
-	RcvdRSTP           bool
-	RcvdSTP            bool
-	RcvdTc             bool
-	RcvdTcAck          bool
-	RcvdTcn            bool
-	RstpVersion        bool
-	ReRoot             bool
-	Reselect           bool
-	Role               PortRole
-	Selected           bool
-	SelectedRole       PortRole
-	SendRSTP           bool
-	Sync               bool
-	Synced             bool
-	TcAck              bool
-	TcProp             bool
-	Tick               bool
-	TxCount            uint64
-	UpdtInfo           bool
+	AgeingTime   int32
+	Agree        bool
+	Agreed       bool
+	AdminEdge    bool
+	AutoEdgePort bool // optional
+	//DesignatedPriority PriorityVector
+	//DesignatedTimes    Times
+	Disputed     bool
+	FdbFlush     bool
+	Forward      bool
+	Forwarding   bool
+	InfoIs       PortInfoState
+	Learn        bool
+	Learning     bool
+	Mcheck       bool
+	MsgPriority  PriorityVector
+	MsgTimes     Times
+	NewInfo      bool
+	OperEdge     bool
+	PortEnabled  bool
+	PortId       uint16
+	PortPathCost uint32
+	PortPriority PriorityVector
+	PortTimes    Times
+	Priority     uint16
+	Proposed     bool
+	Proposing    bool
+	RcvdBPDU     bool
+	RcvdInfo     PortDesignatedRcvInfo
+	RcvdMsg      bool
+	RcvdRSTP     bool
+	RcvdSTP      bool
+	RcvdTc       bool
+	RcvdTcAck    bool
+	RcvdTcn      bool
+	RstpVersion  bool
+	ReRoot       bool
+	Reselect     bool
+	Role         PortRole
+	Selected     bool
+	SelectedRole PortRole
+	SendRSTP     bool
+	Sync         bool
+	Synced       bool
+	TcAck        bool
+	TcProp       bool
+	Tick         bool
+	TxCount      uint64
+	UpdtInfo     bool
 	// 6.4.3
 	OperPointToPointMAC   bool
 	AdminPoinrtToPointMAC PointToPointMac
@@ -176,11 +176,10 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		IfIndex: c.Dot1dStpPort,
 		// protocol portId
 		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
-		Priority:            c.Dot1dStpPortPriority,
+		Priority:            c.Dot1dStpPortPriority, // default usually 0x80
 		PortEnabled:         enabled,
 		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
 		Role:                PortRoleDisabledPort,
-		DesignatedTimes:     RootTimes,
 		PortTimes:           RootTimes,
 		SendRSTP:            true,  // default
 		RcvdRSTP:            false, // default
@@ -195,7 +194,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		portChan:            make(chan string),
 		BrgIfIndex:          c.Dot1dStpBridgeIfIndex,
 		AdminEdge:           c.Dot1dStpPortAdminEdgePort,
-		DesignatedPriority: PriorityVector{
+		PortPriority: PriorityVector{
 			RootBridgeId:       b.BridgeIdentifier,
 			RootPathCost:       0,
 			DesignatedBridgeId: b.BridgeIdentifier,
@@ -856,7 +855,7 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 					}
 				}
 				if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
-					if p.FdWhileTimer.count != int32(p.DesignatedTimes.MaxAge) {
+					if p.FdWhileTimer.count != int32(p.PortTimes.MaxAge) {
 						p.PrtMachineFsm.PrtEvents <- MachineEvent{
 							e:   PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo,
 							src: src,
@@ -908,7 +907,7 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 							e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
 							src: src,
 						}
-					} else if p.RrWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) {
+					} else if p.RrWhileTimer.count != int32(p.PortTimes.ForwardingDelay) {
 						p.PrtMachineFsm.PrtEvents <- MachineEvent{
 							e:   PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo,
 							src: src,
@@ -1160,7 +1159,7 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 							e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
 							src: src,
 						}
-					} else if p.FdWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) {
+					} else if p.FdWhileTimer.count != int32(p.PortTimes.ForwardingDelay) {
 						p.PrtMachineFsm.PrtEvents <- MachineEvent{
 							e:   PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo,
 							src: src,
@@ -1180,7 +1179,7 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 							e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
 							src: src,
 						}
-					} else if p.RbWhileTimer.count != int32(2*p.DesignatedTimes.HelloTime) &&
+					} else if p.RbWhileTimer.count != int32(2*p.PortTimes.HelloTime) &&
 						p.Role == PortRoleBackupPort {
 						p.PrtMachineFsm.PrtEvents <- MachineEvent{
 							e:   PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo,
@@ -1326,7 +1325,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 					}
 				}
 				if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
-					if p.FdWhileTimer.count != int32(p.DesignatedTimes.MaxAge) {
+					if p.FdWhileTimer.count != int32(p.PortTimes.MaxAge) {
 						p.PrtMachineFsm.PrtEvents <- MachineEvent{
 							e:   PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo,
 							src: src,
@@ -1378,7 +1377,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 							e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
 							src: src,
 						}
-					} else if p.RrWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) {
+					} else if p.RrWhileTimer.count != int32(p.PortTimes.ForwardingDelay) {
 						p.PrtMachineFsm.PrtEvents <- MachineEvent{
 							e:   PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo,
 							src: src,
@@ -1630,7 +1629,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 							e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
 							src: src,
 						}
-					} else if p.FdWhileTimer.count != int32(p.DesignatedTimes.ForwardingDelay) {
+					} else if p.FdWhileTimer.count != int32(p.PortTimes.ForwardingDelay) {
 						p.PrtMachineFsm.PrtEvents <- MachineEvent{
 							e:   PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo,
 							src: src,
@@ -1650,7 +1649,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 							e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
 							src: src,
 						}
-					} else if p.RbWhileTimer.count != int32(2*p.DesignatedTimes.HelloTime) &&
+					} else if p.RbWhileTimer.count != int32(2*p.PortTimes.HelloTime) &&
 						p.Role == PortRoleBackupPort {
 						p.PrtMachineFsm.PrtEvents <- MachineEvent{
 							e:   PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo,

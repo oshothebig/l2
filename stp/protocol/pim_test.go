@@ -289,7 +289,7 @@ func UsedForTestOnlyPimCheckUpdateState(p *StpPort, t *testing.T) {
 	if p.PortPriority != p.DesignatedPriority {
 		t.Error("Failed Port Priority not equal Designated Priority")
 	}
-	if p.PortTimes != p.DesignatedTimes {
+	if p.PortTimes != p.b.RootTimes {
 		t.Error("Failed Port Times not equal Designated times")
 	}
 	if p.UpdtInfo != false {
@@ -951,14 +951,14 @@ func xTestPimCurrentStateRcvdMsgAndNotUpdtInfo(t *testing.T) {
 				ProtocolVersionId: p.BridgeProtocolVersionGet(),
 				BPDUType:          byte(layers.BPDUTypeRSTP),
 				Flags:             0,
-				RootId:            p.DesignatedPriority.RootBridgeId,
-				RootPathCost:      uint32(p.DesignatedPriority.RootPathCost),
-				BridgeId:          p.DesignatedPriority.DesignatedBridgeId,
-				PortId:            uint16(p.DesignatedPriority.DesignatedPortId),
-				MsgAge:            uint16(p.DesignatedTimes.MessageAge),
-				MaxAge:            uint16(p.DesignatedTimes.MaxAge),
-				HelloTime:         uint16(p.DesignatedTimes.HelloTime),
-				FwdDelay:          uint16(p.DesignatedTimes.ForwardingDelay),
+				RootId:            p.PortPriority.RootBridgeId,
+				RootPathCost:      uint32(p.PortPriority.RootPathCost),
+				BridgeId:          p.PortPriority.DesignatedBridgeId,
+				PortId:            uint16(p.PortPriority.DesignatedPortId),
+				MsgAge:            uint16(p.PortTimes.MessageAge),
+				MaxAge:            uint16(p.PortTimes.MaxAge),
+				HelloTime:         uint16(p.PortTimes.HelloTime),
+				FwdDelay:          uint16(p.PortTimes.ForwardingDelay),
 				Version1Length:    0,
 			}
 
