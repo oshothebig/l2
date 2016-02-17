@@ -255,14 +255,16 @@ func (prsm *PrsMachine) updtRolesTree() {
 
 			if p.InfoIs == PortInfoStateReceived {
 
-				if CompareBridgeAddr(GetBridgeAddrFromBridgeId(myBridgeId),
-					GetBridgeAddrFromBridgeId(p.PortPriority.DesignatedBridgeId)) == 0 {
-					continue
-				}
+				/*
+					if CompareBridgeAddr(GetBridgeAddrFromBridgeId(myBridgeId),
+						GetBridgeAddrFromBridgeId(p.PortPriority.DesignatedBridgeId)) == 0 {
+						continue
+					}
+				*/
 
 				compare := CompareBridgeId(tmpVector.RootBridgeId, p.PortPriority.RootBridgeId)
 				switch compare {
-				case 1:
+				case -1:
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: Root Bridge Received is SUPERIOR")
 					tmpVector.RootBridgeId = p.PortPriority.RootBridgeId
 					tmpVector.RootPathCost = p.PortPriority.RootPathCost + p.PortPathCost
