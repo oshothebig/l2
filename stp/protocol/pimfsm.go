@@ -1187,8 +1187,8 @@ func (pim *PimMachine) recordPriority(rcvdMsgPriority *PriorityVector) bool {
 	//message priority vector is better than the port priority vector, or the message has been transmitted from the
 	//same Designated Bridge and Designated Port as the port priority vector, i.e., if the following is true
 	betterorsame := pim.betterorsameinfo(p.InfoIs)
-	p.PortPriority.RootBridgeId = *rcvdMsgPriority.RootBridgeId
-	p.PortPriority.RootPathCost = *rcvdMsgPriority.RootPathCost
+	p.PortPriority.RootBridgeId = rcvdMsgPriority.RootBridgeId
+	p.PortPriority.RootPathCost = *cvdMsgPriority.RootPathCost
 	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("recordPriority: copying rcvmsg to port %#v", *rcvdMsgPriority))
 	return betterorsame
 }
