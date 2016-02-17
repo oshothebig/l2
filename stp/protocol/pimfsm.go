@@ -187,7 +187,7 @@ func (pim *PimMachine) PimMachineUpdate(m fsm.Machine, data interface{}) fsm.Sta
 	if p.b.RootPortId == 0 {
 		p.PortPriority.RootBridgeId = p.b.BridgeIdentifier
 		p.PortPriority.RootPathCost = 0
-	} else {
+	} else if p.b.RootPortId == int32(p.Priority<<8|p.PortId) {
 		p.PortPriority.RootBridgeId = p.b.BridgeIdentifier
 		p.PortPriority.RootPathCost = p.b.BridgePriority.RootPathCost
 	}

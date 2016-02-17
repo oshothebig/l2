@@ -408,11 +408,11 @@ func (prsm *PrsMachine) updtRolesTree() {
 						}
 					} else {
 						defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
-						if p.SelectedRole != PortRoleDesignatedPort {
-							p.SelectedRole = PortRoleDesignatedPort
-							defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
-							p.UpdtInfo = true
-						}
+						//if p.SelectedRole != PortRoleDesignatedPort {
+						p.SelectedRole = PortRoleDesignatedPort
+						defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
+						p.UpdtInfo = true
+						//}
 						StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:4 port role selected DESIGNATED")
 					}
 				}
