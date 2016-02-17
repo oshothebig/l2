@@ -262,7 +262,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 					}
 				*/
 
-				compare := CompareBridgeId(tmpVector.RootBridgeId, p.PortPriority.RootBridgeId)
+				compare := CompareBridgeId(p.PortPriority.RootBridgeId, tmpVector.RootBridgeId)
 				switch compare {
 				case -1:
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: Root Bridge Received is SUPERIOR")
