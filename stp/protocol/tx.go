@@ -47,8 +47,8 @@ func (p *StpPort) TxRSTP() {
 		BPDUType:          byte(layers.BPDUTypeRSTP),
 		Flags:             0,
 		RootId:            p.PortPriority.RootBridgeId,
-		RootPathCost:      uint32(p.PortPriority.RootPathCost),
-		BridgeId:          p.PortPriority.DesignatedBridgeId,
+		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),
+		BridgeId:          p.b.BridgePriority.DesignatedBridgeId,
 		PortId:            uint16(p.PortId | p.Priority<<8),
 		MsgAge:            uint16(p.PortTimes.MessageAge),
 		MaxAge:            uint16(p.PortTimes.MaxAge),
@@ -80,7 +80,7 @@ func (p *StpPort) TxRSTP() {
 	}
 	p.SetTxPortCounters(BPDURxTypeRSTP)
 
-	StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s\n", pIntf.Name))
+	StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
 }
 
 func (p *StpPort) TxTCN() {
@@ -125,7 +125,7 @@ func (p *StpPort) TxConfig() {
 		RootId:            p.PortPriority.RootBridgeId,
 		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),
 		BridgeId:          p.b.BridgePriority.DesignatedBridgeId,
-		PortId:            uint16(p.PortPriority.DesignatedPortId),
+		PortId:            uint16(p.PortId | p.Priority<<8),
 		MsgAge:            uint16(p.PortTimes.MessageAge),
 		MaxAge:            uint16(p.PortTimes.MaxAge),
 		HelloTime:         uint16(p.PortTimes.HelloTime),
