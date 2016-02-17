@@ -266,7 +266,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 					tmpVector.RootPathCost = p.PortPriority.RootPathCost + p.PortPathCost
 					tmpVector.DesignatedBridgeId = p.PortPriority.DesignatedBridgeId
 					tmpVector.DesignatedPortId = p.PortPriority.DesignatedPortId
-					rootPortId = uint32(p.Priority<<8 | p.PortId)
+					rootPortId = int32(p.Priority<<8 | p.PortId)
 				case 0:
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: Root Bridge Received by port SAME")
 					tmpCost := p.PortPriority.RootPathCost + p.PortPathCost
@@ -275,14 +275,14 @@ func (prsm *PrsMachine) updtRolesTree() {
 						tmpVector.RootPathCost = tmpCost
 						tmpVector.DesignatedBridgeId = p.PortPriority.DesignatedBridgeId
 						tmpVector.DesignatedPortId = p.PortPriority.DesignatedPortId
-						rootPortId = p.IfIndex
+						rootPortId = int32(p.Priority<<8 | p.PortId)
 					} else if tmpCost == tmpVector.RootPathCost {
 						StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: DesignatedBridgeId received by port is SAME")
 						if p.PortPriority.DesignatedPortId <
 							tmpVector.DesignatedPortId {
 							StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: DesignatedPortId received by port is SUPPERIOR")
 							tmpVector.DesignatedPortId = p.PortPriority.DesignatedPortId
-							rootPortId = uint32(p.Priority<<8 | p.PortId)
+							rootPortId = int32(p.Priority<<8 | p.PortId)
 
 						} else if p.PortPriority.DesignatedPortId ==
 							tmpVector.DesignatedPortId {
@@ -293,7 +293,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 								localPortId = int32((p.Priority << 8) | p.PortId)
 								if localPortId < rootPortId {
 									StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: received portId is SUPPERIOR")
-									rootPortId = uint32(p.Priority<<8 | p.PortId)
+									rootPortId = int32(p.Priority<<8 | p.PortId)
 								}
 							}
 						}

@@ -155,5 +155,5 @@ func (p *StpPort) TxConfig() {
 	}
 
 	p.SetTxPortCounters(BPDURxTypeSTP)
-	StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s\n", pIntf.Name))
+	StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s %#v\n", pIntf.Name, stp))
 }
