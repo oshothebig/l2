@@ -349,19 +349,6 @@ func IsDesignatedPriorytVectorNotHigherThanPortPriorityVector(d *PriorityVector,
 	return IsMsgPriorityVectorWorseThanPortPriorityVector(p, d)
 }
 
-func CalcRootPathPriorityVector(msg *PriorityVector, port *PriorityVector) (rootPriorityVector *PriorityVector) {
-
-	rootPriorityVector = &PriorityVector{
-		RootBridgeId:       msg.RootBridgeId,
-		RootPathCost:       msg.RootPathCost + port.RootPathCost,
-		DesignatedBridgeId: msg.DesignatedBridgeId,
-		DesignatedPortId:   msg.DesignatedPortId,
-		BridgePortId:       msg.BridgePortId,
-	}
-
-	return rootPriorityVector
-}
-
 func (b *Bridge) AllSynced() bool {
 
 	var p *StpPort
@@ -373,4 +360,24 @@ func (b *Bridge) AllSynced() bool {
 		}
 	}
 	return true
+}
+
+func (b *Bridge) ReRooted(p *StpPort) bool {
+	rerooted := true
+	if p.RrWhileTimer.count == 0 {
+		rerooted = false
+	} else {
+		var op *StpPort
+		for _, pId := range b.StpPorts {
+			if pId == p.IfIndex {
+				continue
+			}
+			if StpFindPortById(pId, &op) {
+				if p.RrWhileTimer.count != 0 {
+					rerooted = false
+				}
+			}
+		}
+	}
+	return rerooted
 }

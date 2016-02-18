@@ -142,7 +142,8 @@ func (p *StpPort) DecrementTimerCounters() {
 	// prt owner
 	if p.RrWhileTimer.count > 0 {
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-			if p.Selected &&
+			if p.RrWhileTimer.count != p.b.RootTimes.ForwardingDelay &&
+				p.Selected &&
 				!p.UpdtInfo {
 				p.PrtMachineFsm.PrtEvents <- MachineEvent{
 					e:   PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo,

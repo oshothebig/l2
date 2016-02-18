@@ -218,7 +218,9 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 			1000000000: 2,
 		}
 		speed := PortConfigMap[p.IfIndex].Speed
+
 		p.PortPathCost = AutoPathCostDefaultMap[speed]
+		StpLogger("INFO", fmt.Sprintf("Auto Port Path Cost for port %d speed %d = %d", p.IfIndex, speed, p.PortPathCost))
 	}
 
 	PortMapTable[p.IfIndex] = p

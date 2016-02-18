@@ -1043,6 +1043,7 @@ func (prtm *PrtMachine) ProcessingPostStateReRooted() {
 
 func (prtm *PrtMachine) ProcessPostStateRootPort() {
 	p := prtm.p
+	b := p.b
 	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
 		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateRootPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 			p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
@@ -1107,7 +1108,7 @@ func (prtm *PrtMachine) ProcessPostStateRootPort() {
 			} else {
 				prtm.ProcessPostStateProcessing()
 			}
-		} else if p.ReRoot &&
+		} else if b.ReRooted(p) &&
 			p.RbWhileTimer.count == 0 &&
 			p.RstpVersion &&
 			!p.Learn &&
@@ -1131,7 +1132,7 @@ func (prtm *PrtMachine) ProcessPostStateRootPort() {
 			} else {
 				prtm.ProcessPostStateProcessing()
 			}
-		} else if p.ReRoot &&
+		} else if b.ReRooted(p) &&
 			p.RbWhileTimer.count == 0 &&
 			p.RstpVersion &&
 			p.Learn &&
