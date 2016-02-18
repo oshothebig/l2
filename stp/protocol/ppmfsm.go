@@ -61,6 +61,14 @@ type PpmmMachine struct {
 	PpmmLogEnableEvent chan bool
 }
 
+func (m *PpmmMachine) GetCurrStateStr() string {
+	return PpmmStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *PpmmMachine) GetPrevStateStr() string {
+	return PpmmStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 	ppmm := &PpmmMachine{

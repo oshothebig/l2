@@ -84,8 +84,8 @@ type StpPort struct {
 	TxCount      uint64
 	UpdtInfo     bool
 	// 6.4.3
-	OperPointToPointMAC   bool
-	AdminPoinrtToPointMAC PointToPointMac
+	OperPointToPointMAC  bool
+	AdminPointToPointMAC PointToPointMac
 
 	// Associated Bridge Id
 	BridgeId   BridgeId
@@ -173,7 +173,8 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		RootTimes = b.RootTimes
 	}
 	p := &StpPort{
-		IfIndex: c.Dot1dStpPort,
+		IfIndex:              c.Dot1dStpPort,
+		AdminPointToPointMAC: PointToPointMac(c.Dot1dStpPortAdminPointToPoint),
 		// protocol portId
 		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
 		Priority:            c.Dot1dStpPortPriority, // default usually 0x80

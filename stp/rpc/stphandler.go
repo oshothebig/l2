@@ -352,12 +352,12 @@ func (s *STPDServiceHandler) GetBulkDot1dStpBridgeState(fromIndex stpd.Int, coun
 
 // GetBulkAggregationLacpMemberStateCounters will return the status of all
 // the lag members.
-func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCounters(fromIndex stpd.Int, count stpd.Int) (obj *stpd.Dot1dStpPortEntryStateCountersGetInfo, err error) {
+func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStates(fromIndex stpd.Int, count stpd.Int) (obj *stpd.Dot1dStpPortEntryStateCountersFsmStatesGetInfo, err error) {
 
-	var stpPortStateList []stpd.Dot1dStpPortEntryStateCounters = make([]stpd.Dot1dStpPortEntryStateCounters, count)
-	var nextStpPortState *stpd.Dot1dStpPortEntryStateCounters
-	var returnStpPortStates []*stpd.Dot1dStpPortEntryStateCounters
-	var returnStpPortStateGetInfo stpd.Dot1dStpPortEntryStateCountersGetInfo
+	var stpPortStateList []stpd.Dot1dStpPortEntryStateCountersFsmStates = make([]stpd.Dot1dStpPortEntryStateCountersFsmStates, count)
+	var nextStpPortState *stpd.Dot1dStpPortEntryStateCountersFsmStates
+	var returnStpPortStates []*stpd.Dot1dStpPortEntryStateCountersFsmStates
+	var returnStpPortStateGetInfo stpd.Dot1dStpPortEntryStateCountersFsmStatesGetInfo
 	//var a *lacp.LaAggregator
 	validCount := stpd.Int(0)
 	toIndex := fromIndex
@@ -389,6 +389,11 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCounters(fromIndex stp
 		nextStpPortState.Dot1dStpPortDesignatedCost = int32(p.PortPriority.RootPathCost)
 		nextStpPortState.Dot1dStpPortAdminPathCost = int32(0) //The administratively assigned value for the contribution of this port to the path cost of paths toward the spanning tree root.  Writing a value of '0' assigns the automatically calculated default Path Cost value to the port.  If the default Path Cost is being used, this object returns '0' when read.  This complements the object dot1dStpPortPathCost or dot1dStpPortPathCost32, which returns the operational value of the path cost.    The value of this object MUST be retained across reinitializations of the management system.
 		nextStpPortState.Dot1dStpPortPathCost32 = int32(p.PortPathCost)
+		// root timers
+		nextStpPortState.Dot1dStpBridgePortMaxAge = int32(p.PortTimes.MaxAge)
+		nextStpPortState.Dot1dStpBridgePortForwardDelay = int32(p.PortTimes.ForwardingDelay)
+		nextStpPortState.Dot1dStpBridgePortHelloTime = int32(p.PortTimes.HelloTime)
+		// counters
 		nextStpPortState.StpInPkts = int64(p.StpRx)
 		nextStpPortState.StpOutPkts = int64(p.StpTx)
 		nextStpPortState.RstpInPkts = int64(p.RstpRx)
@@ -399,9 +404,28 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCounters(fromIndex stp
 		nextStpPortState.PvstOutPkts = int64(p.PvstTx)
 		nextStpPortState.BpduInPkts = int64(p.BpduRx)
 		nextStpPortState.BpduOutPkts = int64(p.BpduTx)
+		// fsm-states
+		nextStpPortState.PimPrevState = p.PimMachineFsm.GetPrevStateStr()
+		nextStpPortState.PimCurrState = p.PimMachineFsm.GetCurrStateStr()
+		nextStpPortState.PrtmPrevState = p.PrtMachineFsm.GetPrevStateStr()
+		nextStpPortState.PrtmCurrState = p.PrtMachineFsm.GetCurrStateStr()
+		nextStpPortState.PrxmPrevState = p.PrxmMachineFsm.GetPrevStateStr()
+		nextStpPortState.PrxmCurrState = p.PrxmMachineFsm.GetCurrStateStr()
+		nextStpPortState.PstmPrevState = p.PstMachineFsm.GetPrevStateStr()
+		nextStpPortState.PstmCurrState = p.PstMachineFsm.GetCurrStateStr()
+		nextStpPortState.TcmPrevState = p.TcMachineFsm.GetPrevStateStr()
+		nextStpPortState.TcmCurrState = p.TcMachineFsm.GetCurrStateStr()
+		nextStpPortState.PpmPrevState = p.PpmmMachineFsm.GetPrevStateStr()
+		nextStpPortState.PpmCurrState = p.PpmmMachineFsm.GetCurrStateStr()
+		nextStpPortState.PtxmPrevState = p.PtxmMachineFsm.GetPrevStateStr()
+		nextStpPortState.PtxmCurrState = p.PtxmMachineFsm.GetCurrStateStr()
+		nextStpPortState.PtimPrevState = p.PtmMachineFsm.GetPrevStateStr()
+		nextStpPortState.PtimCurrState = p.PtmMachineFsm.GetCurrStateStr()
+		nextStpPortState.BdmPrevState = p.BdmMachineFsm.GetPrevStateStr()
+		nextStpPortState.BdmCurrState = p.BdmMachineFsm.GetCurrStateStr()
 
 		if len(returnStpPortStates) == 0 {
-			returnStpPortStates = make([]*stpd.Dot1dStpPortEntryStateCounters, 0)
+			returnStpPortStates = make([]*stpd.Dot1dStpPortEntryStateCountersFsmStates, 0)
 		}
 		returnStpPortStates = append(returnStpPortStates, nextStpPortState)
 		validCount++
@@ -413,7 +437,7 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCounters(fromIndex stp
 		moreRoutes = true
 	}
 	// lets try and get the next agg if one exists then there are more routes
-	obj.Dot1dStpPortEntryStateCountersList = returnStpPortStates
+	obj.Dot1dStpPortEntryStateCountersFsmStatesList = returnStpPortStates
 	obj.StartIdx = fromIndex
 	obj.EndIdx = toIndex + 1
 	obj.More = moreRoutes

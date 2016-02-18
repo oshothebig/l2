@@ -58,6 +58,14 @@ type PrsMachine struct {
 	PrsLogEnableEvent chan bool
 }
 
+func (m *PrsMachine) GetCurrStateStr() string {
+	return PrsStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *PrsMachine) GetPrevStateStr() string {
+	return PrsStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 // NewStpPimMachine will create a new instance of the LacpRxMachine
 func NewStpPrsMachine(b *Bridge) *PrsMachine {
 	prsm := &PrsMachine{
@@ -272,6 +280,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 					tmpVector.DesignatedBridgeId = p.PortPriority.DesignatedBridgeId
 					tmpVector.DesignatedPortId = p.PortPriority.DesignatedPortId
 					rootPortId = int32(p.Priority<<8 | p.PortId)
+					rootTimes = p.PortTimes
 				case 0:
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: Root Bridge Received by port SAME")
 					tmpCost := p.PortPriority.RootPathCost + p.PortPathCost

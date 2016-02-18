@@ -75,6 +75,14 @@ type TcMachine struct {
 	TcLogEnableEvent chan bool
 }
 
+func (m *TcMachine) GetCurrStateStr() string {
+	return TcStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *TcMachine) GetPrevStateStr() string {
+	return TcStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 // NewStpTcMachine will create a new instance of the LacpRxMachine
 func NewStpTcMachine(p *StpPort) *TcMachine {
 	tcm := &TcMachine{

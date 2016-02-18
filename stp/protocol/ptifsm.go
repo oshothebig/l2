@@ -56,6 +56,14 @@ type PtmMachine struct {
 	PtmLogEnableEvent chan bool
 }
 
+func (m *PtmMachine) GetCurrStateStr() string {
+	return PtmStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *PtmMachine) GetPrevStateStr() string {
+	return PtmStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 func (ptm *PtmMachine) PrevState() fsm.State { return ptm.PreviousState }
 
 // PrevStateSet will set the previous State

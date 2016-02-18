@@ -154,6 +154,14 @@ type PrtMachine struct {
 	PrtLogEnableEvent chan bool
 }
 
+func (m *PrtMachine) GetCurrStateStr() string {
+	return PrtStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *PrtMachine) GetPrevStateStr() string {
+	return PrtStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 // NewStpPrtMachine will create a new instance of the LacpRxMachine
 func NewStpPrtMachine(p *StpPort) *PrtMachine {
 	prtm := &PrtMachine{

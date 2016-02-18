@@ -55,6 +55,14 @@ type BdmMachine struct {
 	BdmLogEnableEvent chan bool
 }
 
+func (m *BdmMachine) GetCurrStateStr() string {
+	return BdmStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *BdmMachine) GetPrevStateStr() string {
+	return BdmStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 // NewStpPimMachine will create a new instance of the LacpRxMachine
 func NewStpBdmMachine(p *StpPort) *BdmMachine {
 	bdm := &BdmMachine{

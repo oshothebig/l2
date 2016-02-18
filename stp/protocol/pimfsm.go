@@ -86,6 +86,14 @@ type PimMachine struct {
 	PimLogEnableEvent chan bool
 }
 
+func (m *PimMachine) GetCurrStateStr() string {
+	return PimStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *PimMachine) GetPrevStateStr() string {
+	return PimStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 // NewStpPimMachine will create a new instance of the LacpRxMachine
 func NewStpPimMachine(p *StpPort) *PimMachine {
 	pim := &PimMachine{

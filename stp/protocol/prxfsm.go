@@ -62,6 +62,14 @@ type PrxmMachine struct {
 	PrxmLogEnableEvent chan bool
 }
 
+func (m *PrxmMachine) GetCurrStateStr() string {
+	return PrxmStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *PrxmMachine) GetPrevStateStr() string {
+	return PrxmStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewStpPrxmMachine(p *StpPort) *PrxmMachine {
 	prxm := &PrxmMachine{

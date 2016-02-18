@@ -61,6 +61,14 @@ type PstMachine struct {
 	PstLogEnableEvent chan bool
 }
 
+func (m *PstMachine) GetCurrStateStr() string {
+	return PstStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *PstMachine) GetPrevStateStr() string {
+	return PstStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 // NewStpPrtMachine will create a new instance of the LacpRxMachine
 func NewStpPstMachine(p *StpPort) *PstMachine {
 	pstm := &PstMachine{
