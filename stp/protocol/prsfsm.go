@@ -289,7 +289,6 @@ func (prsm *PrsMachine) updtRolesTree() {
 							StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: DesignatedPortId received by port is SUPPERIOR")
 							tmpVector.DesignatedPortId = p.PortPriority.DesignatedPortId
 							rootPortId = int32(p.Priority<<8 | p.PortId)
-
 						} else if p.PortPriority.DesignatedPortId ==
 							tmpVector.DesignatedPortId {
 							var rp *StpPort
@@ -311,22 +310,20 @@ func (prsm *PrsMachine) updtRolesTree() {
 
 	// lets copy over the tmpVector over to the rootPathVector
 	if rootPortId != 0 {
-		StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: Port %d selected as the root port", rootPortId))
-		if StpFindPortById(rootPortId, &p) {
+		StpMachineLogger("INFO", "PRSM", -1, fmt.Sprintf("updtRolesTree: Port %d selected as the root port", rootPortId))
 
-			compare := CompareBridgeAddr(GetBridgeAddrFromBridgeId(b.BridgePriority.RootBridgeId),
-				GetBridgeAddrFromBridgeId(tmpVector.RootBridgeId))
-			if compare != 0 {
-				b.OldRootBridgeIdentifier = b.BridgePriority.RootBridgeId
-			}
-
-			b.BridgePriority.RootBridgeId = tmpVector.RootBridgeId
-			b.BridgePriority.BridgePortId = tmpVector.BridgePortId
-			b.BridgePriority.RootPathCost = tmpVector.RootPathCost
-			b.RootTimes = rootTimes
-			b.RootTimes.MessageAge += 1
-			b.RootPortId = rootPortId
+		compare := CompareBridgeAddr(GetBridgeAddrFromBridgeId(b.BridgePriority.RootBridgeId),
+			GetBridgeAddrFromBridgeId(tmpVector.RootBridgeId))
+		if compare != 0 {
+			b.OldRootBridgeIdentifier = b.BridgePriority.RootBridgeId
 		}
+
+		b.BridgePriority.RootBridgeId = tmpVector.RootBridgeId
+		b.BridgePriority.BridgePortId = tmpVector.BridgePortId
+		b.BridgePriority.RootPathCost = tmpVector.RootPathCost
+		b.RootTimes = rootTimes
+		b.RootTimes.MessageAge += 1
+		b.RootPortId = rootPortId
 	} else {
 		StpMachineLogger("INFO", "PRSM", 0, "updtRolesTree: This bridge is the root bridge")
 
