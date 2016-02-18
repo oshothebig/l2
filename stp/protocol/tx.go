@@ -59,7 +59,7 @@ func (p *StpPort) TxRSTP() {
 
 	StpSetBpduFlags(ConvertBoolToUint8(false),
 		ConvertBoolToUint8(p.Agree),
-		ConvertBoolToUint8(p.Forward),
+		ConvertBoolToUint8(p.Forwarding),
 		ConvertBoolToUint8(p.Learning),
 		p.Role,
 		ConvertBoolToUint8(p.Proposed),
