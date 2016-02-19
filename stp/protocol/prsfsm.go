@@ -73,7 +73,7 @@ func (m *PrsMachine) GetPrevStateStr() string {
 func NewStpPrsMachine(b *Bridge) *PrsMachine {
 	prsm := &PrsMachine{
 		b:                  b,
-		debugLevel:         1,
+		debugLevel:         0,
 		PrsEvents:          make(chan MachineEvent, 10),
 		PrsKillSignalEvent: make(chan bool),
 		PrsLogEnableEvent:  make(chan bool)}
@@ -98,12 +98,11 @@ func (prsm *PrsMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	prsm.Machine.Rules = r
 	prsm.Machine.Curr = &StpStateEvent{
 		strStateMap: PrsStateStrMap,
-		//logEna:      ptxm.p.logEna,
-		logEna: true,
-		logger: prsm.PrsLogger,
-		owner:  PrsMachineModuleStr,
-		ps:     PrsStateNone,
-		s:      PrsStateNone,
+		logEna:      prsm.debugLevel > 0,
+		logger:      prsm.PrsLogger,
+		owner:       PrsMachineModuleStr,
+		ps:          PrsStateNone,
+		s:           PrsStateNone,
 	}
 
 	return prsm.Machine
