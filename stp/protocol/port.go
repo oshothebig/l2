@@ -87,6 +87,9 @@ type StpPort struct {
 	OperPointToPointMAC  bool
 	AdminPointToPointMAC PointToPointMac
 
+	// link operational state
+	AdminPortEnabled bool
+
 	// Associated Bridge Id
 	BridgeId   BridgeId
 	BrgIfIndex int32
@@ -174,10 +177,12 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	}
 	p := &StpPort{
 		IfIndex:              c.Dot1dStpPort,
+		AutoEdgePort:         true, // default and not configurable
 		AdminPointToPointMAC: PointToPointMac(c.Dot1dStpPortAdminPointToPoint),
 		// protocol portId
 		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
 		Priority:            c.Dot1dStpPortPriority, // default usually 0x80
+		AdminPortEnabled:    c.Dot1dStpPortEnable,
 		PortEnabled:         enabled,
 		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
 		Role:                PortRoleDisabledPort,
@@ -643,21 +648,23 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 	// 3) Port Information
 	// 4) Bridge Detection
 	if oldportenabled != newportenabled {
+		StpMachineLogger("INFO", "PORT", p.IfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
 		mEvtChan := make([]chan MachineEvent, 0)
 		evt := make([]MachineEvent, 0)
 
 		// notify the state machines
-		if p.EdgeDelayWhileTimer.count != MigrateTimeDefault && newportenabled == false {
+		if p.EdgeDelayWhileTimer.count != MigrateTimeDefault &&
+			!newportenabled {
 			mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
 			evt = append(evt, MachineEvent{e: PrxmEventEdgeDelayWhileNotEqualMigrateTimeAndNotPortEnabled,
 				src: src})
 		}
-		if newportenabled == false {
+		if !newportenabled {
 			mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
 			evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
 				src: src})
 
-			if p.AdminEdge == false {
+			if !p.AdminEdge {
 				//BdEventNotPortEnabledAndNotAdminEdge
 				mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
 				evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndNotAdminEdge,
