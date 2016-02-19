@@ -297,7 +297,7 @@ func IsMsgPriorityVectorSuperiorThanPortPriorityVector(msg *PriorityVector, port
 				(msg.DesignatedPortId == port.DesignatedPortId))
 	*/
 	if CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) < 0 {
-		StpLogger("INFO", "b1 root bridge id superior to b1 root bridge id")
+		//StpLogger("INFO", "b1 root bridge id superior to b2 root bridge id")
 		return true
 	} else if (CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) &&
 		(msg.RootPathCost < port.RootPathCost) {

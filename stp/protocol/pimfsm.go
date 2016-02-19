@@ -1018,6 +1018,14 @@ func (pim *PimMachine) NotifyDisputedChanged(olddisputed bool, newdisputed bool)
 	}
 }
 
+func (pim *PimMachine) isTcnBPDU(bpduLayer interface{}) bool {
+	switch bpduLayer.(type) {
+	case *layers.BPDUTopology:
+		return true
+	}
+	return false
+}
+
 func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 	p := pim.p
 	msgRole := StpGetBpduRole(pim.getRcvdMsgFlags(data))
@@ -1025,6 +1033,10 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 	msgtimes := pim.getRcvdMsgTimes(data)
 
 	//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] portVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.PortPriority, msgtimes, p.PortTimes))
+
+	if pim.isTcnBPDU(data) {
+		return OtherInfo
+	}
 
 	// TODO find where this is in spec
 	if CompareBridgeAddr(GetBridgeAddrFromBridgeId(msgpriority.RootBridgeId), GetBridgeAddrFromBridgeId(p.b.BridgeIdentifier)) == 0 {
@@ -1056,7 +1068,7 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 }
 
 func (pim *PimMachine) getRcvdMsgFlags(bpduLayer interface{}) uint8 {
-	p := pim.p
+	//p := pim.p
 	//bpdumsg := data.(RxBpduPdu)
 	//packet := bpdumsg.pdu.(gopacket.Packet)
 	//bpduLayer := packet.Layer(layers.LayerTypeBPDU)
@@ -1075,8 +1087,8 @@ func (pim *PimMachine) getRcvdMsgFlags(bpduLayer interface{}) uint8 {
 		//StpMachineLogger("INFO", "PIM", p.IfIndex, "Found PVST frame getting flags")
 		pvst := bpduLayer.(*layers.STP)
 		flags = pvst.Flags
-	default:
-		StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%T\n", bpduLayer))
+		//default:
+		//	StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("Error getRcvdMsgFlags rcvd TCN %T\n", bpduLayer))
 	}
 	return flags
 }
@@ -1148,6 +1160,8 @@ func (pim *PimMachine) recordProposal(rcvdMsgFlags uint8) {
 }
 
 // setTcFlags 17,21,17
+//Sets rcvdTc and/or rcvdTcAck if the Topology Change and/or Topology Change Acknowledgment flags,
+//respectively, are set in a ConfigBPDU or RST BPDU. Sets rcvdTcn TRUE if the BPDU is a TCN BPDU.
 func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 	p := pim.p
 	//bpdumsg := data.(RxBpduPdu)
@@ -1158,10 +1172,7 @@ func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 
 	p.RcvdTc = StpGetBpduTopoChange(rcvdMsgFlags)
 
-	switch bpduLayer.(type) {
-	case *layers.BPDUTopology:
-		p.RcvdTcn = true
-	}
+	p.RcvdTcn = pim.isTcnBPDU(bpduLayer)
 }
 
 // betterorsameinfo 17.21.1
