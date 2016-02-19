@@ -36,9 +36,6 @@ func (p *StpPort) BuildRSTPEthernetLlcHeaders() (eth layers.Ethernet, llc layers
 }
 
 func (p *StpPort) TxRSTP() {
-
-	pIntf, _ := PortConfigMap[p.IfIndex]
-
 	eth, llc := p.BuildRSTPEthernetLlcHeaders()
 
 	rstp := layers.RSTP{
@@ -46,20 +43,20 @@ func (p *StpPort) TxRSTP() {
 		ProtocolVersionId: p.BridgeProtocolVersionGet(),
 		BPDUType:          byte(layers.BPDUTypeRSTP),
 		Flags:             0,
-		RootId:            p.DesignatedPriority.RootBridgeId,
-		RootCostPath:      uint32(p.DesignatedPriority.RootPathCost),
-		BridgeId:          p.DesignatedPriority.DesignatedBridgeId,
-		PortId:            uint16(p.DesignatedPriority.DesignatedPortId),
-		MsgAge:            uint16(p.DesignatedTimes.MessageAge),
-		MaxAge:            uint16(p.DesignatedTimes.MaxAge),
-		HelloTime:         uint16(p.DesignatedTimes.HelloTime),
-		FwdDelay:          uint16(p.DesignatedTimes.ForwardingDelay),
+		RootId:            p.PortPriority.RootBridgeId,
+		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),
+		BridgeId:          p.b.BridgePriority.DesignatedBridgeId,
+		PortId:            uint16(p.PortId | p.Priority<<8),
+		MsgAge:            uint16(p.PortTimes.MessageAge << 8),
+		MaxAge:            uint16(p.PortTimes.MaxAge << 8),
+		HelloTime:         uint16(p.PortTimes.HelloTime << 8),
+		FwdDelay:          uint16(p.PortTimes.ForwardingDelay << 8),
 		Version1Length:    0,
 	}
 
 	StpSetBpduFlags(ConvertBoolToUint8(false),
 		ConvertBoolToUint8(p.Agree),
-		ConvertBoolToUint8(p.Forward),
+		ConvertBoolToUint8(p.Forwarding),
 		ConvertBoolToUint8(p.Learning),
 		p.Role,
 		ConvertBoolToUint8(p.Proposed),
@@ -78,12 +75,13 @@ func (p *StpPort) TxRSTP() {
 		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
 		return
 	}
-	StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s\n", pIntf.Name))
+	p.SetTxPortCounters(BPDURxTypeRSTP)
+
+	//pIntf, _ := PortConfigMap[p.IfIndex]
+	//StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
 }
 
 func (p *StpPort) TxTCN() {
-	pIntf, _ := PortConfigMap[p.IfIndex]
-
 	eth, llc := p.BuildRSTPEthernetLlcHeaders()
 
 	topo := layers.BPDUTopology{
@@ -104,13 +102,14 @@ func (p *StpPort) TxTCN() {
 		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
 		return
 	}
-	StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s\n", pIntf.Name))
+
+	p.SetTxPortCounters(BPDURxTypeTopo)
+	//pIntf, _ := PortConfigMap[p.IfIndex]
+	//StpLogger("INFO", fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
 
 }
 
 func (p *StpPort) TxConfig() {
-	pIntf, _ := PortConfigMap[p.IfIndex]
-
 	eth, llc := p.BuildRSTPEthernetLlcHeaders()
 
 	stp := layers.STP{
@@ -118,14 +117,14 @@ func (p *StpPort) TxConfig() {
 		ProtocolVersionId: layers.STPProtocolVersion,
 		BPDUType:          byte(layers.BPDUTypeSTP),
 		Flags:             0,
-		RootId:            p.DesignatedPriority.RootBridgeId,
-		RootCostPath:      uint32(p.DesignatedPriority.RootPathCost),
-		BridgeId:          p.DesignatedPriority.DesignatedBridgeId,
-		PortId:            uint16(p.DesignatedPriority.DesignatedPortId),
-		MsgAge:            uint16(p.DesignatedTimes.MessageAge),
-		MaxAge:            uint16(p.DesignatedTimes.MaxAge),
-		HelloTime:         uint16(p.DesignatedTimes.HelloTime),
-		FwdDelay:          uint16(p.DesignatedTimes.ForwardingDelay),
+		RootId:            p.PortPriority.RootBridgeId,
+		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),
+		BridgeId:          p.b.BridgePriority.DesignatedBridgeId,
+		PortId:            uint16(p.PortId | p.Priority<<8),
+		MsgAge:            uint16(p.PortTimes.MessageAge),
+		MaxAge:            uint16(p.PortTimes.MaxAge),
+		HelloTime:         uint16(p.PortTimes.HelloTime),
+		FwdDelay:          uint16(p.PortTimes.ForwardingDelay),
 	}
 
 	StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
@@ -149,5 +148,8 @@ func (p *StpPort) TxConfig() {
 		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
 		return
 	}
-	StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s\n", pIntf.Name))
+
+	p.SetTxPortCounters(BPDURxTypeSTP)
+	//pIntf, _ := PortConfigMap[p.IfIndex]
+	//StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s %#v\n", pIntf.Name, stp))
 }

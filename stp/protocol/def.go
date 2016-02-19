@@ -7,6 +7,8 @@ import (
 	"utils/fsm"
 )
 
+const DEFAULT_STP_BRIDGE_VLAN = 1
+
 type BPDURxType int8
 
 // this is not to be confused with bpdu type as defined in message
@@ -21,15 +23,46 @@ const (
 
 const (
 	MigrateTimeDefault        = 3
+	BridgeHelloTimeMin        = 1
 	BridgeHelloTimeDefault    = 2
+	BridgeMaxAgeMin           = 6
+	BridgeMaxAgeMax           = 40
 	BridgeMaxAgeDefault       = 20
+	BridgeForwardDelayMin     = 4
+	BridgeForwardDelayMax     = 30
 	BridgeForwardDelayDefault = 15
+	TransmitHoldCountMin      = 1
+	TransmitHoldCountMax      = 10
 	TransmitHoldCountDefault  = 6
+)
+
+// Table 17-3 Recommended Port Path Cost Values
+// provisionable range 1-200,000,000
+const (
+	// usage 20,000,000-200,000,000
+	PortPathCostSpeedLess100Kbs = 200000000
+	// usage 2,000,000-200,000,000
+	PortPathCostSpeed1Mb = 20000000
+	// usage 200,000-20,000,000
+	PortPathCostSpeed10Mb = 2000000
+	// usage 20,000-2,000,000
+	PortPathCostSpeed100Mb = 200000
+	// usage 2,000-200,000
+	PortPathCost1Gb = 20000
+	// usage 200-20,000
+	PortPathCost10Gb = 2000
+	// usage 20-2000
+	PortPathCost100Gb = 200
+	// usage 20-200
+	PortPathCost1Tb = 20
+	// usage 1-20
+	PortPathCost10Tb = 2
 )
 
 type MachineEvent struct {
 	e            fsm.Event
 	src          string
+	data         interface{}
 	responseChan chan string
 }
 
@@ -86,4 +119,32 @@ func StpSetBpduFlags(topochangeack uint8, agreement uint8, forwarding uint8, lea
 	*flags |= proposal << 1
 	*flags |= topochange << 0
 
+}
+
+func StpGetBpduRole(flags uint8) PortRole {
+	return PortRole(flags >> 2 & 0x3)
+}
+
+func StpGetBpduProposal(flags uint8) bool {
+	return flags>>1&0x1 == 1
+}
+
+func StpGetBpduTopoChangeAck(flags uint8) bool {
+	return flags>>7&0x1 == 1
+}
+
+func StpGetBpduTopoChange(flags uint8) bool {
+	return flags>>0&0x1 == 1
+}
+
+func StpGetBpduLearning(flags uint8) bool {
+	return flags>>4&0x1 == 1
+}
+
+func StpGetBpduForwarding(flags uint8) bool {
+	return flags>>5&0x1 == 1
+}
+
+func StpGetBpduAgreement(flags uint8) bool {
+	return flags>>6&0x1 == 1
 }

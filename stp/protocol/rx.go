@@ -19,6 +19,7 @@ func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
 	go func(portId int32, rx chan gopacket.Packet) {
 		rxMainPort := portId
 		rxMainChan := rx
+		fmt.Println("RxMain START")
 		// TODO add logic to either wait on a socket or wait on a channel,
 		// maybe both?  Can spawn a seperate go thread to wait on a socket
 		// and send the packet to this thread
@@ -28,12 +29,14 @@ func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
 				//fmt.Println("RxMain: port", rxMainPort)
 
 				if ok {
-					//fmt.Println("RxMain: port", rxMainPort)
-					ptype := ValidateBPDUFrame(rxMainPort, packet)
-					//fmt.Println("RX:", packet, ptype)
-					if ptype != BPDURxTypeUnknown {
+					if packet != nil {
+						//fmt.Println("RxMain: port", rxMainPort)
+						ptype := ValidateBPDUFrame(rxMainPort, packet)
+						//fmt.Println("RX:", packet, ptype)
+						if ptype != BPDURxTypeUnknown {
 
-						go ProcessBpduFrame(rxMainPort, ptype, packet)
+							ProcessBpduFrame(rxMainPort, ptype, packet)
+						}
 					}
 				} else {
 					StpLogger("INFO", "RXMAIN: Channel closed")
@@ -84,8 +87,8 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 					if stp.ProtocolId == layers.RSTPProtocolIdentifier &&
 						len(stp.Contents) >= layers.STPProtocolLength &&
 						stp.MsgAge < stp.MaxAge &&
-						stp.BridgeId != p.DesignatedPriority.DesignatedBridgeId &&
-						stp.PortId != uint16(p.DesignatedPriority.DesignatedPortId) {
+						stp.BridgeId != p.PortPriority.DesignatedBridgeId &&
+						stp.PortId != uint16(p.PortPriority.DesignatedPortId) {
 						bpduType = BPDURxTypeSTP
 					}
 				} else {
@@ -139,18 +142,25 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 
 // ProcessBpduFrame will lookup the cooresponding port from which the
 // packet arrived and forward the packet to the Port Rx Machine for processing
-func ProcessBpduFrame(pId int32, ptype BPDURxType, pdu interface{}) {
+func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
 	var p *StpPort
 
+	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
+
+	//fmt.Printf("ProcessBpduFrame %T", bpduLayer)
+	//fmt.Printf("ProcessBpduFrame on port", pId)
 	// lets find the port via the info in the packet
 	if StpFindPortById(pId, &p) {
 		p.RcvdBPDU = true
-		//fmt.Println(lacp)
-		//fmt.Println("Sening rx message to Port Rcvd State Machine", p.IfIndex)
-		p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
-			pdu:   pdu,
-			ptype: ptype,
-			src:   RxModuleStr}
+		//fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex)
+		if p.PrxmMachineFsm != nil {
+			p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
+				pdu:   bpduLayer, // this is a pointer
+				ptype: ptype,
+				src:   RxModuleStr}
+		} else {
+			StpLogger("ERROR", fmt.Sprintf("RXMAIN: rcvd FSM not running %d\n", pId))
+		}
 	} else {
 		StpLogger("ERROR", fmt.Sprintf("RXMAIN: Unabled to find port %d\n", pId))
 	}

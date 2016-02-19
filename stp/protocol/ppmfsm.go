@@ -61,6 +61,14 @@ type PpmmMachine struct {
 	PpmmLogEnableEvent chan bool
 }
 
+func (m *PpmmMachine) GetCurrStateStr() string {
+	return PpmmStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *PpmmMachine) GetPrevStateStr() string {
+	return PpmmStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 	ppmm := &PpmmMachine{
@@ -72,6 +80,10 @@ func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 	p.PpmmMachineFsm = ppmm
 
 	return ppmm
+}
+
+func (ppm *PpmmMachine) PpmLogger(s string) {
+	StpMachineLogger("INFO", "PPM", ppm.p.IfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -86,8 +98,8 @@ func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ppmm.Machine.Curr = &StpStateEvent{
 		strStateMap: PpmmStateStrMap,
 		//logEna:      ptxm.p.logEna,
-		logEna: false,
-		logger: StpLoggerInfo,
+		logEna: true,
+		logger: ppmm.PpmLogger,
 		owner:  PpmmMachineModuleStr,
 		ps:     PpmmStateNone,
 		s:      PpmmStateNone,
@@ -120,7 +132,7 @@ func (ppmm *PpmmMachine) InformPtxMachineSendRSTPChanged() {
 		p.UpdtInfo)*/
 		if p.SendRSTP == true &&
 			p.NewInfo == true &&
-			p.TxCount < TransmitHoldCountDefault &&
+			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected == true &&
 			p.UpdtInfo == false {
@@ -130,7 +142,7 @@ func (ppmm *PpmmMachine) InformPtxMachineSendRSTPChanged() {
 		} else if p.SendRSTP == false &&
 			p.NewInfo == true &&
 			p.Role == PortRoleRootPort &&
-			p.TxCount < TransmitHoldCountDefault &&
+			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected == true &&
 			p.UpdtInfo == false {
@@ -140,7 +152,7 @@ func (ppmm *PpmmMachine) InformPtxMachineSendRSTPChanged() {
 		} else if p.SendRSTP == false &&
 			p.NewInfo == true &&
 			p.Role == PortRoleDesignatedPort &&
-			p.TxCount < TransmitHoldCountDefault &&
+			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected == true &&
 			p.UpdtInfo == false {
@@ -253,19 +265,19 @@ func (p *StpPort) PpmmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PpmmMachine) {
-		StpLogger("INFO", "PPMM: Machine Start")
+		StpMachineLogger("INFO", "PPMM", p.IfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PpmmKillSignalEvent:
-				StpLogger("INFO", "PPMM: Machine End")
+				StpMachineLogger("INFO", "PPMM", p.IfIndex, "Machine End")
 				return
 
 			case event := <-m.PpmmEvents:
 				//fmt.Println("Event Rx", event.src, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()])
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("INFO", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
 				} else {
 
 					// post processing
@@ -273,19 +285,19 @@ func (p *StpPort) PpmmMachineMain() {
 						if !m.p.PortEnabled {
 							rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
 							if rv != nil {
-								StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+								StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
 							}
 						} else if m.p.Mcheck {
 							rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
 							if rv != nil {
-								StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+								StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
 							}
 						} else if p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion &&
 							!p.SendRSTP &&
 							p.RcvdRSTP {
 							rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, nil)
 							if rv != nil {
-								StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+								StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
 							}
 						}
 					}
@@ -300,4 +312,66 @@ func (p *StpPort) PpmmMachineMain() {
 			}
 		}
 	}(ppmm)
+}
+
+func (ppmm *PpmmMachine) ProcessPostStateCheckingRSTP() {
+	// nothing to be done
+}
+func (ppmm *PpmmMachine) ProcessPostStateSensing() {
+	p := ppmm.p
+	if ppmm.Machine.Curr.CurrentState() == PpmmStateSensing {
+		if !p.PortEnabled {
+			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				ppmm.ProcessPostStateProcessing()
+			}
+		} else if p.Mcheck {
+			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				ppmm.ProcessPostStateProcessing()
+			}
+		} else if p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion &&
+			!p.SendRSTP &&
+			p.RcvdRSTP {
+			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				ppmm.ProcessPostStateProcessing()
+			}
+		}
+	}
+}
+
+func (ppmm *PpmmMachine) ProcessPostStateSelectingSTP() {
+	p := ppmm.p
+	if ppmm.Machine.Curr.CurrentState() == PpmmStateSelectingSTP {
+		if !p.PortEnabled {
+			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				ppmm.ProcessPostStateProcessing()
+			}
+		} else if p.Mcheck {
+			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				ppmm.ProcessPostStateProcessing()
+			}
+		}
+	}
+}
+
+func (ppmm *PpmmMachine) ProcessPostStateProcessing() {
+
+	ppmm.ProcessPostStateCheckingRSTP()
+	ppmm.ProcessPostStateSensing()
+	ppmm.ProcessPostStateSelectingSTP()
+	ppmm.ProcessPostStateSensing()
 }

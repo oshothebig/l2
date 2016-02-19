@@ -32,8 +32,8 @@ const (
 	BdmEventBeginNotAdminEdge
 	BdmEventNotPortEnabledAndAdminEdge
 	BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing
-	BdEventNotPortEnabledAndNotAdminEdge
-	BdEventNotOperEdge
+	BdmEventNotPortEnabledAndNotAdminEdge
+	BdmEventNotOperEdge
 )
 
 // BdmMachine holds FSM and current State
@@ -55,6 +55,14 @@ type BdmMachine struct {
 	BdmLogEnableEvent chan bool
 }
 
+func (m *BdmMachine) GetCurrStateStr() string {
+	return BdmStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *BdmMachine) GetPrevStateStr() string {
+	return BdmStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 // NewStpPimMachine will create a new instance of the LacpRxMachine
 func NewStpBdmMachine(p *StpPort) *BdmMachine {
 	bdm := &BdmMachine{
@@ -68,6 +76,10 @@ func NewStpBdmMachine(p *StpPort) *BdmMachine {
 	return bdm
 }
 
+func (bdm *BdmMachine) BdmLogger(s string) {
+	StpMachineLogger("INFO", "BDM", bdm.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (bdm *BdmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -79,12 +91,11 @@ func (bdm *BdmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	bdm.Machine.Rules = r
 	bdm.Machine.Curr = &StpStateEvent{
 		strStateMap: BdmStateStrMap,
-		//logEna:      ptxm.p.logEna,
-		logEna: false,
-		logger: StpLoggerInfo,
-		owner:  BdmMachineModuleStr,
-		ps:     BdmStateNone,
-		s:      BdmStateNone,
+		logEna:      true,
+		logger:      bdm.BdmLogger,
+		owner:       BdmMachineModuleStr,
+		ps:          BdmStateNone,
+		s:           BdmStateNone,
 	}
 
 	return bdm.Machine
@@ -102,42 +113,24 @@ func (bdm *BdmMachine) Stop() {
 
 }
 
-/*
-// PimMachineCheckingRSTP
-func (ppmm *PpmmMachine) PpmmMachineCheckingRSTP(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
-	p.Mcheck = false
-	p.SendRSTP = p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
-	p.MdelayWhiletimer.count = MigrateTimeDefault
-	return PpmmStateCheckingRSTP
+// BdmMachineEdge
+func (bdm *BdmMachine) BdmMachineEdge(m fsm.Machine, data interface{}) fsm.State {
+	p := bdm.p
+	defer p.NotifyOperEdgeChanged(BdmMachineModuleStr, p.OperEdge, true)
+	p.OperEdge = true
+
+	return BdmStateEdge
 }
 
-// PpmmMachineSelectingSTP
-func (ppmm *PpmmMachine) PpmmMachineSelectingSTP(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
+// BdmMachineNotEdge
+func (bdm *BdmMachine) BdmMachineNotEdge(m fsm.Machine, data interface{}) fsm.State {
+	p := bdm.p
+	defer p.NotifyOperEdgeChanged(BdmMachineModuleStr, p.OperEdge, false)
+	p.OperEdge = false
 
-	p.SendRSTP = false
-	// 17.24
-	// TODO inform Port Transmit State Machine what STP version to send and which BPDU types
-	// to support interoperability
-	p.MdelayWhiletimer.count = MigrateTimeDefault
-
-	return PpmmStateSelectingSTP
+	return BdmStateNotEdge
 }
 
-// PpmmMachineSelectingSTP
-func (ppmm *PpmmMachine) PpmmMachineSensing(m fsm.Machine, data interface{}) fsm.State {
-	p := ppmm.p
-
-	p.RcvdRSTP = false
-	p.RcvdSTP = false
-
-	return PpmmStateSensing
-}
-*/
 func BdmMachineFSMBuild(p *StpPort) *BdmMachine {
 
 	rules := fsm.Ruleset{}
@@ -146,6 +139,28 @@ func BdmMachineFSMBuild(p *StpPort) *BdmMachine {
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the DISCARD State
 	bdm := NewStpBdmMachine(p)
+
+	// BEGIN and ADMIN EDGE -> EDGE
+	rules.AddRule(BdmStateNone, BdmEventBeginAdminEdge, bdm.BdmMachineEdge)
+	rules.AddRule(BdmStateEdge, BdmEventBeginAdminEdge, bdm.BdmMachineEdge)
+	rules.AddRule(BdmStateNotEdge, BdmEventBeginAdminEdge, bdm.BdmMachineEdge)
+
+	// BEGIN and NOT ADMIN EDGE -> NOT EDGE
+	rules.AddRule(BdmStateNone, BdmEventBeginNotAdminEdge, bdm.BdmMachineNotEdge)
+	rules.AddRule(BdmStateNotEdge, BdmEventBeginNotAdminEdge, bdm.BdmMachineNotEdge)
+	rules.AddRule(BdmStateEdge, BdmEventBeginNotAdminEdge, bdm.BdmMachineNotEdge)
+
+	// NOT ENABLED and NOT ADMIN EDGE -> NOT EDGE
+	rules.AddRule(BdmStateEdge, BdmEventNotPortEnabledAndNotAdminEdge, bdm.BdmMachineNotEdge)
+
+	// NOT OPEREDGE -> NOT EDGE
+	rules.AddRule(BdmStateEdge, BdmEventNotOperEdge, bdm.BdmMachineNotEdge)
+
+	// NOT ENABLED and ADMINEDGE -> EDGE
+	rules.AddRule(BdmStateNotEdge, BdmEventNotPortEnabledAndAdminEdge, bdm.BdmMachineEdge)
+
+	// EDGEDELAYWHILE == 0 and AUTOEDGE && SENDRSTP && PROPOSING -> EDGE
+	rules.AddRule(BdmStateNotEdge, BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing, bdm.BdmMachineEdge)
 
 	// Create a new FSM and apply the rules
 	bdm.Apply(&rules)
@@ -167,19 +182,21 @@ func (p *StpPort) BdmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *BdmMachine) {
-		StpLogger("INFO", "PIM: Machine Start")
+		StpMachineLogger("INFO", "BDM", p.IfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.BdmKillSignalEvent:
-				StpLogger("INFO", "BDM: Machine End")
+				StpMachineLogger("INFO", "BDM", p.IfIndex, "Machine End")
 				return
 
 			case event := <-m.BdmEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpLogger("INFO", fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("INFO", "BDM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				} else {
+					m.ProcessPostStateProcessing()
 				}
 
 				if event.responseChan != nil {
@@ -191,4 +208,35 @@ func (p *StpPort) BdmMachineMain() {
 			}
 		}
 	}(bdm)
+}
+
+func (bdm *BdmMachine) ProcessPostStateEdge() {
+	p := bdm.p
+	if bdm.Machine.Curr.CurrentState() == BdmStateEdge {
+		if !p.OperEdge {
+			rv := bdm.Machine.ProcessEvent(BdmMachineModuleStr, BdmEventNotOperEdge, nil)
+			if rv != nil {
+				StpMachineLogger("INFO", "BDM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			}
+		}
+	}
+}
+
+func (bdm *BdmMachine) ProcessPostStateNotEdge() {
+	p := bdm.p
+	if bdm.Machine.Curr.CurrentState() == BdmStateNotEdge {
+		if p.EdgeDelayWhileTimer.count == 0 &&
+			p.AutoEdgePort &&
+			p.SendRSTP &&
+			p.Proposing {
+			rv := bdm.Machine.ProcessEvent(BdmMachineModuleStr, BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing, nil)
+			if rv != nil {
+				StpMachineLogger("INFO", "BDM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			}
+		}
+	}
+}
+
+func (bdm *BdmMachine) ProcessPostStateProcessing() {
+	// nothing to do here
 }

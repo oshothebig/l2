@@ -56,6 +56,14 @@ type PtmMachine struct {
 	PtmLogEnableEvent chan bool
 }
 
+func (m *PtmMachine) GetCurrStateStr() string {
+	return PtmStateStrMap[m.Machine.Curr.CurrentState()]
+}
+
+func (m *PtmMachine) GetPrevStateStr() string {
+	return PtmStateStrMap[m.Machine.Curr.PreviousState()]
+}
+
 func (ptm *PtmMachine) PrevState() fsm.State { return ptm.PreviousState }
 
 // PrevStateSet will set the previous State
@@ -79,6 +87,10 @@ func NewStpPtmMachine(p *StpPort) *PtmMachine {
 	return ptm
 }
 
+func (ptm *PtmMachine) PtmLogger(s string) {
+	//StpMachineLogger("INFO", "PTM", ptm.p.IfIndex, s)
+}
+
 // A helpful function that lets us apply arbitrary rulesets to this
 // instances State machine without reallocating the machine.
 func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
@@ -90,10 +102,11 @@ func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ptm.Machine.Rules = r
 	ptm.Machine.Curr = &StpStateEvent{
 		strStateMap: PtmStateStrMap,
-		//logEna:      ptxm.p.logEna,
-		logEna: false,
-		logger: StpLoggerInfo,
-		owner:  PtmMachineModuleStr,
+		logEna:      true,
+		logger:      ptm.PtmLogger,
+		owner:       PtmMachineModuleStr,
+		ps:          PtmStateNone,
+		s:           PtmStateNone,
 	}
 
 	return ptm.Machine
@@ -170,17 +183,26 @@ func (p *StpPort) PtmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PtmMachine) {
-		StpLogger("INFO", "PTM: Machine Start")
+		StpMachineLogger("INFO", "PTM", p.IfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PtmKillSignalEvent:
-				StpLogger("INFO", "PTM: %s Machine End")
+				StpMachineLogger("INFO", "PTM", p.IfIndex, "Machine End")
 				return
 
 			case <-m.TickTimer.C:
 
+				m.Tick = true
 				m.Machine.ProcessEvent(PtmMachineModuleStr, PtmEventTickEqualsTrue, nil)
+
+				// post state processing
+				if m.Machine.Curr.CurrentState() == PtmStateTick {
+					m.Machine.ProcessEvent(PtmMachineModuleStr, PtmEventUnconditionalFallthrough, nil)
+
+				}
+				// restart the timer
+				m.TickTimerStart()
 
 			case event := <-m.PtmEvents:
 				m.Machine.ProcessEvent(event.src, event.e, nil)
