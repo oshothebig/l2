@@ -1024,7 +1024,7 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 	msgpriority := pim.getRcvdMsgPriority(data)
 	msgtimes := pim.getRcvdMsgTimes(data)
 
-	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] portVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.PortPriority, msgtimes, p.PortTimes))
+	//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] portVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.PortPriority, msgtimes, p.PortTimes))
 
 	// TODO find where this is in spec
 	if CompareBridgeAddr(GetBridgeAddrFromBridgeId(msgpriority.RootBridgeId), GetBridgeAddrFromBridgeId(p.b.BridgeIdentifier)) == 0 {
@@ -1141,7 +1141,7 @@ func (pim *PimMachine) recordProposal(rcvdMsgFlags uint8) {
 	p := pim.p
 	if StpGetBpduRole(rcvdMsgFlags) == PortRoleDesignatedPort &&
 		StpGetBpduProposal(rcvdMsgFlags) {
-		StpMachineLogger("INFO", "PIM", p.IfIndex, "recording proposal set")
+		//StpMachineLogger("INFO", "PIM", p.IfIndex, "recording proposal set")
 		defer pim.NotifyProposedChanged(p.Proposed, true)
 		p.Proposed = true
 	}

@@ -284,7 +284,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 				case 0:
 					//StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: Root Bridge Received by port SAME")
 					tmpCost := p.PortPriority.RootPathCost + p.PortPathCost
-					StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: rx+txCost[%d] bridgeCost[%d]", tmpCost, tmpVector.RootPathCost))
+					//("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: rx+txCost[%d] bridgeCost[%d]", tmpCost, tmpVector.RootPathCost))
 					if tmpCost < tmpVector.RootPathCost {
 						//StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: DesignatedBridgeId received by port is SUPERIOR")
 						tmpVector.RootPathCost = tmpCost
