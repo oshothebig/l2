@@ -405,7 +405,7 @@ func (p *StpPort) PimMachineMain() {
 				return
 
 			case event := <-m.PimEvents:
-				StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
+				//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
 				rv := m.Machine.ProcessEvent(event.src, event.e, event.data)
 				if rv != nil {
 					StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
@@ -1064,16 +1064,15 @@ func (pim *PimMachine) getRcvdMsgFlags(bpduLayer interface{}) uint8 {
 	var flags uint8
 	switch bpduLayer.(type) {
 	case *layers.STP:
-		StpMachineLogger("INFO", "PIM", p.IfIndex, "Found STP frame getting flags")
+		//StpMachineLogger("INFO", "PIM", p.IfIndex, "Found STP frame getting flags")
 		stp := bpduLayer.(*layers.STP)
 		flags = stp.Flags
 	case *layers.RSTP:
-		StpMachineLogger("INFO", "PIM", p.IfIndex, "Found RSTP frame getting flags")
+		//StpMachineLogger("INFO", "PIM", p.IfIndex, "Found RSTP frame getting flags")
 		rstp := bpduLayer.(*layers.RSTP)
 		flags = rstp.Flags
 	case *layers.PVST:
-
-		StpMachineLogger("INFO", "PIM", p.IfIndex, "Found PVST frame getting flags")
+		//StpMachineLogger("INFO", "PIM", p.IfIndex, "Found PVST frame getting flags")
 		pvst := bpduLayer.(*layers.STP)
 		flags = pvst.Flags
 	default:
@@ -1174,12 +1173,12 @@ func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 	if newInfoIs == PortInfoStateReceived &&
 		p.InfoIs == PortInfoStateReceived &&
 		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.MsgPriority, &p.PortPriority) {
-		StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: UPDATE InfoIs=Receive and msg vector superior or same as port")
+		//StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: UPDATE InfoIs=Receive and msg vector superior or same as port")
 		return true
 	} else if newInfoIs == PortInfoStateMine &&
 		p.InfoIs == PortInfoStateMine &&
 		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.b.BridgePriority, &p.PortPriority) {
-		StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: InfoIs=Mine and designated vector superior or same as port")
+		//StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: InfoIs=Mine and designated vector superior or same as port")
 		return true
 	}
 	return false
@@ -1197,7 +1196,7 @@ func (pim *PimMachine) recordPriority(rcvdMsgPriority *PriorityVector) bool {
 	//p.PortPriority.RootBridgeId = rcvdMsgPriority.RootBridgeId
 	//p.PortPriority.RootPathCost = rcvdMsgPriority.RootPathCost
 	p.PortPriority = *rcvdMsgPriority
-	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("recordPriority: copying rcvmsg to port %#v", *rcvdMsgPriority))
+	//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("recordPriority: copying rcvmsg to port %#v", *rcvdMsgPriority))
 	return betterorsame
 }
 

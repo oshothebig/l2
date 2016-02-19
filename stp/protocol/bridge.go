@@ -301,23 +301,23 @@ func IsMsgPriorityVectorSuperiorThanPortPriorityVector(msg *PriorityVector, port
 		return true
 	} else if (CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) &&
 		(msg.RootPathCost < port.RootPathCost) {
-		StpLogger("INFO", "b1 root bridge id equal b1 root bridge id and b1 root path superior to b2 root path cost")
+		//StpLogger("INFO", "b1 root bridge id equal b1 root bridge id and b1 root path superior to b2 root path cost")
 		return true
 	} else if (CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) &&
 		(msg.RootPathCost == port.RootPathCost) &&
 		(CompareBridgeId(msg.DesignatedBridgeId, port.DesignatedBridgeId) < 0) {
-		StpLogger("INFO", "b1 root bridge id equal b1 root bridge id and b1 root path equal to b2 root path cost, desgn bridge id superior to b1 desgn bridge id")
+		//StpLogger("INFO", "b1 root bridge id equal b1 root bridge id and b1 root path equal to b2 root path cost, desgn bridge id superior to b1 desgn bridge id")
 		return true
 	} else if (CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) &&
 		(msg.RootPathCost == port.RootPathCost) &&
 		(CompareBridgeId(msg.DesignatedBridgeId, port.DesignatedBridgeId) == 0) &&
 		(msg.DesignatedPortId < port.DesignatedPortId) {
-		StpLogger("INFO", "b1 root bridge id equal b1 root bridge id and b1 root path equal to b2 root path cost, desgn bridge id equal to b1 desgn bridge id, b1 desgn portid superior to b2 desgn portid")
+		//StpLogger("INFO", "b1 root bridge id equal b1 root bridge id and b1 root path equal to b2 root path cost, desgn bridge id equal to b1 desgn bridge id, b1 desgn portid superior to b2 desgn portid")
 		return true
 	} else if CompareBridgeAddr(GetBridgeAddrFromBridgeId(msg.DesignatedBridgeId),
 		GetBridgeAddrFromBridgeId(port.DesignatedBridgeId)) == 0 &&
 		(msg.DesignatedPortId == port.DesignatedPortId) {
-		StpLogger("INFO", "b1 desgn brg addr equal b2 desgn brg addr and b1 desgn portid equal b2 desgn portid")
+		//StpLogger("INFO", "b1 desgn brg addr equal b2 desgn brg addr and b1 desgn portid equal b2 desgn portid")
 		return true
 	}
 

@@ -142,7 +142,7 @@ func (ptxm *PtxmMachine) PtxmMachineTransmitIdle(m fsm.Machine, data interface{}
 // PtxmMachineTransmitPeriodic
 func (ptxm *PtxmMachine) PtxmMachineTransmitPeriodic(m fsm.Machine, data interface{}) fsm.State {
 	p := ptxm.p
-	StpMachineLogger("INFO", "PTXM", p.IfIndex, fmt.Sprintf("TransmitPeriodic: newinfo[%t] role[%d] tcwhile[%d]", p.NewInfo, p.Role, p.TcWhileTimer.count))
+	//StpMachineLogger("INFO", "PTXM", p.IfIndex, fmt.Sprintf("TransmitPeriodic: newinfo[%t] role[%d] tcwhile[%d]", p.NewInfo, p.Role, p.TcWhileTimer.count))
 	p.NewInfo = p.NewInfo || (p.Role == PortRoleDesignatedPort || (p.Role == PortRoleRootPort && p.TcWhileTimer.count != 0))
 
 	return PtxmStateTransmitPeriodic
@@ -246,7 +246,7 @@ func (p *StpPort) PtxmMachineMain() {
 				return
 
 			case event := <-m.PtxmEvents:
-				StpMachineLogger("INFO", "PTXM", p.IfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
+				//StpMachineLogger("INFO", "PTXM", p.IfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
 					StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
@@ -328,13 +328,13 @@ func (ptxm *PtxmMachine) ProcessPostStateTransmitRstp() {
 func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 	p := ptxm.p
 	if ptxm.Machine.Curr.CurrentState() == PtxmStateIdle {
-		StpMachineLogger("INFO", "PTX", p.IfIndex, fmt.Sprintf("sendRSTP[%t] newInfo[%t] txCount[%d] hellwhen[%d] selected[%t] updtinfo[%t]\n",
-			p.SendRSTP,
-			p.NewInfo,
-			p.TxCount,
-			p.HelloWhenTimer.count,
-			p.Selected,
-			!p.UpdtInfo))
+		/*StpMachineLogger("INFO", "PTX", p.IfIndex, fmt.Sprintf("sendRSTP[%t] newInfo[%t] txCount[%d] hellwhen[%d] selected[%t] updtinfo[%t]\n",
+		p.SendRSTP,
+		p.NewInfo,
+		p.TxCount,
+		p.HelloWhenTimer.count,
+		p.Selected,
+		!p.UpdtInfo))*/
 		if p.HelloWhenTimer.count == 0 &&
 			p.Selected &&
 			!p.UpdtInfo {
