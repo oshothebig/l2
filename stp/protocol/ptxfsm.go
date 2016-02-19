@@ -101,7 +101,7 @@ func (ptxm *PtxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ptxm.Machine.Rules = r
 	ptxm.Machine.Curr = &StpStateEvent{
 		strStateMap: PtxmStateStrMap,
-		logEna:      true,
+		logEna:      false,
 		logger:      ptxm.PtxmLogger,
 		owner:       PtxmMachineModuleStr,
 		ps:          PtxmStateNone,
