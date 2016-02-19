@@ -101,12 +101,11 @@ func (ptxm *PtxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ptxm.Machine.Rules = r
 	ptxm.Machine.Curr = &StpStateEvent{
 		strStateMap: PtxmStateStrMap,
-		//logEna:      ptxm.p.logEna,
-		logEna: false,
-		logger: ptxm.PtxmLogger,
-		owner:  PtxmMachineModuleStr,
-		ps:     PtxmStateNone,
-		s:      PtxmStateNone,
+		logEna:      false,
+		logger:      ptxm.PtxmLogger,
+		owner:       PtxmMachineModuleStr,
+		ps:          PtxmStateNone,
+		s:           PtxmStateNone,
 	}
 
 	return ptxm.Machine
@@ -136,7 +135,7 @@ func (ptxm *PtxmMachine) PtxmMachineTransmitInit(m fsm.Machine, data interface{}
 func (ptxm *PtxmMachine) PtxmMachineTransmitIdle(m fsm.Machine, data interface{}) fsm.State {
 	p := ptxm.p
 	p.HelloWhenTimer.count = int32(p.PortTimes.HelloTime)
-	
+
 	return PtxmStateIdle
 }
 

@@ -99,12 +99,11 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	prxm.Machine.Rules = r
 	prxm.Machine.Curr = &StpStateEvent{
 		strStateMap: PrxmStateStrMap,
-		//logEna:      ptxm.p.logEna,
-		logEna: false,
-		logger: prxm.PrxmLogger,
-		owner:  PrxmMachineModuleStr,
-		ps:     PrxmStateNone,
-		s:      PrxmStateNone,
+		logEna:      false,
+		logger:      prxm.PrxmLogger,
+		owner:       PrxmMachineModuleStr,
+		ps:          PrxmStateNone,
+		s:           PrxmStateNone,
 	}
 
 	return prxm.Machine
@@ -229,7 +228,7 @@ func (p *StpPort) PrxmMachineMain() {
 					SendResponse(PrxmMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.PrxmRxBpduPkt:
-				fmt.Println("Event PKT Rx", rx.src, rx.ptype, p.PortEnabled)
+				//fmt.Println("Event PKT Rx", rx.src, rx.ptype, p.PortEnabled)
 				if m.Machine.Curr.CurrentState() == PrxmStateDiscard {
 					if p.PortEnabled {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)
@@ -348,7 +347,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			validPdu = true
 		}
 
-		StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received RSTP packet")
+		//StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received RSTP packet")
 
 		defer prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, false)
 		p.RcvdTc = StpGetBpduTopoChange(flags)
@@ -374,7 +373,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			validPdu = true
 		}
 
-		StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received STP packet")
+		//StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received STP packet")
 		defer prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, false, false, StpGetBpduTopoChangeAck(flags))
 		p.RcvdTc = false
 		p.RcvdTcn = false
@@ -398,7 +397,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			}
 			p.RcvdSTP = true
 			validPdu = true
-			StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received TCN packet")
+			//StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received TCN packet")
 			defer prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, false, true, false)
 			p.RcvdTc = false
 			p.RcvdTcn = true

@@ -102,12 +102,11 @@ func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ptm.Machine.Rules = r
 	ptm.Machine.Curr = &StpStateEvent{
 		strStateMap: PtmStateStrMap,
-		//logEna:      ptxm.p.logEna,
-		logEna: false,
-		logger: ptm.PtmLogger,
-		owner:  PtmMachineModuleStr,
-		ps:     PtmStateNone,
-		s:      PtmStateNone,
+		logEna:      false,
+		logger:      ptm.PtmLogger,
+		owner:       PtmMachineModuleStr,
+		ps:          PtmStateNone,
+		s:           PtmStateNone,
 	}
 
 	return ptm.Machine

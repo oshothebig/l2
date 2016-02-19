@@ -122,12 +122,11 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	pim.Machine.Rules = r
 	pim.Machine.Curr = &StpStateEvent{
 		strStateMap: PimStateStrMap,
-		//logEna:      ptxm.p.logEna,
-		logEna: false,
-		logger: pim.PimLogger,
-		owner:  PimMachineModuleStr,
-		ps:     PimStateNone,
-		s:      PimStateNone,
+		logEna:      false,
+		logger:      pim.PimLogger,
+		owner:       PimMachineModuleStr,
+		ps:          PimStateNone,
+		s:           PimStateNone,
 	}
 
 	return pim.Machine

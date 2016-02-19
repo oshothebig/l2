@@ -259,13 +259,13 @@ func CompareBridgeId(b1 BridgeId, b2 BridgeId) int {
 		b1[5] < b2[5] ||
 		b1[6] < b2[6] ||
 		b1[7] < b2[7] {
-		StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 SUPERIOR, b1[%#v] b2[%#v]", b1, b2))
+		//StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 SUPERIOR, b1[%#v] b2[%#v]", b1, b2))
 		return -1
 	} else if b1 == b2 {
-		StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 SAME, b1[%#v] b2[%#v]", b1, b2))
+		//StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 SAME, b1[%#v] b2[%#v]", b1, b2))
 		return 0
 	} else {
-		StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 INFERIOR, b1[%#v] b2[%#v]", b1, b2))
+		//StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 INFERIOR, b1[%#v] b2[%#v]", b1, b2))
 		return 1
 	}
 }

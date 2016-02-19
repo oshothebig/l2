@@ -98,7 +98,7 @@ func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ppmm.Machine.Curr = &StpStateEvent{
 		strStateMap: PpmmStateStrMap,
 		//logEna:      ptxm.p.logEna,
-		logEna: false,
+		logEna: true,
 		logger: ppmm.PpmLogger,
 		owner:  PpmmMachineModuleStr,
 		ps:     PpmmStateNone,

@@ -2,7 +2,7 @@
 package stp
 
 import (
-	"fmt"
+	//"fmt"
 	"time"
 )
 
@@ -62,16 +62,16 @@ func (p *StpPort) ResetTimerCounters(counterType TimerType) {
 }
 
 func (p *StpPort) DecrementTimerCounters() {
-	StpMachineLogger("INFO", "PTIM", p.IfIndex, fmt.Sprintf("EdgeDelayWhile[%d] FdWhileTimer[%d] HelloWhen[%d] MdelayWhile[%d] RbWhile[%d] RcvdInfoWhile[%d] RrWhile[%d] TcWhile[%d] txcount[%d]",
-		p.EdgeDelayWhileTimer.count,
-		p.FdWhileTimer.count,
-		p.HelloWhenTimer.count,
-		p.MdelayWhiletimer.count,
-		p.RbWhileTimer.count,
-		p.RcvdInfoWhiletimer.count,
-		p.RrWhileTimer.count,
-		p.TcWhileTimer.count,
-		p.TxCount))
+	/*StpMachineLogger("INFO", "PTIM", p.IfIndex, fmt.Sprintf("EdgeDelayWhile[%d] FdWhileTimer[%d] HelloWhen[%d] MdelayWhile[%d] RbWhile[%d] RcvdInfoWhile[%d] RrWhile[%d] TcWhile[%d] txcount[%d]",
+	p.EdgeDelayWhileTimer.count,
+	p.FdWhileTimer.count,
+	p.HelloWhenTimer.count,
+	p.MdelayWhiletimer.count,
+	p.RbWhileTimer.count,
+	p.RcvdInfoWhiletimer.count,
+	p.RrWhileTimer.count,
+	p.TcWhileTimer.count,
+	p.TxCount))*/
 	// 17.19.44
 	if p.TxCount > 0 {
 		p.TxCount--

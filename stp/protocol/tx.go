@@ -36,9 +36,6 @@ func (p *StpPort) BuildRSTPEthernetLlcHeaders() (eth layers.Ethernet, llc layers
 }
 
 func (p *StpPort) TxRSTP() {
-
-	pIntf, _ := PortConfigMap[p.IfIndex]
-
 	eth, llc := p.BuildRSTPEthernetLlcHeaders()
 
 	rstp := layers.RSTP{
@@ -80,12 +77,11 @@ func (p *StpPort) TxRSTP() {
 	}
 	p.SetTxPortCounters(BPDURxTypeRSTP)
 
-	StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
+	//pIntf, _ := PortConfigMap[p.IfIndex]
+	//StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
 }
 
 func (p *StpPort) TxTCN() {
-	pIntf, _ := PortConfigMap[p.IfIndex]
-
 	eth, llc := p.BuildRSTPEthernetLlcHeaders()
 
 	topo := layers.BPDUTopology{
@@ -108,13 +104,12 @@ func (p *StpPort) TxTCN() {
 	}
 
 	p.SetTxPortCounters(BPDURxTypeTopo)
-	StpLogger("INFO", fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
+	//pIntf, _ := PortConfigMap[p.IfIndex]
+	//StpLogger("INFO", fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
 
 }
 
 func (p *StpPort) TxConfig() {
-	pIntf, _ := PortConfigMap[p.IfIndex]
-
 	eth, llc := p.BuildRSTPEthernetLlcHeaders()
 
 	stp := layers.STP{
@@ -155,5 +150,6 @@ func (p *StpPort) TxConfig() {
 	}
 
 	p.SetTxPortCounters(BPDURxTypeSTP)
-	StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s %#v\n", pIntf.Name, stp))
+	//pIntf, _ := PortConfigMap[p.IfIndex]
+	//StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s %#v\n", pIntf.Name, stp))
 }

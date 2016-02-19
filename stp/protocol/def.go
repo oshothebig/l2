@@ -104,9 +104,9 @@ func (se *StpStateEvent) SetEvent(es string, e fsm.Event) {
 func (se *StpStateEvent) SetState(s fsm.State) {
 	se.ps = se.s
 	se.s = s
-	//if se.IsLoggerEna() && se.ps != se.s {
-	se.logger((strings.Join([]string{"Src", se.esrc, "OldState", se.strStateMap[se.ps], "Evt", strconv.Itoa(int(se.e)), "NewState", se.strStateMap[s]}, ":")))
-	//}
+	if se.IsLoggerEna() && se.ps != se.s {
+		se.logger((strings.Join([]string{"Src", se.esrc, "OldState", se.strStateMap[se.ps], "Evt", strconv.Itoa(int(se.e)), "NewState", se.strStateMap[s]}, ":")))
+	}
 }
 
 func StpSetBpduFlags(topochangeack uint8, agreement uint8, forwarding uint8, learning uint8, role PortRole, proposal uint8, topochange uint8, flags *uint8) {
