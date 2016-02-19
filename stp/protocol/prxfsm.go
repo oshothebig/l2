@@ -129,7 +129,7 @@ func (prxm *PrxmMachine) PrxmMachineDiscard(m fsm.Machine, data interface{}) fsm
 	p.RcvdBPDU = false
 	p.RcvdRSTP = false
 	p.RcvdSTP = false
-	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
+	defer p.NotifyRcvdMsgChanged(PrxmMachineModuleStr, p.RcvdMsg, false, data)
 	p.RcvdMsg = false
 	// set to RSTP performance paramters Migrate Time
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
