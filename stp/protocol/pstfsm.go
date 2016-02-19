@@ -97,7 +97,7 @@ func (pstm *PstMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	pstm.Machine.Rules = r
 	pstm.Machine.Curr = &StpStateEvent{
 		strStateMap: PstStateStrMap,
-		logEna:      true,
+		logEna:      false,
 		logger:      pstm.PstmLogger,
 		owner:       PstMachineModuleStr,
 		ps:          PstStateNone,
