@@ -15,7 +15,7 @@ import (
 	"utils/fsm"
 )
 
-const PstMachineModuleStr = "Port Role Transitions State Machine"
+const PstMachineModuleStr = "Port State Transitions State Machine"
 
 const (
 	PstStateNone = iota + 1
