@@ -675,6 +675,11 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 				evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndAdminEdge,
 					src: src})
 			}
+			if p.InfoIs != PortInfoStateDisabled {
+				mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
+				evt = append(evt, MachineEvent{e: PimEventNotPortEnabledInfoIsNotEqualDisabled,
+					src: src})
+
 		} else {
 			mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
 			evt = append(evt, MachineEvent{e: PimEventPortEnabled,
