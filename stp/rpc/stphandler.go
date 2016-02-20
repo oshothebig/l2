@@ -320,9 +320,9 @@ func (s *STPDServiceHandler) GetBulkDot1dStpBridgeState(fromIndex stpd.Int, coun
 			nextStpBridgeState.Dot1dStpDesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
 			nextStpBridgeState.Dot1dStpRootCost = int32(b.BridgePriority.RootPathCost)
 			nextStpBridgeState.Dot1dStpRootPort = int32(b.BridgePriority.DesignatedPortId)
-			//nextStpBridgeState.Dot1dStpMaxAge                  int32  //The maximum age of Spanning Tree Protocol information learned from the network on any port before it is discarded, in units of hundredths of a second.  This is the actual value that this bridge is currently using.
+			nextStpBridgeState.Dot1dStpMaxAge = int32(b.RootTimes.MaxAge)
 			nextStpBridgeState.Dot1dStpHelloTime = int32(b.RootTimes.HelloTime)
-			//nextStpBridgeState.Dot1dStpHoldTime = b.RootTimes.              int32  //This time value determines the interval length during which no more than two Configuration bridge PDUs shall be transmitted by this node, in units of hundredths of a second.
+			nextStpBridgeState.Dot1dStpHoldTime = int32(b.TxHoldCount)
 			nextStpBridgeState.Dot1dStpForwardDelay = int32(b.RootTimes.ForwardingDelay)
 			nextStpBridgeState.Dot1dStpVlan = int16(b.Vlan)
 
