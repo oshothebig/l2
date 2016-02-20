@@ -81,8 +81,10 @@ func StpPortAddToBridge(pId int32, brgifindex int32) {
 func StpPortLinkUp(pId int32) {
 	var p *StpPort
 	if StpFindPortById(pId, &p) {
-		defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, true)
-		p.PortEnabled = true
+		if p.AdminPortEnabled {
+			defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, true)
+			p.PortEnabled = true
+		}
 	}
 }
 

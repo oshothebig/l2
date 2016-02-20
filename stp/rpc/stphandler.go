@@ -300,39 +300,37 @@ func (s *STPDServiceHandler) GetBulkDot1dStpBridgeState(fromIndex stpd.Int, coun
 	toIndex := fromIndex
 	obj = &returnStpBridgeStateGetInfo
 	brgListLen := stpd.Int(len(stp.BridgeListTable))
-	for currIndex := fromIndex; validCount != count; currIndex++ {
+	for currIndex := fromIndex; validCount != count && currIndex < brgListLen; currIndex++ {
 
-		if currIndex < brgListLen {
-			b = stp.BridgeListTable[currIndex]
-			nextStpBridgeState = &stpBridgeStateList[validCount]
+		b = stp.BridgeListTable[currIndex]
+		nextStpBridgeState = &stpBridgeStateList[validCount]
 
-			nextStpBridgeState.Dot1dStpBridgeForceVersion = b.ForceVersion
-			nextStpBridgeState.Dot1dBridgeAddress = ConvertBridgeIdToString(b.BridgeIdentifier)
-			nextStpBridgeState.Dot1dStpBridgeHelloTime = int32(b.BridgeTimes.HelloTime)
-			nextStpBridgeState.Dot1dStpBridgeTxHoldCount = stp.TransmitHoldCountDefault
-			nextStpBridgeState.Dot1dStpBridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
-			nextStpBridgeState.Dot1dStpBridgeMaxAge = int32(b.BridgeTimes.MaxAge)
-			nextStpBridgeState.Dot1dStpPriority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgeIdentifier))
-			nextStpBridgeState.Dot1dBrgIfIndex = b.BrgIfIndex
-			nextStpBridgeState.Dot1dStpProtocolSpecification = 2
-			//nextStpBridgeState.Dot1dStpTimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
-			//nextStpBridgeState.Dot1dStpTopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
-			nextStpBridgeState.Dot1dStpDesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
-			nextStpBridgeState.Dot1dStpRootCost = int32(b.BridgePriority.RootPathCost)
-			nextStpBridgeState.Dot1dStpRootPort = int32(b.BridgePriority.DesignatedPortId)
-			//nextStpBridgeState.Dot1dStpMaxAge                  int32  //The maximum age of Spanning Tree Protocol information learned from the network on any port before it is discarded, in units of hundredths of a second.  This is the actual value that this bridge is currently using.
-			nextStpBridgeState.Dot1dStpHelloTime = int32(b.RootTimes.HelloTime)
-			//nextStpBridgeState.Dot1dStpHoldTime = b.RootTimes.              int32  //This time value determines the interval length during which no more than two Configuration bridge PDUs shall be transmitted by this node, in units of hundredths of a second.
-			nextStpBridgeState.Dot1dStpForwardDelay = int32(b.RootTimes.ForwardingDelay)
-			nextStpBridgeState.Dot1dStpVlan = int16(b.Vlan)
+		nextStpBridgeState.Dot1dStpBridgeForceVersion = b.ForceVersion
+		nextStpBridgeState.Dot1dBridgeAddress = ConvertBridgeIdToString(b.BridgeIdentifier)
+		nextStpBridgeState.Dot1dStpBridgeHelloTime = int32(b.BridgeTimes.HelloTime)
+		nextStpBridgeState.Dot1dStpBridgeTxHoldCount = stp.TransmitHoldCountDefault
+		nextStpBridgeState.Dot1dStpBridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
+		nextStpBridgeState.Dot1dStpBridgeMaxAge = int32(b.BridgeTimes.MaxAge)
+		nextStpBridgeState.Dot1dStpPriority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgeIdentifier))
+		nextStpBridgeState.Dot1dBrgIfIndex = b.BrgIfIndex
+		nextStpBridgeState.Dot1dStpProtocolSpecification = 2
+		//nextStpBridgeState.Dot1dStpTimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
+		//nextStpBridgeState.Dot1dStpTopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
+		nextStpBridgeState.Dot1dStpDesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
+		nextStpBridgeState.Dot1dStpRootCost = int32(b.BridgePriority.RootPathCost)
+		nextStpBridgeState.Dot1dStpRootPort = int32(b.BridgePriority.DesignatedPortId)
+		nextStpBridgeState.Dot1dStpMaxAge = int32(b.RootTimes.MaxAge)
+		nextStpBridgeState.Dot1dStpHelloTime = int32(b.RootTimes.HelloTime)
+		nextStpBridgeState.Dot1dStpHoldTime = int32(b.TxHoldCount)
+		nextStpBridgeState.Dot1dStpForwardDelay = int32(b.RootTimes.ForwardingDelay)
+		nextStpBridgeState.Dot1dStpVlan = int16(b.Vlan)
 
-			if len(returnStpBridgeStates) == 0 {
-				returnStpBridgeStates = make([]*stpd.Dot1dStpBridgeState, 0)
-			}
-			returnStpBridgeStates = append(returnStpBridgeStates, nextStpBridgeState)
-			validCount++
-			toIndex++
+		if len(returnStpBridgeStates) == 0 {
+			returnStpBridgeStates = make([]*stpd.Dot1dStpBridgeState, 0)
 		}
+		returnStpBridgeStates = append(returnStpBridgeStates, nextStpBridgeState)
+		validCount++
+		toIndex++
 	}
 	// lets try and get the next agg if one exists then there are more routes
 	moreRoutes := false
