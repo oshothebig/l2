@@ -177,7 +177,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	}
 	p := &StpPort{
 		IfIndex:              c.Dot1dStpPort,
-		AutoEdgePort:         false, // default and not configurable
+		AutoEdgePort:         true, // default and not configurable
 		AdminPointToPointMAC: PointToPointMac(c.Dot1dStpPortAdminPointToPoint),
 		// protocol portId
 		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
