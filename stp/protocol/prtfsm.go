@@ -166,7 +166,7 @@ func (m *PrtMachine) GetPrevStateStr() string {
 func NewStpPrtMachine(p *StpPort) *PrtMachine {
 	prtm := &PrtMachine{
 		p:                  p,
-		PrtEvents:          make(chan MachineEvent, 10),
+		PrtEvents:          make(chan MachineEvent, 50),
 		PrtKillSignalEvent: make(chan bool),
 		PrtLogEnableEvent:  make(chan bool)}
 
