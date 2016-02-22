@@ -98,6 +98,7 @@ func GetPortState(p *stp.StpPort) (state int32) {
 	        }
 	*/
 	state = 0
+	stp.StpLogger("INFO", fmt.Sprintf("PortEnabled[%t] Learning[%t] Forwarding[%t]", p.PortEnabled, p.Learning, p.Forwarding))
 	if !p.PortEnabled {
 		state = 1
 	} else if p.Learning && !p.Forwarding {
