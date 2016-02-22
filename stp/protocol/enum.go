@@ -23,7 +23,8 @@ const (
 type PortRole int
 
 const (
-	PortRoleBridgePort PortRole = iota + 1
+	PortRoleInvalid PortRole = iota
+	PortRoleBridgePort
 	PortRoleRootPort
 	PortRoleDesignatedPort
 	PortRoleAlternatePort
