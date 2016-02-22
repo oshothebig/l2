@@ -98,7 +98,7 @@ func (m *PimMachine) GetPrevStateStr() string {
 func NewStpPimMachine(p *StpPort) *PimMachine {
 	pim := &PimMachine{
 		p:                  p,
-		PimEvents:          make(chan MachineEvent, 10),
+		PimEvents:          make(chan MachineEvent, 50),
 		PimKillSignalEvent: make(chan bool),
 		PimLogEnableEvent:  make(chan bool)}
 

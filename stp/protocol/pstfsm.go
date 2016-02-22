@@ -73,7 +73,7 @@ func (m *PstMachine) GetPrevStateStr() string {
 func NewStpPstMachine(p *StpPort) *PstMachine {
 	pstm := &PstMachine{
 		p:                  p,
-		PstEvents:          make(chan MachineEvent, 10),
+		PstEvents:          make(chan MachineEvent, 50),
 		PstKillSignalEvent: make(chan bool),
 		PstLogEnableEvent:  make(chan bool)}
 

@@ -74,7 +74,7 @@ func NewStpPtmMachine(p *StpPort) *PtmMachine {
 	ptm := &PtmMachine{
 		p:                  p,
 		PreviousState:      PtmStateNone,
-		PtmEvents:          make(chan MachineEvent, 10),
+		PtmEvents:          make(chan MachineEvent, 50),
 		PtmKillSignalEvent: make(chan bool),
 		PtmLogEnableEvent:  make(chan bool)}
 

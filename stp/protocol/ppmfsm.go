@@ -73,7 +73,7 @@ func (m *PpmmMachine) GetPrevStateStr() string {
 func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 	ppmm := &PpmmMachine{
 		p:                   p,
-		PpmmEvents:          make(chan MachineEvent, 10),
+		PpmmEvents:          make(chan MachineEvent, 50),
 		PpmmKillSignalEvent: make(chan bool),
 		PpmmLogEnableEvent:  make(chan bool)}
 

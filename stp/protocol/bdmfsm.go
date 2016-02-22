@@ -67,7 +67,7 @@ func (m *BdmMachine) GetPrevStateStr() string {
 func NewStpBdmMachine(p *StpPort) *BdmMachine {
 	bdm := &BdmMachine{
 		p:                  p,
-		BdmEvents:          make(chan MachineEvent, 10),
+		BdmEvents:          make(chan MachineEvent, 50),
 		BdmKillSignalEvent: make(chan bool),
 		BdmLogEnableEvent:  make(chan bool)}
 
