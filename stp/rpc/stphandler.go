@@ -100,7 +100,7 @@ func GetPortState(p *stp.StpPort) (state int32) {
 	state = 0
 	if !p.PortEnabled {
 		state = 1
-	} else if p.Learning {
+	} else if p.Learning && !p.Forwarding {
 		state = 4
 	} else if p.Forwarding {
 		state = 5
