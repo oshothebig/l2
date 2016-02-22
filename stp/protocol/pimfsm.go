@@ -646,7 +646,7 @@ func (pim *PimMachine) NotifySyncedChanged(oldsynced bool, newsynced bool) {
 				p.Selected &&
 				!p.UpdtInfo {
 				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
+					e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
 					src: PimMachineModuleStr,
 				}
 			} else if p.Agreed &&
