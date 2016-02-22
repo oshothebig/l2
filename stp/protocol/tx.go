@@ -46,7 +46,7 @@ func (p *StpPort) TxRSTP() {
 		RootId:            p.PortPriority.RootBridgeId,
 		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),
 		BridgeId:          p.b.BridgePriority.DesignatedBridgeId,
-		PortId:            uint16(p.b.PortId | p.Priority<<8),
+		PortId:            uint16(p.PortId | p.Priority<<8),
 		MsgAge:            uint16(p.b.RootTimes.MessageAge << 8),
 		MaxAge:            uint16(p.b.RootTimes.MaxAge << 8),
 		HelloTime:         uint16(p.b.RootTimes.HelloTime << 8),
