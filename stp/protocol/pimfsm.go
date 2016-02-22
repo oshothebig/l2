@@ -147,9 +147,9 @@ func (pim *PimMachine) Stop() {
 // PimMachineDisabled
 func (pim *PimMachine) PimMachineDisabled(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
-	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
+	//defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
 	p.RcvdMsg = false
-	defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
+	//defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
 	p.Proposing = false
 	defer pim.NotifyProposedChanged(p.Proposed, false)
 	p.Proposed = false
@@ -180,7 +180,7 @@ func (pim *PimMachine) PimMachineAged(m fsm.Machine, data interface{}) fsm.State
 // PimMachineUpdate
 func (pim *PimMachine) PimMachineUpdate(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
-	defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
+	//defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
 	p.Proposing = false
 	defer pim.NotifyProposedChanged(p.Proposed, false)
 	p.Proposed = false
@@ -201,7 +201,7 @@ func (pim *PimMachine) PimMachineUpdate(m fsm.Machine, data interface{}) fsm.Sta
 	p.PortPriority.DesignatedBridgeId = p.b.BridgeIdentifier
 	p.PortPriority.DesignatedPortId = uint16(p.Priority<<8 | p.PortId)
 	p.PortTimes = p.b.BridgeTimes
-	defer p.NotifyUpdtInfoChanged(PimMachineModuleStr, p.UpdtInfo, false)
+	//defer p.NotifyUpdtInfoChanged(PimMachineModuleStr, p.UpdtInfo, false)
 	p.UpdtInfo = false
 	p.InfoIs = PortInfoStateMine
 	defer pim.NotifyNewInfoChange(p.NewInfo, true)
@@ -226,7 +226,7 @@ func (pim *PimMachine) PimMachineSuperiorDesignated(m fsm.Machine, data interfac
 	p := pim.p
 	defer pim.NotifyAgreedChanged(p.Agreed, false)
 	p.Agreed = false
-	defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
+	//defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
 	p.Proposing = false
 	flags := pim.getRcvdMsgFlags(data)
 	pim.recordProposal(flags)
@@ -1261,7 +1261,7 @@ func (pim *PimMachine) recordAgreement(rcvdMsgFlags uint8) {
 		StpGetBpduAgreement(rcvdMsgFlags) {
 		defer pim.NotifyAgreedChanged(p.Agreed, true)
 		p.Agreed = true
-		defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
+		//defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
 		p.Proposing = false
 	} else {
 		defer pim.NotifyAgreedChanged(p.Agreed, false)
