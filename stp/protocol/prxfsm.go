@@ -151,7 +151,11 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 	defer p.NotifyRcvdMsgChanged(PrxmMachineModuleStr, p.RcvdMsg, rcvdMsg, data)
 	p.RcvdMsg = rcvdMsg
 	defer p.NotifyOperEdgeChanged(PrxmMachineModuleStr, p.OperEdge, false)
-	p.OperEdge = false
+
+	/* do not transition to NOT OperEdge if AdminEdge is set */
+	if p.AdminEdge {
+		p.OperEdge = false
+	}
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
 
