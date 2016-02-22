@@ -73,7 +73,7 @@ func (m *PrsMachine) GetPrevStateStr() string {
 func NewStpPrsMachine(b *Bridge) *PrsMachine {
 	prsm := &PrsMachine{
 		b:                  b,
-		debugLevel:         0,
+		debugLevel:         1,
 		PrsEvents:          make(chan MachineEvent, 10),
 		PrsKillSignalEvent: make(chan bool),
 		PrsLogEnableEvent:  make(chan bool)}
@@ -366,6 +366,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 		b.BridgePriority.BridgePortId = tmpVector.BridgePortId
 		b.BridgePriority.RootPathCost = tmpVector.RootPathCost
 		b.RootTimes = rootTimes
+		b.RootPortId = rootPortId
 
 	}
 	if prsm.debugLevel > 0 {
