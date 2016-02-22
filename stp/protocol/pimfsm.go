@@ -1128,22 +1128,22 @@ func (pim *PimMachine) getRcvdMsgTimes(bpduLayer interface{}) (msgtimes *Times) 
 	switch bpduLayer.(type) {
 	case *layers.STP:
 		stp := bpduLayer.(*layers.STP)
-		msgtimes.MessageAge = stp.MsgAge
-		msgtimes.MaxAge = stp.MaxAge
-		msgtimes.HelloTime = stp.HelloTime
-		msgtimes.ForwardingDelay = stp.FwdDelay
+		msgtimes.MessageAge = stp.MsgAge >> 8
+		msgtimes.MaxAge = stp.MaxAge >> 8
+		msgtimes.HelloTime = stp.HelloTime >> 8
+		msgtimes.ForwardingDelay = stp.FwdDelay >> 8
 	case *layers.RSTP:
 		rstp := bpduLayer.(*layers.RSTP)
-		msgtimes.MessageAge = rstp.MsgAge
-		msgtimes.MaxAge = rstp.MaxAge
-		msgtimes.HelloTime = rstp.HelloTime
-		msgtimes.ForwardingDelay = rstp.FwdDelay
+		msgtimes.MessageAge = rstp.MsgAge >> 8
+		msgtimes.MaxAge = rstp.MaxAge >> 8
+		msgtimes.HelloTime = rstp.HelloTime >> 8
+		msgtimes.ForwardingDelay = rstp.FwdDelay >> 8
 	case *layers.PVST:
 		pvst := bpduLayer.(*layers.STP)
-		msgtimes.MessageAge = pvst.MsgAge
-		msgtimes.MaxAge = pvst.MaxAge
-		msgtimes.HelloTime = pvst.HelloTime
-		msgtimes.ForwardingDelay = pvst.FwdDelay
+		msgtimes.MessageAge = pvst.MsgAge >> 8
+		msgtimes.MaxAge = pvst.MaxAge >> 8
+		msgtimes.HelloTime = pvst.HelloTime >> 8
+		msgtimes.ForwardingDelay = pvst.FwdDelay >> 8
 	}
 	return msgtimes
 }

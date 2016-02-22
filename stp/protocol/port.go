@@ -593,10 +593,10 @@ func (p *StpPort) SaveMsgRcvInfo(data interface{}) {
 		p.MsgPriority.RootBridgeId = stp.RootId
 		p.MsgPriority.RootPathCost = stp.RootPathCost
 
-		p.MsgTimes.ForwardingDelay = stp.FwdDelay
-		p.MsgTimes.HelloTime = stp.HelloTime
-		p.MsgTimes.MaxAge = stp.MaxAge
-		p.MsgTimes.MessageAge = stp.MsgAge
+		p.MsgTimes.ForwardingDelay = stp.FwdDelay >> 8
+		p.MsgTimes.HelloTime = stp.HelloTime >> 8
+		p.MsgTimes.MaxAge = stp.MaxAge >> 8
+		p.MsgTimes.MessageAge = stp.MsgAge >> 8
 
 	case layers.RSTP:
 		rstp := data.(*layers.RSTP)
@@ -607,10 +607,10 @@ func (p *StpPort) SaveMsgRcvInfo(data interface{}) {
 		p.MsgPriority.RootBridgeId = rstp.RootId
 		p.MsgPriority.RootPathCost = rstp.RootPathCost
 
-		p.MsgTimes.ForwardingDelay = rstp.FwdDelay
-		p.MsgTimes.HelloTime = rstp.HelloTime
-		p.MsgTimes.MaxAge = rstp.MaxAge
-		p.MsgTimes.MessageAge = rstp.MsgAge
+		p.MsgTimes.ForwardingDelay = rstp.FwdDelay >> 8
+		p.MsgTimes.HelloTime = rstp.HelloTime >> 8
+		p.MsgTimes.MaxAge = rstp.MaxAge >> 8
+		p.MsgTimes.MessageAge = rstp.MsgAge >> 8
 
 	case layers.PVST:
 		pvst := data.(*layers.PVST)
@@ -621,10 +621,10 @@ func (p *StpPort) SaveMsgRcvInfo(data interface{}) {
 		p.MsgPriority.RootBridgeId = pvst.RootId
 		p.MsgPriority.RootPathCost = pvst.RootPathCost
 
-		p.MsgTimes.ForwardingDelay = pvst.FwdDelay
-		p.MsgTimes.HelloTime = pvst.HelloTime
-		p.MsgTimes.MaxAge = pvst.MaxAge
-		p.MsgTimes.MessageAge = pvst.MsgAge
+		p.MsgTimes.ForwardingDelay = pvst.FwdDelay >> 8
+		p.MsgTimes.HelloTime = pvst.HelloTime >> 8
+		p.MsgTimes.MaxAge = pvst.MaxAge >> 8
+		p.MsgTimes.MessageAge = pvst.MsgAge >> 8
 
 	}
 }
