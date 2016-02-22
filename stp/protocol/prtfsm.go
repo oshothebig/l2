@@ -190,7 +190,7 @@ func (prtm *PrtMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	prtm.Machine.Rules = r
 	prtm.Machine.Curr = &StpStateEvent{
 		strStateMap: PrtStateStrMap,
-		logEna:      false,
+		logEna:      true,
 		logger:      prtm.PrtLogger,
 		owner:       PrtMachineModuleStr,
 		ps:          PrtStateNone,
