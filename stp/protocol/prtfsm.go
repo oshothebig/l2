@@ -792,7 +792,7 @@ func (p *StpPort) PrtMachineMain() {
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrtStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+					StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, PrtStateStrMap[m.Machine.Curr.CurrentState()], event.e))
 				} else {
 					// for faster state transitions
 					m.ProcessPostStateProcessing()
