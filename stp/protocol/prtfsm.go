@@ -1654,8 +1654,8 @@ func (prtm *PrtMachine) ProcessingPostStateAlternatePort() {
 func (prtm *PrtMachine) ProcessingPostStateDisable() {
 	p := prtm.p
 	if prtm.Machine.Curr.CurrentState() == PrtStateDisablePort {
-		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDisablePort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
-			p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
+		//StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDisablePort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		//	p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 
 		if !p.Learning &&
 			!p.Forwarding &&
