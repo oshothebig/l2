@@ -653,27 +653,38 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 		evt := make([]MachineEvent, 0)
 
 		// notify the state machines
-		if p.EdgeDelayWhileTimer.count != MigrateTimeDefault &&
-			!newportenabled {
-			mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
-			evt = append(evt, MachineEvent{e: PrxmEventEdgeDelayWhileNotEqualMigrateTimeAndNotPortEnabled,
-				src: src})
-		}
 		if !newportenabled {
-			mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
-			evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
-				src: src})
+			if p.EdgeDelayWhileTimer.count != MigrateTimeDefault {
+				mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
+				evt = append(evt, MachineEvent{e: PrxmEventEdgeDelayWhileNotEqualMigrateTimeAndNotPortEnabled,
+					src: src})
+			}
 
-			if !p.AdminEdge {
-				//BdEventNotPortEnabledAndNotAdminEdge
-				mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
-				evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndNotAdminEdge,
-					src: src})
+			if p.PpmmMachineFsm.Machine.Curr.CurrentState() == PpmmStateCheckingRSTP {
+				if p.MdelayWhiletimer.count != MigrateTimeDefault {
+					mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
+					evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
+						src: src})
+				}
 			} else {
-				//BdmEventNotPortEnabledAndAdminEdge
-				mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
-				evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndAdminEdge,
+				mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
+				evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
 					src: src})
+			}
+			if !p.AdminEdge {
+				if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateEdge {
+					//BdEventNotPortEnabledAndNotAdminEdge
+					mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
+					evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndNotAdminEdge,
+						src: src})
+				}
+			} else {
+				if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateNotEdge {
+					//BdmEventNotPortEnabledAndAdminEdge
+					mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
+					evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndAdminEdge,
+						src: src})
+				}
 			}
 			if p.InfoIs != PortInfoStateDisabled {
 				mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
@@ -682,12 +693,31 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 			}
 
 		} else {
-			mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
-			evt = append(evt, MachineEvent{e: PimEventPortEnabled,
-				src: src})
+			if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateDiscard {
+				if p.RcvdBPDU {
+					mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
+					evt = append(evt, MachineEvent{e: PrxmEventRcvdBpduAndPortEnabled,
+						src: src})
+				}
+			} else if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateReceive {
+				if p.RcvdBPDU &&
+					!p.RcvdMsg {
+					mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
+					evt = append(evt, MachineEvent{e: PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg,
+						src: src})
+				}
+			}
+
+			if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
+				mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
+				evt = append(evt, MachineEvent{e: PimEventPortEnabled,
+					src: src})
+			}
 		}
-		// distribute the events
-		p.DistributeMachineEvents(mEvtChan, evt, false)
+		if len(mEvtChan) > 0 {
+			// distribute the events
+			p.DistributeMachineEvents(mEvtChan, evt, false)
+		}
 	}
 }
 

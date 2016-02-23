@@ -216,7 +216,7 @@ func (bdm *BdmMachine) ProcessPostStateEdge() {
 		if !p.OperEdge {
 			rv := bdm.Machine.ProcessEvent(BdmMachineModuleStr, BdmEventNotOperEdge, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "BDM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, BdmMachineModuleStr, BdmStateStrMap[m.Machine.Curr.CurrentState()], BdmEventNotOperEdge))
+				StpMachineLogger("ERROR", "BDM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, BdmMachineModuleStr, BdmStateStrMap[bdm.Machine.Curr.CurrentState()], BdmEventNotOperEdge))
 			}
 		}
 	}
@@ -231,7 +231,7 @@ func (bdm *BdmMachine) ProcessPostStateNotEdge() {
 			p.Proposing {
 			rv := bdm.Machine.ProcessEvent(BdmMachineModuleStr, BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "BDM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, BdmMachineModuleStr, BdmStateStrMap[m.Machine.Curr.CurrentState()], BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing))
+				StpMachineLogger("ERROR", "BDM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, BdmMachineModuleStr, BdmStateStrMap[bdm.Machine.Curr.CurrentState()], BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing))
 			}
 		}
 	}
