@@ -188,7 +188,7 @@ func (pim *PimMachine) PimMachineUpdate(m fsm.Machine, data interface{}) fsm.Sta
 	defer pim.NotifyAgreedChanged(p.Agreed, tmp)
 	p.Agreed = tmp
 	tmp = p.Synced && p.Agreed
-	defer pim.NotifySyncedChanged(p.Synced, tmp)
+	defer p.NotifySyncedChanged(PimMachineModuleStr, p.Synced, tmp)
 	p.Synced = tmp
 	// root has not been assigned yet so lets make this the root
 	if p.b.RootPortId == 0 {
@@ -615,104 +615,6 @@ func (pim *PimMachine) ProcessPostStateProcessing(data interface{}) {
 	pim.ProcessingPostStateCurrent(data)
 	pim.ProcessingPostStateReceive(data)
 
-}
-
-func (pim *PimMachine) NotifySyncedChanged(oldsynced bool, newsynced bool) {
-	p := pim.p
-	if oldsynced != newsynced {
-		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
-			if !p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
-		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-			if p.b.AllSynced() &&
-				!p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
-		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-			if !p.Learning &&
-				!p.Forwarding &&
-				!p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				!p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.OperEdge &&
-				!p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Sync &&
-				p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Sync &&
-				!p.Synced &&
-				!p.OperEdge &&
-				p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Sync &&
-				!p.Synced &&
-				!p.OperEdge &&
-				p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
-		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
-			if p.b.AllSynced() &&
-				!p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if !p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
-		}
-	}
 }
 
 func (pim *PimMachine) NotifyAgreedChanged(oldagreed bool, newagreed bool) {
@@ -1204,9 +1106,9 @@ func (pim *PimMachine) recordPriority(rcvdMsgPriority *PriorityVector) bool {
 	//message priority vector is better than the port priority vector, or the message has been transmitted from the
 	//same Designated Bridge and Designated Port as the port priority vector, i.e., if the following is true
 	betterorsame := pim.betterorsameinfo(p.InfoIs)
-	//p.PortPriority.RootBridgeId = rcvdMsgPriority.RootBridgeId
-	//p.PortPriority.RootPathCost = rcvdMsgPriority.RootPathCost
-	p.PortPriority = *rcvdMsgPriority
+	p.PortPriority.RootBridgeId = rcvdMsgPriority.RootBridgeId
+	p.PortPriority.RootPathCost = rcvdMsgPriority.RootPathCost
+	//p.PortPriority = *rcvdMsgPriority
 	//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("recordPriority: copying rcvmsg to port %#v", *rcvdMsgPriority))
 	return betterorsame
 }

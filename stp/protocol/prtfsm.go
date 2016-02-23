@@ -84,55 +84,55 @@ const (
 	// events taken from Figure 17.20 Disabled Port role transitions
 	PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo // 3
 	PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo                              //4
-	PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo
-	PrtEventSyncAndSelectedAndNotUpdtInfo      // 5 also applies to Alternate and Backup Port role
-	PrtEventReRootAndSelectedAndNotUpdtInfo    // 6 also applies to Alternate and Backup Port role
-	PrtEventNotSyncedAndSelectedAndNotUpdtInfo // 7 also applies to Alternate and Backup Port role
+	PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo                                    // 5
+	PrtEventSyncAndSelectedAndNotUpdtInfo                                                     // 6 also applies to Alternate and Backup Port role
+	PrtEventReRootAndSelectedAndNotUpdtInfo                                                   // 7 also applies to Alternate and Backup Port role
+	PrtEventNotSyncedAndSelectedAndNotUpdtInfo                                                // 8 also applies to Alternate and Backup Port role
 	// events taken from Figure 17.21 Root Port role transitions
-	PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo           // 8
-	PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo                                            // 9 also applies to Alternate and Backup Port role
-	PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo                                           // 10 also applies to Alternate and Backup Port role
-	PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo                                               // 11 also applies to Alternate and Backup Port role
-	PrtEventNotForwardAndNotReRootAndSelectedAndNotUpdtInfo                                         // 12
-	PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo                                        // 13
-	PrtEventReRootAndForwardAndSelectedAndNotUpdtInfo                                               // 14
-	PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo                      // 15
-	PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo           // 16
-	PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo            // 17
-	PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo // 18
+	PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo           // 9
+	PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo                                            // 10 also applies to Alternate and Backup Port role
+	PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo                                           // 11 also applies to Alternate and Backup Port role
+	PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo                                               // 12 also applies to Alternate and Backup Port role
+	PrtEventNotForwardAndNotReRootAndSelectedAndNotUpdtInfo                                         // 13
+	PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo                                        // 14
+	PrtEventReRootAndForwardAndSelectedAndNotUpdtInfo                                               // 15
+	PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo                      // 16
+	PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo           // 17
+	PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo            // 18
+	PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo // 19
 	// events take from Figure 17-22 Designated port role transitions
-	PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo      // 19
-	PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo             // 20
-	PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo                         // 21
-	PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo                                              // 22
-	PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo                                            // 23
-	PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo                                                   // 24
-	PrtEventRrWhileEqualZeroAndReRootAndSelectedAndNotUpdtInfo                                       // 25
-	PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo                          // 26
-	PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo                        // 27
-	PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo              // 28
-	PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo            // 29
-	PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo                                  // 30
-	PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo                                // 31
-	PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo        // 32
-	PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo                  // 33
-	PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                  // 34
-	PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                         // 35
-	PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                // 36
-	PrtEventOperEdgeAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                       // 37
-	PrtEventNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                                  // 38
-	PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo // 39
-	PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo        // 40
-	PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo        // 41
-	PrtEventAgreedAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo               // 42
-	PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo      // 43
-	PrtEventOperEdgeAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo             // 44
-	PrtEventNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo                        // 45
+	PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo      // 20
+	PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo             // 21
+	PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo                         // 22
+	PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo                                              // 23
+	PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo                                            // 24
+	PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo                                                   // 25
+	PrtEventRrWhileEqualZeroAndReRootAndSelectedAndNotUpdtInfo                                       // 26
+	PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo                          // 27
+	PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo                        // 28
+	PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo              // 29
+	PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo            // 30
+	PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo                                  // 31
+	PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo                                // 32
+	PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo        // 33
+	PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo                  // 34
+	PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                  // 35
+	PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                         // 36
+	PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                // 37
+	PrtEventOperEdgeAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                       // 38
+	PrtEventNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo                                  // 39
+	PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo // 40
+	PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo        // 41
+	PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo        // 42
+	PrtEventAgreedAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo               // 43
+	PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo      // 44
+	PrtEventOperEdgeAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo             // 45
+	PrtEventNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo                        // 46
 	// events taken from Figure 17-23 Alternate and Backup Port role transitions
-	PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo   // 46
-	PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo  // 47
-	PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo // 48
-	PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo                             // 49
+	PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo   // 47
+	PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo  // 48
+	PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo // 49
+	PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo                             // 50
 )
 
 // PrtMachine holds FSM and current State
@@ -789,7 +789,7 @@ func (p *StpPort) PrtMachineMain() {
 				return
 
 			case event := <-m.PrtEvents:
-				//fmt.Println("Event Rx", event.src, event.e)
+				StpMachineLogger("INFO", m.p.IfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
 					StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, PrtStateStrMap[m.Machine.Curr.CurrentState()], event.e))
