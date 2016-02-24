@@ -144,36 +144,42 @@ func (p *StpPort) DecrementTimerCounters() {
 	// prt owner
 	if p.RrWhileTimer.count > 0 {
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-			if p.RrWhileTimer.count != int32(p.b.RootTimes.ForwardingDelay) &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo,
-					src: PrtMachineModuleStr,
-				}
-			}
-		}
-
-		p.RrWhileTimer.count--
-		if p.RrWhileTimer.count != 0 &&
-			p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-			if p.ReRoot &&
-				!p.OperEdge &&
-				p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
-					src: PrtMachineModuleStr,
-				}
-			} else if p.ReRoot &&
-				!p.OperEdge &&
-				p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
-					src: PrtMachineModuleStr,
+			/*
+				if p.RrWhileTimer.count != int32(p.b.RootTimes.ForwardingDelay) &&
+					p.Selected &&
+					!p.UpdtInfo {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo,
+						src: PrtMachineModuleStr,
+					}
+				}*/
+			// lets just reset the rrwhile count which is normally done based on
+			// transition to root port state, but in order to not have
+			// root port states constantly transition to root we will just
+			// set this here
+			p.RrWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
+		} else {
+			p.RrWhileTimer.count--
+			if p.RrWhileTimer.count != 0 &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+				if p.ReRoot &&
+					!p.OperEdge &&
+					p.Learn &&
+					p.Selected &&
+					!p.UpdtInfo {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+						src: PrtMachineModuleStr,
+					}
+				} else if p.ReRoot &&
+					!p.OperEdge &&
+					p.Forward &&
+					p.Selected &&
+					!p.UpdtInfo {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+						src: PrtMachineModuleStr,
+					}
 				}
 			}
 		}

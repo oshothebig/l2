@@ -403,8 +403,12 @@ func (prsm *PrsMachine) updtRolesTree() {
 				// 17.21.25 (h)
 				defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
 				p.SelectedRole = PortRoleDesignatedPort
-				if p.b.BridgePriority == p.PortPriority ||
-					p.PortTimes != b.RootTimes {
+				if p.b.BridgePriority == p.PortPriority {
+					if p.PortTimes != b.RootTimes {
+						defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
+						p.UpdtInfo = true
+					}
+				} else {
 					defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
 					p.UpdtInfo = true
 				}
