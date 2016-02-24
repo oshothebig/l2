@@ -83,7 +83,7 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 		vlan = DEFAULT_STP_BRIDGE_VLAN
 	}
 
-	bridgeId := CreateBridgeId(addr, vlan, c.Dot1dStpPriority)
+	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriority, vlan)
 
 	b := &Bridge{
 		Begin:            true,
@@ -226,7 +226,7 @@ func StpFindBridgeByIfIndex(brgIfIndex int32, brg **Bridge) bool {
 }
 
 func CreateBridgeId(bridgeAddress [6]uint8, bridgePriority uint16, vlan uint16) BridgeId {
-	return BridgeId{uint8(bridgePriority&0xf000) | uint8(vlan&0xf00),
+	return BridgeId{uint8(bridgePriority&0xf000>>8) | uint8(vlan&0xf00>>8),
 		uint8(vlan & 0xff),
 		bridgeAddress[0],
 		bridgeAddress[1],
