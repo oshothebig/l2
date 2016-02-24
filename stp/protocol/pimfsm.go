@@ -200,7 +200,7 @@ func (pim *PimMachine) PimMachineUpdate(m fsm.Machine, data interface{}) fsm.Sta
 	}
 	p.PortPriority.DesignatedBridgeId = p.b.BridgeIdentifier
 	p.PortPriority.DesignatedPortId = uint16(p.Priority<<8 | p.PortId)
-	p.PortTimes = p.b.BridgeTimes
+	p.PortTimes = p.b.RootTimes
 	//defer p.NotifyUpdtInfoChanged(PimMachineModuleStr, p.UpdtInfo, false)
 	p.UpdtInfo = false
 	p.InfoIs = PortInfoStateMine
