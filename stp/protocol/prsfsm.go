@@ -366,8 +366,6 @@ func (prsm *PrsMachine) updtRolesTree() {
 		b.BridgePriority.BridgePortId = tmpVector.BridgePortId
 		b.BridgePriority.RootPathCost = tmpVector.RootPathCost
 		b.RootTimes = rootTimes
-		b.RootPortId = rootPortId
-
 	}
 	if prsm.debugLevel > 0 {
 		StpMachineLogger("INFO", "PRSM", -1, fmt.Sprintf("BridgePriority: %#v  BridgeTimes: %#v", b.BridgePriority, b.RootTimes))
