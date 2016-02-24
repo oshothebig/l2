@@ -118,7 +118,7 @@ func (p *StpPort) TxPVST() {
 
 func (p *StpPort) TxRSTP() {
 
-	if p.b.Vlan != 0 {
+	if p.b.Vlan != DEFAULT_STP_BRIDGE_VLAN {
 		p.TxPVST()
 		return
 	}

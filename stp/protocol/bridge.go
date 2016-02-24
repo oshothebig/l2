@@ -78,8 +78,12 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 	}
 	netAddr, _ := net.ParseMAC(tmpaddr)
 	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
+	vlan := c.Dot1dStpBridgeVlan
+	if vlan == 0 {
+		vlan := DEFAULT_STP_BRIDGE_VLAN
+	}
 
-	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriority)
+	bridgeId := CreateBridgeId(addr, vlan, c.Dot1dStpPriority)
 
 	b := &Bridge{
 		Begin:            true,
@@ -104,6 +108,7 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 			MaxAge:     c.Dot1dStpBridgeMaxAge,
 			MessageAge: 0}, // this will be set once a port is set as root
 		TxHoldCount: uint64(c.Dot1dStpBridgeTxHoldCount),
+		Vlan:        vlan,
 	}
 
 	key := BridgeKey{
@@ -220,9 +225,9 @@ func StpFindBridgeByIfIndex(brgIfIndex int32, brg **Bridge) bool {
 	return false
 }
 
-func CreateBridgeId(bridgeAddress [6]uint8, bridgePriority uint16) BridgeId {
-	return BridgeId{uint8(bridgePriority >> 8 & 0xff),
-		uint8(bridgePriority & 0xff),
+func CreateBridgeId(bridgeAddress [6]uint8, bridgePriority uint16, vlan uint16) BridgeId {
+	return BridgeId{uint8(bridgePriority&0xf000) | uint8(vlan&0xf00),
+		uint8(vlan & 0xff),
 		bridgeAddress[0],
 		bridgeAddress[1],
 		bridgeAddress[2],
