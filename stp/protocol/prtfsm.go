@@ -224,8 +224,8 @@ func (prtm *PrtMachine) PrtMachineInitPort(m fsm.Machine, data interface{}) fsm.
 	p.Synced = false
 	p.Sync = true
 	p.ReRoot = true
-	p.RrWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
-	p.FdWhileTimer.count = int32(p.PortTimes.MaxAge)
+	p.RrWhileTimer.count = int32(p.b.BridgeTimes.ForwardingDelay)
+	p.FdWhileTimer.count = int32(p.b.BridgeTimes.MaxAge)
 	p.RbWhileTimer.count = 0
 	return PrtStateInitPort
 }
@@ -245,7 +245,7 @@ func (prtm *PrtMachine) PrtMachineDisablePort(m fsm.Machine, data interface{}) f
 //PrtMachineDisablePort
 func (prtm *PrtMachine) PrtMachineDisabledPort(m fsm.Machine, data interface{}) fsm.State {
 	p := prtm.p
-	p.FdWhileTimer.count = int32(p.PortTimes.MaxAge)
+	p.FdWhileTimer.count = int32(p.b.BridgeTimes.MaxAge)
 	p.Synced = true
 	p.RrWhileTimer.count = 0
 	p.Sync = false

@@ -77,11 +77,7 @@ func (p *StpPort) TxPVST() {
 		MaxAge:            uint16(p.b.RootTimes.MaxAge << 8),
 		HelloTime:         uint16(p.b.RootTimes.HelloTime << 8),
 		FwdDelay:          uint16(p.b.RootTimes.ForwardingDelay << 8),
-		//MsgAge:         uint16(p.PortTimes.MessageAge),
-		//MaxAge:         uint16(p.PortTimes.MaxAge),
-		//HelloTime:      uint16(p.PortTimes.HelloTime),
-		//FwdDelay:       uint16(p.PortTimes.ForwardingDelay),
-		Version1Length: 0,
+		Version1Length:    0,
 		OriginatingVlan: layers.STPOriginatingVlanTlv{
 			Type:     0,
 			Length:   2,
@@ -138,11 +134,7 @@ func (p *StpPort) TxRSTP() {
 		MaxAge:            uint16(p.b.RootTimes.MaxAge << 8),
 		HelloTime:         uint16(p.b.RootTimes.HelloTime << 8),
 		FwdDelay:          uint16(p.b.RootTimes.ForwardingDelay << 8),
-		//MsgAge:         uint16(p.PortTimes.MessageAge),
-		//MaxAge:         uint16(p.PortTimes.MaxAge),
-		//HelloTime:      uint16(p.PortTimes.HelloTime),
-		//FwdDelay:       uint16(p.PortTimes.ForwardingDelay),
-		Version1Length: 0,
+		Version1Length:    0,
 	}
 
 	StpSetBpduFlags(ConvertBoolToUint8(false),
@@ -216,10 +208,6 @@ func (p *StpPort) TxConfig() {
 		MaxAge:            uint16(p.b.RootTimes.MaxAge << 8),
 		HelloTime:         uint16(p.b.RootTimes.HelloTime << 8),
 		FwdDelay:          uint16(p.b.RootTimes.ForwardingDelay << 8),
-		//MsgAge:    uint16(p.PortTimes.MessageAge),
-		//MaxAge:    uint16(p.PortTimes.MaxAge),
-		//HelloTime: uint16(p.PortTimes.HelloTime),
-		//FwdDelay:  uint16(p.PortTimes.ForwardingDelay),
 	}
 
 	StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
