@@ -67,7 +67,7 @@ func (m *BdmMachine) GetPrevStateStr() string {
 func NewStpBdmMachine(p *StpPort) *BdmMachine {
 	bdm := &BdmMachine{
 		p:                  p,
-		BdmEvents:          make(chan MachineEvent, 10),
+		BdmEvents:          make(chan MachineEvent, 50),
 		BdmKillSignalEvent: make(chan bool),
 		BdmLogEnableEvent:  make(chan bool)}
 
@@ -194,7 +194,7 @@ func (p *StpPort) BdmMachineMain() {
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("INFO", "BDM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("ERROR", "BDM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, BdmStateStrMap[m.Machine.Curr.CurrentState()], event.e))
 				} else {
 					m.ProcessPostStateProcessing()
 				}
@@ -216,7 +216,7 @@ func (bdm *BdmMachine) ProcessPostStateEdge() {
 		if !p.OperEdge {
 			rv := bdm.Machine.ProcessEvent(BdmMachineModuleStr, BdmEventNotOperEdge, nil)
 			if rv != nil {
-				StpMachineLogger("INFO", "BDM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "BDM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, BdmMachineModuleStr, BdmStateStrMap[bdm.Machine.Curr.CurrentState()], BdmEventNotOperEdge))
 			}
 		}
 	}
@@ -231,7 +231,7 @@ func (bdm *BdmMachine) ProcessPostStateNotEdge() {
 			p.Proposing {
 			rv := bdm.Machine.ProcessEvent(BdmMachineModuleStr, BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing, nil)
 			if rv != nil {
-				StpMachineLogger("INFO", "BDM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "BDM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, BdmMachineModuleStr, BdmStateStrMap[bdm.Machine.Curr.CurrentState()], BdmEventEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRSTPAndProposing))
 			}
 		}
 	}

@@ -74,8 +74,8 @@ func (m *PrxmMachine) GetPrevStateStr() string {
 func NewStpPrxmMachine(p *StpPort) *PrxmMachine {
 	prxm := &PrxmMachine{
 		p:                   p,
-		PrxmEvents:          make(chan MachineEvent, 10),
-		PrxmRxBpduPkt:       make(chan RxBpduPdu, 20),
+		PrxmEvents:          make(chan MachineEvent, 50),
+		PrxmRxBpduPkt:       make(chan RxBpduPdu, 50),
 		PrxmKillSignalEvent: make(chan bool),
 		PrxmLogEnableEvent:  make(chan bool)}
 
@@ -151,6 +151,11 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 	defer p.NotifyRcvdMsgChanged(PrxmMachineModuleStr, p.RcvdMsg, rcvdMsg, data)
 	p.RcvdMsg = rcvdMsg
 	defer p.NotifyOperEdgeChanged(PrxmMachineModuleStr, p.OperEdge, false)
+
+	/* do not transition to NOT OperEdge if AdminEdge is set */
+	//	if !p.AdminEdge {
+	//		p.OperEdge = false
+	//	}
 	p.OperEdge = false
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault

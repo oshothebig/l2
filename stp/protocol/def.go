@@ -8,6 +8,7 @@ import (
 )
 
 const DEFAULT_STP_BRIDGE_VLAN = 1
+const PVST_VLAN_PRIORITY = 7
 
 type BPDURxType int8
 

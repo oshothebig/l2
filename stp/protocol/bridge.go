@@ -9,10 +9,14 @@ import (
 
 const BridgeConfigModuleStr = "Bridge Config"
 
-var BridgeMapTable map[BridgeId]*Bridge
+var BridgeMapTable map[BridgeKey]*Bridge
 var BridgeListTable []*Bridge
 
 type BridgeId [8]uint8
+type BridgeKey struct {
+	vlan uint16
+	mac  [6]uint8
+}
 
 type Bridge struct {
 
@@ -102,7 +106,12 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 		TxHoldCount: uint64(c.Dot1dStpBridgeTxHoldCount),
 	}
 
-	BridgeMapTable[b.BridgeIdentifier] = b
+	key := BridgeKey{
+		vlan: b.Vlan,
+		mac:  addr,
+	}
+
+	BridgeMapTable[key] = b
 
 	if len(BridgeListTable) == 0 {
 		BridgeListTable = make([]*Bridge, 0)
@@ -130,7 +139,7 @@ func DelStpBridge(b *Bridge, force bool) {
 	if force {
 		var p *StpPort
 		for _, pId := range b.StpPorts {
-			if StpFindPortById(pId, &p) {
+			if StpFindPortByIfIndex(pId, &p) {
 				DelStpPort(p)
 			}
 		}
@@ -141,7 +150,14 @@ func DelStpBridge(b *Bridge, force bool) {
 		}
 	}
 	b.Stop()
-	delete(BridgeMapTable, b.BridgeIdentifier)
+
+	addr := [6]uint8{b.BridgeIdentifier[2], b.BridgeIdentifier[3], b.BridgeIdentifier[4], b.BridgeIdentifier[5], b.BridgeIdentifier[6], b.BridgeIdentifier[7]}
+	key := BridgeKey{
+		vlan: b.Vlan,
+		mac:  addr,
+	}
+
+	delete(BridgeMapTable, key)
 	for i, delBrg := range BridgeListTable {
 		if delBrg.BridgeIdentifier == b.BridgeIdentifier {
 			if len(BridgeListTable) == 1 {
@@ -186,13 +202,10 @@ func (b *Bridge) BEGIN(restart bool) {
 	b.Begin = false
 }
 
-func StpFindBridgeById(bridgeId BridgeId, brg **Bridge) bool {
-
-	for bId, b := range BridgeMapTable {
-		if bridgeId == bId {
-			*brg = b
-			return true
-		}
+func StpFindBridgeById(key BridgeKey, b **Bridge) bool {
+	var ok bool
+	if *b, ok = BridgeMapTable[key]; ok {
+		return true
 	}
 	return false
 }
@@ -353,7 +366,7 @@ func (b *Bridge) AllSynced() bool {
 
 	var p *StpPort
 	for _, pId := range b.StpPorts {
-		if StpFindPortById(pId, &p) {
+		if StpFindPortByIfIndex(pId, &p) {
 			if !p.Synced {
 				return false
 			}
@@ -372,7 +385,7 @@ func (b *Bridge) ReRooted(p *StpPort) bool {
 			if pId == p.IfIndex {
 				continue
 			}
-			if StpFindPortById(pId, &op) {
+			if StpFindPortByIfIndex(pId, &op) {
 				if p.RrWhileTimer.count != 0 {
 					rerooted = false
 				}

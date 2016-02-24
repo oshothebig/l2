@@ -98,7 +98,7 @@ func (m *PimMachine) GetPrevStateStr() string {
 func NewStpPimMachine(p *StpPort) *PimMachine {
 	pim := &PimMachine{
 		p:                  p,
-		PimEvents:          make(chan MachineEvent, 10),
+		PimEvents:          make(chan MachineEvent, 50),
 		PimKillSignalEvent: make(chan bool),
 		PimLogEnableEvent:  make(chan bool)}
 
@@ -147,9 +147,9 @@ func (pim *PimMachine) Stop() {
 // PimMachineDisabled
 func (pim *PimMachine) PimMachineDisabled(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
-	defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
+	//defer p.NotifyRcvdMsgChanged(PimMachineModuleStr, p.RcvdMsg, false, data)
 	p.RcvdMsg = false
-	defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
+	//defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
 	p.Proposing = false
 	defer pim.NotifyProposedChanged(p.Proposed, false)
 	p.Proposed = false
@@ -180,7 +180,7 @@ func (pim *PimMachine) PimMachineAged(m fsm.Machine, data interface{}) fsm.State
 // PimMachineUpdate
 func (pim *PimMachine) PimMachineUpdate(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
-	defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
+	//defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
 	p.Proposing = false
 	defer pim.NotifyProposedChanged(p.Proposed, false)
 	p.Proposed = false
@@ -188,7 +188,7 @@ func (pim *PimMachine) PimMachineUpdate(m fsm.Machine, data interface{}) fsm.Sta
 	defer pim.NotifyAgreedChanged(p.Agreed, tmp)
 	p.Agreed = tmp
 	tmp = p.Synced && p.Agreed
-	defer pim.NotifySyncedChanged(p.Synced, tmp)
+	defer p.NotifySyncedChanged(PimMachineModuleStr, p.Synced, tmp)
 	p.Synced = tmp
 	// root has not been assigned yet so lets make this the root
 	if p.b.RootPortId == 0 {
@@ -201,7 +201,7 @@ func (pim *PimMachine) PimMachineUpdate(m fsm.Machine, data interface{}) fsm.Sta
 	p.PortPriority.DesignatedBridgeId = p.b.BridgeIdentifier
 	p.PortPriority.DesignatedPortId = uint16(p.Priority<<8 | p.PortId)
 	p.PortTimes = p.b.BridgeTimes
-	defer p.NotifyUpdtInfoChanged(PimMachineModuleStr, p.UpdtInfo, false)
+	//defer p.NotifyUpdtInfoChanged(PimMachineModuleStr, p.UpdtInfo, false)
 	p.UpdtInfo = false
 	p.InfoIs = PortInfoStateMine
 	defer pim.NotifyNewInfoChange(p.NewInfo, true)
@@ -226,7 +226,7 @@ func (pim *PimMachine) PimMachineSuperiorDesignated(m fsm.Machine, data interfac
 	p := pim.p
 	defer pim.NotifyAgreedChanged(p.Agreed, false)
 	p.Agreed = false
-	defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
+	//defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
 	p.Proposing = false
 	flags := pim.getRcvdMsgFlags(data)
 	pim.recordProposal(flags)
@@ -615,104 +615,6 @@ func (pim *PimMachine) ProcessPostStateProcessing(data interface{}) {
 	pim.ProcessingPostStateCurrent(data)
 	pim.ProcessingPostStateReceive(data)
 
-}
-
-func (pim *PimMachine) NotifySyncedChanged(oldsynced bool, newsynced bool) {
-	p := pim.p
-	if oldsynced != newsynced {
-		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
-			if !p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
-		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-			if p.b.AllSynced() &&
-				!p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
-		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-			if !p.Learning &&
-				!p.Forwarding &&
-				!p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				!p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.OperEdge &&
-				!p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Sync &&
-				p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Sync &&
-				!p.Synced &&
-				!p.OperEdge &&
-				p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Sync &&
-				!p.Synced &&
-				!p.OperEdge &&
-				p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
-		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
-			if p.b.AllSynced() &&
-				!p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if !p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
-		}
-	}
 }
 
 func (pim *PimMachine) NotifyAgreedChanged(oldagreed bool, newagreed bool) {
@@ -1128,22 +1030,22 @@ func (pim *PimMachine) getRcvdMsgTimes(bpduLayer interface{}) (msgtimes *Times) 
 	switch bpduLayer.(type) {
 	case *layers.STP:
 		stp := bpduLayer.(*layers.STP)
-		msgtimes.MessageAge = stp.MsgAge
-		msgtimes.MaxAge = stp.MaxAge
-		msgtimes.HelloTime = stp.HelloTime
-		msgtimes.ForwardingDelay = stp.FwdDelay
+		msgtimes.MessageAge = stp.MsgAge >> 8
+		msgtimes.MaxAge = stp.MaxAge >> 8
+		msgtimes.HelloTime = stp.HelloTime >> 8
+		msgtimes.ForwardingDelay = stp.FwdDelay >> 8
 	case *layers.RSTP:
 		rstp := bpduLayer.(*layers.RSTP)
-		msgtimes.MessageAge = rstp.MsgAge
-		msgtimes.MaxAge = rstp.MaxAge
-		msgtimes.HelloTime = rstp.HelloTime
-		msgtimes.ForwardingDelay = rstp.FwdDelay
+		msgtimes.MessageAge = rstp.MsgAge >> 8
+		msgtimes.MaxAge = rstp.MaxAge >> 8
+		msgtimes.HelloTime = rstp.HelloTime >> 8
+		msgtimes.ForwardingDelay = rstp.FwdDelay >> 8
 	case *layers.PVST:
 		pvst := bpduLayer.(*layers.STP)
-		msgtimes.MessageAge = pvst.MsgAge
-		msgtimes.MaxAge = pvst.MaxAge
-		msgtimes.HelloTime = pvst.HelloTime
-		msgtimes.ForwardingDelay = pvst.FwdDelay
+		msgtimes.MessageAge = pvst.MsgAge >> 8
+		msgtimes.MaxAge = pvst.MaxAge >> 8
+		msgtimes.HelloTime = pvst.HelloTime >> 8
+		msgtimes.ForwardingDelay = pvst.FwdDelay >> 8
 	}
 	return msgtimes
 }
@@ -1204,9 +1106,11 @@ func (pim *PimMachine) recordPriority(rcvdMsgPriority *PriorityVector) bool {
 	//message priority vector is better than the port priority vector, or the message has been transmitted from the
 	//same Designated Bridge and Designated Port as the port priority vector, i.e., if the following is true
 	betterorsame := pim.betterorsameinfo(p.InfoIs)
-	//p.PortPriority.RootBridgeId = rcvdMsgPriority.RootBridgeId
-	//p.PortPriority.RootPathCost = rcvdMsgPriority.RootPathCost
-	p.PortPriority = *rcvdMsgPriority
+	if betterorsame {
+		p.PortPriority.RootBridgeId = rcvdMsgPriority.RootBridgeId
+		p.PortPriority.RootPathCost = rcvdMsgPriority.RootPathCost
+	}
+	//p.PortPriority = *rcvdMsgPriority
 	//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("recordPriority: copying rcvmsg to port %#v", *rcvdMsgPriority))
 	return betterorsame
 }
@@ -1261,7 +1165,7 @@ func (pim *PimMachine) recordAgreement(rcvdMsgFlags uint8) {
 		StpGetBpduAgreement(rcvdMsgFlags) {
 		defer pim.NotifyAgreedChanged(p.Agreed, true)
 		p.Agreed = true
-		defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
+		//defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
 		p.Proposing = false
 	} else {
 		defer pim.NotifyAgreedChanged(p.Agreed, false)

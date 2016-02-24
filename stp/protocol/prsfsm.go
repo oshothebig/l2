@@ -73,8 +73,8 @@ func (m *PrsMachine) GetPrevStateStr() string {
 func NewStpPrsMachine(b *Bridge) *PrsMachine {
 	prsm := &PrsMachine{
 		b:                  b,
-		debugLevel:         0,
-		PrsEvents:          make(chan MachineEvent, 10),
+		debugLevel:         1,
+		PrsEvents:          make(chan MachineEvent, 50),
 		PrsKillSignalEvent: make(chan bool),
 		PrsLogEnableEvent:  make(chan bool)}
 
@@ -212,7 +212,7 @@ func (prsm *PrsMachine) clearReselectTree() {
 	b := prsm.b
 
 	for _, pId := range b.StpPorts {
-		if StpFindPortById(pId, &p) {
+		if StpFindPortByIfIndex(pId, &p) {
 			if p.PortEnabled {
 				p.Reselect = false
 			}
@@ -225,7 +225,7 @@ func (prsm *PrsMachine) updtRoleDisabledTree() {
 	b := prsm.b
 
 	for _, pId := range b.StpPorts {
-		if StpFindPortById(pId, &p) {
+		if StpFindPortByIfIndex(pId, &p) {
 			defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDisabledPort)
 			p.SelectedRole = PortRoleDisabledPort
 		}
@@ -264,7 +264,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 
 	// lets find the root port
 	for _, pId := range b.StpPorts {
-		if StpFindPortById(pId, &p) {
+		if StpFindPortByIfIndex(pId, &p) {
 			if prsm.debugLevel > 0 {
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: InfoIs %d", p.InfoIs))
 			}
@@ -318,7 +318,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 							tmpVector.DesignatedPortId {
 							var rp *StpPort
 							var localPortId int32
-							if StpFindPortById(rootPortId, &rp) {
+							if StpFindPortByIfIndex(rootPortId, &rp) {
 								rootPortId = int32((rp.Priority << 8) | p.PortId)
 								localPortId = int32((p.Priority << 8) | p.PortId)
 								if localPortId < rootPortId {
@@ -366,13 +366,14 @@ func (prsm *PrsMachine) updtRolesTree() {
 		b.BridgePriority.BridgePortId = tmpVector.BridgePortId
 		b.BridgePriority.RootPathCost = tmpVector.RootPathCost
 		b.RootTimes = rootTimes
+		b.RootPortId = rootPortId
 
 	}
 	if prsm.debugLevel > 0 {
 		StpMachineLogger("INFO", "PRSM", -1, fmt.Sprintf("BridgePriority: %#v", b.BridgePriority))
 	}
 	for _, pId := range b.StpPorts {
-		if StpFindPortById(pId, &p) {
+		if StpFindPortByIfIndex(pId, &p) {
 
 			// 17.21.25 (e)
 			p.PortTimes = b.RootTimes
@@ -478,7 +479,7 @@ func (prsm *PrsMachine) setSelectedTree() {
 	setAllSelectedTrue := true
 
 	for _, pId := range b.StpPorts {
-		if StpFindPortById(pId, &p) {
+		if StpFindPortByIfIndex(pId, &p) {
 			if p.Reselect == true {
 				if prsm.debugLevel > 0 {
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "setSelectedTree: is in reselet mode")
@@ -493,7 +494,7 @@ func (prsm *PrsMachine) setSelectedTree() {
 			StpMachineLogger("INFO", "PRSM", -1, "setSelectedTree: setting all ports as selected")
 		}
 		for _, pId := range b.StpPorts {
-			if StpFindPortById(pId, &p) {
+			if StpFindPortByIfIndex(pId, &p) {
 				if prsm.debugLevel > 0 {
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("setSelectedTree: setting selected prev selected state %t", p.Selected))
 				}

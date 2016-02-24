@@ -77,7 +77,7 @@ func (m *PtxmMachine) GetPrevStateStr() string {
 func NewStpPtxmMachine(p *StpPort) *PtxmMachine {
 	ptxm := &PtxmMachine{
 		p:                   p,
-		PtxmEvents:          make(chan MachineEvent, 10),
+		PtxmEvents:          make(chan MachineEvent, 50),
 		PtxmKillSignalEvent: make(chan bool),
 		PtxmLogEnableEvent:  make(chan bool)}
 
