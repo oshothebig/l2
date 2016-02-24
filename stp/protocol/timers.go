@@ -297,7 +297,7 @@ func (p *StpPort) NotifyMdelayWhileTimerExpired() {
 func (p *StpPort) NotifyRbWhileTimerExpired() {
 
 	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-		if p.ReRoot &&
+		if p.b.ReRooted(p) &&
 			p.RstpVersion &&
 			!p.Learn &&
 			p.Selected &&
@@ -306,7 +306,7 @@ func (p *StpPort) NotifyRbWhileTimerExpired() {
 				e:   PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo,
 				src: PrtMachineModuleStr,
 			}
-		} else if p.ReRoot &&
+		} else if p.b.ReRooted(p) &&
 			p.RstpVersion &&
 			p.Learn &&
 			!p.Forward &&

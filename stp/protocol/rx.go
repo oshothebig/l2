@@ -68,7 +68,7 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 	}
 
 	// only process the bpdu if stp is configured
-	if StpFindPortById(pId, &p) {
+	if StpFindPortByIfIndex(pId, &p) {
 		ethernet := ethernetLayer.(*layers.Ethernet)
 
 		bpduMAC := net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x00}
@@ -150,7 +150,7 @@ func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
 	//fmt.Printf("ProcessBpduFrame %T", bpduLayer)
 	//fmt.Printf("ProcessBpduFrame on port", pId)
 	// lets find the port via the info in the packet
-	if StpFindPortById(pId, &p) {
+	if StpFindPortByIfIndex(pId, &p) {
 		p.RcvdBPDU = true
 		//fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex)
 		if p.PrxmMachineFsm != nil {

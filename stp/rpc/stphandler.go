@@ -117,7 +117,6 @@ func GetPortState(p *stp.StpPort) (state int32) {
 // CreateDot1dStpBridgeConfig
 func (s *STPDServiceHandler) CreateDot1dStpBridgeConfig(config *stpd.Dot1dStpBridgeConfig) (bool, error) {
 
-	brgconfig := &stp.StpBridgeConfig{}
 	stp.StpLogger("INFO", "CreateDot1dStpBridgeConfig (server): created ")
 	stp.StpLogger("INFO", fmt.Sprintf("addr:", config.Dot1dBridgeAddress))
 	stp.StpLogger("INFO", fmt.Sprintf("prio:", config.Dot1dStpPriority))
@@ -128,6 +127,7 @@ func (s *STPDServiceHandler) CreateDot1dStpBridgeConfig(config *stpd.Dot1dStpBri
 	stp.StpLogger("INFO", fmt.Sprintf("version:", config.Dot1dStpBridgeForceVersion))   // int32
 	stp.StpLogger("INFO", fmt.Sprintf("txHoldCount", config.Dot1dStpBridgeTxHoldCount)) //
 
+	brgconfig := &stp.StpBridgeConfig{}
 	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
 
 	stp.StpBridgeCreate(brgconfig)
@@ -230,6 +230,9 @@ func (s *STPDServiceHandler) DeleteDot1dStpBridgeConfig(config *stpd.Dot1dStpBri
 	// Aggregation found now lets delete
 	//lacp.DeleteLaAgg(GetIdByName(config.NameKey))
 	stp.StpLogger("INFO", "DeleteDot1dStpBridgeConfig (server): deleted ")
+	brgconfig := &stp.StpBridgeConfig{}
+	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
+	stp.StpBridgeDelete(brgconfig)
 	return true, nil
 }
 
@@ -252,9 +255,8 @@ func (s *STPDServiceHandler) UpdateDot1dStpBridgeConfig(origconfig *stpd.Dot1dSt
 }
 
 func (s *STPDServiceHandler) CreateDot1dStpPortEntryConfig(config *stpd.Dot1dStpPortEntryConfig) (bool, error) {
-	portconfig := &stp.StpPortConfig{}
 	stp.StpLogger("INFO", "CreateDot1dStpPortEntryConfig (server): created ")
-
+	portconfig := &stp.StpPortConfig{}
 	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
 
 	stp.StpPortCreate(portconfig)
@@ -263,6 +265,10 @@ func (s *STPDServiceHandler) CreateDot1dStpPortEntryConfig(config *stpd.Dot1dStp
 
 func (s *STPDServiceHandler) DeleteDot1dStpPortEntryConfig(config *stpd.Dot1dStpPortEntryConfig) (bool, error) {
 	stp.StpLogger("INFO", "DeleteDot1dStpPortEntryConfig (server): deleted ")
+	portconfig := &stp.StpPortConfig{}
+	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
+
+	stp.StpPortDelete(portconfig)
 	return true, nil
 }
 
@@ -443,4 +449,29 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStates(from
 	obj.Count = validCount
 
 	return obj, nil
+}
+
+// All function below are not used/supported
+func (s *STPDServiceHandler) GetBulkDot1dTpDot1dTpPortEntry(fromIndex stpd.Int, count stpd.Int) (obj *stpd.Dot1dTpDot1dTpPortEntryGetInfo, err error) {
+	return obj, nil
+}
+
+func (s *STPDServiceHandler) GetBulkDot1dTpDot1dTpFdbEntry(fromIndex stpd.Int, count stpd.Int) (obj *stpd.Dot1dTpDot1dTpFdbEntryGetInfo, err error) {
+	return obj, nil
+}
+
+func (s *STPDServiceHandler) GetBulkDot1dBaseDot1dBasePortEntry(fromIndex stpd.Int, count stpd.Int) (obj *stpd.Dot1dBaseDot1dBasePortEntryGetInfo, err error) {
+	return obj, nil
+}
+
+func (s *STPDServiceHandler) CreateDot1dStaticDot1dStaticEntry(config *stpd.Dot1dStaticDot1dStaticEntry) (bool, error) {
+	return true, nil
+}
+
+func (s *STPDServiceHandler) UpdateDot1dStaticDot1dStaticEntry(origconfig *stpd.Dot1dStaticDot1dStaticEntry, newconfig *stpd.Dot1dStaticDot1dStaticEntry, attrset []bool) (bool, error) {
+	return true, nil
+}
+
+func (s *STPDServiceHandler) DeleteDot1dStaticDot1dStaticEntry(config *stpd.Dot1dStaticDot1dStaticEntry) (bool, error) {
+	return true, nil
 }

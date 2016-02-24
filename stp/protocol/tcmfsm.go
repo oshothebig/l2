@@ -511,7 +511,7 @@ func (tcm *TcMachine) setTcPropTree() {
 	var port *StpPort
 	for _, pId := range b.StpPorts {
 		if pId != p.IfIndex &&
-			StpFindPortById(pId, &port) {
+			StpFindPortByIfIndex(pId, &port) {
 			port.TcProp = true
 		}
 	}

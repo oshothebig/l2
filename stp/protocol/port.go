@@ -305,12 +305,10 @@ func DelStpPort(p *StpPort) {
 	}
 }
 
-func StpFindPortById(pId int32, p **StpPort) bool {
-	for ifindex, port := range PortMapTable {
-		if ifindex == pId {
-			*p = port
-			return true
-		}
+func StpFindPortByIfIndex(pId int32, p **StpPort) bool {
+	var ok bool
+	if *p, ok = PortMapTable[pId]; ok {
+		return true
 	}
 	return false
 }
@@ -1508,7 +1506,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 								e:   PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo,
 								src: src,
 							}
-						} else if p.ReRoot &&
+						} else if p.b.ReRooted(p) &&
 							p.RbWhileTimer.count == 0 &&
 							p.RstpVersion &&
 							!p.Learn {
@@ -1524,7 +1522,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 								e:   PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
 								src: src,
 							}
-						} else if p.ReRoot &&
+						} else if p.b.ReRooted(p) &&
 							p.RbWhileTimer.count == 0 &&
 							p.RstpVersion &&
 							p.Learn &&
