@@ -80,7 +80,7 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
 	vlan := c.Dot1dStpBridgeVlan
 	if vlan == 0 {
-		vlan := DEFAULT_STP_BRIDGE_VLAN
+		vlan = DEFAULT_STP_BRIDGE_VLAN
 	}
 
 	bridgeId := CreateBridgeId(addr, vlan, c.Dot1dStpPriority)
