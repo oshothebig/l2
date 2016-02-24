@@ -429,14 +429,14 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStatesPortT
 		nextStpPortState.BdmPrevState = p.BdmMachineFsm.GetPrevStateStr()
 		nextStpPortState.BdmCurrState = p.BdmMachineFsm.GetCurrStateStr()
 		// current counts
-		nextStpPortState.EdgeDelayWhile = p.EdgeDelayWhileTimer.count
-		nextStpPortState.FdWhile = p.FdWhileTimer.count
-		nextStpPortState.HelloWhen = p.HelloWhenTimer.count
-		nextStpPortState.MdelayWhile = p.MdelayWhiletimer.count
-		nextStpPortState.RbWhile = p.RbWhileTimer.count
-		nextStpPortState.RcvdInfoWhile = p.RcvdInfoWhiletimer.count
-		nextStpPortState.RrWhile = p.RrWhileTimer.count
-		nextStpPortState.TcWhile = p.TcWhileTimer.count
+		nextStpPortState.EdgeDelayWhile = p.EdgeDelayWhileTimer.GetCount()
+		nextStpPortState.FdWhile = p.FdWhileTimer.GetCount()
+		nextStpPortState.HelloWhen = p.HelloWhenTimer.GetCount()
+		nextStpPortState.MdelayWhile = p.MdelayWhiletimer.GetCount()
+		nextStpPortState.RbWhile = p.RbWhileTimer.GetCount()
+		nextStpPortState.RcvdInfoWhile = p.RcvdInfoWhiletimer.GetCount()
+		nextStpPortState.RrWhile = p.RrWhileTimer.GetCount()
+		nextStpPortState.TcWhile = p.TcWhileTimer.GetCount()
 
 		if len(returnStpPortStates) == 0 {
 			returnStpPortStates = make([]*stpd.Dot1dStpPortEntryStateCountersFsmStatesPortTimer, 0)

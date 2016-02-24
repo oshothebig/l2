@@ -143,6 +143,10 @@ type PortTimer struct {
 	count int32
 }
 
+func (t *PortTimer) GetCount() {
+	return t.count
+}
+
 func NewStpPort(c *StpPortConfig) *StpPort {
 	var b *Bridge
 	/*
