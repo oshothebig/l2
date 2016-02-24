@@ -143,7 +143,7 @@ type PortTimer struct {
 	count int32
 }
 
-func (t *PortTimer) GetCount() {
+func (t *PortTimer) GetCount() int32 {
 	return t.count
 }
 
