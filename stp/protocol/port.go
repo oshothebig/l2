@@ -215,6 +215,10 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		b: b, // reference to brige
 	}
 
+	if b.ForceVersion >= 2 {
+		p.RstpVersion = true
+	}
+
 	if c.Dot1dStpPortAdminPathCost == 0 {
 		// TODO need to get speed of port to automatically the port path cost
 		// Table 17-3
