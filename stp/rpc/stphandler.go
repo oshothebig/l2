@@ -391,7 +391,7 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStates(from
 		nextStpPortState.Dot1dStpPortState = GetPortState(p)
 		nextStpPortState.Dot1dStpPortEnable = ConvertBoolToInt32(p.PortEnabled)
 		nextStpPortState.Dot1dStpPortDesignatedRoot = stp.CreateBridgeIdStr(p.PortPriority.RootBridgeId)
-		nextStpPortState.Dot1dStpPortDesignatedCost = int32(p.b.BridgePriority.RootPathCost)
+		nextStpPortState.Dot1dStpPortDesignatedCost = int32(p.PortPathCost)
 		nextStpPortState.Dot1dStpPortAdminPathCost = int32(0) //The administratively assigned value for the contribution of this port to the path cost of paths toward the spanning tree root.  Writing a value of '0' assigns the automatically calculated default Path Cost value to the port.  If the default Path Cost is being used, this object returns '0' when read.  This complements the object dot1dStpPortPathCost or dot1dStpPortPathCost32, which returns the operational value of the path cost.    The value of this object MUST be retained across reinitializations of the management system.
 		nextStpPortState.Dot1dStpPortPathCost32 = int32(p.PortPathCost)
 		// root timers
