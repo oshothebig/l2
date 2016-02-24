@@ -34,11 +34,12 @@ type StpPort struct {
 	ProtocolPortId uint16
 
 	// 17.19
-	AgeingTime   int32
-	Agree        bool
-	Agreed       bool
-	AdminEdge    bool
-	AutoEdgePort bool // optional
+	AgeingTime    int32
+	Agree         bool
+	Agreed        bool
+	AdminEdge     bool
+	AutoEdgePort  bool // optional
+	AdminPathCost int32
 	//DesignatedPriority PriorityVector
 	//DesignatedTimes    Times
 	Disputed     bool
@@ -178,6 +179,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	p := &StpPort{
 		IfIndex:              c.Dot1dStpPort,
 		AutoEdgePort:         false, // default and not configurable
+		AdminPathCost:        c.Dot1dStpPortAdminPathCost,
 		AdminPointToPointMAC: PointToPointMac(c.Dot1dStpPortAdminPointToPoint),
 		// protocol portId
 		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
@@ -225,7 +227,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		}
 		speed := PortConfigMap[p.IfIndex].Speed
 
-		p.PortPathCost  = AutoPathCostDefaultMap[speed]
+		p.PortPathCost = AutoPathCostDefaultMap[speed]
 		StpLogger("INFO", fmt.Sprintf("Auto Port Path Cost for port %d speed %d = %d", p.IfIndex, speed, p.PortPathCost))
 	}
 
