@@ -270,10 +270,10 @@ func (prsm *PrsMachine) updtRolesTree() {
 			}
 			if p.InfoIs == PortInfoStateReceived {
 
-				/*if CompareBridgeAddr(GetBridgeAddrFromBridgeId(myBridgeId),
+				if CompareBridgeAddr(GetBridgeAddrFromBridgeId(myBridgeId),
 					GetBridgeAddrFromBridgeId(p.PortPriority.DesignatedBridgeId)) == 0 {
 					continue
-				}*/
+				}
 
 				compare := CompareBridgeId(p.PortPriority.RootBridgeId, tmpVector.RootBridgeId)
 				switch compare {
