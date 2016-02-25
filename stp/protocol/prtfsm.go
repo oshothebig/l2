@@ -256,7 +256,7 @@ func (prtm *PrtMachine) PrtMachineDisabledPort(m fsm.Machine, data interface{}) 
 //PrtMachineRootProposed
 func (prtm *PrtMachine) PrtMachineRootProposed(m fsm.Machine, data interface{}) fsm.State {
 	p := prtm.p
-	prtm.setSyncTree()
+	prtm.setSyncTree(p.IfIndex)
 	p.Proposed = false
 	return PrtStateRootProposed
 }
@@ -274,7 +274,8 @@ func (prtm *PrtMachine) PrtMachineRootAgreed(m fsm.Machine, data interface{}) fs
 
 //PrtMachineReroot
 func (prtm *PrtMachine) PrtMachineReRoot(m fsm.Machine, data interface{}) fsm.State {
-	prtm.setReRootTree()
+	p := prtm.p
+	prtm.setReRootTree(p.IfIndex)
 	return PrtStateReRoot
 }
 
@@ -381,7 +382,7 @@ func (prtm *PrtMachine) PrtMachineDesignatedPort(m fsm.Machine, data interface{}
 //PrtMachineAlternateProposed
 func (prtm *PrtMachine) PrtMachineAlternateProposed(m fsm.Machine, data interface{}) fsm.State {
 	p := prtm.p
-	prtm.setSyncTree()
+	prtm.setSyncTree(p.IfIndex)
 	p.Proposed = false
 	return PrtStateAlternateProposed
 }
@@ -1754,21 +1755,158 @@ func (prtm *PrtMachine) ProcessPostStateProcessing() {
 	prtm.ProcessingPostStateBackupPort()
 }
 
-func (prtm *PrtMachine) setSyncTree() {
+func (prtm *PrtMachine) NotifyReRootChanged(oldreroot bool, newreroot bool) {
+	p := prtm.p
+	// only need to handle reroot == true cases
+	// because this is triggered via setReRootTree which needs to notify
+	// all other ports
+	if oldreroot != newreroot {
+		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
+			if p.ReRoot &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventReRootAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+			if p.ReRoot &&
+				p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventReRootAndForwardAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+			if p.RrWhileTimer.count == 0 &&
+				p.ReRoot &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventRrWhileEqualZeroAndReRootAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			} else if p.ReRoot &&
+				p.RrWhileTimer.count != 0 &&
+				!p.OperEdge &&
+				p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			} else if p.ReRoot &&
+				p.RrWhileTimer.count != 0 &&
+				!p.OperEdge &&
+				p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
+			if p.ReRoot &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventReRootAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			}
+		}
+	}
+
+}
+
+func (prtm *PrtMachine) NotifySyncChanged(oldsync bool, newsync bool) {
+	p := prtm.p
+	// only need to handle sync == true cases
+	// because this is triggered via setSyncTree which needs to notify
+	// all other ports
+	if oldsync != newsync {
+		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
+			if p.Sync &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSyncAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+			if p.Sync &&
+				p.Synced &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			} else if p.Sync &&
+				!p.Synced &&
+				!p.OperEdge &&
+				p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			} else if p.Sync &&
+				!p.Synced &&
+				!p.OperEdge &&
+				p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
+			if p.Sync &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventSyncAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			}
+		}
+	}
+}
+
+func (prtm *PrtMachine) setSyncTree(ifindex int32) {
 	b := prtm.p.b
 	var p *StpPort
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, &p) {
+			// skip calling ifindex because post state processing will handle
+			// its change.
+			if ifindex != pId {
+				prtm.NotifySyncChanged(p.Sync, true)
+			}
 			p.Sync = true
 		}
 	}
 }
 
-func (prtm *PrtMachine) setReRootTree() {
+func (prtm *PrtMachine) setReRootTree(ifindex int32) {
 	b := prtm.p.b
 	var p *StpPort
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, &p) {
+			// skip calling ifindex because post state processing will handle
+			// its change.
+			if ifindex != pId {
+				prtm.NotifyReRootChanged(p.ReRoot, true)
+			}
 			p.ReRoot = true
 		}
 	}
