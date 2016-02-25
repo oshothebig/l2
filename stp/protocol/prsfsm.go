@@ -405,6 +405,9 @@ func (prsm *PrsMachine) updtRolesTree() {
 				p.SelectedRole = PortRoleDesignatedPort
 				if p.b.BridgePriority == p.PortPriority {
 					if p.PortTimes != b.RootTimes {
+						if prsm.debugLevel > 0 {
+							StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree:port times[%#v] != root times[%#v]", p.PortTimes, p.b.RootTimes))
+						}
 						defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
 						p.UpdtInfo = true
 					}
