@@ -377,7 +377,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 			p.PortTimes.HelloTime = b.BridgeTimes.HelloTime
 
 			desgPortId := p.PortPriority.BridgePortId
-			localPortId := int32(p.Priority<<8 | p.PortId)
+			localPortId := p.Priority<<8 | p.PortId
 
 			p.PortPriority.DesignatedPortId = 0
 			p.PortPriority.BridgePortId = 0
