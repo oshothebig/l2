@@ -376,7 +376,8 @@ func (prsm *PrsMachine) updtRolesTree() {
 			p.PortTimes = b.RootTimes
 			p.PortTimes.HelloTime = b.BridgeTimes.HelloTime
 
-			desgPortId := p.PortPriority.BridgePortId
+			desgPortId := p.PortPriority.DesignatedPortId
+			brgPortId := p.PortPriority.BridgePortId
 			localPortId := p.Priority<<8 | p.PortId
 
 			p.PortPriority.DesignatedPortId = 0
@@ -485,6 +486,9 @@ func (prsm *PrsMachine) updtRolesTree() {
 					}
 				}
 			}
+			p.PortPriority.DesignatedPortId = desgPortId
+			p.PortPriority.BridgePortId = brgPortId
+
 		}
 	}
 }
