@@ -1890,7 +1890,7 @@ func (prtm *PrtMachine) setSyncTree(ifindex int32) {
 			// skip calling ifindex because post state processing will handle
 			// its change.
 			if ifindex != pId {
-				prtm.NotifySyncChanged(p.Sync, true)
+				defer prtm.NotifySyncChanged(p.Sync, true)
 			}
 			p.Sync = true
 		}
@@ -1905,7 +1905,7 @@ func (prtm *PrtMachine) setReRootTree(ifindex int32) {
 			// skip calling ifindex because post state processing will handle
 			// its change.
 			if ifindex != pId {
-				prtm.NotifyReRootChanged(p.ReRoot, true)
+				defer prtm.NotifyReRootChanged(p.ReRoot, true)
 			}
 			p.ReRoot = true
 		}
