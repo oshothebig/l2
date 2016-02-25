@@ -350,7 +350,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 		b.BridgePriority.BridgePortId = tmpVector.BridgePortId
 		b.BridgePriority.RootPathCost = tmpVector.RootPathCost
 		b.RootTimes = rootTimes
-		b.RootTimes.MessageAge += 1
+		b.RootTimes.MessageAge = 1
 		b.RootPortId = rootPortId
 	} else {
 		if prsm.debugLevel > 0 {
