@@ -1830,6 +1830,14 @@ func (prtm *PrtMachine) NotifySyncChanged(oldsync bool, newsync bool) {
 	// because this is triggered via setSyncTree which needs to notify
 	// all other ports
 	if oldsync != newsync {
+		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("notifySyncChanged: state[%s] synced[%t] operedge[%t] learn[%t] forward[%t] selected[%t] updtInfo[%t]",
+			PrtStateStrMap[p.PrtMachineFsm.Machine.Curr.CurrentState()],
+			p.Synced,
+			p.OperEdge,
+			p.Learn,
+			p.Forward,
+			p.Selected,
+			p.UpdtInfo))
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
 			if p.Sync &&
 				p.Selected &&
