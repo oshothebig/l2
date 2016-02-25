@@ -380,6 +380,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 			brgPortId := p.PortPriority.BridgePortId
 			localPortId := p.Priority<<8 | p.PortId
 
+			p.b.BridgePriority.DesignatedPortId = 0
 			p.PortPriority.DesignatedPortId = 0
 			p.PortPriority.BridgePortId = 0
 
