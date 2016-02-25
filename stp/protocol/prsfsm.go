@@ -246,7 +246,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 	var p *StpPort
 	var rootPortId int32
 	rootPathVector := PriorityVector{
-		RootBridgeId:       b.BridgePriority.RootBridgeId,
+		RootBridgeId:       b.BridgePriority.DesignatedBridgeId,
 		DesignatedBridgeId: b.BridgePriority.DesignatedBridgeId,
 	}
 
