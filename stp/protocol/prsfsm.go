@@ -429,7 +429,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 				}
 			} else if p.InfoIs == PortInfoStateReceived {
 				// 17.21.25 (i)
-				if rootPortId == localPortId {
+				if rootPortId == int32(localPortId) {
 					defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleRootPort)
 					p.SelectedRole = PortRoleRootPort
 					defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
