@@ -370,14 +370,19 @@ func IsDesignatedPriorytVectorNotHigherThanPortPriorityVector(d *PriorityVector,
 func (b *Bridge) AllSynced() bool {
 
 	var p *StpPort
+	allsynced := false
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, &p) {
-			if !p.Synced {
+			if p.Selected &&
+				p.Role == p.SelectedRole &&
+				(p.Synced || p.SelectedRole == PortRoleRootPort) {
+				allsynced = true
+			} else {
 				return false
 			}
 		}
 	}
-	return true
+	return allsynced
 }
 
 func (b *Bridge) ReRooted(p *StpPort) bool {

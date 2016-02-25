@@ -143,6 +143,7 @@ func (p *StpPort) DecrementTimerCounters() {
 	}
 	// prt owner
 	if p.RrWhileTimer.count > 0 {
+		p.RrWhileTimer.count--
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
 
 			if p.RrWhileTimer.count != int32(p.b.RootTimes.ForwardingDelay) &&
@@ -159,7 +160,6 @@ func (p *StpPort) DecrementTimerCounters() {
 			// set this here
 			//p.RrWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
 		} else {
-			p.RrWhileTimer.count--
 			if p.RrWhileTimer.count != 0 &&
 				p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
 				if p.ReRoot &&
