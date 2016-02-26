@@ -364,7 +364,7 @@ func IsMsgPriorityVectorWorseThanPortPriorityVector(msg *PriorityVector, port *P
 
 func IsDesignatedPriorytVectorNotHigherThanPortPriorityVector(d *PriorityVector, p *PriorityVector) bool {
 	// re-use function
-	return IsMsgPriorityVectorTheSameOrWorseThanPortPriorityVector(p, d)
+	return IsMsgPriorityVectorTheSameOrWorseThanPortPriorityVector(d, p)
 }
 
 func (b *Bridge) AllSynced() bool {
