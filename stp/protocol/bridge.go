@@ -288,7 +288,7 @@ func CompareBridgeId(b1 BridgeId, b2 BridgeId) int {
 	}
 }
 
-func CompareBridgeAddr(a1 [6]uint8, a2 [6]uint8) int {
+func CompareBridgeAddr(b1 [6]uint8, b2 [6]uint8) int {
 	if (b1[0] < b2[0]) ||
 		((b1[0] == b2[0]) && (b1[1] < b2[1])) ||
 		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] < b2[2])) ||
@@ -296,7 +296,7 @@ func CompareBridgeAddr(a1 [6]uint8, a2 [6]uint8) int {
 		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] == b2[3]) && (b1[4] < b2[4])) ||
 		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] == b2[3]) && (b1[4] == b2[4]) && (b1[5] < b2[5])) {
 		return -1
-	} else if a1 == a2 {
+	} else if b1 == b2 {
 		return 0
 	}
 	return 1
