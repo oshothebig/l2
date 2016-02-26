@@ -99,7 +99,7 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	prxm.Machine.Rules = r
 	prxm.Machine.Curr = &StpStateEvent{
 		strStateMap: PrxmStateStrMap,
-		logEna:      false,
+		logEna:      true,
 		logger:      prxm.PrxmLogger,
 		owner:       PrxmMachineModuleStr,
 		ps:          PrxmStateNone,
@@ -150,13 +150,13 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 	// Figure 17-12
 	defer p.NotifyRcvdMsgChanged(PrxmMachineModuleStr, p.RcvdMsg, rcvdMsg, data)
 	p.RcvdMsg = rcvdMsg
-	defer p.NotifyOperEdgeChanged(PrxmMachineModuleStr, p.OperEdge, false)
 
 	/* do not transition to NOT OperEdge if AdminEdge is set */
-	//	if !p.AdminEdge {
-	//		p.OperEdge = false
-	//	}
-	p.OperEdge = false
+	if !p.AdminEdge && p.AutoEdgePort {
+		defer p.NotifyOperEdgeChanged(PrxmMachineModuleStr, p.OperEdge, false)
+		p.OperEdge = false
+	}
+	//p.OperEdge = false
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
 
@@ -233,7 +233,7 @@ func (p *StpPort) PrxmMachineMain() {
 					SendResponse(PrxmMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.PrxmRxBpduPkt:
-				//fmt.Println("Event PKT Rx", rx.src, rx.ptype, p.PortEnabled)
+				fmt.Println("Event PKT Rx", rx.src, rx.ptype, p.PortEnabled)
 				if m.Machine.Curr.CurrentState() == PrxmStateDiscard {
 					if p.PortEnabled {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)

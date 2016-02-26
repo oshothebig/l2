@@ -97,12 +97,11 @@ func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ppmm.Machine.Rules = r
 	ppmm.Machine.Curr = &StpStateEvent{
 		strStateMap: PpmmStateStrMap,
-		//logEna:      ptxm.p.logEna,
-		logEna: false,
-		logger: ppmm.PpmLogger,
-		owner:  PpmmMachineModuleStr,
-		ps:     PpmmStateNone,
-		s:      PpmmStateNone,
+		logEna:      true,
+		logger:      ppmm.PpmLogger,
+		owner:       PpmmMachineModuleStr,
+		ps:          PpmmStateNone,
+		s:           PpmmStateNone,
 	}
 
 	return ppmm.Machine
@@ -193,6 +192,7 @@ func (ppmm *PpmmMachine) PpmmMachineSelectingSTP(m fsm.Machine, data interface{}
 		// 17.24
 		// Inform Port Transmit State Machine what STP version to send and which BPDU types
 		// to support interoperability
+		// TODO change naming
 		ppmm.InformPtxMachineSendRSTPChanged()
 	}
 
