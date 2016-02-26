@@ -91,7 +91,7 @@ func (bdm *BdmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	bdm.Machine.Rules = r
 	bdm.Machine.Curr = &StpStateEvent{
 		strStateMap: BdmStateStrMap,
-		logEna:      false,
+		logEna:      true,
 		logger:      bdm.BdmLogger,
 		owner:       BdmMachineModuleStr,
 		ps:          BdmStateNone,

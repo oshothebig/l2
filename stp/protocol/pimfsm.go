@@ -122,7 +122,7 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	pim.Machine.Rules = r
 	pim.Machine.Curr = &StpStateEvent{
 		strStateMap: PimStateStrMap,
-		logEna:      true,
+		logEna:      false, // this will produce excessive logging as rx packets cause machine to change states constantly
 		logger:      pim.PimLogger,
 		owner:       PimMachineModuleStr,
 		ps:          PimStateNone,
@@ -234,8 +234,8 @@ func (pim *PimMachine) PimMachineSuperiorDesignated(m fsm.Machine, data interfac
 	betterorsame := pim.recordPriority(pim.getRcvdMsgPriority(data))
 	pim.recordTimes(pim.getRcvdMsgTimes(data))
 	tmp := p.Agree && betterorsame
-	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("SuperiorDesignated: p.Agree[%t] betterorsame[%t] &&[%t]",
-		p.Agree, betterorsame, tmp))
+	//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("SuperiorDesignated: p.Agree[%t] betterorsame[%t] &&[%t]",
+	//	p.Agree, betterorsame, tmp))
 	defer pim.NotifyAgreeChanged(p.Agree, tmp)
 	p.Agree = tmp
 	pim.updtRcvdInfoWhile()

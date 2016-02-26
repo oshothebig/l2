@@ -97,7 +97,7 @@ func (pstm *PstMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	pstm.Machine.Rules = r
 	pstm.Machine.Curr = &StpStateEvent{
 		strStateMap: PstStateStrMap,
-		logEna:      false,
+		logEna:      true,
 		logger:      pstm.PstmLogger,
 		owner:       PstMachineModuleStr,
 		ps:          PstStateNone,
@@ -208,6 +208,8 @@ func (p *StpPort) PstMachineMain() {
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
 					StpMachineLogger("ERROR", "PSTM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, PstStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+				} else {
+					m.ProcessPostStateProcessing()
 				}
 
 				if event.responseChan != nil {
@@ -219,6 +221,62 @@ func (p *StpPort) PstMachineMain() {
 			}
 		}
 	}(pstm)
+}
+
+func (pstm *PstMachine) ProcessPostStateDiscarding() {
+	p := pstm.p
+	if pstm.Machine.Curr.CurrentState() == PstStateDiscarding {
+		if p.Learn {
+			rv := pstm.Machine.ProcessEvent(PstMachineModuleStr, PstEventLearn, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PSTM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, PstMachineModuleStr, PstStateStrMap[pstm.Machine.Curr.CurrentState()], PstEventLearn))
+			} else {
+				pstm.ProcessPostStateProcessing()
+			}
+
+		}
+	}
+}
+
+func (pstm *PstMachine) ProcessPostStateLearning() {
+	p := pstm.p
+	if pstm.Machine.Curr.CurrentState() == PstStateLearning {
+		if !p.Learn {
+			rv := pstm.Machine.ProcessEvent(PstMachineModuleStr, PstEventNotLearn, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PSTM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, PstMachineModuleStr, PstStateStrMap[pstm.Machine.Curr.CurrentState()], PstEventNotLearn))
+			} else {
+				pstm.ProcessPostStateProcessing()
+			}
+		} else if p.Forward {
+			rv := pstm.Machine.ProcessEvent(PstMachineModuleStr, PstEventForward, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PSTM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, PstMachineModuleStr, PstStateStrMap[pstm.Machine.Curr.CurrentState()], PstEventForward))
+			} else {
+				pstm.ProcessPostStateProcessing()
+			}
+		}
+	}
+}
+
+func (pstm *PstMachine) ProcessPostStateForwarding() {
+	p := pstm.p
+	if pstm.Machine.Curr.CurrentState() == PstStateForwarding {
+		if !p.Forward {
+			rv := pstm.Machine.ProcessEvent(PstMachineModuleStr, PstEventNotForward, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PSTM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, PstMachineModuleStr, PstStateStrMap[pstm.Machine.Curr.CurrentState()], PstEventNotForward))
+			} else {
+				pstm.ProcessPostStateProcessing()
+			}
+		}
+	}
+}
+
+func (pstm *PstMachine) ProcessPostStateProcessing() {
+	pstm.ProcessPostStateDiscarding()
+	pstm.ProcessPostStateLearning()
+	pstm.ProcessPostStateForwarding()
 }
 
 func (pstm *PstMachine) NotifyLearningChanged(oldlearning bool, newlearning bool) {
