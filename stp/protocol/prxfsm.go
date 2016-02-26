@@ -233,7 +233,7 @@ func (p *StpPort) PrxmMachineMain() {
 					SendResponse(PrxmMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.PrxmRxBpduPkt:
-				fmt.Println("Event PKT Rx", rx.src, rx.ptype, p.PortEnabled)
+				//fmt.Println("Event PKT Rx", rx.src, rx.ptype, p.PortEnabled)
 				if m.Machine.Curr.CurrentState() == PrxmStateDiscard {
 					if p.PortEnabled {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)
