@@ -266,7 +266,7 @@ func (prtm *PrtMachine) PrtMachineRootAgreed(m fsm.Machine, data interface{}) fs
 	p := prtm.p
 	p.Proposed = false
 	p.Sync = false
-
+	p.Agree = true
 	defer prtm.NotifyNewInfoChanged(p.NewInfo, true)
 	p.NewInfo = true
 	return PrtStateRootAgreed
