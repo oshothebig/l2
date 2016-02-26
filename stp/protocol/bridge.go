@@ -78,8 +78,12 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 	}
 	netAddr, _ := net.ParseMAC(tmpaddr)
 	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
+	vlan := c.Dot1dStpBridgeVlan
+	if vlan == 0 {
+		vlan = DEFAULT_STP_BRIDGE_VLAN
+	}
 
-	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriority)
+	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriority, vlan)
 
 	b := &Bridge{
 		Begin:            true,
@@ -104,6 +108,7 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 			MaxAge:     c.Dot1dStpBridgeMaxAge,
 			MessageAge: 0}, // this will be set once a port is set as root
 		TxHoldCount: uint64(c.Dot1dStpBridgeTxHoldCount),
+		Vlan:        vlan,
 	}
 
 	key := BridgeKey{
@@ -220,9 +225,9 @@ func StpFindBridgeByIfIndex(brgIfIndex int32, brg **Bridge) bool {
 	return false
 }
 
-func CreateBridgeId(bridgeAddress [6]uint8, bridgePriority uint16) BridgeId {
-	return BridgeId{uint8(bridgePriority >> 8 & 0xff),
-		uint8(bridgePriority & 0xff),
+func CreateBridgeId(bridgeAddress [6]uint8, bridgePriority uint16, vlan uint16) BridgeId {
+	return BridgeId{uint8(bridgePriority&0xf000>>8) | uint8(vlan&0xf00>>8),
+		uint8(vlan & 0xff),
 		bridgeAddress[0],
 		bridgeAddress[1],
 		bridgeAddress[2],
@@ -283,15 +288,15 @@ func CompareBridgeId(b1 BridgeId, b2 BridgeId) int {
 	}
 }
 
-func CompareBridgeAddr(a1 [6]uint8, a2 [6]uint8) int {
-	if a1[0] < a2[0] ||
-		a1[1] < a2[1] ||
-		a1[2] < a2[2] ||
-		a1[3] < a2[3] ||
-		a1[4] < a2[4] ||
-		a1[5] < a2[5] {
+func CompareBridgeAddr(b1 [6]uint8, b2 [6]uint8) int {
+	if (b1[0] < b2[0]) ||
+		((b1[0] == b2[0]) && (b1[1] < b2[1])) ||
+		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] < b2[2])) ||
+		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] < b2[3])) ||
+		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] == b2[3]) && (b1[4] < b2[4])) ||
+		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] == b2[3]) && (b1[4] == b2[4]) && (b1[5] < b2[5])) {
 		return -1
-	} else if a1 == a2 {
+	} else if b1 == b2 {
 		return 0
 	}
 	return 1
@@ -359,20 +364,25 @@ func IsMsgPriorityVectorWorseThanPortPriorityVector(msg *PriorityVector, port *P
 
 func IsDesignatedPriorytVectorNotHigherThanPortPriorityVector(d *PriorityVector, p *PriorityVector) bool {
 	// re-use function
-	return IsMsgPriorityVectorWorseThanPortPriorityVector(p, d)
+	return IsMsgPriorityVectorTheSameOrWorseThanPortPriorityVector(d, p)
 }
 
 func (b *Bridge) AllSynced() bool {
 
 	var p *StpPort
+	allsynced := false
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, &p) {
-			if !p.Synced {
+			if p.Selected &&
+				p.Role == p.SelectedRole &&
+				(p.Synced || p.SelectedRole == PortRoleRootPort) {
+				allsynced = true
+			} else {
 				return false
 			}
 		}
 	}
-	return true
+	return allsynced
 }
 
 func (b *Bridge) ReRooted(p *StpPort) bool {

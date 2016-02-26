@@ -174,7 +174,7 @@ func PstMachineFSMBuild(p *StpPort) *PstMachine {
 	rules.AddRule(PstStateLearning, PstEventForward, pstm.PstMachineForwarding)
 
 	// NOT FORWARD -> FORWARDING
-	rules.AddRule(PstStateLearning, PstEventForward, pstm.PstMachineDiscarding)
+	rules.AddRule(PstStateForwarding, PstEventNotForward, pstm.PstMachineDiscarding)
 
 	// Create a new FSM and apply the rules
 	pstm.Apply(&rules)

@@ -122,7 +122,7 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	pim.Machine.Rules = r
 	pim.Machine.Curr = &StpStateEvent{
 		strStateMap: PimStateStrMap,
-		logEna:      false,
+		logEna:      true,
 		logger:      pim.PimLogger,
 		owner:       PimMachineModuleStr,
 		ps:          PimStateNone,
@@ -234,6 +234,8 @@ func (pim *PimMachine) PimMachineSuperiorDesignated(m fsm.Machine, data interfac
 	betterorsame := pim.recordPriority(pim.getRcvdMsgPriority(data))
 	pim.recordTimes(pim.getRcvdMsgTimes(data))
 	tmp := p.Agree && betterorsame
+	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("SuperiorDesignated: p.Agree[%t] betterorsame[%t] &&[%t]",
+		p.Agree, betterorsame, tmp))
 	defer pim.NotifyAgreeChanged(p.Agree, tmp)
 	p.Agree = tmp
 	pim.updtRcvdInfoWhile()
@@ -1081,6 +1083,9 @@ func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 	p := pim.p
 
+	//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("betterorsameinfo: newInfoIs[%d] p.InfoIs[%d] msgPriority[%#v] portPriority[%#v]",
+	//	newInfoIs, p.InfoIs, p.MsgPriority, p.PortPriority))
+
 	// recordPriority should be called when this is called from superior designated
 	// this way we don't need to pass the message around
 	if newInfoIs == PortInfoStateReceived &&
@@ -1106,11 +1111,11 @@ func (pim *PimMachine) recordPriority(rcvdMsgPriority *PriorityVector) bool {
 	//message priority vector is better than the port priority vector, or the message has been transmitted from the
 	//same Designated Bridge and Designated Port as the port priority vector, i.e., if the following is true
 	betterorsame := pim.betterorsameinfo(p.InfoIs)
-	if betterorsame {
-		p.PortPriority.RootBridgeId = rcvdMsgPriority.RootBridgeId
-		p.PortPriority.RootPathCost = rcvdMsgPriority.RootPathCost
-	}
-	//p.PortPriority = *rcvdMsgPriority
+	//if betterorsame {
+	//p.PortPriority.RootBridgeId = rcvdMsgPriority.RootBridgeId
+	//p.PortPriority.RootPathCost = rcvdMsgPriority.RootPathCost
+	//}
+	p.PortPriority = *rcvdMsgPriority
 	//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("recordPriority: copying rcvmsg to port %#v", *rcvdMsgPriority))
 	return betterorsame
 }

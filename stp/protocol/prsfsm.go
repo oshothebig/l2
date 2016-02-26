@@ -265,20 +265,20 @@ func (prsm *PrsMachine) updtRolesTree() {
 	// lets find the root port
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, &p) {
-			if prsm.debugLevel > 0 {
+			if prsm.debugLevel > 1 {
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: InfoIs %d", p.InfoIs))
 			}
 			if p.InfoIs == PortInfoStateReceived {
 
-				if CompareBridgeAddr(GetBridgeAddrFromBridgeId(myBridgeId),
+				/*if CompareBridgeAddr(GetBridgeAddrFromBridgeId(myBridgeId),
 					GetBridgeAddrFromBridgeId(p.PortPriority.DesignatedBridgeId)) == 0 {
 					continue
-				}
+				}*/
 
 				compare := CompareBridgeId(p.PortPriority.RootBridgeId, tmpVector.RootBridgeId)
 				switch compare {
 				case -1:
-					if prsm.debugLevel > 0 {
+					if prsm.debugLevel > 1 {
 						StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: Root Bridge Received is SUPERIOR port Priority %#v", p.PortPriority))
 					}
 					tmpVector.RootBridgeId = p.PortPriority.RootBridgeId
@@ -288,15 +288,15 @@ func (prsm *PrsMachine) updtRolesTree() {
 					rootPortId = int32(p.Priority<<8 | p.PortId)
 					rootTimes = p.PortTimes
 				case 0:
-					if prsm.debugLevel > 0 {
+					if prsm.debugLevel > 1 {
 						StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: Root Bridge Received by port SAME")
 					}
 					tmpCost := p.PortPriority.RootPathCost + p.PortPathCost
-					if prsm.debugLevel > 0 {
+					if prsm.debugLevel > 1 {
 						StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: rx+txCost[%d] bridgeCost[%d]", tmpCost, tmpVector.RootPathCost))
 					}
 					if tmpCost < tmpVector.RootPathCost {
-						if prsm.debugLevel > 0 {
+						if prsm.debugLevel > 1 {
 							StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: DesignatedBridgeId received by port is SUPERIOR")
 						}
 						tmpVector.RootPathCost = tmpCost
@@ -304,12 +304,12 @@ func (prsm *PrsMachine) updtRolesTree() {
 						tmpVector.DesignatedPortId = p.PortPriority.DesignatedPortId
 						rootPortId = int32(p.Priority<<8 | p.PortId)
 					} else if tmpCost == tmpVector.RootPathCost {
-						if prsm.debugLevel > 0 {
+						if prsm.debugLevel > 1 {
 							StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: DesignatedBridgeId received by port is SAME")
 						}
 						if p.PortPriority.DesignatedPortId <
 							tmpVector.DesignatedPortId {
-							if prsm.debugLevel > 0 {
+							if prsm.debugLevel > 1 {
 								StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: DesignatedPortId received by port is SUPPERIOR")
 							}
 							tmpVector.DesignatedPortId = p.PortPriority.DesignatedPortId
@@ -322,7 +322,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 								rootPortId = int32((rp.Priority << 8) | p.PortId)
 								localPortId = int32((p.Priority << 8) | p.PortId)
 								if localPortId < rootPortId {
-									if prsm.debugLevel > 0 {
+									if prsm.debugLevel > 1 {
 										StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: received portId is SUPPERIOR")
 									}
 									rootPortId = int32(p.Priority<<8 | p.PortId)
@@ -337,7 +337,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 
 	// lets copy over the tmpVector over to the rootPathVector
 	if rootPortId != 0 {
-		if prsm.debugLevel > 0 {
+		if prsm.debugLevel > 1 {
 			StpMachineLogger("INFO", "PRSM", -1, fmt.Sprintf("updtRolesTree: Port %d selected as the root port", rootPortId))
 		}
 		compare := CompareBridgeAddr(GetBridgeAddrFromBridgeId(b.BridgePriority.RootBridgeId),
@@ -347,13 +347,12 @@ func (prsm *PrsMachine) updtRolesTree() {
 		}
 
 		b.BridgePriority.RootBridgeId = tmpVector.RootBridgeId
-		b.BridgePriority.BridgePortId = tmpVector.BridgePortId
 		b.BridgePriority.RootPathCost = tmpVector.RootPathCost
 		b.RootTimes = rootTimes
 		b.RootTimes.MessageAge += 1
 		b.RootPortId = rootPortId
 	} else {
-		if prsm.debugLevel > 0 {
+		if prsm.debugLevel > 1 {
 			StpMachineLogger("INFO", "PRSM", 0, "updtRolesTree: This bridge is the root bridge")
 		}
 		compare := CompareBridgeAddr(GetBridgeAddrFromBridgeId(b.BridgeIdentifier),
@@ -363,14 +362,12 @@ func (prsm *PrsMachine) updtRolesTree() {
 		}
 
 		b.BridgePriority.RootBridgeId = tmpVector.RootBridgeId
-		b.BridgePriority.BridgePortId = tmpVector.BridgePortId
 		b.BridgePriority.RootPathCost = tmpVector.RootPathCost
 		b.RootTimes = rootTimes
-		b.RootPortId = rootPortId
-
+		b.RootPortId = 0
 	}
-	if prsm.debugLevel > 0 {
-		StpMachineLogger("INFO", "PRSM", -1, fmt.Sprintf("BridgePriority: %#v", b.BridgePriority))
+	if prsm.debugLevel > 1 {
+		StpMachineLogger("INFO", "PRSM", -1, fmt.Sprintf("BridgePriority: %#v  BridgeTimes: %#v", b.BridgePriority, b.RootTimes))
 	}
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, &p) {
@@ -379,7 +376,15 @@ func (prsm *PrsMachine) updtRolesTree() {
 			p.PortTimes = b.RootTimes
 			p.PortTimes.HelloTime = b.BridgeTimes.HelloTime
 
-			if prsm.debugLevel > 0 {
+			desgPortId := p.PortPriority.DesignatedPortId
+			brgPortId := p.PortPriority.BridgePortId
+			localPortId := p.Priority<<8 | p.PortId
+
+			p.b.BridgePriority.DesignatedPortId = 0
+			p.PortPriority.DesignatedPortId = 0
+			p.PortPriority.BridgePortId = 0
+
+			if prsm.debugLevel > 1 {
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: portEnabled %t, infoIs %d\n", p.PortEnabled, p.InfoIs))
 			}
 			// Assign the port roles
@@ -388,7 +393,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 				defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDisabledPort)
 				p.SelectedRole = PortRoleDisabledPort
 
-				if prsm.debugLevel > 0 {
+				if prsm.debugLevel > 1 {
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:1 port role selected DISABLED")
 				}
 			} else if p.InfoIs == PortInfoStateAged {
@@ -397,42 +402,62 @@ func (prsm *PrsMachine) updtRolesTree() {
 				p.UpdtInfo = true
 				defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
 				p.SelectedRole = PortRoleDesignatedPort
-				if prsm.debugLevel > 0 {
+				if prsm.debugLevel > 1 {
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:1 port role selected DESIGNATED")
 				}
 			} else if p.InfoIs == PortInfoStateMine {
 				// 17.21.25 (h)
 				defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
 				p.SelectedRole = PortRoleDesignatedPort
-				if p.b.BridgePriority == p.PortPriority ||
-					p.PortTimes != b.RootTimes {
+
+				if p.b.BridgePriority == p.PortPriority &&
+					desgPortId == localPortId {
+					if p.PortTimes != b.RootTimes {
+						if prsm.debugLevel > 1 {
+							StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: port times[%#v] != root times[%#v]", p.PortTimes, p.b.RootTimes))
+						}
+						defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
+						p.UpdtInfo = true
+					}
+				} else {
+					if prsm.debugLevel > 1 {
+						StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: BridgePriority[%#v] != PortPriority[%#v]", p.b.BridgePriority, p.PortPriority))
+					}
 					defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
 					p.UpdtInfo = true
 				}
-				if prsm.debugLevel > 0 {
+				if prsm.debugLevel > 1 {
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:2 port role selected DESIGNATED")
 				}
 			} else if p.InfoIs == PortInfoStateReceived {
 				// 17.21.25 (i)
-				if rootPortId == int32(p.Priority<<8|p.PortId) {
+				if rootPortId == int32(localPortId) {
 					defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleRootPort)
 					p.SelectedRole = PortRoleRootPort
 					defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
 					p.UpdtInfo = false
-					if prsm.debugLevel > 0 {
+					if prsm.debugLevel > 1 {
 						StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: port role selected ROOT")
 					}
 				} else {
 					// 17.21.25 (j), (k), (l)
 					// designated not higher than port priority
+					p.b.BridgePriority.DesignatedPortId = localPortId
+					p.PortPriority.DesignatedPortId = desgPortId
+					if prsm.debugLevel > 1 {
+						StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: check not better BridgePriority[%#v] PortPriority[%#v]", p.b.BridgePriority, p.PortPriority))
+					}
 					if IsDesignatedPriorytVectorNotHigherThanPortPriorityVector(&p.b.BridgePriority, &p.PortPriority) {
+						if prsm.debugLevel > 1 {
+							StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: check addr not same myBridge[%#v] portBridge[%#v]", GetBridgeAddrFromBridgeId(myBridgeId), GetBridgeAddrFromBridgeId(p.PortPriority.DesignatedBridgeId)))
+						}
 						if CompareBridgeAddr(GetBridgeAddrFromBridgeId(p.PortPriority.DesignatedBridgeId),
 							GetBridgeAddrFromBridgeId(myBridgeId)) != 0 {
 							defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleAlternatePort)
 							p.SelectedRole = PortRoleAlternatePort
 							defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
 							p.UpdtInfo = false
-							if prsm.debugLevel > 0 {
+							if prsm.debugLevel > 1 {
 								StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: port role selected ALTERNATE")
 							}
 						} else {
@@ -442,7 +467,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 								p.SelectedRole = PortRoleBackupPort
 								defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
 								p.UpdtInfo = false
-								if prsm.debugLevel > 0 {
+								if prsm.debugLevel > 1 {
 									StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree: port role selected BACKUP")
 								}
 							} else {
@@ -452,7 +477,9 @@ func (prsm *PrsMachine) updtRolesTree() {
 								defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
 								p.UpdtInfo = true
 								//}
-								//StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:3 port role selected DESIGNATED")
+								if prsm.debugLevel > 1 {
+									StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:3 port role selected DESIGNATED")
+								}
 							}
 						}
 					} else {
@@ -462,12 +489,15 @@ func (prsm *PrsMachine) updtRolesTree() {
 						defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
 						p.UpdtInfo = true
 						//}
-						if prsm.debugLevel > 0 {
+						if prsm.debugLevel > 1 {
 							StpMachineLogger("INFO", "PRSM", p.IfIndex, "updtRolesTree:4 port role selected DESIGNATED")
 						}
 					}
 				}
 			}
+			p.PortPriority.DesignatedPortId = desgPortId
+			p.PortPriority.BridgePortId = brgPortId
+
 		}
 	}
 }
@@ -480,8 +510,8 @@ func (prsm *PrsMachine) setSelectedTree() {
 
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, &p) {
-			if p.Reselect == true {
-				if prsm.debugLevel > 0 {
+			if p.Reselect {
+				if prsm.debugLevel > 1 {
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, "setSelectedTree: is in reselet mode")
 				}
 				setAllSelectedTrue = false
@@ -490,12 +520,12 @@ func (prsm *PrsMachine) setSelectedTree() {
 		}
 	}
 	if setAllSelectedTrue {
-		if prsm.debugLevel > 0 {
+		if prsm.debugLevel > 1 {
 			StpMachineLogger("INFO", "PRSM", -1, "setSelectedTree: setting all ports as selected")
 		}
 		for _, pId := range b.StpPorts {
 			if StpFindPortByIfIndex(pId, &p) {
-				if prsm.debugLevel > 0 {
+				if prsm.debugLevel > 1 {
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("setSelectedTree: setting selected prev selected state %t", p.Selected))
 				}
 				defer p.NotifySelectedChanged(PrsMachineModuleStr, p.Selected, true)

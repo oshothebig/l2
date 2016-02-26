@@ -34,11 +34,12 @@ type StpPort struct {
 	ProtocolPortId uint16
 
 	// 17.19
-	AgeingTime   int32
-	Agree        bool
-	Agreed       bool
-	AdminEdge    bool
-	AutoEdgePort bool // optional
+	AgeingTime    int32
+	Agree         bool
+	Agreed        bool
+	AdminEdge     bool
+	AutoEdgePort  bool // optional
+	AdminPathCost int32
 	//DesignatedPriority PriorityVector
 	//DesignatedTimes    Times
 	Disputed     bool
@@ -142,6 +143,10 @@ type PortTimer struct {
 	count int32
 }
 
+func (t *PortTimer) GetCount() int32 {
+	return t.count
+}
+
 func NewStpPort(c *StpPortConfig) *StpPort {
 	var b *Bridge
 	/*
@@ -178,6 +183,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	p := &StpPort{
 		IfIndex:              c.Dot1dStpPort,
 		AutoEdgePort:         false, // default and not configurable
+		AdminPathCost:        c.Dot1dStpPortAdminPathCost,
 		AdminPointToPointMAC: PointToPointMac(c.Dot1dStpPortAdminPointToPoint),
 		// protocol portId
 		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
@@ -207,6 +213,10 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)) | c.Dot1dStpPortPriority<<8),
 		},
 		b: b, // reference to brige
+	}
+
+	if b.ForceVersion >= 2 {
+		p.RstpVersion = true
 	}
 
 	if c.Dot1dStpPortAdminPathCost == 0 {

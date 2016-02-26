@@ -89,7 +89,7 @@ func (p *StpPort) DecrementTimerCounters() {
 	// Prt owner
 	if p.FdWhileTimer.count > 0 {
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort &&
-			uint16(p.FdWhileTimer.count) == p.PortTimes.MaxAge &&
+			uint16(p.FdWhileTimer.count) != p.b.BridgeTimes.MaxAge &&
 			p.Selected &&
 			!p.UpdtInfo {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
@@ -143,7 +143,9 @@ func (p *StpPort) DecrementTimerCounters() {
 	}
 	// prt owner
 	if p.RrWhileTimer.count > 0 {
+		p.RrWhileTimer.count--
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+
 			if p.RrWhileTimer.count != int32(p.b.RootTimes.ForwardingDelay) &&
 				p.Selected &&
 				!p.UpdtInfo {
@@ -152,28 +154,32 @@ func (p *StpPort) DecrementTimerCounters() {
 					src: PrtMachineModuleStr,
 				}
 			}
-		}
-
-		p.RrWhileTimer.count--
-		if p.RrWhileTimer.count != 0 &&
-			p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-			if p.ReRoot &&
-				!p.OperEdge &&
-				p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
-					src: PrtMachineModuleStr,
-				}
-			} else if p.ReRoot &&
-				!p.OperEdge &&
-				p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
-					src: PrtMachineModuleStr,
+			// lets just reset the rrwhile count which is normally done based on
+			// transition to root port state, but in order to not have
+			// root port states constantly transition to root we will just
+			// set this here
+			//p.RrWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
+		} else {
+			if p.RrWhileTimer.count != 0 &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+				if p.ReRoot &&
+					!p.OperEdge &&
+					p.Learn &&
+					p.Selected &&
+					!p.UpdtInfo {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+						src: PrtMachineModuleStr,
+					}
+				} else if p.ReRoot &&
+					!p.OperEdge &&
+					p.Forward &&
+					p.Selected &&
+					!p.UpdtInfo {
+					p.PrtMachineFsm.PrtEvents <- MachineEvent{
+						e:   PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+						src: PrtMachineModuleStr,
+					}
 				}
 			}
 		}
@@ -205,7 +211,8 @@ func (p *StpPort) NotifyEdgeDelayWhileTimerExpired() {
 }
 
 func (p *StpPort) NotifyFdWhileTimerExpired() {
-
+	//StpMachineLogger("INFO", "TIMER", p.IfIndex, fmt.Sprintf("FdWhileTimerExpired: RstpVersion[%t] Learn[%t] Forward[%t] Sync[%t] reroot[%t] rrwhile[%d] selected[%t] updtInfo[%t]",
+	//	p.RstpVersion, p.Learn, p.Forward, p.Sync, p.ReRoot, p.RrWhileTimer.count, p.Selected, p.UpdtInfo))
 	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
 		// events from Figure 17-21
 		if p.RstpVersion &&
