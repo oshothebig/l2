@@ -1081,6 +1081,9 @@ func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 	p := pim.p
 
+	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("betterorsameinfo: newInfoIs[%d] p.InfoIs[%d] msgPriority[%#v] portPriority[%#v]",
+		newInfoIs, p.InfoIs, p.MsgPriority, p.PortPriority))
+
 	// recordPriority should be called when this is called from superior designated
 	// this way we don't need to pass the message around
 	if newInfoIs == PortInfoStateReceived &&
