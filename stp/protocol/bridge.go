@@ -270,7 +270,7 @@ func GetBridgePriorityFromBridgeId(b BridgeId) uint16 {
 // < 1 == less than
 func CompareBridgeId(b1 BridgeId, b2 BridgeId) int {
 	if b1 == b2 {
-		StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 SAME, b1[%#v] b2[%#v]", b1, b2))
+		//StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 SAME, b1[%#v] b2[%#v]", b1, b2))
 		return 0
 	} else if (b1[0] < b2[0]) ||
 		((b1[0] == b2[0]) && (b1[1] < b2[1])) ||
@@ -280,10 +280,10 @@ func CompareBridgeId(b1 BridgeId, b2 BridgeId) int {
 		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] == b2[3]) && (b1[4] == b2[4]) && (b1[5] < b2[5])) ||
 		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] == b2[3]) && (b1[4] == b2[4]) && (b1[5] == b2[5]) && (b1[6] < b2[6])) ||
 		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] == b2[3]) && (b1[4] == b2[4]) && (b1[5] == b2[5]) && (b1[6] == b2[6]) && (b1[7] < b2[7])) {
-		StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 SUPERIOR, b1[%#v] b2[%#v]", b1, b2))
+		//StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 SUPERIOR, b1[%#v] b2[%#v]", b1, b2))
 		return -1
 	} else {
-		StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 INFERIOR, b1[%#v] b2[%#v]", b1, b2))
+		//StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 INFERIOR, b1[%#v] b2[%#v]", b1, b2))
 		return 1
 	}
 }

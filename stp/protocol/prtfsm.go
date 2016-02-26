@@ -790,7 +790,7 @@ func (p *StpPort) PrtMachineMain() {
 				return
 
 			case event := <-m.PrtEvents:
-				StpMachineLogger("INFO", "PRTM", m.p.IfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
+				//StpMachineLogger("INFO", "PRTM", m.p.IfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
 					StpMachineLogger("ERROR", "PRTM", p.IfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, PrtStateStrMap[m.Machine.Curr.CurrentState()], event.e))
@@ -1053,8 +1053,8 @@ func (prtm *PrtMachine) ProcessPostStateRootPort() {
 	p := prtm.p
 	b := p.b
 	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateRootPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
-			p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
+		//StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateRootPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		//	p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if p.Proposed &&
 			!p.Agree &&
 			p.Selected &&
@@ -1169,8 +1169,8 @@ func (prtm *PrtMachine) ProcessPostStateRootPort() {
 func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 	p := prtm.p
 	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDesignatedPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Synced[%t] Sync[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
-			p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
+		//StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDesignatedPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Synced[%t] Sync[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		//	p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if !p.Forwarding &&
 			!p.Agreed &&
 			!p.Proposing &&
@@ -1830,14 +1830,14 @@ func (prtm *PrtMachine) NotifySyncChanged(oldsync bool, newsync bool) {
 	// because this is triggered via setSyncTree which needs to notify
 	// all other ports
 	if oldsync != newsync {
-		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("notifySyncChanged: state[%s] synced[%t] operedge[%t] learn[%t] forward[%t] selected[%t] updtInfo[%t]",
-			PrtStateStrMap[p.PrtMachineFsm.Machine.Curr.CurrentState()],
-			p.Synced,
-			p.OperEdge,
-			p.Learn,
-			p.Forward,
-			p.Selected,
-			p.UpdtInfo))
+		/*StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("notifySyncChanged: state[%s] synced[%t] operedge[%t] learn[%t] forward[%t] selected[%t] updtInfo[%t]",
+		PrtStateStrMap[p.PrtMachineFsm.Machine.Curr.CurrentState()],
+		p.Synced,
+		p.OperEdge,
+		p.Learn,
+		p.Forward,
+		p.Selected,
+		p.UpdtInfo))*/
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
 			if p.Sync &&
 				p.Selected &&
@@ -1918,5 +1918,4 @@ func (prtm *PrtMachine) setReRootTree(ifindex int32) {
 			p.ReRoot = true
 		}
 	}
-
 }

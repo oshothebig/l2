@@ -1083,20 +1083,20 @@ func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 	p := pim.p
 
-	StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("betterorsameinfo: newInfoIs[%d] p.InfoIs[%d] msgPriority[%#v] portPriority[%#v]",
-		newInfoIs, p.InfoIs, p.MsgPriority, p.PortPriority))
+	//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("betterorsameinfo: newInfoIs[%d] p.InfoIs[%d] msgPriority[%#v] portPriority[%#v]",
+	//	newInfoIs, p.InfoIs, p.MsgPriority, p.PortPriority))
 
 	// recordPriority should be called when this is called from superior designated
 	// this way we don't need to pass the message around
 	if newInfoIs == PortInfoStateReceived &&
 		p.InfoIs == PortInfoStateReceived &&
 		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.MsgPriority, &p.PortPriority) {
-		StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: UPDATE InfoIs=Receive and msg vector superior or same as port")
+		//StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: UPDATE InfoIs=Receive and msg vector superior or same as port")
 		return true
 	} else if newInfoIs == PortInfoStateMine &&
 		p.InfoIs == PortInfoStateMine &&
 		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.b.BridgePriority, &p.PortPriority) {
-		StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: InfoIs=Mine and designated vector superior or same as port")
+		//StpMachineLogger("INFO", "PIM", p.IfIndex, "betterorsameinfo: InfoIs=Mine and designated vector superior or same as port")
 		return true
 	}
 	return false
