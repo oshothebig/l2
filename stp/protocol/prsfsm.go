@@ -444,6 +444,9 @@ func (prsm *PrsMachine) updtRolesTree() {
 					// designated not higher than port priority
 					p.b.BridgePriority.DesignatedPortId = localPortId
 					p.PortPriority.DesignatedPortId = desgPortId
+					if prsm.debugLevel > 0 {
+						StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("updtRolesTree: check not better BridgePriority[%#v] PortPriority[%#v]", p.b.BridgePriority, p.PortPriority))
+					}
 					if IsDesignatedPriorytVectorNotHigherThanPortPriorityVector(&p.b.BridgePriority, &p.PortPriority) {
 						if CompareBridgeAddr(GetBridgeAddrFromBridgeId(p.PortPriority.DesignatedBridgeId),
 							GetBridgeAddrFromBridgeId(myBridgeId)) != 0 {
