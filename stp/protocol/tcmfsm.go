@@ -7,7 +7,7 @@ package stp
 
 import (
 	"fmt"
-	//"time"
+	"time"
 	"utils/fsm"
 )
 
@@ -346,6 +346,8 @@ func (tcm *TcMachine) ProcessPostStateInactive() {
 		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventLearnAndNotFdbFlush, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			tcm.ProcessPostStateProcessing()
 		}
 
 	}
@@ -361,11 +363,15 @@ func (tcm *TcMachine) ProcessPostStateLearning() {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleEqualRootPortAndForwardAndNotOperEdge, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				tcm.ProcessPostStateProcessing()
 			}
 		} else {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				tcm.ProcessPostStateProcessing()
 			}
 		}
 	}
@@ -379,32 +385,104 @@ func (tcm *TcMachine) ProcessPostStateActive() {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPort, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				tcm.ProcessPostStateProcessing()
 			}
 		} else if p.OperEdge {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventOperEdge, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				tcm.ProcessPostStateProcessing()
 			}
 		} else if p.RcvdTcn {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTcn, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				tcm.ProcessPostStateProcessing()
 			}
 		} else if p.RcvdTc {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTc, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				tcm.ProcessPostStateProcessing()
 			}
 		} else if p.TcProp && !p.OperEdge {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventTcPropAndNotOperEdge, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				tcm.ProcessPostStateProcessing()
 			}
 		} else if p.RcvdTcAck {
 			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTcAck, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			} else {
+				tcm.ProcessPostStateProcessing()
 			}
+		}
+	}
+}
+
+func (tcm *TcMachine) ProcessPostStateDetected() {
+	p := tcm.p
+	if tcm.Machine.Curr.CurrentState() == TcStateDetected {
+		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			tcm.ProcessPostStateProcessing()
+		}
+	}
+}
+
+func (tcm *TcMachine) ProcessPostStateNotifiedTcn() {
+	p := tcm.p
+	if tcm.Machine.Curr.CurrentState() == TcStateNotifiedTcn {
+		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			tcm.ProcessPostStateProcessing()
+		}
+	}
+}
+
+func (tcm *TcMachine) ProcessPostStateNotifiedTc() {
+	p := tcm.p
+	if tcm.Machine.Curr.CurrentState() == TcStateNotifiedTc {
+		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			tcm.ProcessPostStateProcessing()
+		}
+	}
+}
+
+func (tcm *TcMachine) ProcessPostStatePropagating() {
+	p := tcm.p
+	if tcm.Machine.Curr.CurrentState() == TcStatePropagating {
+		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			tcm.ProcessPostStateProcessing()
+		}
+	}
+}
+
+func (tcm *TcMachine) ProcessPostStateAcknowledged() {
+	p := tcm.p
+	if tcm.Machine.Curr.CurrentState() == TcStateAcknowledged {
+		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
+		if rv != nil {
+			StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+		} else {
+			tcm.ProcessPostStateProcessing()
 		}
 	}
 }
@@ -412,35 +490,47 @@ func (tcm *TcMachine) ProcessPostStateActive() {
 // ProcessPostStateProcessing:
 // advance states after a given event for faster state transitions
 func (tcm *TcMachine) ProcessPostStateProcessing() {
-	p := tcm.p
 	tcm.ProcessPostStateInactive()
 	tcm.ProcessPostStateLearning()
-	if tcm.Machine.Curr.CurrentState() == TcStateDetected {
-		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
-		if rv != nil {
-			StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
-		}
-	}
 	tcm.ProcessPostStateActive()
+	tcm.ProcessPostStateDetected()
+	tcm.ProcessPostStateNotifiedTcn()
+	tcm.ProcessPostStateNotifiedTc()
+	tcm.ProcessPostStatePropagating()
+	tcm.ProcessPostStateAcknowledged()
 
-	if tcm.Machine.Curr.CurrentState() == TcStateNotifiedTcn ||
-		tcm.Machine.Curr.CurrentState() == TcStateNotifiedTc ||
-		tcm.Machine.Curr.CurrentState() == TcStatePropagating ||
-		tcm.Machine.Curr.CurrentState() == TcStateAcknowledged {
-		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
-		if rv != nil {
-			StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+}
+
+// 17.19.7
+//A boolean. Set by the topology change state machine to instruct the filtering database to remove all entries
+//for this Port, immediately if rstpVersion (17.20.11) is TRUE, or by rapid ageing (17.19.1) if stpVersion
+//(17.20.12) is TRUE. Reset by the filtering database once the entries are removed if rstpVersion is TRUE, and
+//immediately if stpVersion is TRUE.
+func (tcm *TcMachine) FlushFdb() {
+	p := tcm.p
+	// standard allows for imidiate flush
+	// or adjust timer to flush once flushing
+	// is complete lets clear FdbFlush and
+	// send event to TCM
+	// TODO work out mechanism with asicd
+	var delay time.Duration = time.Second * 1
+	asicdFlushFdb(p.b.StgId)
+	time.Sleep(delay)
+	if p.Learn {
+		p.FdbFlush = false
+		p.TcMachineFsm.TcEvents <- MachineEvent{
+			e:   TcEventLearnAndNotFdbFlush,
+			src: "ASICD",
 		}
 	}
-
 }
 
 func (tcm *TcMachine) NotifyFdbFlush() {
 	p := tcm.p
 	p.FdbFlush = true
-	// TODO send flush to asic d to flush macs
-	// spawn go routine to flush and wait for response
+	// spawn go routine to flush and wait for flush completion
 	// but allow processing to continue
+	go tcm.FlushFdb()
 }
 
 func (tcm *TcMachine) NotifyTcWhileChanged(val int32) {

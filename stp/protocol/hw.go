@@ -196,3 +196,11 @@ func asicdSetStgPortState(stgid int32, ifindex int32, state int) error {
 	}
 	return nil
 }
+
+func asicdFlushFdb(stgid int32) error {
+	if asicdclnt.ClientHdl != nil {
+		_, err := asicdclnt.ClientHdl.FlushFdbStgGroup(stgid)
+		return err
+	}
+	return nil
+}
