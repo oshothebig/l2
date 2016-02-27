@@ -133,7 +133,7 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 
 	StpLogger("INFO", fmt.Sprintf("NEW BRIDGE: %#v\n", b))
 	// lets create the stg group
-	asicdCreateStgBridge([]uint16{b.Vlan})
+	b.StgId = asicdCreateStgBridge([]uint16{b.Vlan})
 	return b
 }
 
