@@ -513,7 +513,7 @@ func (tcm *TcMachine) FlushFdb() {
 	// is complete lets clear FdbFlush and
 	// send event to TCM
 	// TODO work out mechanism with asicd
-	var delay time.Duration = time.Second * 1
+	//var delay time.Duration = time.Second * 1
 	//asicdFlushFdb(p.b.StgId)
 	//time.Sleep(delay)
 	if p.Learn {
