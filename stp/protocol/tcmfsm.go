@@ -516,8 +516,9 @@ func (tcm *TcMachine) FlushFdb() {
 	//var delay time.Duration = time.Second * 1
 	//asicdFlushFdb(p.b.StgId)
 	//time.Sleep(delay)
+
+	p.FdbFlush = false
 	if p.Learn {
-		p.FdbFlush = false
 		p.TcMachineFsm.TcEvents <- MachineEvent{
 			e:   TcEventLearnAndNotFdbFlush,
 			src: "ASICD",
