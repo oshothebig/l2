@@ -160,15 +160,21 @@ func asicdGetPortLinkStatus(intfNum string) bool {
 
 func asicdCreateStgBridge(vlanList []uint16) int32 {
 
+	defaultVlan := false
 	vl := make([]int32, len(vlanList))
 	if asicdclnt.ClientHdl != nil {
 		for v := range vlanList {
+			if v == 1 {
+				defaultVlan = true
+			}
 			vl = append(vl, int32(v))
 		}
 		stgId, err := asicdclnt.ClientHdl.CreateStg(vl)
 		if err == nil {
 			StpLogger("INFO", fmt.Sprintf("Created Stg Group %d", stgId))
 			return stgId
+		} else if defaultVlan {
+			return 1
 		}
 	}
 	return -1
