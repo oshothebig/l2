@@ -166,23 +166,28 @@ func (p *StpPort) TxRSTP() {
 func (p *StpPort) TxTCN() {
 	eth, llc := p.BuildRSTPEthernetLlcHeaders()
 
-	topo := layers.BPDUTopology{
-		ProtocolId:        layers.RSTPProtocolIdentifier,
-		ProtocolVersionId: layers.STPProtocolVersion,
-		BPDUType:          byte(layers.BPDUTypeTopoChange),
-	}
+	if !p.SendRSTP {
 
-	// Set up buffer and options for serialization.
-	buf := gopacket.NewSerializeBuffer()
-	opts := gopacket.SerializeOptions{
-		FixLengths:       true,
-		ComputeChecksums: true,
-	}
-	// Send one packet for every address.
-	gopacket.SerializeLayers(buf, opts, &eth, &llc, &topo)
-	if err := p.handle.WritePacketData(buf.Bytes()); err != nil {
-		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
-		return
+		topo := layers.BPDUTopology{
+			ProtocolId:        layers.RSTPProtocolIdentifier,
+			ProtocolVersionId: layers.STPProtocolVersion,
+			BPDUType:          byte(layers.BPDUTypeTopoChange),
+		}
+
+		// Set up buffer and options for serialization.
+		buf := gopacket.NewSerializeBuffer()
+		opts := gopacket.SerializeOptions{
+			FixLengths:       true,
+			ComputeChecksums: true,
+		}
+		// Send one packet for every address.
+		gopacket.SerializeLayers(buf, opts, &eth, &llc, &topo)
+		if err := p.handle.WritePacketData(buf.Bytes()); err != nil {
+			StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
+			return
+		}
+	} else {
+		p.TxRSTP()
 	}
 
 	p.SetTxPortCounters(BPDURxTypeTopo)
