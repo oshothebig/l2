@@ -183,9 +183,9 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 			return 1
 		}
 
+	} else {
+		StpLogger("INFO", fmt.Sprintf("Create Stg Group failed asicd not connected"))
 	}
-	StpLogger("INFO", fmt.Sprintf("Create Stg Group failed asicd not connected"))
-
 	return -1
 }
 
