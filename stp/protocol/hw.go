@@ -85,7 +85,7 @@ func ConnectToClients(paramsFile string) {
 
 func ConstructPortConfigMap() {
 	currMarker := asicdServices.Int(hwconst.MIN_SYS_PORTS)
-	if asicdclnt.IsConnected {
+	if asicdclnt.ClientHdl != nil {
 		StpLogger("INFO", "Calling asicd for port config")
 		count := asicdServices.Int(hwconst.MAX_SYS_PORTS)
 		for {

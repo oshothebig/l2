@@ -514,8 +514,8 @@ func (tcm *TcMachine) FlushFdb() {
 	// send event to TCM
 	// TODO work out mechanism with asicd
 	var delay time.Duration = time.Second * 1
-	asicdFlushFdb(p.b.StgId)
-	time.Sleep(delay)
+	//asicdFlushFdb(p.b.StgId)
+	//time.Sleep(delay)
 	if p.Learn {
 		p.FdbFlush = false
 		p.TcMachineFsm.TcEvents <- MachineEvent{
