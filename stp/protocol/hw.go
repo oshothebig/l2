@@ -152,7 +152,7 @@ func asicdGetPortLinkStatus(intfNum string) bool {
 				}
 			}
 		}
-		fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
+		StpLogger("INFO", fmt.Sprintf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum))
 	}
 	return true
 
@@ -167,6 +167,7 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 		}
 		stgId, err := asicdclnt.ClientHdl.CreateStg(vl)
 		if err == nil {
+			StpLogger("INFO", fmt.Sprintf("Created Stg Group %d", stgId))
 			return stgId
 		}
 	}
