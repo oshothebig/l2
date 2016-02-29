@@ -76,6 +76,7 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 		fmt.Println("NOT a bpdu frame", ethernetLayer, llcLayer, bpduLayer, pvstLayer)
 		return bpduType
 	}
+	fmt.Println("RX:", packet, ptype)
 
 	// only process the bpdu if stp is configured
 	if IsValidStpPort(pId) {
@@ -187,7 +188,6 @@ func ProcessBpduFrame(pId int32, bId int32, ptype BPDURxType, packet gopacket.Pa
 			StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 			p.RcvdBPDU = true
 			fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex, p.BrgIfIndex)
-			fmt.Println("RX:", packet, ptype)
 			if p.PrxmMachineFsm != nil {
 				p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
 					pdu:   bpduLayer, // this is a pointer
