@@ -85,7 +85,7 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 			vlan = pvst.OriginatingVlan.OrigVlan
 		}
 		for _, b := range BridgeListTable {
-			fmt.Println("ValidateBPDUFrame: Looking for bridge vlan %d found %d at brgIfIndex", vlan, b.Vlan, b.BrgIfIndex)
+			fmt.Println("ValidateBPDUFrame: Looking for bridge vlan found", bId, vlan, b.BrgIfIndex, b.Vlan)
 			if b.BrgIfIndex == bId &&
 				b.Vlan == vlan &&
 				StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {

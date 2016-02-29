@@ -337,6 +337,7 @@ func StpFindPortByIfIndex(pId int32, brgId int32, p **StpPort) bool {
 		IfIndex:    pId,
 		BrgIfIndex: brgId,
 	}
+	fmt.Println("looking for key in map", key, PortMapTable)
 	if *p, ok = PortMapTable[key]; ok {
 		return true
 	}
