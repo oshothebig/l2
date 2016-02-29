@@ -139,7 +139,7 @@ func (p *StpPort) DecrementTimerCounters() {
 		p.RcvdInfoWhiletimer.count--
 	}
 	if p.RcvdInfoWhiletimer.count == 0 {
-		defer p.NotifyRcvdInfoWhileTimerExpired()
+		//defer p.NotifyRcvdInfoWhileTimerExpired()
 	}
 	// prt owner
 	if p.RrWhileTimer.count > 0 {
