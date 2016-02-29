@@ -172,8 +172,8 @@ func ProcessBpduFrame(pId int32, bId int32, ptype BPDURxType, packet gopacket.Pa
 
 	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
 
-	fmt.Printf("ProcessBpduFrame on port/bridge", pId, bId)
-	fmt.Printf("ProcessBpduFrame %T", bpduLayer)
+	//fmt.Printf("ProcessBpduFrame on port/bridge\n", pId, bId)
+	//fmt.Printf("ProcessBpduFrame %T\n", bpduLayer)
 	// lets find the port via the info in the packet
 	vlan := uint16(DEFAULT_STP_BRIDGE_VLAN)
 	if ptype == BPDURxTypePVST {
