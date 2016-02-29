@@ -721,20 +721,24 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 			}
 
 		} else {
-			if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateDiscard {
-				if p.RcvdBPDU {
-					mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
-					evt = append(evt, MachineEvent{e: PrxmEventRcvdBpduAndPortEnabled,
-						src: src})
+			/*
+				This should only be triggered from RcvdBpdu being set becuase
+				we need packet setn
+				if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateDiscard {
+					if p.RcvdBPDU {
+						mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
+						evt = append(evt, MachineEvent{e: PrxmEventRcvdBpduAndPortEnabled,
+							src: src})
+					}
+				} else if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateReceive {
+					if p.RcvdBPDU &&
+						!p.RcvdMsg {
+						mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
+						evt = append(evt, MachineEvent{e: PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg,
+							src: src})
+					}
 				}
-			} else if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateReceive {
-				if p.RcvdBPDU &&
-					!p.RcvdMsg {
-					mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
-					evt = append(evt, MachineEvent{e: PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg,
-						src: src})
-				}
-			}
+			*/
 
 			if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
 				mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
