@@ -52,6 +52,7 @@ func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
 func IsValidStpPort(pId int32) bool {
 	for _, p := range PortListTable {
 		if p.IfIndex == pId {
+			fmt.Println("IsValidStpPort: Found valid ifindex", p.IfIndex)
 			return true
 		}
 	}
@@ -79,11 +80,11 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 	if IsValidStpPort(pId) {
 		vlan := uint16(DEFAULT_STP_BRIDGE_VLAN)
 		if pvstLayer != nil {
-			pvstLayer := packet.Layer(layers.LayerTypePVST)
 			pvst := pvstLayer.(*layers.PVST)
 			vlan = pvst.OriginatingVlan.OrigVlan
 		}
 		for _, b := range BridgeListTable {
+			fmt.Println("Looking for bridge vlan %d found %d at brgIfIndex", vlan, b.Vlan, b.BrgIfIndex)
 			if b.Vlan == vlan &&
 				StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 
@@ -178,6 +179,7 @@ func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
 		vlan = pvst.OriginatingVlan.OrigVlan
 	}
 	for _, b := range BridgeListTable {
+		fmt.Println
 		if b.Vlan == vlan &&
 			StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 			p.RcvdBPDU = true
@@ -191,7 +193,7 @@ func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
 				StpLogger("ERROR", fmt.Sprintf("RXMAIN: rcvd FSM not running %d\n", pId))
 			}
 		} else {
-			StpLogger("ERROR", fmt.Sprintf("RXMAIN: Unabled to find port %d\n", pId))
+			StpLogger("ERROR", fmt.Sprintf("RXMAIN: Unabled to find port %d vlan %d\n", pId, vlan))
 		}
 	}
 }
