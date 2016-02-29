@@ -76,7 +76,7 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 		fmt.Println("NOT a bpdu frame", ethernetLayer, llcLayer, bpduLayer, pvstLayer)
 		return bpduType
 	}
-	fmt.Println("RX:", packet, ptype)
+	fmt.Println("RX:", packet)
 
 	// only process the bpdu if stp is configured
 	if IsValidStpPort(pId) {
