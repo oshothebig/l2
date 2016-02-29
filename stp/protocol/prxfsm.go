@@ -358,6 +358,37 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		p.RcvdTc = StpGetBpduTopoChange(flags)
 		p.RcvdTcn = false
 		p.RcvdTcAck = false
+	case *layers.PVST:
+		// 17.21.22
+		// some checks a bit redundant as the layers class has already validated
+		// the BPDUType, but for completness going to add the check anyways
+		pvst := bpduLayer.(*layers.PVST)
+		flags = pvst.Flags
+		if pvst.ProtocolVersionId == layers.RSTPProtocolVersion &&
+			pvst.BPDUType == layers.BPDUTypeRSTP {
+			// Inform the Port Protocol Migration STate machine
+			// that we have received a RSTP packet when we were previously
+			// sending non-RSTP
+			if !p.RcvdRSTP &&
+				!p.SendRSTP &&
+				p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion {
+				if p.PpmmMachineFsm != nil {
+					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+						e:    PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
+						data: bpduLayer,
+						src:  PrxmMachineModuleStr}
+				}
+			}
+			p.RcvdRSTP = true
+			validPdu = true
+		}
+
+		//StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received RSTP packet")
+
+		defer prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, false)
+		p.RcvdTc = StpGetBpduTopoChange(flags)
+		p.RcvdTcn = false
+		p.RcvdTcAck = false
 	case *layers.STP:
 		stp := bpduLayer.(*layers.STP)
 		flags = stp.Flags
