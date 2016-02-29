@@ -179,7 +179,7 @@ func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
 		vlan = pvst.OriginatingVlan.OrigVlan
 	}
 	for _, b := range BridgeListTable {
-		fmt.Println
+
 		if b.Vlan == vlan &&
 			StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 			p.RcvdBPDU = true
