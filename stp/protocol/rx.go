@@ -87,11 +87,11 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 			}
 		}
 		for _, b := range BridgeListTable {
-			//fmt.Println("ValidateBPDUFrame: Looking for bridge vlan found", bId, vlan, b.BrgIfIndex, b.Vlan)
+			fmt.Println("ValidateBPDUFrame: Looking for bridge vlan found", bId, vlan, b.BrgIfIndex, b.Vlan)
 			if b.BrgIfIndex == bId &&
 				b.Vlan == vlan &&
 				StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
-				//fmt.Println("ValidateBPDUFrame: found stp port", p.IfIndex)
+				fmt.Println("ValidateBPDUFrame: found stp port", p.IfIndex)
 
 				ethernet := ethernetLayer.(*layers.Ethernet)
 
