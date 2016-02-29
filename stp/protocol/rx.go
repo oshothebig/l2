@@ -30,12 +30,15 @@ func BpduRxMain(pId int32, bId int32, rxPktChan chan gopacket.Packet) {
 
 				if ok {
 					if packet != nil {
-						//fmt.Println("RxMain: port", rxMainPort)
-						ptype := ValidateBPDUFrame(rxMainPort, rxMainBrg, packet)
-						//fmt.Println("RX:", packet, ptype)
-						if ptype != BPDURxTypeUnknown {
 
-							ProcessBpduFrame(rxMainPort, rxMainBrg, ptype, packet)
+						p := GetBrgPort(rxMainPort, rxMainBrg, packet)
+						if p != nil {
+							//fmt.Println("RxMain: port", rxMainPort)
+							ptype := ValidateBPDUFrame(p, packet)
+							//fmt.Println("RX:", packet, ptype)
+							if ptype != BPDURxTypeUnknown {
+								ProcessBpduFrame(p, ptype, packet)
+							}
 						}
 					}
 				} else {
@@ -59,11 +62,9 @@ func IsValidStpPort(pId int32) bool {
 	return false
 }
 
-// ValidateBPDUFrame: 802.1D Section 9.3.4
-// Function shall validate the received BPDU
-func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType BPDURxType) {
+// find proper bridge for the given port
+func GetBrgPort(pId int32, bId int32, packet gopacket.Packet) *StpPort {
 	var p *StpPort
-	bpduType = BPDURxTypeUnknown
 
 	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
 	llcLayer := packet.Layer(layers.LayerTypeLLC)
@@ -73,94 +74,100 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 	if ethernetLayer == nil ||
 		llcLayer == nil ||
 		(bpduLayer == nil && pvstLayer == nil) {
-		fmt.Println("NOT a bpdu frame", ethernetLayer, llcLayer, bpduLayer, pvstLayer)
-		return bpduType
-	}
-	//fmt.Println("RX:", packet)
+		fmt.Println("NOT a bpdu supported for this port frame", ethernetLayer, llcLayer, bpduLayer, pvstLayer)
 
-	// only process the bpdu if stp is configured
-	if IsValidStpPort(pId) {
-		vlan := uint16(DEFAULT_STP_BRIDGE_VLAN)
-		if pvstLayer != nil {
-			pvst := pvstLayer.(*layers.PVST)
-			if pvst.ProtocolVersionId == layers.PVSTProtocolVersion {
-				vlan = pvst.OriginatingVlan.OrigVlan
-			}
-		}
-		for _, b := range BridgeListTable {
-			fmt.Println("ValidateBPDUFrame: Looking for bridge vlan found", bId, vlan, b.BrgIfIndex, b.Vlan)
-			if b.BrgIfIndex == bId &&
-				b.Vlan == vlan &&
-				StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
-				fmt.Println("ValidateBPDUFrame: found stp port", p.IfIndex)
-
-				ethernet := ethernetLayer.(*layers.Ethernet)
-
-				isBPDUProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, layers.BpduDMAC)
-				isPVSTProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, layers.BpduPVSTDMAC)
-				fmt.Println("IsBPDU or IsPVST MAC", isBPDUProtocolMAC, isPVSTProtocolMAC)
-				if isBPDUProtocolMAC {
-					// lets get the actual type of BPDU
-					subLayerType := bpduLayer.LayerContents()[3]
-					if subLayerType == layers.BPDUTypeSTP {
-						stp := bpduLayer.(*layers.STP)
-						if len(stp.Contents) >= layers.BPDUTopologyLength &&
-							stp.BPDUType == layers.BPDUTypeSTP {
-							// condition 9.3.4 (a)
-							if stp.ProtocolId == layers.RSTPProtocolIdentifier &&
-								len(stp.Contents) >= layers.STPProtocolLength &&
-								stp.MsgAge < stp.MaxAge &&
-								stp.BridgeId != p.PortPriority.DesignatedBridgeId &&
-								stp.PortId != uint16(p.PortPriority.DesignatedPortId) {
-								bpduType = BPDURxTypeSTP
-							}
-						} else {
-							bpduType = BPDURxTypeUnknownBPDU
-						}
-					} else if subLayerType == layers.BPDUTypeRSTP {
-						rstp := bpduLayer.(*layers.RSTP)
-						// condition 9.3.4 (c)
-						if len(rstp.Contents) >= layers.BPDUTopologyLength &&
-							rstp.ProtocolId == layers.RSTPProtocolIdentifier {
-							// condition 9.3.4 (a)
-							if rstp.BPDUType == layers.BPDUTypeRSTP {
-								bpduType = BPDURxTypeRSTP
-							}
-						} else {
-							bpduType = BPDURxTypeUnknownBPDU
-						}
-					} else if subLayerType == layers.BPDUTypeTopoChange {
-						topo := bpduLayer.(*layers.BPDUTopology)
-						// condition 9.3.4 (b)
-						if len(topo.Contents) >= layers.BPDUTopologyLength &&
-							topo.ProtocolId == layers.RSTPProtocolIdentifier {
-							if topo.BPDUType == layers.BPDUTypeTopoChange {
-								bpduType = BPDURxTypeTopo
-							}
-						} else {
-							bpduType = BPDURxTypeUnknownBPDU
-						}
-					} else {
-						bpduType = BPDURxTypeUnknownBPDU
-					}
-				} else if isPVSTProtocolMAC {
-					pvst := pvstLayer.(*layers.PVST)
-					if len(pvst.Contents) >= layers.BPDUTopologyLength &&
-						pvst.ProtocolId == layers.RSTPProtocolIdentifier {
-						// condition 9.3.4 (a)
-						if pvst.BPDUType == layers.BPDUTypePVST &&
-							len(pvst.Contents) >= layers.PVSTProtocolLength {
-							bpduType = BPDURxTypePVST
-						} else {
-							bpduType = BPDURxTypeUnknownBPDU
-						}
-					}
-				}
-				break
-			}
-		}
 	} else {
-		StpLogger("INFO", fmt.Sprintf("RXMAIN: Unabled to find port %d\n", pId))
+		//fmt.Println("RX:", packet)
+
+		// only process the bpdu if stp is configured
+		if IsValidStpPort(pId) {
+			vlan := uint16(DEFAULT_STP_BRIDGE_VLAN)
+			if pvstLayer != nil {
+				pvst := pvstLayer.(*layers.PVST)
+				if pvst.ProtocolVersionId == layers.PVSTProtocolVersion {
+					vlan = pvst.OriginatingVlan.OrigVlan
+				}
+			}
+			for _, b := range BridgeListTable {
+				if b.BrgIfIndex == bId &&
+					b.Vlan == vlan &&
+					StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
+					return p
+				}
+			}
+		}
+	}
+	return p
+}
+
+// ValidateBPDUFrame: 802.1D Section 9.3.4
+// Function shall validate the received BPDU
+func ValidateBPDUFrame(p *StpPort, packet gopacket.Packet) (bpduType BPDURxType) {
+
+	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
+	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
+	pvstLayer := packet.Layer(layers.LayerTypePVST)
+	ethernet := ethernetLayer.(*layers.Ethernet)
+
+	isBPDUProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, layers.BpduDMAC)
+	isPVSTProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, layers.BpduPVSTDMAC)
+	fmt.Println("IsBPDU or IsPVST MAC", isBPDUProtocolMAC, isPVSTProtocolMAC)
+	if isBPDUProtocolMAC {
+		// lets get the actual type of BPDU
+		subLayerType := bpduLayer.LayerContents()[3]
+		if subLayerType == layers.BPDUTypeSTP {
+			stp := bpduLayer.(*layers.STP)
+			if len(stp.Contents) >= layers.BPDUTopologyLength &&
+				stp.BPDUType == layers.BPDUTypeSTP {
+				// condition 9.3.4 (a)
+				if stp.ProtocolId == layers.RSTPProtocolIdentifier &&
+					len(stp.Contents) >= layers.STPProtocolLength &&
+					stp.MsgAge < stp.MaxAge &&
+					stp.BridgeId != p.PortPriority.DesignatedBridgeId &&
+					stp.PortId != uint16(p.PortPriority.DesignatedPortId) {
+					bpduType = BPDURxTypeSTP
+				}
+			} else {
+				bpduType = BPDURxTypeUnknownBPDU
+			}
+		} else if subLayerType == layers.BPDUTypeRSTP {
+			rstp := bpduLayer.(*layers.RSTP)
+			// condition 9.3.4 (c)
+			if len(rstp.Contents) >= layers.BPDUTopologyLength &&
+				rstp.ProtocolId == layers.RSTPProtocolIdentifier {
+				// condition 9.3.4 (a)
+				if rstp.BPDUType == layers.BPDUTypeRSTP {
+					bpduType = BPDURxTypeRSTP
+				}
+			} else {
+				bpduType = BPDURxTypeUnknownBPDU
+			}
+		} else if subLayerType == layers.BPDUTypeTopoChange {
+			topo := bpduLayer.(*layers.BPDUTopology)
+			// condition 9.3.4 (b)
+			if len(topo.Contents) >= layers.BPDUTopologyLength &&
+				topo.ProtocolId == layers.RSTPProtocolIdentifier {
+				if topo.BPDUType == layers.BPDUTypeTopoChange {
+					bpduType = BPDURxTypeTopo
+				}
+			} else {
+				bpduType = BPDURxTypeUnknownBPDU
+			}
+		} else {
+			bpduType = BPDURxTypeUnknownBPDU
+		}
+	} else if isPVSTProtocolMAC {
+		pvst := pvstLayer.(*layers.PVST)
+		if len(pvst.Contents) >= layers.BPDUTopologyLength &&
+			pvst.ProtocolId == layers.RSTPProtocolIdentifier {
+			// condition 9.3.4 (a)
+			if pvst.BPDUType == layers.BPDUTypePVST &&
+				len(pvst.Contents) >= layers.PVSTProtocolLength {
+				bpduType = BPDURxTypePVST
+			} else {
+				bpduType = BPDURxTypeUnknownBPDU
+			}
+		}
 	}
 
 	return bpduType
@@ -168,37 +175,21 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 
 // ProcessBpduFrame will lookup the cooresponding port from which the
 // packet arrived and forward the packet to the Port Rx Machine for processing
-func ProcessBpduFrame(pId int32, bId int32, ptype BPDURxType, packet gopacket.Packet) {
-	var p *StpPort
+func ProcessBpduFrame(p *StpPort, ptype BPDURxType, packet gopacket.Packet) {
 
 	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
 
 	//fmt.Printf("ProcessBpduFrame on port/bridge\n", pId, bId)
 	//fmt.Printf("ProcessBpduFrame %T\n", bpduLayer)
 	// lets find the port via the info in the packet
-	vlan := uint16(DEFAULT_STP_BRIDGE_VLAN)
-	if ptype == BPDURxTypePVST {
-		pvstLayer := packet.Layer(layers.LayerTypePVST)
-		pvst := pvstLayer.(*layers.PVST)
-		vlan = pvst.OriginatingVlan.OrigVlan
-	}
-	for _, b := range BridgeListTable {
-		if b.BrgIfIndex == bId &&
-			b.Vlan == vlan &&
-			StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
-			p.RcvdBPDU = true
-			//fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex, p.BrgIfIndex)
-			if p.PrxmMachineFsm != nil {
-				p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
-					pdu:   bpduLayer, // this is a pointer
-					ptype: ptype,
-					src:   RxModuleStr}
-			} else {
-				StpLogger("ERROR", fmt.Sprintf("RXMAIN: rcvd FSM not running %d\n", pId))
-			}
-			break
-		} else {
-			StpLogger("ERROR", fmt.Sprintf("RXMAIN: Unabled to find port %d vlan %d\n", pId, vlan))
-		}
+	p.RcvdBPDU = true
+	//fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex, p.BrgIfIndex)
+	if p.PrxmMachineFsm != nil {
+		p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
+			pdu:   bpduLayer, // this is a pointer
+			ptype: ptype,
+			src:   RxModuleStr}
+	} else {
+		StpLogger("ERROR", fmt.Sprintf("RXMAIN: rcvd FSM not running %d\n", p.IfIndex))
 	}
 }
