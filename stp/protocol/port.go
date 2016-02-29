@@ -506,7 +506,7 @@ func (p *StpPort) BEGIN(restart bool) {
 		// start rx routine
 		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
 		in := src.Packets()
-		BpduRxMain(p.IfIndex, in)
+		BpduRxMain(p.IfIndex, p.b.BrgIfIndex, in)
 	}
 	// lets start the tick timer
 	if p.PtmMachineFsm != nil {

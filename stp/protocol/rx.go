@@ -14,10 +14,11 @@ import (
 const RxModuleStr = "Rx Module STP"
 
 // BpduRxMain will process incomming packets from
-func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
+func BpduRxMain(pId int32, bId int32, rxPktChan chan gopacket.Packet) {
 	// can be used by test interface
-	go func(portId int32, rx chan gopacket.Packet) {
+	go func(portId int32, bId int32, rx chan gopacket.Packet) {
 		rxMainPort := portId
+		rxMainBrg := bId
 		rxMainChan := rx
 		fmt.Println("RxMain START")
 		// TODO add logic to either wait on a socket or wait on a channel,
@@ -31,11 +32,11 @@ func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
 				if ok {
 					if packet != nil {
 						//fmt.Println("RxMain: port", rxMainPort)
-						ptype := ValidateBPDUFrame(rxMainPort, packet)
+						ptype := ValidateBPDUFrame(rxMainPort, rxMainBrg, packet)
 						//fmt.Println("RX:", packet, ptype)
 						if ptype != BPDURxTypeUnknown {
 
-							ProcessBpduFrame(rxMainPort, ptype, packet)
+							ProcessBpduFrame(rxMainPort, rxMainBrg, ptype, packet)
 						}
 					}
 				} else {
@@ -46,7 +47,7 @@ func BpduRxMain(pId int32, rxPktChan chan gopacket.Packet) {
 		}
 
 		StpLogger("INFO", "RXMAIN go routine end")
-	}(pId, rxPktChan)
+	}(pId, bId, rxPktChan)
 }
 
 func IsValidStpPort(pId int32) bool {
@@ -61,7 +62,7 @@ func IsValidStpPort(pId int32) bool {
 
 // ValidateBPDUFrame: 802.1D Section 9.3.4
 // Function shall validate the received BPDU
-func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) {
+func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType BPDURxType) {
 	var p *StpPort
 	bpduType = BPDURxTypeUnknown
 
@@ -84,9 +85,11 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 			vlan = pvst.OriginatingVlan.OrigVlan
 		}
 		for _, b := range BridgeListTable {
-			fmt.Println("Looking for bridge vlan %d found %d at brgIfIndex", vlan, b.Vlan, b.BrgIfIndex)
-			if b.Vlan == vlan &&
+			fmt.Println("ValidateBPDUFrame: Looking for bridge vlan %d found %d at brgIfIndex", vlan, b.Vlan, b.BrgIfIndex)
+			if b.BrgIfIndex == bId &&
+				b.Vlan == vlan &&
 				StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
+				fmt.Println("ValidateBPDUFrame: found stp port", p.IfIndex)
 
 				ethernet := ethernetLayer.(*layers.Ethernet)
 
@@ -153,6 +156,7 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 						}
 					}
 				}
+				break
 			}
 		}
 	} else {
@@ -164,7 +168,7 @@ func ValidateBPDUFrame(pId int32, packet gopacket.Packet) (bpduType BPDURxType) 
 
 // ProcessBpduFrame will lookup the cooresponding port from which the
 // packet arrived and forward the packet to the Port Rx Machine for processing
-func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
+func ProcessBpduFrame(pId int32, bId int32, ptype BPDURxType, packet gopacket.Packet) {
 	var p *StpPort
 
 	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
@@ -179,8 +183,8 @@ func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
 		vlan = pvst.OriginatingVlan.OrigVlan
 	}
 	for _, b := range BridgeListTable {
-
-		if b.Vlan == vlan &&
+		if b.BrgIfIndex == bId &&
+			b.Vlan == vlan &&
 			StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 			p.RcvdBPDU = true
 			//fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex)
@@ -192,6 +196,7 @@ func ProcessBpduFrame(pId int32, ptype BPDURxType, packet gopacket.Packet) {
 			} else {
 				StpLogger("ERROR", fmt.Sprintf("RXMAIN: rcvd FSM not running %d\n", pId))
 			}
+			break
 		} else {
 			StpLogger("ERROR", fmt.Sprintf("RXMAIN: Unabled to find port %d vlan %d\n", pId, vlan))
 		}
