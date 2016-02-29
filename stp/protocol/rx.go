@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"net"
 	"reflect"
 )
 
@@ -93,10 +92,8 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 
 				ethernet := ethernetLayer.(*layers.Ethernet)
 
-				bpduMAC := net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x00}
-				pvstMAC := net.HardwareAddr{0x01, 00, 0xCC, 0xCC, 0xCC, 0xCD}
-				isBPDUProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, bpduMAC)
-				isPVSTProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, pvstMAC)
+				isBPDUProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, layers.BpduDMAC)
+				isPVSTProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, layers.BpduPVSTDMAC)
 				fmt.Println("IsBPDU or IsPVST MAC", isBPDUProtocolMAC, isPVSTProtocolMAC)
 				if isBPDUProtocolMAC {
 					// lets get the actual type of BPDU
