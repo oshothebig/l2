@@ -125,7 +125,7 @@ func (p *StpPort) TxPVST() {
 	}
 	p.SetTxPortCounters(BPDURxTypePVST)
 
-	//StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, pvst))
+	StpLogger("INFO", fmt.Sprintf("Sent PVST packet on interface %s %#v\n", pIntf.Name, pvst))
 }
 
 func (p *StpPort) TxRSTP() {
@@ -176,8 +176,8 @@ func (p *StpPort) TxRSTP() {
 	}
 	p.SetTxPortCounters(BPDURxTypeRSTP)
 
-	//pIntf, _ := PortConfigMap[p.IfIndex]
-	//StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
+	pIntf, _ := PortConfigMap[p.IfIndex]
+	StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
 }
 
 func (p *StpPort) TxTCN() {

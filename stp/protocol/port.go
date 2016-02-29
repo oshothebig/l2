@@ -759,17 +759,20 @@ func (p *StpPort) NotifyRcvdMsgChanged(src string, oldrcvdmsg bool, newrcvdmsg b
 	// 1) Port Receive
 	// 2) Port Information
 	if oldrcvdmsg != newrcvdmsg {
-		if src != PrxmMachineModuleStr {
-			if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateReceive &&
-				p.RcvdBPDU &&
-				p.PortEnabled &&
-				!p.RcvdMsg {
-				p.PrxmMachineFsm.PrxmEvents <- MachineEvent{
-					e:   PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg,
-					src: src,
+		/*
+			NOT a valid transition RcvdMsg is only PRX -> PIM
+			if src != PrxmMachineModuleStr {
+				if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateReceive &&
+					p.RcvdBPDU &&
+					p.PortEnabled &&
+					!p.RcvdMsg {
+					p.PrxmMachineFsm.PrxmEvents <- MachineEvent{
+						e:   PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg,
+						src: src,
+					}
 				}
 			}
-		}
+		*/
 		if src != PimMachineModuleStr {
 			bpdumsg := data.(RxBpduPdu)
 			bpduLayer := bpdumsg.pdu
