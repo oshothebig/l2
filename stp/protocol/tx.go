@@ -49,7 +49,7 @@ func (p *StpPort) TxPVST() {
 		Priority:       PVST_VLAN_PRIORITY,
 		DropEligible:   false,
 		VLANIdentifier: p.b.Vlan,
-		Type:           layers.EthernetTypeLLC,
+		Type:           layers.PVSTProtocolLength + 3 + 5,
 	}
 
 	llc := layers.LLC{
