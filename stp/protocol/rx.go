@@ -35,7 +35,7 @@ func BpduRxMain(pId int32, bId int32, rxPktChan chan gopacket.Packet) {
 						if p != nil {
 							//fmt.Println("RxMain: port", rxMainPort)
 							ptype := ValidateBPDUFrame(p, packet)
-							//fmt.Println("RX:", packet, ptype)
+							fmt.Println("RX:", packet, ptype)
 							if ptype != BPDURxTypeUnknown {
 								ProcessBpduFrame(p, ptype, packet)
 							}
@@ -183,7 +183,7 @@ func ProcessBpduFrame(p *StpPort, ptype BPDURxType, packet gopacket.Packet) {
 	//fmt.Printf("ProcessBpduFrame %T\n", bpduLayer)
 	// lets find the port via the info in the packet
 	p.RcvdBPDU = true
-	//fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex, p.BrgIfIndex)
+	fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex, p.BrgIfIndex)
 	if p.PrxmMachineFsm != nil {
 		p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
 			pdu:   bpduLayer, // this is a pointer
