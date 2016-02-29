@@ -68,7 +68,7 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 
 	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
 	llcLayer := packet.Layer(layers.LayerTypeLLC)
-	snapLayer := packet.Layer(layers.LayerTypeSNAP)
+	//snapLayer := packet.Layer(layers.LayerTypeSNAP)
 	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
 	pvstLayer := packet.Layer(layers.LayerTypePVST)
 	if ethernetLayer == nil ||
@@ -97,7 +97,7 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 				pvstMAC := net.HardwareAddr{0x01, 00, 0xCC, 0xCC, 0xCC, 0xCD}
 				isBPDUProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, bpduMAC)
 				isPVSTProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, pvstMAC)
-				//fmt.Println("IsBPDU or IsPVST MAC", isBPDUProtocolMAC, isPVSTProtocolMAC)
+				fmt.Println("IsBPDU or IsPVST MAC", isBPDUProtocolMAC, isPVSTProtocolMAC)
 				if isBPDUProtocolMAC {
 					// lets get the actual type of BPDU
 					subLayerType := bpduLayer.LayerContents()[3]
@@ -142,8 +142,7 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 					} else {
 						bpduType = BPDURxTypeUnknownBPDU
 					}
-				} else if isPVSTProtocolMAC &&
-					snapLayer != nil {
+				} else if isPVSTProtocolMAC {
 					pvst := pvstLayer.(*layers.PVST)
 					if len(pvst.Contents) >= layers.BPDUTopologyLength &&
 						pvst.ProtocolId == layers.RSTPProtocolIdentifier {
@@ -173,8 +172,8 @@ func ProcessBpduFrame(pId int32, bId int32, ptype BPDURxType, packet gopacket.Pa
 
 	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
 
-	//fmt.Printf("ProcessBpduFrame %T", bpduLayer)
-	//fmt.Printf("ProcessBpduFrame on port", pId)
+	fmt.Printf("ProcessBpduFrame on port/bridge", pId, bId)
+	fmt.Printf("ProcessBpduFrame %T", bpduLayer)
 	// lets find the port via the info in the packet
 	vlan := uint16(DEFAULT_STP_BRIDGE_VLAN)
 	if ptype == BPDURxTypePVST {
