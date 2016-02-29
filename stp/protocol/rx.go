@@ -53,7 +53,7 @@ func BpduRxMain(pId int32, bId int32, rxPktChan chan gopacket.Packet) {
 func IsValidStpPort(pId int32) bool {
 	for _, p := range PortListTable {
 		if p.IfIndex == pId {
-			fmt.Println("IsValidStpPort: Found valid ifindex", p.IfIndex)
+			//fmt.Println("IsValidStpPort: Found valid ifindex", p.IfIndex)
 			return true
 		}
 	}
@@ -85,11 +85,11 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 			vlan = pvst.OriginatingVlan.OrigVlan
 		}
 		for _, b := range BridgeListTable {
-			fmt.Println("ValidateBPDUFrame: Looking for bridge vlan found", bId, vlan, b.BrgIfIndex, b.Vlan)
+			//fmt.Println("ValidateBPDUFrame: Looking for bridge vlan found", bId, vlan, b.BrgIfIndex, b.Vlan)
 			if b.BrgIfIndex == bId &&
 				b.Vlan == vlan &&
 				StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
-				fmt.Println("ValidateBPDUFrame: found stp port", p.IfIndex)
+				//fmt.Println("ValidateBPDUFrame: found stp port", p.IfIndex)
 
 				ethernet := ethernetLayer.(*layers.Ethernet)
 
