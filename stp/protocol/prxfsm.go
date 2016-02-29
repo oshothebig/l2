@@ -85,7 +85,7 @@ func NewStpPrxmMachine(p *StpPort) *PrxmMachine {
 }
 
 func (prxm *PrxmMachine) PrxmLogger(s string) {
-	StpMachineLogger("INFO", "PRXM", prxm.p.IfIndex, s)
+	StpMachineLogger("INFO", "PRXM", prxm.p.IfIndex, prxm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -211,19 +211,19 @@ func (p *StpPort) PrxmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PrxmMachine) {
-		StpMachineLogger("INFO", "PRXM", p.IfIndex, "Machine Start")
+		StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PrxmKillSignalEvent:
-				StpMachineLogger("INFO", "PRXM", p.IfIndex, "Machine End")
+				StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, "Machine End")
 				return
 
 			case event := <-m.PrxmEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+					StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], event.e))
 				} else {
 					// for faster state transitions
 					m.ProcessPostStateProcessing(event.data)
@@ -238,7 +238,7 @@ func (p *StpPort) PrxmMachineMain() {
 					if p.PortEnabled {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)
 						if rv != nil {
-							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
 						} else {
 							// for faster state transitions
 							m.ProcessPostStateProcessing(rx)
@@ -246,7 +246,7 @@ func (p *StpPort) PrxmMachineMain() {
 					} else {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndNotPortEnabled, rx)
 						if rv != nil {
-							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
 						} else {
 							// for faster state transitions
 							m.ProcessPostStateProcessing(rx)
@@ -257,7 +257,7 @@ func (p *StpPort) PrxmMachineMain() {
 						!p.RcvdMsg {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, rx)
 						if rv != nil {
-							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
 						} else {
 							// for faster state transitions
 							m.ProcessPostStateProcessing(rx)
@@ -265,7 +265,7 @@ func (p *StpPort) PrxmMachineMain() {
 					} else if !p.PortEnabled {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndNotPortEnabled, rx)
 						if rv != nil {
-							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
 						} else {
 							// for faster state transitions
 							m.ProcessPostStateProcessing(rx)
@@ -289,7 +289,7 @@ func (prxm *PrxmMachine) ProcessPostStateDiscard(data interface{}) {
 		p.PortEnabled {
 		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabled, data)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
 			prxm.ProcessPostStateProcessing(data)
 		}
@@ -304,7 +304,7 @@ func (prxm *PrxmMachine) ProcessPostStateReceive(data interface{}) {
 		!p.RcvdMsg {
 		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, data)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
 			prxm.ProcessPostStateProcessing(data)
 		}

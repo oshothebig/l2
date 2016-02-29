@@ -83,7 +83,7 @@ func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 }
 
 func (ppm *PpmmMachine) PpmLogger(s string) {
-	StpMachineLogger("INFO", "PPM", ppm.p.IfIndex, s)
+	StpMachineLogger("INFO", "PPM", ppm.p.IfIndex, ppm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -265,19 +265,19 @@ func (p *StpPort) PpmmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PpmmMachine) {
-		StpMachineLogger("INFO", "PPMM", p.IfIndex, "Machine Start")
+		StpMachineLogger("INFO", "PPMM", p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PpmmKillSignalEvent:
-				StpMachineLogger("INFO", "PPMM", p.IfIndex, "Machine End")
+				StpMachineLogger("INFO", "PPMM", p.IfIndex, p.BrgIfIndex, "Machine End")
 				return
 
 			case event := <-m.PpmmEvents:
 				//fmt.Println("Event Rx", event.src, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()])
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("INFO", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("INFO", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 				} else {
 
 					// post processing
@@ -285,19 +285,19 @@ func (p *StpPort) PpmmMachineMain() {
 						if !m.p.PortEnabled {
 							rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
 							if rv != nil {
-								StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+								StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 							}
 						} else if m.p.Mcheck {
 							rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
 							if rv != nil {
-								StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+								StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 							}
 						} else if p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion &&
 							!p.SendRSTP &&
 							p.RcvdRSTP {
 							rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, nil)
 							if rv != nil {
-								StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+								StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 							}
 						}
 					}
@@ -323,14 +323,14 @@ func (ppmm *PpmmMachine) ProcessPostStateSensing() {
 		if !p.PortEnabled {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
 		} else if p.Mcheck {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
@@ -339,7 +339,7 @@ func (ppmm *PpmmMachine) ProcessPostStateSensing() {
 			p.RcvdRSTP {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
@@ -353,14 +353,14 @@ func (ppmm *PpmmMachine) ProcessPostStateSelectingSTP() {
 		if !p.PortEnabled {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
 		} else if p.Mcheck {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}

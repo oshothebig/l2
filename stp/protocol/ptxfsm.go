@@ -87,7 +87,7 @@ func NewStpPtxmMachine(p *StpPort) *PtxmMachine {
 }
 
 func (ptxm *PtxmMachine) PtxmLogger(s string) {
-	StpMachineLogger("INFO", "PTXM", ptxm.p.IfIndex, s)
+	StpMachineLogger("INFO", "PTXM", ptxm.p.IfIndex, ptxm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -237,19 +237,19 @@ func (p *StpPort) PtxmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PtxmMachine) {
-		StpMachineLogger("INFO", "PTXM", p.IfIndex, "Machine Start")
+		StpMachineLogger("INFO", "PTXM", p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PtxmKillSignalEvent:
-				StpMachineLogger("INFO", "PTXM", p.IfIndex, "Machine End")
+				StpMachineLogger("INFO", "PTXM", p.IfIndex, p.BrgIfIndex, "Machine End")
 				return
 
 			case event := <-m.PtxmEvents:
 				//StpMachineLogger("INFO", "PTXM", p.IfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("ERROR", "PTXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 				} else {
 					m.ProcessPostStateProcessing()
 				}
@@ -270,7 +270,7 @@ func (ptxm *PtxmMachine) ProcessPostStateTransmitInit() {
 	if ptxm.Machine.Curr.CurrentState() == PtxmStateTransmitInit {
 		rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "PTXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
 			ptxm.ProcessPostStateProcessing()
 		}
@@ -282,7 +282,7 @@ func (ptxm *PtxmMachine) ProcessPostStateTransmitPeriodic() {
 	if ptxm.Machine.Curr.CurrentState() == PtxmStateTransmitPeriodic {
 		rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "PTXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
 			ptxm.ProcessPostStateProcessing()
 		}
@@ -294,7 +294,7 @@ func (ptxm *PtxmMachine) ProcessPostStateTransmitConfig() {
 	if ptxm.Machine.Curr.CurrentState() == PtxmStateTransmitConfig {
 		rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "PTXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
 			ptxm.ProcessPostStateProcessing()
 		}
@@ -306,7 +306,7 @@ func (ptxm *PtxmMachine) ProcessPostStateTransmitTcn() {
 	if ptxm.Machine.Curr.CurrentState() == PtxmStateTransmitTCN {
 		rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "PTXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
 			ptxm.ProcessPostStateProcessing()
 		}
@@ -318,7 +318,7 @@ func (ptxm *PtxmMachine) ProcessPostStateTransmitRstp() {
 	if ptxm.Machine.Curr.CurrentState() == PtxmStateTransmitRSTP {
 		rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "PTXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
 			ptxm.ProcessPostStateProcessing()
 		}
@@ -340,7 +340,7 @@ func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 			!p.UpdtInfo {
 			rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventHelloWhenEqualsZeroAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PTXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 			} else {
 				ptxm.ProcessPostStateProcessing()
 			}
@@ -352,7 +352,7 @@ func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 			!p.UpdtInfo {
 			rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PTXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 			} else {
 				ptxm.ProcessPostStateProcessing()
 			}
@@ -365,7 +365,7 @@ func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 			!p.UpdtInfo {
 			rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PTXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 			} else {
 				ptxm.ProcessPostStateProcessing()
 			}
@@ -378,7 +378,7 @@ func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 			!p.UpdtInfo {
 			rv := ptxm.Machine.ProcessEvent(PtxmMachineModuleStr, PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PTXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PTXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 			} else {
 				ptxm.ProcessPostStateProcessing()
 			}

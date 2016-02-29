@@ -283,7 +283,7 @@ func (p *StpPort) PollLinuxLinkStatus() {
 	var PollingTimer *time.Timer = time.NewTimer(time.Second * 1)
 
 	go func(p *StpPort, t *time.Timer) {
-		StpMachineLogger("INFO", "LINUX POLLING", p.IfIndex, "Start")
+		StpMachineLogger("INFO", "LINUX POLLING", p.IfIndex, p.BrgIfIndex, "Start")
 		for {
 			select {
 			case <-t.C:
@@ -676,7 +676,7 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 	// 3) Port Information
 	// 4) Bridge Detection
 	if oldportenabled != newportenabled {
-		StpMachineLogger("INFO", "PORT", p.IfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
+		StpMachineLogger("INFO", "PORT", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
 		mEvtChan := make([]chan MachineEvent, 0)
 		evt := make([]MachineEvent, 0)
 
@@ -2019,7 +2019,7 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole, newselectedrole PortRole) {
 
 	if oldselectedrole != newselectedrole {
-		StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
+		StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
 		if p.Role != p.SelectedRole {
 			if p.SelectedRole == PortRoleDisabledPort {
 				p.PrtMachineFsm.PrtEvents <- MachineEvent{

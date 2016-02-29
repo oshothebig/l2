@@ -108,7 +108,7 @@ func NewStpPimMachine(p *StpPort) *PimMachine {
 }
 
 func (pim *PimMachine) PimLogger(s string) {
-	StpMachineLogger("INFO", "PIM", pim.p.IfIndex, s)
+	StpMachineLogger("INFO", "PIM", pim.p.IfIndex, pim.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -398,19 +398,19 @@ func (p *StpPort) PimMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PimMachine) {
-		StpMachineLogger("INFO", "PIM", p.IfIndex, "Machine Start")
+		StpMachineLogger("INFO", "PIM", p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PimKillSignalEvent:
-				StpMachineLogger("INFO", "PIM", p.IfIndex, "Machine End")
+				StpMachineLogger("INFO", "PIM", p.IfIndex, p.BrgIfIndex, "Machine End")
 				return
 
 			case event := <-m.PimEvents:
 				//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
 				rv := m.Machine.ProcessEvent(event.src, event.e, event.data)
 				if rv != nil {
-					StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+					StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
 				} else {
 					// POST events
 					m.ProcessPostStateProcessing(event.data)
@@ -432,14 +432,14 @@ func (pim *PimMachine) ProcessingPostStateDisabled(data interface{}) {
 		if p.PortEnabled {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventPortEnabled, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventPortEnabled, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventPortEnabled, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
 		} else if p.RcvdMsg {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdMsg, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdMsg, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdMsg, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
@@ -454,7 +454,7 @@ func (pim *PimMachine) ProcessingPostStateAged(data interface{}) {
 			p.UpdtInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventSelectedAndUpdtInfo, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventSelectedAndUpdtInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventSelectedAndUpdtInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
@@ -467,7 +467,7 @@ func (pim *PimMachine) ProcessingPostStateUpdate(data interface{}) {
 	if pim.Machine.Curr.CurrentState() == PimStateUpdate {
 		rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventUnconditionalFallThrough, data)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+			StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 		} else {
 			pim.ProcessPostStateProcessing(data)
 		}
@@ -479,7 +479,7 @@ func (pim *PimMachine) ProcessingPostStateSuperiorDesignated(data interface{}) {
 	if pim.Machine.Curr.CurrentState() == PimStateSuperiorDesignated {
 		rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventUnconditionalFallThrough, data)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+			StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 		} else {
 			pim.ProcessPostStateProcessing(data)
 		}
@@ -490,7 +490,7 @@ func (pim *PimMachine) ProcessingPostStateRepeatedDesignated(data interface{}) {
 	if pim.Machine.Curr.CurrentState() == PimStateRepeatedDesignated {
 		rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventUnconditionalFallThrough, data)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+			StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 		} else {
 			pim.ProcessPostStateProcessing(data)
 		}
@@ -501,7 +501,7 @@ func (pim *PimMachine) ProcessingPostStateInferiorDesignated(data interface{}) {
 	if pim.Machine.Curr.CurrentState() == PimStateInferiorDesignated {
 		rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventUnconditionalFallThrough, data)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+			StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 		} else {
 			pim.ProcessPostStateProcessing(data)
 		}
@@ -512,7 +512,7 @@ func (pim *PimMachine) ProcessingPostStateNotDesignated(data interface{}) {
 	if pim.Machine.Curr.CurrentState() == PimStateNotDesignated {
 		rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventUnconditionalFallThrough, data)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+			StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 		} else {
 			pim.ProcessPostStateProcessing(data)
 		}
@@ -523,7 +523,7 @@ func (pim *PimMachine) ProcessingPostStateOther(data interface{}) {
 	if pim.Machine.Curr.CurrentState() == PimStateOther {
 		rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventUnconditionalFallThrough, data)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+			StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventUnconditionalFallThrough, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 		} else {
 			pim.ProcessPostStateProcessing(data)
 		}
@@ -536,7 +536,7 @@ func (pim *PimMachine) ProcessingPostStateCurrent(data interface{}) {
 			p.UpdtInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventSelectedAndUpdtInfo, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventSelectedAndUpdtInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventSelectedAndUpdtInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
@@ -546,7 +546,7 @@ func (pim *PimMachine) ProcessingPostStateCurrent(data interface{}) {
 			!p.RcvdMsg {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
@@ -554,7 +554,7 @@ func (pim *PimMachine) ProcessingPostStateCurrent(data interface{}) {
 			!p.UpdtInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdMsgAndNotUpdtInfo, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdMsgAndNotUpdtInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdMsgAndNotUpdtInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
@@ -568,35 +568,35 @@ func (pim *PimMachine) ProcessingPostStateReceive(data interface{}) {
 		if p.RcvdInfo == SuperiorDesignatedInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualSuperiorDesignatedInfo, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualSuperiorDesignatedInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualSuperiorDesignatedInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
 		} else if p.RcvdInfo == RepeatedDesignatedInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualRepeatedDesignatedInfo, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualRepeatedDesignatedInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualRepeatedDesignatedInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
 		} else if p.RcvdInfo == InferiorDesignatedInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualInferiorDesignatedInfo, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualRepeatedDesignatedInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualRepeatedDesignatedInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
 		} else if p.RcvdInfo == InferiorRootAlternateInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualInferiorRootAlternateInfo, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualInferiorRootAlternateInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualInferiorRootAlternateInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
 		} else if p.RcvdInfo == OtherInfo {
 			rv := pim.Machine.ProcessEvent(PimMachineModuleStr, PimEventRcvdInfoEqualOtherInfo, data)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualOtherInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PimEventRcvdInfoEqualOtherInfo, PimStateStrMap[pim.Machine.Curr.CurrentState()]))
 			} else {
 				pim.ProcessPostStateProcessing(data)
 			}
