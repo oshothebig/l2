@@ -61,7 +61,8 @@ func (p *StpPort) TxPVST() {
 	}
 
 	snap := layers.SNAP{
-		OrganizationalCode: []byte{0x00, 0x00, 0x0C, 0x01, 0x0b},
+		OrganizationalCode: []byte{0x00, 0x00, 0x0C},
+		Type:               0x010b,
 	}
 
 	pvst := layers.PVST{
