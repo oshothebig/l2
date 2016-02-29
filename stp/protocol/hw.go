@@ -178,7 +178,7 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 		if !defaultVlan {
 			stgId, err := asicdclnt.ClientHdl.CreateStg(vl)
 			if err == nil {
-				StpLogger("INFO", fmt.Sprintf("Created Stg Group %d", stgId))
+				StpLogger("INFO", fmt.Sprintf("Created Stg Group %d with vlans %#v", stgId, vl))
 				return stgId
 			} else {
 				StpLogger("INFO", fmt.Sprintf("Create Stg Group error %#v", err))
