@@ -144,7 +144,7 @@ func DelStpBridge(b *Bridge, force bool) {
 	if force {
 		var p *StpPort
 		for _, pId := range b.StpPorts {
-			if StpFindPortByIfIndex(pId, &p) {
+			if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 				DelStpPort(p)
 			}
 		}
@@ -372,7 +372,7 @@ func (b *Bridge) AllSynced() bool {
 	var p *StpPort
 	allsynced := false
 	for _, pId := range b.StpPorts {
-		if StpFindPortByIfIndex(pId, &p) {
+		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 			if p.Selected &&
 				p.Role == p.SelectedRole &&
 				(p.Synced || p.SelectedRole == PortRoleRootPort) {
@@ -395,7 +395,7 @@ func (b *Bridge) ReRooted(p *StpPort) bool {
 			if pId == p.IfIndex {
 				continue
 			}
-			if StpFindPortByIfIndex(pId, &op) {
+			if StpFindPortByIfIndex(pId, b.BrgIfIndex, &op) {
 				if p.RrWhileTimer.count != 0 {
 					rerooted = false
 				}

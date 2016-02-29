@@ -1894,7 +1894,7 @@ func (prtm *PrtMachine) setSyncTree(ifindex int32) {
 	b := prtm.p.b
 	var p *StpPort
 	for _, pId := range b.StpPorts {
-		if StpFindPortByIfIndex(pId, &p) {
+		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 			// skip calling ifindex because post state processing will handle
 			// its change.
 			if ifindex != pId {
@@ -1909,7 +1909,7 @@ func (prtm *PrtMachine) setReRootTree(ifindex int32) {
 	b := prtm.p.b
 	var p *StpPort
 	for _, pId := range b.StpPorts {
-		if StpFindPortByIfIndex(pId, &p) {
+		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 			// skip calling ifindex because post state processing will handle
 			// its change.
 			if ifindex != pId {

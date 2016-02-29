@@ -15,11 +15,16 @@ import (
 	"time"
 )
 
-var PortMapTable map[int32]*StpPort
+var PortMapTable map[PortMapKey]*StpPort
 var PortListTable []*StpPort
 var PortConfigMap map[int32]portConfig
 
 const PortConfigModuleStr = "Port Config"
+
+type PortMapKey struct {
+	IfIndex    int32
+	BrgIfIndex int32
+}
 
 type portConfig struct {
 	Name         string
@@ -217,6 +222,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 
 	if b.ForceVersion >= 2 {
 		p.RstpVersion = true
+		p.SendRSTP = true
 	}
 
 	if c.Dot1dStpPortAdminPathCost == 0 {
@@ -239,7 +245,12 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		StpLogger("INFO", fmt.Sprintf("Auto Port Path Cost for port %d speed %d = %d", p.IfIndex, speed, p.PortPathCost))
 	}
 
-	PortMapTable[p.IfIndex] = p
+	key := PortMapKey{
+		IfIndex:    p.IfIndex,
+		BrgIfIndex: p.b.BrgIfIndex,
+	}
+
+	PortMapTable[key] = p
 	if len(PortListTable) == 0 {
 		PortListTable = make([]*StpPort, 0)
 	}
@@ -302,10 +313,15 @@ func (p *StpPort) PollLinuxLinkStatus() {
 }
 func DelStpPort(p *StpPort) {
 	p.Stop()
+	key := PortMapKey{
+		IfIndex:    p.IfIndex,
+		BrgIfIndex: p.b.BrgIfIndex,
+	}
 	// remove from global port table
-	delete(PortMapTable, p.IfIndex)
+	delete(PortMapTable, key)
 	for i, delPort := range PortListTable {
-		if delPort.IfIndex == p.IfIndex {
+		if delPort.IfIndex == p.IfIndex &&
+			delPort.BrgIfIndex == p.BrgIfIndex {
 			if len(PortListTable) == 1 {
 				PortListTable = nil
 			} else {
@@ -315,9 +331,13 @@ func DelStpPort(p *StpPort) {
 	}
 }
 
-func StpFindPortByIfIndex(pId int32, p **StpPort) bool {
+func StpFindPortByIfIndex(pId int32, brgId int32, p **StpPort) bool {
 	var ok bool
-	if *p, ok = PortMapTable[pId]; ok {
+	key := PortMapKey{
+		IfIndex:    pId,
+		BrgIfIndex: brgId,
+	}
+	if *p, ok = PortMapTable[key]; ok {
 		return true
 	}
 	return false
