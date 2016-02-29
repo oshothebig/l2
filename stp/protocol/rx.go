@@ -76,7 +76,7 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 		fmt.Println("NOT a bpdu frame", ethernetLayer, llcLayer, bpduLayer, pvstLayer)
 		return bpduType
 	}
-	fmt.Println("RX:", packet)
+	//fmt.Println("RX:", packet)
 
 	// only process the bpdu if stp is configured
 	if IsValidStpPort(pId) {
@@ -88,11 +88,11 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 			}
 		}
 		for _, b := range BridgeListTable {
-			fmt.Println("ValidateBPDUFrame: Looking for bridge vlan found", bId, vlan, b.BrgIfIndex, b.Vlan)
+			//fmt.Println("ValidateBPDUFrame: Looking for bridge vlan found", bId, vlan, b.BrgIfIndex, b.Vlan)
 			if b.BrgIfIndex == bId &&
 				b.Vlan == vlan &&
 				StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
-				fmt.Println("ValidateBPDUFrame: found stp port", p.IfIndex)
+				//fmt.Println("ValidateBPDUFrame: found stp port", p.IfIndex)
 
 				ethernet := ethernetLayer.(*layers.Ethernet)
 
@@ -187,7 +187,7 @@ func ProcessBpduFrame(pId int32, bId int32, ptype BPDURxType, packet gopacket.Pa
 			b.Vlan == vlan &&
 			StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 			p.RcvdBPDU = true
-			fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex, p.BrgIfIndex)
+			//fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex, p.BrgIfIndex)
 			if p.PrxmMachineFsm != nil {
 				p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
 					pdu:   bpduLayer, // this is a pointer
