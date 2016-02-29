@@ -324,7 +324,7 @@ func (p *StpPort) TcMachineMain() {
 					StpMachineLogger("ERROR", "TCM", p.IfIndex, fmt.Sprintf("%s\n", rv))
 				} else {
 					// for faster transitions lets check all state events
-					m.ProcessPostStateProcessing()
+					//m.ProcessPostStateProcessing()
 				}
 
 				if event.responseChan != nil {
