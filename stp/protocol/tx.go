@@ -86,7 +86,7 @@ func (p *StpPort) TxPVST() {
 		},
 	}
 
-	StpSetBpduFlags(ConvertBoolToUint8(false),
+	StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
 		ConvertBoolToUint8(p.Agree),
 		ConvertBoolToUint8(p.Forwarding),
 		ConvertBoolToUint8(p.Learning),
@@ -94,6 +94,22 @@ func (p *StpPort) TxPVST() {
 		ConvertBoolToUint8(p.Proposed),
 		ConvertBoolToUint8(p.TcWhileTimer.count != 0),
 		&pvst.Flags)
+
+	if !p.SendRSTP {
+		pvst.ProtocolId = layers.RSTPProtocolIdentifier
+		pvst.ProtocolVersionId = layers.STPProtocolVersion
+		pvst.BPDUType = byte(layers.BPDUTypeSTP)
+		// only tc and tc ack are valid for stp
+		StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
+			0,
+			0,
+			0,
+			0,
+			0,
+			ConvertBoolToUint8(p.TcWhileTimer.count != 0),
+			&pvst.Flags)
+
+	}
 
 	// Set up buffer and options for serialization.
 	buf := gopacket.NewSerializeBuffer()
@@ -137,7 +153,7 @@ func (p *StpPort) TxRSTP() {
 		Version1Length:    0,
 	}
 
-	StpSetBpduFlags(ConvertBoolToUint8(false),
+	StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
 		ConvertBoolToUint8(p.Agree),
 		ConvertBoolToUint8(p.Forwarding),
 		ConvertBoolToUint8(p.Learning),
@@ -200,6 +216,11 @@ func (p *StpPort) TxTCN() {
 func (p *StpPort) TxConfig() {
 	eth, llc := p.BuildRSTPEthernetLlcHeaders()
 
+	if p.b.Vlan != DEFAULT_STP_BRIDGE_VLAN {
+		p.TxPVST()
+		return
+	}
+
 	stp := layers.STP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: layers.STPProtocolVersion,
@@ -215,12 +236,13 @@ func (p *StpPort) TxConfig() {
 		FwdDelay:          uint16(p.b.RootTimes.ForwardingDelay << 8),
 	}
 
+	// only tc and tc ack are valid for stp
 	StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
-		ConvertBoolToUint8(p.Agree),
-		ConvertBoolToUint8(p.Forward),
-		ConvertBoolToUint8(p.Learning),
-		p.Role,
-		ConvertBoolToUint8(p.Proposed),
+		0,
+		0,
+		0,
+		0,
+		0,
 		ConvertBoolToUint8(p.TcWhileTimer.count != 0),
 		&stp.Flags)
 

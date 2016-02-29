@@ -73,6 +73,7 @@ func ValidateBPDUFrame(pId int32, bId int32, packet gopacket.Packet) (bpduType B
 	if ethernetLayer == nil ||
 		llcLayer == nil ||
 		(bpduLayer == nil && pvstLayer == nil) {
+		fmt.Println("NOT a bpdu frame", ethernetLayer, llcLayer, bpduLayer, pvstLayer)
 		return bpduType
 	}
 
