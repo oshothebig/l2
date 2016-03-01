@@ -77,7 +77,7 @@ func GetBrgPort(pId int32, bId int32, packet gopacket.Packet) *StpPort {
 		fmt.Println("NOT a valid packet for this module", pId, bId, packet)
 
 	} else {
-		pIntf, _ := PortConfigMap[p.IfIndex]
+		pIntf, _ := PortConfigMap[pId]
 		ethernet := ethernetLayer.(*layers.Ethernet)
 		if ethernet.SrcMAC[0] == pIntf.HardwareAddr[0] &&
 			ethernet.SrcMAC[1] == pIntf.HardwareAddr[1] &&
