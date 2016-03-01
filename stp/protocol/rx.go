@@ -136,7 +136,15 @@ func ValidateBPDUFrame(p *StpPort, packet gopacket.Packet) (bpduType BPDURxType)
 					stp.MsgAge < stp.MaxAge &&
 					stp.BridgeId != p.b.BridgePriority.DesignatedBridgeId &&
 					stp.PortId != uint16(p.PortId|p.Priority<<8) {
-					bpduType = BPDURxTypeSTP
+
+					// Found that Cisco send dot1d frame for tc going to
+					// still interpret this as RSTP frame
+					if StpGetBpduTopoChange(stp.Flags) ||
+						StpGetBpduTopoChangeAck(stp.Flags) {
+						bpduType = BPDURxTypeRSTP
+					} else {
+						bpduType = BPDURxTypeSTP
+					}
 				}
 			} else {
 				bpduType = BPDURxTypeUnknownBPDU

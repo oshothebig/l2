@@ -277,30 +277,11 @@ func (p *StpPort) PpmmMachineMain() {
 				//fmt.Println("Event Rx", event.src, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()])
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("INFO", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
+					StpMachineLogger("INFO", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()]))
 				} else {
 
 					// post processing
-					if m.Machine.Curr.CurrentState() == PpmmStateSensing {
-						if !m.p.PortEnabled {
-							rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
-							if rv != nil {
-								StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
-							}
-						} else if m.p.Mcheck {
-							rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
-							if rv != nil {
-								StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
-							}
-						} else if p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion &&
-							!p.SendRSTP &&
-							p.RcvdRSTP {
-							rv := m.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, nil)
-							if rv != nil {
-								StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
-							}
-						}
-					}
+					m.ProcessPostStateProcessing()
 				}
 
 				if event.responseChan != nil {
@@ -315,7 +296,7 @@ func (p *StpPort) PpmmMachineMain() {
 }
 
 func (ppmm *PpmmMachine) ProcessPostStateCheckingRSTP() {
-	// nothing to be done
+	// nothing to be done as entry to this state will not allow for state to transition
 }
 func (ppmm *PpmmMachine) ProcessPostStateSensing() {
 	p := ppmm.p
@@ -323,14 +304,14 @@ func (ppmm *PpmmMachine) ProcessPostStateSensing() {
 		if !p.PortEnabled {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventNotPortEnabled, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
 		} else if p.Mcheck {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventMcheck, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
@@ -339,7 +320,7 @@ func (ppmm *PpmmMachine) ProcessPostStateSensing() {
 			p.RcvdRSTP {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
@@ -353,14 +334,14 @@ func (ppmm *PpmmMachine) ProcessPostStateSelectingSTP() {
 		if !p.PortEnabled {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventNotPortEnabled, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
 		} else if p.Mcheck {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
+				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventMcheck, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
@@ -370,8 +351,7 @@ func (ppmm *PpmmMachine) ProcessPostStateSelectingSTP() {
 
 func (ppmm *PpmmMachine) ProcessPostStateProcessing() {
 
+	ppmm.ProcessPostStateSensing()
 	ppmm.ProcessPostStateCheckingRSTP()
-	ppmm.ProcessPostStateSensing()
 	ppmm.ProcessPostStateSelectingSTP()
-	ppmm.ProcessPostStateSensing()
 }
