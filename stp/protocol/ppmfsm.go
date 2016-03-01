@@ -199,7 +199,7 @@ func (ppmm *PpmmMachine) PpmmMachineSelectingSTP(m fsm.Machine, data interface{}
 	return PpmmStateSelectingSTP
 }
 
-// PpmmMachineSelectingSTP
+// PpmmMachineSensing
 func (ppmm *PpmmMachine) PpmmMachineSensing(m fsm.Machine, data interface{}) fsm.State {
 	p := ppmm.p
 
