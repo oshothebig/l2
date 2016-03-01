@@ -74,7 +74,7 @@ func GetBrgPort(pId int32, bId int32, packet gopacket.Packet) *StpPort {
 	if ethernetLayer == nil ||
 		llcLayer == nil ||
 		(bpduLayer == nil && pvstLayer == nil) {
-		fmt.Println("NOT a bpdu supported for this port frame", ethernetLayer, llcLayer, bpduLayer, pvstLayer)
+		fmt.Println("NOT a valid packet for this module", pId, bId, packet)
 
 	} else {
 		//fmt.Println("RX:", packet)
