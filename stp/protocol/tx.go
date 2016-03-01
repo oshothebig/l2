@@ -68,7 +68,7 @@ func (p *StpPort) TxPVST() {
 	pvst := layers.PVST{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: p.BridgeProtocolVersionGet(),
-		BPDUType:          byte(layers.BPDUTypeRSTP),
+		BPDUType:          layers.BPDUTypeRSTP,
 		Flags:             0,
 		RootId:            p.PortPriority.RootBridgeId,
 		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),
@@ -101,7 +101,7 @@ func (p *StpPort) TxPVST() {
 	if !p.SendRSTP {
 		pvst.ProtocolId = layers.RSTPProtocolIdentifier
 		pvst.ProtocolVersionId = layers.STPProtocolVersion
-		pvst.BPDUType = byte(layers.BPDUTypeSTP)
+		pvst.BPDUType = layers.BPDUTypeSTP
 		// only tc and tc ack are valid for stp
 		StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
 			0,
@@ -145,7 +145,7 @@ func (p *StpPort) TxRSTP() {
 	rstp := layers.RSTP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: p.BridgeProtocolVersionGet(),
-		BPDUType:          byte(layers.BPDUTypeRSTP),
+		BPDUType:          layers.BPDUTypeRSTP,
 		Flags:             0,
 		RootId:            p.PortPriority.RootBridgeId,
 		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),
@@ -196,7 +196,7 @@ func (p *StpPort) TxTCN() {
 		topo := layers.BPDUTopology{
 			ProtocolId:        layers.RSTPProtocolIdentifier,
 			ProtocolVersionId: layers.STPProtocolVersion,
-			BPDUType:          byte(layers.BPDUTypeTopoChange),
+			BPDUType:          layers.BPDUTypeTopoChange,
 		}
 
 		// Set up buffer and options for serialization.
@@ -232,7 +232,7 @@ func (p *StpPort) TxConfig() {
 	stp := layers.STP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: layers.STPProtocolVersion,
-		BPDUType:          byte(layers.BPDUTypeSTP),
+		BPDUType:          layers.BPDUTypeSTP,
 		Flags:             0,
 		RootId:            p.PortPriority.RootBridgeId,
 		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),

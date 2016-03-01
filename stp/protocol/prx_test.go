@@ -281,7 +281,7 @@ func UsedForTestOnlySendValidRStpFrame(txifindex int32, t *testing.T) {
 	stp := layers.RSTP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: layers.RSTPProtocolVersion,
-		BPDUType:          byte(layers.BPDUTypeRSTP),
+		BPDUType:          layers.BPDUTypeRSTP,
 		Flags:             0,
 		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
 		RootPathCost:      1,
@@ -571,7 +571,7 @@ func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 	rstp := layers.RSTP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: layers.RSTPProtocolVersion,
-		BPDUType:          byte(layers.BPDUTypeSTP),
+		BPDUType:          layers.BPDUTypeSTP,
 		Flags:             0,
 		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
 		RootPathCost:      1,
@@ -650,7 +650,7 @@ func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 	rstp := layers.RSTP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: layers.STPProtocolVersion,
-		BPDUType:          byte(layers.BPDUTypeRSTP),
+		BPDUType:          layers.BPDUTypeRSTP,
 		Flags:             0,
 		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
 		RootPathCost:      1,

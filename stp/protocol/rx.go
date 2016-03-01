@@ -125,7 +125,7 @@ func ValidateBPDUFrame(p *StpPort, packet gopacket.Packet) (bpduType BPDURxType)
 	fmt.Println("IsBPDU or IsPVST MAC", isBPDUProtocolMAC, isPVSTProtocolMAC)
 	if isBPDUProtocolMAC {
 		// lets get the actual type of BPDU
-		subLayerType := bpduLayer.LayerContents()[3]
+		subLayerType := layers.StpBpduType(bpduLayer.LayerContents()[3])
 		if subLayerType == layers.BPDUTypeSTP {
 			stp := bpduLayer.(*layers.STP)
 			if len(stp.Contents) >= layers.BPDUTopologyLength &&

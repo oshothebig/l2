@@ -200,8 +200,8 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
 		Role:                PortRoleDisabledPort,
 		PortTimes:           RootTimes,
-		SendRSTP:            b.ForceVersion >= 2, // default
-		RcvdRSTP:            false,               // default
+		SendRSTP:            false, // default
+		RcvdRSTP:            false, // default
 		RstpVersion:         b.ForceVersion >= 2,
 		Mcheck:              b.ForceVersion >= 2,
 		EdgeDelayWhileTimer: PortTimer{count: MigrateTimeDefault},

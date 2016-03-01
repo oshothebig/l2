@@ -949,7 +949,7 @@ func xTestPimCurrentStateRcvdMsgAndNotUpdtInfo(t *testing.T) {
 			rstp := layers.RSTP{
 				ProtocolId:        layers.RSTPProtocolIdentifier,
 				ProtocolVersionId: p.BridgeProtocolVersionGet(),
-				BPDUType:          byte(layers.BPDUTypeRSTP),
+				BPDUType:          layers.BPDUTypeRSTP,
 				Flags:             0,
 				RootId:            p.PortPriority.RootBridgeId,
 				RootPathCost:      uint32(p.PortPriority.RootPathCost),

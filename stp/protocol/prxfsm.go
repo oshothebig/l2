@@ -340,7 +340,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			// sending non-RSTP
 			if !p.RcvdRSTP &&
 				!p.SendRSTP &&
-				p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion {
+				p.RstpVersion {
 				if p.PpmmMachineFsm != nil {
 					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
 						e:    PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
@@ -371,7 +371,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			// sending non-RSTP
 			if !p.RcvdRSTP &&
 				!p.SendRSTP &&
-				p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion {
+				p.RstpVersion {
 				if p.PpmmMachineFsm != nil {
 					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
 						e:    PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
