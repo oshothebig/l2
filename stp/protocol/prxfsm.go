@@ -332,7 +332,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		// some checks a bit redundant as the layers class has already validated
 		// the BPDUType, but for completness going to add the check anyways
 		rstp := bpduLayer.(*layers.RSTP)
-		flags = rstp.Flags
+		flags = uint8(rstp.Flags)
 		if rstp.ProtocolVersionId == layers.RSTPProtocolVersion &&
 			rstp.BPDUType == layers.BPDUTypeRSTP {
 			// Inform the Port Protocol Migration STate machine
@@ -363,7 +363,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		// some checks a bit redundant as the layers class has already validated
 		// the BPDUType, but for completness going to add the check anyways
 		pvst := bpduLayer.(*layers.PVST)
-		flags = pvst.Flags
+		flags = uint8(pvst.Flags)
 		if pvst.ProtocolVersionId == layers.RSTPProtocolVersion &&
 			pvst.BPDUType == layers.BPDUTypeRSTP {
 			// Inform the Port Protocol Migration STate machine
@@ -391,14 +391,14 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		p.RcvdTcAck = StpGetBpduTopoChangeAck(flags)
 	case *layers.STP:
 		stp := bpduLayer.(*layers.STP)
-		flags = stp.Flags
+		flags = uint8(stp.Flags)
 		if stp.ProtocolVersionId == layers.STPProtocolVersion &&
 			stp.BPDUType == layers.BPDUTypeSTP {
 
 			// Found that Cisco send dot1d frame for tc going to
 			// still interpret this as RSTP frame
-			if StpGetBpduTopoChange(stp.Flags) ||
-				StpGetBpduTopoChangeAck(stp.Flags) {
+			if StpGetBpduTopoChange(flags) ||
+				StpGetBpduTopoChangeAck(flags) {
 				p.RcvdRSTP = true
 			} else {
 				// Inform the Port Protocol Migration State Machine
