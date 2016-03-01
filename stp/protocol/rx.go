@@ -77,6 +77,17 @@ func GetBrgPort(pId int32, bId int32, packet gopacket.Packet) *StpPort {
 		fmt.Println("NOT a valid packet for this module", pId, bId, packet)
 
 	} else {
+		pIntf, _ := PortConfigMap[p.IfIndex]
+		ethernet := ethernetLayer.(*layers.Ethernet)
+		if ethernet.SrcMAC[0] == pIntf.HardwareAddr[0] &&
+			ethernet.SrcMAC[1] == pIntf.HardwareAddr[1] &&
+			ethernet.SrcMAC[2] == pIntf.HardwareAddr[2] &&
+			ethernet.SrcMAC[3] == pIntf.HardwareAddr[3] &&
+			ethernet.SrcMAC[4] == pIntf.HardwareAddr[4] &&
+			ethernet.SrcMAC[5] == pIntf.HardwareAddr[5] {
+			// lets drop our own packets
+			return nil
+		}
 		//fmt.Println("RX:", packet)
 
 		// only process the bpdu if stp is configured
