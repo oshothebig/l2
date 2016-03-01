@@ -15,11 +15,16 @@ import (
 	"time"
 )
 
-var PortMapTable map[int32]*StpPort
+var PortMapTable map[PortMapKey]*StpPort
 var PortListTable []*StpPort
 var PortConfigMap map[int32]portConfig
 
 const PortConfigModuleStr = "Port Config"
+
+type PortMapKey struct {
+	IfIndex    int32
+	BrgIfIndex int32
+}
 
 type portConfig struct {
 	Name         string
@@ -193,8 +198,8 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
 		Role:                PortRoleDisabledPort,
 		PortTimes:           RootTimes,
-		SendRSTP:            true,  // default
-		RcvdRSTP:            false, // default
+		SendRSTP:            true, // default
+		RcvdRSTP:            true, // default
 		EdgeDelayWhileTimer: PortTimer{count: MigrateTimeDefault},
 		FdWhileTimer:        PortTimer{count: BridgeMaxAgeDefault}, // TODO same as ForwardingDelay above
 		HelloWhenTimer:      PortTimer{count: BridgeHelloTimeDefault},
@@ -239,7 +244,12 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		StpLogger("INFO", fmt.Sprintf("Auto Port Path Cost for port %d speed %d = %d", p.IfIndex, speed, p.PortPathCost))
 	}
 
-	PortMapTable[p.IfIndex] = p
+	key := PortMapKey{
+		IfIndex:    p.IfIndex,
+		BrgIfIndex: p.b.BrgIfIndex,
+	}
+
+	PortMapTable[key] = p
 	if len(PortListTable) == 0 {
 		PortListTable = make([]*StpPort, 0)
 	}
@@ -273,7 +283,7 @@ func (p *StpPort) PollLinuxLinkStatus() {
 	var PollingTimer *time.Timer = time.NewTimer(time.Second * 1)
 
 	go func(p *StpPort, t *time.Timer) {
-		StpMachineLogger("INFO", "LINUX POLLING", p.IfIndex, "Start")
+		StpMachineLogger("INFO", "LINUX POLLING", p.IfIndex, p.BrgIfIndex, "Start")
 		for {
 			select {
 			case <-t.C:
@@ -302,10 +312,15 @@ func (p *StpPort) PollLinuxLinkStatus() {
 }
 func DelStpPort(p *StpPort) {
 	p.Stop()
+	key := PortMapKey{
+		IfIndex:    p.IfIndex,
+		BrgIfIndex: p.b.BrgIfIndex,
+	}
 	// remove from global port table
-	delete(PortMapTable, p.IfIndex)
+	delete(PortMapTable, key)
 	for i, delPort := range PortListTable {
-		if delPort.IfIndex == p.IfIndex {
+		if delPort.IfIndex == p.IfIndex &&
+			delPort.BrgIfIndex == p.BrgIfIndex {
 			if len(PortListTable) == 1 {
 				PortListTable = nil
 			} else {
@@ -315,9 +330,14 @@ func DelStpPort(p *StpPort) {
 	}
 }
 
-func StpFindPortByIfIndex(pId int32, p **StpPort) bool {
+func StpFindPortByIfIndex(pId int32, brgId int32, p **StpPort) bool {
 	var ok bool
-	if *p, ok = PortMapTable[pId]; ok {
+	key := PortMapKey{
+		IfIndex:    pId,
+		BrgIfIndex: brgId,
+	}
+	//fmt.Println("looking for key in map", key, PortMapTable)
+	if *p, ok = PortMapTable[key]; ok {
 		return true
 	}
 	return false
@@ -486,7 +506,7 @@ func (p *StpPort) BEGIN(restart bool) {
 		// start rx routine
 		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
 		in := src.Packets()
-		BpduRxMain(p.IfIndex, in)
+		BpduRxMain(p.IfIndex, p.b.BrgIfIndex, in)
 	}
 	// lets start the tick timer
 	if p.PtmMachineFsm != nil {
@@ -656,7 +676,7 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 	// 3) Port Information
 	// 4) Bridge Detection
 	if oldportenabled != newportenabled {
-		StpMachineLogger("INFO", "PORT", p.IfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
+		StpMachineLogger("INFO", "PORT", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
 		mEvtChan := make([]chan MachineEvent, 0)
 		evt := make([]MachineEvent, 0)
 
@@ -701,20 +721,24 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 			}
 
 		} else {
-			if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateDiscard {
-				if p.RcvdBPDU {
-					mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
-					evt = append(evt, MachineEvent{e: PrxmEventRcvdBpduAndPortEnabled,
-						src: src})
+			/*
+				This should only be triggered from RcvdBpdu being set becuase
+				we need packet setn
+				if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateDiscard {
+					if p.RcvdBPDU {
+						mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
+						evt = append(evt, MachineEvent{e: PrxmEventRcvdBpduAndPortEnabled,
+							src: src})
+					}
+				} else if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateReceive {
+					if p.RcvdBPDU &&
+						!p.RcvdMsg {
+						mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
+						evt = append(evt, MachineEvent{e: PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg,
+							src: src})
+					}
 				}
-			} else if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateReceive {
-				if p.RcvdBPDU &&
-					!p.RcvdMsg {
-					mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
-					evt = append(evt, MachineEvent{e: PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg,
-						src: src})
-				}
-			}
+			*/
 
 			if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
 				mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
@@ -735,17 +759,20 @@ func (p *StpPort) NotifyRcvdMsgChanged(src string, oldrcvdmsg bool, newrcvdmsg b
 	// 1) Port Receive
 	// 2) Port Information
 	if oldrcvdmsg != newrcvdmsg {
-		if src != PrxmMachineModuleStr {
-			if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateReceive &&
-				p.RcvdBPDU &&
-				p.PortEnabled &&
-				!p.RcvdMsg {
-				p.PrxmMachineFsm.PrxmEvents <- MachineEvent{
-					e:   PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg,
-					src: src,
+		/*
+			NOT a valid transition RcvdMsg is only PRX -> PIM
+			if src != PrxmMachineModuleStr {
+				if p.PrxmMachineFsm.Machine.Curr.CurrentState() == PrxmStateReceive &&
+					p.RcvdBPDU &&
+					p.PortEnabled &&
+					!p.RcvdMsg {
+					p.PrxmMachineFsm.PrxmEvents <- MachineEvent{
+						e:   PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg,
+						src: src,
+					}
 				}
 			}
-		}
+		*/
 		if src != PimMachineModuleStr {
 			bpdumsg := data.(RxBpduPdu)
 			bpduLayer := bpdumsg.pdu
@@ -1992,7 +2019,7 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole, newselectedrole PortRole) {
 
 	if oldselectedrole != newselectedrole {
-		StpMachineLogger("INFO", "PRSM", p.IfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
+		StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
 		if p.Role != p.SelectedRole {
 			if p.SelectedRole == PortRoleDisabledPort {
 				p.PrtMachineFsm.PrtEvents <- MachineEvent{

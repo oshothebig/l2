@@ -70,7 +70,7 @@ func StpBridgeDelete(c *StpBridgeConfig) {
 func StpPortCreate(c *StpPortConfig) {
 	var p *StpPort
 	var b *Bridge
-	if !StpFindPortByIfIndex(c.Dot1dStpPort, &p) {
+	if !StpFindPortByIfIndex(c.Dot1dStpPort, c.Dot1dStpBridgeIfIndex, &p) {
 		p := NewStpPort(c)
 		// nothing should happen until a birdge is assigned to the port
 		if StpFindBridgeByIfIndex(p.BrgIfIndex, &b) {
@@ -82,7 +82,7 @@ func StpPortCreate(c *StpPortConfig) {
 func StpPortDelete(c *StpPortConfig) {
 	var p *StpPort
 	var b *Bridge
-	if StpFindPortByIfIndex(c.Dot1dStpPort, &p) {
+	if StpFindPortByIfIndex(c.Dot1dStpPort, c.Dot1dStpBridgeIfIndex, &p) {
 		if StpFindBridgeByIfIndex(p.BrgIfIndex, &b) {
 			StpPortDelFromBridge(c.Dot1dStpPort, p.BrgIfIndex)
 		}
@@ -94,7 +94,7 @@ func StpPortDelete(c *StpPortConfig) {
 func StpPortAddToBridge(pId int32, brgifindex int32) {
 	var p *StpPort
 	var b *Bridge
-	if StpFindPortByIfIndex(pId, &p) && StpFindBridgeByIfIndex(brgifindex, &b) {
+	if StpFindPortByIfIndex(pId, brgifindex, &p) && StpFindBridgeByIfIndex(brgifindex, &b) {
 		p.BridgeId = b.BridgeIdentifier
 		b.StpPorts = append(b.StpPorts, pId)
 		p.BEGIN(false)
@@ -106,7 +106,7 @@ func StpPortAddToBridge(pId int32, brgifindex int32) {
 func StpPortDelFromBridge(pId int32, brgifindex int32) {
 	var p *StpPort
 	var b *Bridge
-	if StpFindPortByIfIndex(pId, &p) && StpFindBridgeByIfIndex(brgifindex, &b) {
+	if StpFindPortByIfIndex(pId, brgifindex, &p) && StpFindBridgeByIfIndex(brgifindex, &b) {
 		// lets disable the port before we remove it so that way
 		// other ports can trigger tc event
 		StpPortLinkDown(pId)
@@ -122,20 +122,21 @@ func StpPortDelFromBridge(pId int32, brgifindex int32) {
 }
 
 func StpPortLinkUp(pId int32) {
-	var p *StpPort
-	if StpFindPortByIfIndex(pId, &p) {
-		if p.AdminPortEnabled {
-			defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, true)
-			p.PortEnabled = true
+	for _, p := range PortListTable {
+		if p.IfIndex == pId {
+			if p.AdminPortEnabled {
+				defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, true)
+				p.PortEnabled = true
+			}
 		}
 	}
 }
 
 func StpPortLinkDown(pId int32) {
-	var p *StpPort
-	if StpFindPortByIfIndex(pId, &p) {
-		defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, false)
-		p.PortEnabled = false
+	for _, p := range PortListTable {
+		if p.IfIndex == pId {
+			defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, false)
+			p.PortEnabled = false
+		}
 	}
-
 }

@@ -85,7 +85,7 @@ func NewStpPrxmMachine(p *StpPort) *PrxmMachine {
 }
 
 func (prxm *PrxmMachine) PrxmLogger(s string) {
-	StpMachineLogger("INFO", "PRXM", prxm.p.IfIndex, s)
+	StpMachineLogger("INFO", "PRXM", prxm.p.IfIndex, prxm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -99,7 +99,7 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	prxm.Machine.Rules = r
 	prxm.Machine.Curr = &StpStateEvent{
 		strStateMap: PrxmStateStrMap,
-		logEna:      true,
+		logEna:      false,
 		logger:      prxm.PrxmLogger,
 		owner:       PrxmMachineModuleStr,
 		ps:          PrxmStateNone,
@@ -211,19 +211,19 @@ func (p *StpPort) PrxmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PrxmMachine) {
-		StpMachineLogger("INFO", "PRXM", p.IfIndex, "Machine Start")
+		StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
 			case <-m.PrxmKillSignalEvent:
-				StpMachineLogger("INFO", "PRXM", p.IfIndex, "Machine End")
+				StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, "Machine End")
 				return
 
 			case event := <-m.PrxmEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+					StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], event.e))
 				} else {
 					// for faster state transitions
 					m.ProcessPostStateProcessing(event.data)
@@ -238,7 +238,7 @@ func (p *StpPort) PrxmMachineMain() {
 					if p.PortEnabled {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)
 						if rv != nil {
-							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
 						} else {
 							// for faster state transitions
 							m.ProcessPostStateProcessing(rx)
@@ -246,7 +246,7 @@ func (p *StpPort) PrxmMachineMain() {
 					} else {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndNotPortEnabled, rx)
 						if rv != nil {
-							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
 						} else {
 							// for faster state transitions
 							m.ProcessPostStateProcessing(rx)
@@ -257,7 +257,7 @@ func (p *StpPort) PrxmMachineMain() {
 						!p.RcvdMsg {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, rx)
 						if rv != nil {
-							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
 						} else {
 							// for faster state transitions
 							m.ProcessPostStateProcessing(rx)
@@ -265,7 +265,7 @@ func (p *StpPort) PrxmMachineMain() {
 					} else if !p.PortEnabled {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndNotPortEnabled, rx)
 						if rv != nil {
-							StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
+							StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], PrxmEventRcvdBpduAndPortEnabled))
 						} else {
 							// for faster state transitions
 							m.ProcessPostStateProcessing(rx)
@@ -289,7 +289,7 @@ func (prxm *PrxmMachine) ProcessPostStateDiscard(data interface{}) {
 		p.PortEnabled {
 		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabled, data)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
 			prxm.ProcessPostStateProcessing(data)
 		}
@@ -304,7 +304,7 @@ func (prxm *PrxmMachine) ProcessPostStateReceive(data interface{}) {
 		!p.RcvdMsg {
 		rv := prxm.Machine.ProcessEvent(PrxmMachineModuleStr, PrxmEventRcvdBpduAndPortEnabledAndNotRcvdMsg, data)
 		if rv != nil {
-			StpMachineLogger("ERROR", "PRXM", p.IfIndex, fmt.Sprintf("%s\n", rv))
+			StpMachineLogger("ERROR", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
 		} else {
 			prxm.ProcessPostStateProcessing(data)
 		}
@@ -358,29 +358,69 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		p.RcvdTc = StpGetBpduTopoChange(flags)
 		p.RcvdTcn = false
 		p.RcvdTcAck = false
+	case *layers.PVST:
+		// 17.21.22
+		// some checks a bit redundant as the layers class has already validated
+		// the BPDUType, but for completness going to add the check anyways
+		pvst := bpduLayer.(*layers.PVST)
+		flags = pvst.Flags
+		if pvst.ProtocolVersionId == layers.RSTPProtocolVersion &&
+			pvst.BPDUType == layers.BPDUTypeRSTP {
+			// Inform the Port Protocol Migration STate machine
+			// that we have received a RSTP packet when we were previously
+			// sending non-RSTP
+			if !p.RcvdRSTP &&
+				!p.SendRSTP &&
+				p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion {
+				if p.PpmmMachineFsm != nil {
+					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+						e:    PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP,
+						data: bpduLayer,
+						src:  PrxmMachineModuleStr}
+				}
+			}
+			p.RcvdRSTP = true
+			validPdu = true
+		}
+
+		//StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received RSTP packet")
+
+		defer prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, StpGetBpduTopoChangeAck(flags))
+		p.RcvdTc = StpGetBpduTopoChange(flags)
+		p.RcvdTcn = false
+		p.RcvdTcAck = StpGetBpduTopoChangeAck(flags)
 	case *layers.STP:
 		stp := bpduLayer.(*layers.STP)
 		flags = stp.Flags
 		if stp.ProtocolVersionId == layers.STPProtocolVersion &&
 			stp.BPDUType == layers.BPDUTypeSTP {
-			// Inform the Port Protocol Migration State Machine
-			// that we have received an STP packet when we were previously
-			// sending RSTP
-			if p.SendRSTP {
-				if p.PpmmMachineFsm != nil {
-					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
-						e:    PpmmEventSendRSTPAndRcvdSTP,
-						data: bpduLayer,
-						src:  PrxmMachineModuleStr}
+
+			// Found that Cisco send dot1d frame for tc going to
+			// still interpret this as RSTP frame
+			if StpGetBpduTopoChange(stp.Flags) ||
+				StpGetBpduTopoChangeAck(stp.Flags) {
+				p.RcvdRSTP = true
+			} else {
+				// Inform the Port Protocol Migration State Machine
+				// that we have received an STP packet when we were previously
+				// sending RSTP
+				if p.SendRSTP {
+					if p.PpmmMachineFsm != nil {
+						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+							e:    PpmmEventSendRSTPAndRcvdSTP,
+							data: bpduLayer,
+							src:  PrxmMachineModuleStr}
+					}
 				}
+				p.RcvdSTP = true
 			}
-			p.RcvdSTP = true
+
 			validPdu = true
 		}
 
 		//StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received STP packet")
-		defer prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, false, false, StpGetBpduTopoChangeAck(flags))
-		p.RcvdTc = false
+		defer prxm.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, StpGetBpduTopoChangeAck(flags))
+		p.RcvdTc = StpGetBpduTopoChange(flags)
 		p.RcvdTcn = false
 		p.RcvdTcAck = StpGetBpduTopoChangeAck(flags)
 	case *layers.BPDUTopology:
@@ -423,14 +463,17 @@ func (prxm *PrxmMachine) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn
 		oldrcvdtcn != newrcvdtcn ||
 		oldrcvdtcack != newrcvdtcack {
 
-		if p.RcvdTc &&
+		if oldrcvdtc != newrcvdtc &&
+			p.RcvdTc &&
 			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
 				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
 			p.TcMachineFsm.TcEvents <- MachineEvent{
 				e:   TcEventRcvdTc,
 				src: RxModuleStr,
 			}
-		} else if p.RcvdTcn &&
+		}
+		if oldrcvdtcn != newrcvdtcn &&
+			p.RcvdTcn &&
 			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
 				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
 
@@ -438,7 +481,9 @@ func (prxm *PrxmMachine) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn
 				e:   TcEventRcvdTcn,
 				src: RxModuleStr,
 			}
-		} else if p.RcvdTcAck &&
+		}
+		if oldrcvdtcack != newrcvdtcack &&
+			p.RcvdTcAck &&
 			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
 				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
 
@@ -446,7 +491,8 @@ func (prxm *PrxmMachine) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn
 				e:   TcEventRcvdTcAck,
 				src: RxModuleStr,
 			}
-		} else if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning &&
+		}
+		if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning &&
 			p.Role != PortRoleRootPort &&
 			p.Role != PortRoleDesignatedPort &&
 			!(p.Learn || p.Learning) &&

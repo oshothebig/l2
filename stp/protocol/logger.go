@@ -24,6 +24,6 @@ func StpLoggerInfo(msg string) {
 	StpLogger("INFO", msg)
 }
 
-func StpMachineLogger(t string, m string, p int32, msg string) {
-	StpLogger(t, strings.Join([]string{m, fmt.Sprintf("port %d", p), msg}, ":"))
+func StpMachineLogger(t string, m string, p int32, b int32, msg string) {
+	StpLogger(t, strings.Join([]string{m, fmt.Sprintf("port %d", p), fmt.Sprintf("brg %d", b), msg}, ":"))
 }

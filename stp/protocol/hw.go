@@ -85,7 +85,7 @@ func ConnectToClients(paramsFile string) {
 
 func ConstructPortConfigMap() {
 	currMarker := asicdServices.Int(hwconst.MIN_SYS_PORTS)
-	if asicdclnt.IsConnected {
+	if asicdclnt.ClientHdl != nil {
 		StpLogger("INFO", "Calling asicd for port config")
 		count := asicdServices.Int(hwconst.MAX_SYS_PORTS)
 		for {
@@ -152,7 +152,7 @@ func asicdGetPortLinkStatus(intfNum string) bool {
 				}
 			}
 		}
-		fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
+		StpLogger("INFO", fmt.Sprintf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum))
 	}
 	return true
 
@@ -160,15 +160,34 @@ func asicdGetPortLinkStatus(intfNum string) bool {
 
 func asicdCreateStgBridge(vlanList []uint16) int32 {
 
+	defaultVlan := false
 	vl := make([]int32, len(vlanList))
+	//StpLogger("INFO", fmt.Sprintf("Created Stg Group vlanList[%#v]", vlanList))
+
 	if asicdclnt.ClientHdl != nil {
-		for v := range vlanList {
+		for _, v := range vlanList {
+			StpLogger("INFO", fmt.Sprintf("vlan in list %d", v))
+
+			if v == DEFAULT_STP_BRIDGE_VLAN {
+				StpLogger("INFO", fmt.Sprintf("Default stg vlan"))
+				defaultVlan = true
+			}
 			vl = append(vl, int32(v))
 		}
-		stgId, err := asicdclnt.ClientHdl.CreateStg(vl)
-		if err == nil {
-			return stgId
+		// default vlan is already created in opennsl
+		if !defaultVlan {
+			stgId, err := asicdclnt.ClientHdl.CreateStg(vl)
+			if err == nil {
+				StpLogger("INFO", fmt.Sprintf("Created Stg Group %d with vlans %#v", stgId, vl))
+				return stgId
+			} else {
+				StpLogger("INFO", fmt.Sprintf("Create Stg Group error %#v", err))
+			}
+		} else {
+			return 1
 		}
+	} else {
+		StpLogger("INFO", fmt.Sprintf("Create Stg Group failed asicd not connected"))
 	}
 	return -1
 }
