@@ -101,7 +101,7 @@ func (ptxm *PtxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ptxm.Machine.Rules = r
 	ptxm.Machine.Curr = &StpStateEvent{
 		strStateMap: PtxmStateStrMap,
-		logEna:      true,
+		logEna:      false,
 		logger:      ptxm.PtxmLogger,
 		owner:       PtxmMachineModuleStr,
 		ps:          PtxmStateNone,
@@ -328,13 +328,13 @@ func (ptxm *PtxmMachine) ProcessPostStateTransmitRstp() {
 func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 	p := ptxm.p
 	if ptxm.Machine.Curr.CurrentState() == PtxmStateIdle {
-		StpMachineLogger("INFO", "PTX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("sendRSTP[%t] newInfo[%t] txCount[%d] hellwhen[%d] selected[%t] updtinfo[%t]\n",
-			p.SendRSTP,
-			p.NewInfo,
-			p.TxCount,
-			p.HelloWhenTimer.count,
-			p.Selected,
-			!p.UpdtInfo))
+		/*StpMachineLogger("INFO", "PTX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("sendRSTP[%t] newInfo[%t] txCount[%d] hellwhen[%d] selected[%t] updtinfo[%t]\n",
+		p.SendRSTP,
+		p.NewInfo,
+		p.TxCount,
+		p.HelloWhenTimer.count,
+		p.Selected,
+		!p.UpdtInfo))*/
 		if p.HelloWhenTimer.count == 0 &&
 			p.Selected &&
 			!p.UpdtInfo {

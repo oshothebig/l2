@@ -99,7 +99,7 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	prxm.Machine.Rules = r
 	prxm.Machine.Curr = &StpStateEvent{
 		strStateMap: PrxmStateStrMap,
-		logEna:      true,
+		logEna:      false,
 		logger:      prxm.PrxmLogger,
 		owner:       PrxmMachineModuleStr,
 		ps:          PrxmStateNone,
@@ -399,7 +399,6 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			// still interpret this as RSTP frame
 			if StpGetBpduTopoChange(stp.Flags) ||
 				StpGetBpduTopoChangeAck(stp.Flags) {
-
 				p.RcvdRSTP = true
 			} else {
 				// Inform the Port Protocol Migration State Machine
