@@ -2088,8 +2088,6 @@ func (p *StpPort) NotifyProposingChanged(src string, oldproposing bool, newpropo
 }
 func (p *StpPort) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn bool, oldrcvdtcack bool, newrcvdtc bool, newrcvdtcn bool, newrcvdtcack bool) {
 
-	p := prxm.p
-
 	// only care if there was a change
 	//if oldrcvdtc != newrcvdtc ||
 	//	oldrcvdtcn != newrcvdtcn ||
