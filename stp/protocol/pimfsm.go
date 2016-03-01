@@ -1072,10 +1072,9 @@ func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 	//packet := bpdumsg.pdu.(gopacket.Packet)
 	//bpduLayer := packet.Layer(layers.LayerTypeBPDU)
 
+	//p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(rcvdMsgFlags), pim.isTcnBPDU(bpduLayer), StpGetBpduTopoChangeAck(rcvdMsgFlags))
 	p.RcvdTcAck = StpGetBpduTopoChangeAck(rcvdMsgFlags)
-
 	p.RcvdTc = StpGetBpduTopoChange(rcvdMsgFlags)
-
 	p.RcvdTcn = pim.isTcnBPDU(bpduLayer)
 }
 

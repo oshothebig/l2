@@ -407,4 +407,5 @@ func (pstm *PstMachine) enableForwarding() {
 	p := pstm.p
 	StpMachineLogger("INFO", "PSTM", p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable forwarding")
 	asicdSetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_FORWARDING)
+	p.ForwardingTransitions += 1
 }

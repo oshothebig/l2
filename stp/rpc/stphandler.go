@@ -381,7 +381,7 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStatesPortT
 		nextStpPortState.Dot1dStpPortOperEdgePort = ConvertBoolToInt32(p.OperEdge)
 		nextStpPortState.Dot1dStpPortDesignatedPort = fmt.Sprintf("%d", p.PortPriority.DesignatedPortId)
 		nextStpPortState.Dot1dStpPortAdminEdgePort = ConvertBoolToInt32(p.AdminEdge)
-		//nextStpPortState.Dot1dStpPortForwardTransitions uint32 //The number of times this port has transitioned from the Learning state to the Forwarding state.
+		nextStpPortState.Dot1dStpPortForwardTransitions = int32(p.ForwardingTransitions)
 		//nextStpPortState.Dot1dStpPortProtocolMigration  int32  //When operating in RSTP (version 2) mode, writing true(1) to this object forces this port to transmit RSTP BPDUs. Any other operation on this object has no effect and it always returns false(2) when read.
 		nextStpPortState.Dot1dStpPort = p.IfIndex
 		nextStpPortState.Dot1dStpPortPathCost = int32(p.PortPathCost) //The contribution of this port to the path cost of paths towards the spanning tree root which include this port.  802.1D-1998 recommends that the default value of this parameter be in inverse proportion to    the speed of the attached LAN.  New implementations should support dot1dStpPortPathCost32. If the port path costs exceeds the maximum value of this object then this object should report the maximum value, namely 65535.  Applications should try to read the dot1dStpPortPathCost32 object if this object reports the maximum value.

@@ -86,7 +86,7 @@ func GetBrgPort(pId int32, bId int32, packet gopacket.Packet) *StpPort {
 			ethernet.SrcMAC[4] == pIntf.HardwareAddr[4] &&
 			ethernet.SrcMAC[5] == pIntf.HardwareAddr[5] {
 			// lets drop our own packets
-			return nil
+			return p
 		}
 		//fmt.Println("RX:", packet)
 
@@ -202,7 +202,7 @@ func ProcessBpduFrame(p *StpPort, ptype BPDURxType, packet gopacket.Packet) {
 	//fmt.Printf("ProcessBpduFrame %T\n", bpduLayer)
 	// lets find the port via the info in the packet
 	p.RcvdBPDU = true
-	//fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex, p.BrgIfIndex)
+	fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex, p.BrgIfIndex)
 	if p.PrxmMachineFsm != nil {
 		p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
 			pdu:   bpduLayer, // this is a pointer
