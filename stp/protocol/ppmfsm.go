@@ -171,7 +171,7 @@ func (ppmm *PpmmMachine) PpmmMachineCheckingRSTP(m fsm.Machine, data interface{}
 	p.MdelayWhiletimer.count = MigrateTimeDefault
 
 	if sendRSTPchanged {
-		p.SendRSTP = p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion
+		p.SendRSTP = p.RstpVersion
 		// 17.24
 		// Inform Port Transmit State Machine what STP version to send and which BPDU types
 		// to support interoperability

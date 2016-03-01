@@ -200,8 +200,10 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
 		Role:                PortRoleDisabledPort,
 		PortTimes:           RootTimes,
-		SendRSTP:            true, // default
-		RcvdRSTP:            true, // default
+		SendRSTP:            b.ForceVersion >= 2, // default
+		RcvdRSTP:            false,               // default
+		RstpVersion:         b.ForceVersion >= 2,
+		Mcheck:              b.ForceVersion >= 2,
 		EdgeDelayWhileTimer: PortTimer{count: MigrateTimeDefault},
 		FdWhileTimer:        PortTimer{count: BridgeMaxAgeDefault}, // TODO same as ForwardingDelay above
 		HelloWhenTimer:      PortTimer{count: BridgeHelloTimeDefault},
@@ -220,10 +222,6 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)) | c.Dot1dStpPortPriority<<8),
 		},
 		b: b, // reference to brige
-	}
-
-	if b.ForceVersion >= 2 {
-		p.RstpVersion = true
 	}
 
 	if c.Dot1dStpPortAdminPathCost == 0 {
