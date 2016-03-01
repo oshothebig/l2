@@ -1136,6 +1136,7 @@ func (pim *PimMachine) recordTimes(rcvdMsgTimes *Times) {
 // updtRcvdInfoWhile 17.21.23
 func (pim *PimMachine) updtRcvdInfoWhile() {
 	p := pim.p
+	stpMachineLogger("INFO", "PIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("PortTimes msgAge[%d] maxAge[%d]", p.PortTimes.MessageAge, p.PortTimes.MaxAge))
 	if p.PortTimes.MessageAge+1 <= p.PortTimes.MaxAge {
 		p.RcvdInfoWhiletimer.count = 3 * int32(p.PortTimes.HelloTime)
 	} else {
