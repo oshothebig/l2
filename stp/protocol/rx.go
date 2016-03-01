@@ -74,7 +74,7 @@ func GetBrgPort(pId int32, bId int32, packet gopacket.Packet) *StpPort {
 	if ethernetLayer == nil ||
 		llcLayer == nil ||
 		(bpduLayer == nil && pvstLayer == nil) {
-		fmt.Println("NOT a valid packet for this module", pId, bId, packet)
+		//fmt.Println("NOT a valid packet for this module", pId, bId, packet)
 
 	} else {
 		pIntf, _ := PortConfigMap[pId]
@@ -122,7 +122,7 @@ func ValidateBPDUFrame(p *StpPort, packet gopacket.Packet) (bpduType BPDURxType)
 
 	isBPDUProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, layers.BpduDMAC)
 	isPVSTProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, layers.BpduPVSTDMAC)
-	fmt.Println("IsBPDU or IsPVST MAC", isBPDUProtocolMAC, isPVSTProtocolMAC)
+	//fmt.Println("IsBPDU or IsPVST MAC", isBPDUProtocolMAC, isPVSTProtocolMAC)
 	if isBPDUProtocolMAC {
 		// lets get the actual type of BPDU
 		subLayerType := layers.StpBpduType(bpduLayer.LayerContents()[3])

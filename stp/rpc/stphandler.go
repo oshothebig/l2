@@ -179,8 +179,9 @@ func (s *STPDServiceHandler) HandleDbReadDot1dStpPortEntryConfig(dbHdl *sql.DB) 
 	for rows.Next() {
 
 		object := new(stpd.Dot1dStpPortEntryConfig)
-		if err = rows.Scan(&object.Dot1dStpPort,
+		if err = rows.Scan(
 			&object.Dot1dBrgIfIndex,
+			&object.Dot1dStpPort,
 			&object.Dot1dStpPortPriority,
 			&object.Dot1dStpPortEnable,
 			&object.Dot1dStpPortPathCost,
