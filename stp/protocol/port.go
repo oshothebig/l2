@@ -198,8 +198,8 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
 		Role:                PortRoleDisabledPort,
 		PortTimes:           RootTimes,
-		SendRSTP:            true, // default
-		RcvdRSTP:            true, // default
+		SendRSTP:            true,  // default
+		RcvdRSTP:            false, // default
 		EdgeDelayWhileTimer: PortTimer{count: MigrateTimeDefault},
 		FdWhileTimer:        PortTimer{count: BridgeMaxAgeDefault}, // TODO same as ForwardingDelay above
 		HelloWhenTimer:      PortTimer{count: BridgeHelloTimeDefault},
