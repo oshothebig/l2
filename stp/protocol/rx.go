@@ -35,7 +35,7 @@ func BpduRxMain(pId int32, bId int32, rxPktChan chan gopacket.Packet) {
 						if p != nil {
 							//fmt.Println("RxMain: port", rxMainPort)
 							ptype := ValidateBPDUFrame(p, packet)
-							//fmt.Println("RX:", packet, ptype)
+							fmt.Println("RX:", packet, ptype)
 							if ptype != BPDURxTypeUnknown {
 								ProcessBpduFrame(p, ptype, packet)
 							}
