@@ -148,8 +148,9 @@ func (s *STPDServiceHandler) HandleDbReadDot1dStpBridgeConfig(dbHdl *sql.DB) err
 	for rows.Next() {
 
 		object := new(stpd.Dot1dStpBridgeConfig)
-		if err = rows.Scan(&object.Dot1dBridgeAddress,
+		if err = rows.Scan(
 			&object.Dot1dStpVlan,
+			&object.Dot1dBridgeAddress,
 			&object.Dot1dStpPriority,
 			&object.Dot1dStpBridgeMaxAge,
 			&object.Dot1dStpBridgeHelloTime,
