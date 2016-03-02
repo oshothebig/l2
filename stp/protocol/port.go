@@ -203,7 +203,8 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		AdminPortEnabled:    c.Dot1dStpPortEnable,
 		PortEnabled:         enabled,
 		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
-		Role:                PortRoleDisabledPort,
+		Role:                PortRoleInvalid,
+		SelectedRole:        PortRoleInvalid,
 		PortTimes:           RootTimes,
 		SendRSTP:            false, // default
 		RcvdRSTP:            false, // default
