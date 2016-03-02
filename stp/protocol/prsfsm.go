@@ -370,7 +370,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 		StpMachineLogger("INFO", "PRSM", -1, b.BrgIfIndex, fmt.Sprintf("BridgePriority: %#v  BridgeTimes: %#v", b.BridgePriority, b.RootTimes))
 	}
 	for _, pId := range b.StpPorts {
-		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
+		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) && !p.begin {
 
 			// 17.21.25 (e)
 			p.PortTimes = b.RootTimes
@@ -387,6 +387,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 			if prsm.debugLevel > 1 {
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, b.BrgIfIndex, fmt.Sprintf("updtRolesTree: portEnabled %t, infoIs %d\n", p.PortEnabled, p.InfoIs))
 			}
+
 			// Assign the port roles
 			if !p.PortEnabled || p.InfoIs == PortInfoStateDisabled {
 				// 17.21.25 (f) if port is disabled

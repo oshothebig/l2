@@ -85,8 +85,8 @@ func StpPortAddToBridge(pId int32, brgifindex int32) {
 	var b *Bridge
 	if StpFindPortByIfIndex(pId, brgifindex, &p) && StpFindBridgeByIfIndex(brgifindex, &b) {
 		p.BridgeId = b.BridgeIdentifier
-		p.BEGIN(false)
 		b.StpPorts = append(b.StpPorts, pId)
+		p.BEGIN(false)
 	} else {
 		StpLogger("ERROR", fmt.Sprintf("ERROR did not find bridge[%#v] or port[%d]", brgifindex, pId))
 	}

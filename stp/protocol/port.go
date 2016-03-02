@@ -411,6 +411,8 @@ func (p *StpPort) BEGIN(restart bool) {
 	mEvtChan := make([]chan MachineEvent, 0)
 	evt := make([]MachineEvent, 0)
 
+	p.begin = true
+
 	if !restart {
 		// start all the State machines
 		// Port Timer State Machine
