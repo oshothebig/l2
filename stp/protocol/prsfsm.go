@@ -264,7 +264,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 
 	// lets find the root port
 	for _, pId := range b.StpPorts {
-		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) && !p.begin {
+		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 			if prsm.debugLevel > 1 {
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("updtRolesTree: InfoIs %d", p.InfoIs))
 			}
@@ -370,7 +370,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 		StpMachineLogger("INFO", "PRSM", -1, b.BrgIfIndex, fmt.Sprintf("BridgePriority: %#v  BridgeTimes: %#v", b.BridgePriority, b.RootTimes))
 	}
 	for _, pId := range b.StpPorts {
-		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) && !p.begin {
+		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
 
 			// 17.21.25 (e)
 			p.PortTimes = b.RootTimes

@@ -439,75 +439,85 @@ func (p *StpPort) BEGIN(restart bool) {
 
 	// Prxm
 	if p.PrxmMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
-		evt = append(evt, MachineEvent{e: PrxmEventBegin,
-			src: PortConfigModuleStr})
+		p.PrxmMachineFsm.Machine.ProcessEvent(PortConfigModuleStr, PrxmEventBegin, nil)
+		//		mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
+		//		evt = append(evt, MachineEvent{e: PrxmEventBegin,
+		//			src: PortConfigModuleStr})
 	}
 
 	// Ptm
 	if p.PtmMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.PtmMachineFsm.PtmEvents)
-		evt = append(evt, MachineEvent{e: PtmEventBegin,
-			src: PortConfigModuleStr})
+		p.PtmMachineFsm.Machine.ProcessEvent(PortConfigModuleStr, PtmEventBegin, nil)
+		//mEvtChan = append(mEvtChan, p.PtmMachineFsm.PtmEvents)
+		//evt = append(evt, MachineEvent{e: PtmEventBegin,
+		//	src: PortConfigModuleStr})
 	}
 
 	// Ppm
 	if p.PpmmMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
-		evt = append(evt, MachineEvent{e: PpmmEventBegin,
-			src: PortConfigModuleStr})
+		p.PpmmMachineFsm.Machine.ProcessEvent(PortConfigModuleStr, PpmmEventBegin, nil)
+		//mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
+		//evt = append(evt, MachineEvent{e: PpmmEventBegin,
+		//	src: PortConfigModuleStr})
 	}
 
-	// Ppm
+	// Ptx
 	if p.PtxmMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.PtxmMachineFsm.PtxmEvents)
-		evt = append(evt, MachineEvent{e: PtxmEventBegin,
-			src: PortConfigModuleStr})
+		p.PtxmMachineFsm.Machine.ProcessEvent(PortConfigModuleStr, PtxmEventBegin, nil)
+		//mEvtChan = append(mEvtChan, p.PtxmMachineFsm.PtxmEvents)
+		//evt = append(evt, MachineEvent{e: PtxmEventBegin,
+		//	src: PortConfigModuleStr})
 	}
 
 	// Pim
 	if p.PimMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
-		evt = append(evt, MachineEvent{e: PimEventBegin,
-			src: PortConfigModuleStr})
+		p.PimMachineFsm.Machine.ProcessEvent(PortConfigModuleStr, PimEventBegin, nil)
+		//mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
+		//evt = append(evt, MachineEvent{e: PimEventBegin,
+		//	src: PortConfigModuleStr})
 	}
 
 	// Bdm
 	if p.BdmMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
+
 		if p.AdminEdge {
-			evt = append(evt, MachineEvent{e: BdmEventBeginAdminEdge,
-				src: PortConfigModuleStr})
+			p.BdmMachineFsm.Machine.ProcessEvent(PortConfigModuleStr, BdmEventBeginAdminEdge, nil)
+			//evt = append(evt, MachineEvent{e: BdmEventBeginAdminEdge,
+			//	src: PortConfigModuleStr})
 		} else {
-			evt = append(evt, MachineEvent{e: BdmEventBeginNotAdminEdge,
-				src: PortConfigModuleStr})
+			p.BdmMachineFsm.Machine.ProcessEvent(PortConfigModuleStr, BdmEventBeginNotAdminEdge, nil)
+			//evt = append(evt, MachineEvent{e: BdmEventBeginNotAdminEdge,
+			//	src: PortConfigModuleStr})
 		}
 	}
 
 	// Prtm
 	if p.PrtMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
-		evt = append(evt, MachineEvent{e: PrtEventBegin,
-			src: PortConfigModuleStr})
+		p.PrtMachineFsm.Machine.ProcessEvent(PortConfigModuleStr, PrtEventBegin, nil)
+		//mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+		//evt = append(evt, MachineEvent{e: PrtEventBegin,
+		//	src: PortConfigModuleStr})
 	}
 
 	// Tcm
 	if p.TcMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.TcMachineFsm.TcEvents)
-		evt = append(evt, MachineEvent{e: TcEventBegin,
-			src: PortConfigModuleStr})
+		p.TcMachineFsm.Machine.ProcessEvent(PortConfigModuleStr, TcEventBegin, nil)
+		//mEvtChan = append(mEvtChan, p.TcMachineFsm.TcEvents)
+		//evt = append(evt, MachineEvent{e: TcEventBegin,
+		//	src: PortConfigModuleStr})
 	}
 
 	// Pstm
 	if p.PstMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.PstMachineFsm.PstEvents)
-		evt = append(evt, MachineEvent{e: PstEventBegin,
-			src: PortConfigModuleStr})
+		p.PstMachineFsm.Machine.ProcessEvent(PortConfigModuleStr, PstEventBegin, nil)
+		//mEvtChan = append(mEvtChan, p.PstMachineFsm.PstEvents)
+		//evt = append(evt, MachineEvent{e: PstEventBegin,
+		//	src: PortConfigModuleStr})
 	}
 
 	// call the begin event for each
 	// distribute the port disable event to various machines
-	p.DistributeMachineEvents(mEvtChan, evt, true)
+	//p.DistributeMachineEvents(mEvtChan, evt, true)
 
 	if p.PrxmMachineFsm != nil {
 		// start rx routine
