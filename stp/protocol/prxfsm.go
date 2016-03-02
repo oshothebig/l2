@@ -397,23 +397,23 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 
 			// Found that Cisco send dot1d frame for tc going to
 			// still interpret this as RSTP frame
-			if StpGetBpduTopoChange(flags) ||
-				StpGetBpduTopoChangeAck(flags) {
-				p.RcvdRSTP = true
-			} else {
-				// Inform the Port Protocol Migration State Machine
-				// that we have received an STP packet when we were previously
-				// sending RSTP
-				if p.SendRSTP {
-					if p.PpmmMachineFsm != nil {
-						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
-							e:    PpmmEventSendRSTPAndRcvdSTP,
-							data: bpduLayer,
-							src:  PrxmMachineModuleStr}
-					}
+			//			if StpGetBpduTopoChange(flags) ||
+			//				StpGetBpduTopoChangeAck(flags) {
+			//				p.RcvdRSTP = true
+			//			} else {
+			// Inform the Port Protocol Migration State Machine
+			// that we have received an STP packet when we were previously
+			// sending RSTP
+			if p.SendRSTP {
+				if p.PpmmMachineFsm != nil {
+					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+						e:    PpmmEventSendRSTPAndRcvdSTP,
+						data: bpduLayer,
+						src:  PrxmMachineModuleStr}
 				}
-				p.RcvdSTP = true
 			}
+			p.RcvdSTP = true
+			//			}
 
 			validPdu = true
 		}
