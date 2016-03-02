@@ -982,15 +982,15 @@ func (pim *PimMachine) getRcvdMsgFlags(bpduLayer interface{}) uint8 {
 	case *layers.STP:
 		//StpMachineLogger("INFO", "PIM", p.IfIndex, "Found STP frame getting flags")
 		stp := bpduLayer.(*layers.STP)
-		flags = stp.Flags
+		flags = uint8(stp.Flags)
 	case *layers.RSTP:
 		//StpMachineLogger("INFO", "PIM", p.IfIndex, "Found RSTP frame getting flags")
 		rstp := bpduLayer.(*layers.RSTP)
-		flags = rstp.Flags
+		flags = uint8(rstp.Flags)
 	case *layers.PVST:
 		//StpMachineLogger("INFO", "PIM", p.IfIndex, "Found PVST frame getting flags")
 		pvst := bpduLayer.(*layers.STP)
-		flags = pvst.Flags
+		flags = uint8(pvst.Flags)
 		//default:
 		//	StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("Error getRcvdMsgFlags rcvd TCN %T\n", bpduLayer))
 	}
@@ -1072,10 +1072,9 @@ func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 	//packet := bpdumsg.pdu.(gopacket.Packet)
 	//bpduLayer := packet.Layer(layers.LayerTypeBPDU)
 
+	//p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(rcvdMsgFlags), pim.isTcnBPDU(bpduLayer), StpGetBpduTopoChangeAck(rcvdMsgFlags))
 	p.RcvdTcAck = StpGetBpduTopoChangeAck(rcvdMsgFlags)
-
 	p.RcvdTc = StpGetBpduTopoChange(rcvdMsgFlags)
-
 	p.RcvdTcn = pim.isTcnBPDU(bpduLayer)
 }
 

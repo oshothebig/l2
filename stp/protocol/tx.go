@@ -68,7 +68,7 @@ func (p *StpPort) TxPVST() {
 	pvst := layers.PVST{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: p.BridgeProtocolVersionGet(),
-		BPDUType:          byte(layers.BPDUTypeRSTP),
+		BPDUType:          layers.BPDUTypeRSTP,
 		Flags:             0,
 		RootId:            p.PortPriority.RootBridgeId,
 		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),
@@ -86,6 +86,7 @@ func (p *StpPort) TxPVST() {
 		},
 	}
 
+	var flags uint8
 	StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
 		ConvertBoolToUint8(p.Agree),
 		ConvertBoolToUint8(p.Forwarding),
@@ -93,12 +94,14 @@ func (p *StpPort) TxPVST() {
 		p.Role,
 		ConvertBoolToUint8(p.Proposed),
 		ConvertBoolToUint8(p.TcWhileTimer.count != 0),
-		&pvst.Flags)
+		&flags)
+
+	pvst.Flags = layers.StpFlags(flags)
 
 	if !p.SendRSTP {
 		pvst.ProtocolId = layers.RSTPProtocolIdentifier
 		pvst.ProtocolVersionId = layers.STPProtocolVersion
-		pvst.BPDUType = byte(layers.BPDUTypeSTP)
+		pvst.BPDUType = layers.BPDUTypeSTP
 		// only tc and tc ack are valid for stp
 		StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
 			0,
@@ -107,7 +110,9 @@ func (p *StpPort) TxPVST() {
 			0,
 			0,
 			ConvertBoolToUint8(p.TcWhileTimer.count != 0),
-			&pvst.Flags)
+			&flags)
+
+		pvst.Flags = layers.StpFlags(flags)
 
 	}
 
@@ -125,7 +130,7 @@ func (p *StpPort) TxPVST() {
 	}
 	p.SetTxPortCounters(BPDURxTypePVST)
 
-	StpLogger("INFO", fmt.Sprintf("Sent PVST packet on interface %s %#v\n", pIntf.Name, pvst))
+	//StpLogger("INFO", fmt.Sprintf("Sent PVST packet on interface %s %#v\n", pIntf.Name, pvst))
 }
 
 func (p *StpPort) TxRSTP() {
@@ -140,7 +145,7 @@ func (p *StpPort) TxRSTP() {
 	rstp := layers.RSTP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: p.BridgeProtocolVersionGet(),
-		BPDUType:          byte(layers.BPDUTypeRSTP),
+		BPDUType:          layers.BPDUTypeRSTP,
 		Flags:             0,
 		RootId:            p.PortPriority.RootBridgeId,
 		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),
@@ -153,6 +158,7 @@ func (p *StpPort) TxRSTP() {
 		Version1Length:    0,
 	}
 
+	var flags uint8
 	StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
 		ConvertBoolToUint8(p.Agree),
 		ConvertBoolToUint8(p.Forwarding),
@@ -160,7 +166,9 @@ func (p *StpPort) TxRSTP() {
 		p.Role,
 		ConvertBoolToUint8(p.Proposed),
 		ConvertBoolToUint8(p.TcWhileTimer.count != 0),
-		&rstp.Flags)
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
 
 	// Set up buffer and options for serialization.
 	buf := gopacket.NewSerializeBuffer()
@@ -176,8 +184,8 @@ func (p *StpPort) TxRSTP() {
 	}
 	p.SetTxPortCounters(BPDURxTypeRSTP)
 
-	pIntf, _ := PortConfigMap[p.IfIndex]
-	StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
+	//pIntf, _ := PortConfigMap[p.IfIndex]
+	//StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
 }
 
 func (p *StpPort) TxTCN() {
@@ -188,7 +196,7 @@ func (p *StpPort) TxTCN() {
 		topo := layers.BPDUTopology{
 			ProtocolId:        layers.RSTPProtocolIdentifier,
 			ProtocolVersionId: layers.STPProtocolVersion,
-			BPDUType:          byte(layers.BPDUTypeTopoChange),
+			BPDUType:          layers.BPDUTypeTopoChange,
 		}
 
 		// Set up buffer and options for serialization.
@@ -208,8 +216,8 @@ func (p *StpPort) TxTCN() {
 	}
 
 	p.SetTxPortCounters(BPDURxTypeTopo)
-	pIntf, _ := PortConfigMap[p.IfIndex]
-	StpLogger("INFO", fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
+	//pIntf, _ := PortConfigMap[p.IfIndex]
+	//StpLogger("INFO", fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
 
 }
 
@@ -224,7 +232,7 @@ func (p *StpPort) TxConfig() {
 	stp := layers.STP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: layers.STPProtocolVersion,
-		BPDUType:          byte(layers.BPDUTypeSTP),
+		BPDUType:          layers.BPDUTypeSTP,
 		Flags:             0,
 		RootId:            p.PortPriority.RootBridgeId,
 		RootPathCost:      uint32(p.b.BridgePriority.RootPathCost),
@@ -235,7 +243,7 @@ func (p *StpPort) TxConfig() {
 		HelloTime:         uint16(p.b.RootTimes.HelloTime << 8),
 		FwdDelay:          uint16(p.b.RootTimes.ForwardingDelay << 8),
 	}
-
+	var flags uint8
 	// only tc and tc ack are valid for stp
 	StpSetBpduFlags(ConvertBoolToUint8(p.TcAck),
 		0,
@@ -244,7 +252,9 @@ func (p *StpPort) TxConfig() {
 		0,
 		0,
 		ConvertBoolToUint8(p.TcWhileTimer.count != 0),
-		&stp.Flags)
+		&flags)
+
+	stp.Flags = layers.StpFlags(flags)
 
 	// Set up buffer and options for serialization.
 	buf := gopacket.NewSerializeBuffer()
@@ -260,6 +270,6 @@ func (p *StpPort) TxConfig() {
 	}
 
 	p.SetTxPortCounters(BPDURxTypeSTP)
-	pIntf, _ := PortConfigMap[p.IfIndex]
-	StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s %#v\n", pIntf.Name, stp))
+	//pIntf, _ := PortConfigMap[p.IfIndex]
+	//StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s %#v\n", pIntf.Name, stp))
 }

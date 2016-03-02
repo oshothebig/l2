@@ -113,6 +113,8 @@ type StpPort struct {
 	PvstRx uint64
 	PvstTx uint64
 
+	ForwardingTransitions uint64
+
 	// 17.17
 	EdgeDelayWhileTimer PortTimer
 	FdWhileTimer        PortTimer
@@ -198,8 +200,10 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
 		Role:                PortRoleDisabledPort,
 		PortTimes:           RootTimes,
-		SendRSTP:            true, // default
-		RcvdRSTP:            true, // default
+		SendRSTP:            false, // default
+		RcvdRSTP:            false, // default
+		RstpVersion:         b.ForceVersion >= 2,
+		Mcheck:              b.ForceVersion >= 2,
 		EdgeDelayWhileTimer: PortTimer{count: MigrateTimeDefault},
 		FdWhileTimer:        PortTimer{count: BridgeMaxAgeDefault}, // TODO same as ForwardingDelay above
 		HelloWhenTimer:      PortTimer{count: BridgeHelloTimeDefault},
@@ -218,10 +222,6 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)) | c.Dot1dStpPortPriority<<8),
 		},
 		b: b, // reference to brige
-	}
-
-	if b.ForceVersion >= 2 {
-		p.RstpVersion = true
 	}
 
 	if c.Dot1dStpPortAdminPathCost == 0 {
@@ -2083,6 +2083,52 @@ func (p *StpPort) NotifyProposingChanged(src string, oldproposing bool, newpropo
 		}
 
 	}
+}
+func (p *StpPort) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn bool, oldrcvdtcack bool, newrcvdtc bool, newrcvdtcn bool, newrcvdtcack bool) {
+
+	// only care if there was a change
+	//if oldrcvdtc != newrcvdtc ||
+	//	oldrcvdtcn != newrcvdtcn ||
+	//	oldrcvdtcack != newrcvdtcack {
+
+	if p.RcvdTc &&
+		(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
+			p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
+		p.TcMachineFsm.TcEvents <- MachineEvent{
+			e:   TcEventRcvdTc,
+			src: RxModuleStr,
+		}
+	}
+	if p.RcvdTcn &&
+		(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
+			p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
+
+		p.TcMachineFsm.TcEvents <- MachineEvent{
+			e:   TcEventRcvdTcn,
+			src: RxModuleStr,
+		}
+	}
+	if p.RcvdTcAck &&
+		(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
+			p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
+
+		p.TcMachineFsm.TcEvents <- MachineEvent{
+			e:   TcEventRcvdTcAck,
+			src: RxModuleStr,
+		}
+	}
+	if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning &&
+		p.Role != PortRoleRootPort &&
+		p.Role != PortRoleDesignatedPort &&
+		!(p.Learn || p.Learning) &&
+		!(p.RcvdTc || p.RcvdTcn || p.RcvdTcAck || p.TcProp) {
+
+		p.TcMachineFsm.TcEvents <- MachineEvent{
+			e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
+			src: RxModuleStr,
+		}
+	}
+	//}
 }
 
 func (p *StpPort) EdgeDelay() uint16 {

@@ -9,7 +9,6 @@ package stp
 import (
 	"fmt"
 	//"time"
-	"github.com/google/gopacket/layers"
 	"utils/fsm"
 )
 
@@ -167,11 +166,11 @@ func (ppmm *PpmmMachine) PpmmMachineCheckingRSTP(m fsm.Machine, data interface{}
 	p := ppmm.p
 	p.Mcheck = false
 
-	sendRSTPchanged := p.SendRSTP != (p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion)
+	sendRSTPchanged := p.SendRSTP != p.RstpVersion
 	p.MdelayWhiletimer.count = MigrateTimeDefault
 
 	if sendRSTPchanged {
-		p.SendRSTP = p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion
+		p.SendRSTP = p.RstpVersion
 		// 17.24
 		// Inform Port Transmit State Machine what STP version to send and which BPDU types
 		// to support interoperability
@@ -315,7 +314,7 @@ func (ppmm *PpmmMachine) ProcessPostStateSensing() {
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
-		} else if p.BridgeProtocolVersionGet() == layers.RSTPProtocolVersion &&
+		} else if p.RstpVersion &&
 			!p.SendRSTP &&
 			p.RcvdRSTP {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, nil)

@@ -74,7 +74,7 @@ func GetBrgPort(pId int32, bId int32, packet gopacket.Packet) *StpPort {
 	if ethernetLayer == nil ||
 		llcLayer == nil ||
 		(bpduLayer == nil && pvstLayer == nil) {
-		fmt.Println("NOT a valid packet for this module", pId, bId, packet)
+		//fmt.Println("NOT a valid packet for this module", pId, bId, packet)
 
 	} else {
 		pIntf, _ := PortConfigMap[pId]
@@ -86,7 +86,7 @@ func GetBrgPort(pId int32, bId int32, packet gopacket.Packet) *StpPort {
 			ethernet.SrcMAC[4] == pIntf.HardwareAddr[4] &&
 			ethernet.SrcMAC[5] == pIntf.HardwareAddr[5] {
 			// lets drop our own packets
-			return nil
+			return p
 		}
 		//fmt.Println("RX:", packet)
 
@@ -122,10 +122,10 @@ func ValidateBPDUFrame(p *StpPort, packet gopacket.Packet) (bpduType BPDURxType)
 
 	isBPDUProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, layers.BpduDMAC)
 	isPVSTProtocolMAC := reflect.DeepEqual(ethernet.DstMAC, layers.BpduPVSTDMAC)
-	fmt.Println("IsBPDU or IsPVST MAC", isBPDUProtocolMAC, isPVSTProtocolMAC)
+	//fmt.Println("IsBPDU or IsPVST MAC", isBPDUProtocolMAC, isPVSTProtocolMAC)
 	if isBPDUProtocolMAC {
 		// lets get the actual type of BPDU
-		subLayerType := bpduLayer.LayerContents()[3]
+		subLayerType := layers.StpBpduType(bpduLayer.LayerContents()[3])
 		if subLayerType == layers.BPDUTypeSTP {
 			stp := bpduLayer.(*layers.STP)
 			if len(stp.Contents) >= layers.BPDUTopologyLength &&
@@ -139,8 +139,8 @@ func ValidateBPDUFrame(p *StpPort, packet gopacket.Packet) (bpduType BPDURxType)
 
 					// Found that Cisco send dot1d frame for tc going to
 					// still interpret this as RSTP frame
-					if StpGetBpduTopoChange(stp.Flags) ||
-						StpGetBpduTopoChangeAck(stp.Flags) {
+					if StpGetBpduTopoChange(uint8(stp.Flags)) ||
+						StpGetBpduTopoChangeAck(uint8(stp.Flags)) {
 						bpduType = BPDURxTypeRSTP
 					} else {
 						bpduType = BPDURxTypeSTP
