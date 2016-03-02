@@ -264,7 +264,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 
 	// lets find the root port
 	for _, pId := range b.StpPorts {
-		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
+		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) && !p.begin {
 			if prsm.debugLevel > 1 {
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("updtRolesTree: InfoIs %d", p.InfoIs))
 			}
