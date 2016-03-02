@@ -449,13 +449,6 @@ func (p *StpPort) BEGIN(restart bool) {
 			src: PortConfigModuleStr})
 	}
 
-	// Prtm
-	if p.PrtMachineFsm != nil {
-		mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
-		evt = append(evt, MachineEvent{e: PrtEventBegin,
-			src: PortConfigModuleStr})
-	}
-
 	// Ppm
 	if p.PpmmMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
@@ -487,6 +480,13 @@ func (p *StpPort) BEGIN(restart bool) {
 			evt = append(evt, MachineEvent{e: BdmEventBeginNotAdminEdge,
 				src: PortConfigModuleStr})
 		}
+	}
+
+	// Prtm
+	if p.PrtMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+		evt = append(evt, MachineEvent{e: PrtEventBegin,
+			src: PortConfigModuleStr})
 	}
 
 	// Tcm
