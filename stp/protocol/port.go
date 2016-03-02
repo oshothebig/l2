@@ -408,8 +408,8 @@ func (p *StpPort) Stop() {
 }
 
 func (p *StpPort) BEGIN(restart bool) {
-	mEvtChan := make([]chan MachineEvent, 0)
-	evt := make([]MachineEvent, 0)
+	//mEvtChan := make([]chan MachineEvent, 0)
+	//evt := make([]MachineEvent, 0)
 
 	p.begin = true
 
