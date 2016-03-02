@@ -143,7 +143,7 @@ func asicDPortBmpFormatGet(distPortList []string) string {
 func asicdGetPortLinkStatus(pId int32) bool {
 
 	if asicdclnt.ClientHdl != nil {
-		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(asicdServices.Int(hwconst.MIN_SYS_PORTS), asicdServices.Int(hwconst.MIN_SYS_PORTS))
+		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(asicdServices.Int(hwconst.MIN_SYS_PORTS), asicdServices.Int(hwconst.MAX_SYS_PORTS))
 		if err == nil && bulkInfo.Count != 0 {
 			objCount := int64(bulkInfo.Count)
 			for i := int64(0); i < objCount; i++ {
