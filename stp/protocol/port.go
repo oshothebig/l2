@@ -458,7 +458,7 @@ func (p *StpPort) BEGIN(restart bool) {
 			src: PortConfigModuleStr})
 	}
 
-	// Ppm
+	// Ptxm
 	if p.PtxmMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.PtxmMachineFsm.PtxmEvents)
 		evt = append(evt, MachineEvent{e: PtxmEventBegin,
@@ -519,7 +519,7 @@ func (p *StpPort) BEGIN(restart bool) {
 	if p.PtmMachineFsm != nil {
 		p.PtmMachineFsm.TickTimerStart()
 	}
-
+	StpMachineLogger("INFO", "PORT", p.IfIndex, p.BrgIfIndex, "BEGIN complete")
 	p.begin = false
 }
 
