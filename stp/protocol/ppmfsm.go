@@ -273,6 +273,12 @@ func (p *StpPort) PpmmMachineMain() {
 				return
 
 			case event := <-m.PpmmEvents:
+
+				if m.Machine.Curr.CurrentState() == PpmmStateNone && event.e != PpmmEventBegin {
+					m.PpmmEvents <- event
+					continue
+				}
+
 				//fmt.Println("Event Rx", event.src, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()])
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {

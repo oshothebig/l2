@@ -191,6 +191,12 @@ func (p *StpPort) BdmMachineMain() {
 				return
 
 			case event := <-m.BdmEvents:
+
+				if m.Machine.Curr.CurrentState() == BdmStateNone && (event.e != BdmEventBeginAdminEdge && event.e != BdmEventBeginNotAdminEdge) {
+					m.BdmEvents <- event
+					continue
+				}
+
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {

@@ -205,6 +205,7 @@ func (p *StpPort) PtmMachineMain() {
 				m.TickTimerStart()
 
 			case event := <-m.PtmEvents:
+
 				m.Machine.ProcessEvent(event.src, event.e, nil)
 
 				if event.responseChan != nil {

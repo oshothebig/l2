@@ -220,6 +220,12 @@ func (p *StpPort) PrxmMachineMain() {
 				return
 
 			case event := <-m.PrxmEvents:
+
+				if m.Machine.Curr.CurrentState() == PrxmStateNone && event.e != PrxmEventBegin {
+					m.PrxmEvents <- event
+					continue
+				}
+
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
@@ -233,6 +239,11 @@ func (p *StpPort) PrxmMachineMain() {
 					SendResponse(PrxmMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.PrxmRxBpduPkt:
+
+				if m.Machine.Curr.CurrentState() == PrxmStateNone {
+					continue
+				}
+
 				//fmt.Println("Event PKT Rx", rx.src, rx.ptype, p.PortEnabled)
 				if m.Machine.Curr.CurrentState() == PrxmStateDiscard {
 					if p.PortEnabled {
