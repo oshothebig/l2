@@ -147,12 +147,13 @@ func asicdGetPortLinkStatus(pId int32) bool {
 		if err == nil && bulkInfo.Count != 0 {
 			objCount := int64(bulkInfo.Count)
 			for i := int64(0); i < objCount; i++ {
+				StpLogger("INFO", fmt.Sprintf("asicDGetPortLinkSatus: port found %d, looking for %d\n", bulkInfo.PortStateList[i].IfIndex, pId))
 				if bulkInfo.PortStateList[i].IfIndex == pId {
 					return bulkInfo.PortStateList[i].OperState == pluginCommon.UpDownState[1]
 				}
 			}
 		}
-		StpLogger("INFO", fmt.Sprintf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", pId))
+		StpLogger("INFO", fmt.Sprintf("asicDGetPortLinkSatus: could not get status for port %d, failure in get method\n", pId))
 	}
 	return true
 
