@@ -3,7 +3,6 @@ package stp
 
 import (
 	"fmt"
-	"net"
 )
 
 type StpBridgeConfig struct {
@@ -36,11 +35,8 @@ func StpBridgeCreate(c *StpBridgeConfig) {
 		tmpaddr = "00:AA:AA:BB:BB:DD"
 	}
 
-	netAddr, _ := net.ParseMAC(tmpaddr)
-	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
 	key := BridgeKey{
-		vlan: c.Dot1dStpBridgeVlan,
-		mac:  addr,
+		Vlan: c.Dot1dStpBridgeVlan,
 	}
 
 	if !StpFindBridgeById(key, &b) {
@@ -51,16 +47,9 @@ func StpBridgeCreate(c *StpBridgeConfig) {
 
 func StpBridgeDelete(c *StpBridgeConfig) {
 	var b *Bridge
-	tmpaddr := c.Dot1dBridgeAddress
-	if tmpaddr == "" {
-		tmpaddr = "00:AA:AA:BB:BB:DD"
-	}
 
-	netAddr, _ := net.ParseMAC(tmpaddr)
-	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
 	key := BridgeKey{
-		vlan: c.Dot1dStpBridgeVlan,
-		mac:  addr,
+		Vlan: c.Dot1dStpBridgeVlan,
 	}
 	if StpFindBridgeById(key, &b) {
 		DelStpBridge(b, true)
@@ -121,6 +110,26 @@ func StpPortDelFromBridge(pId int32, brgifindex int32) {
 	}
 }
 
+func StpPortEnable(pId int32, bId int32, enable bool) {
+	var p *StpPort
+	if StpFindPortByIfIndex(pId, bId, &p) {
+		if p.AdminPortEnabled != enable {
+			if p.AdminPortEnabled {
+				if p.PortEnabled {
+					defer p.NotifyPortEnabled("CONFIG: ", p.PortEnabled, false)
+					p.PortEnabled = false
+				}
+			} else {
+				if asicdGetPortLinkStatus(pId) {
+					defer p.NotifyPortEnabled("CONFIG: ", p.PortEnabled, true)
+					p.PortEnabled = true
+				}
+			}
+			p.AdminPortEnabled = enable
+		}
+	}
+}
+
 func StpPortLinkUp(pId int32) {
 	for _, p := range PortListTable {
 		if p.IfIndex == pId {
@@ -137,6 +146,170 @@ func StpPortLinkDown(pId int32) {
 		if p.IfIndex == pId {
 			defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, false)
 			p.PortEnabled = false
+		}
+	}
+}
+
+func StpBrgPrioritySet(bId int32, priority uint16) {
+	// get bridge
+	var b *Bridge
+	var p *StpPort
+	if StpFindBridgeByIfIndex(bId, &b) {
+		prio := GetBridgePriorityFromBridgeId(b.BridgeIdentifier)
+		if prio != priority {
+			addr := GetBridgeAddrFromBridgeId(b.BridgeIdentifier)
+			vlan := GetBridgeVlanFromBridgeId(b.BridgeIdentifier)
+			b.BridgeIdentifier = CreateBridgeId(addr, priority, vlan)
+			b.BridgePriority.DesignatedBridgeId = b.BridgeIdentifier
+
+			for _, pId := range b.StpPorts {
+				if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
+					p.Selected = false
+					p.Reselect = true
+				}
+			}
+			b.PrsMachineFsm.PrsEvents <- MachineEvent{
+				e:   PrsEventReselect,
+				src: "CONFIG: BrgPrioritySet",
+			}
+		}
+	}
+}
+
+func StpBrgForceVersion(bId int32, version int32) {
+
+	var b *Bridge
+	var p *StpPort
+	if StpFindBridgeByIfIndex(bId, &b) {
+		// version 1 STP
+		// version 2 RSTP
+		if b.ForceVersion != version {
+			b.ForceVersion = version
+			for _, pId := range b.StpPorts {
+				if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
+					if b.ForceVersion == 1 {
+						p.RstpVersion = false
+					} else {
+						p.RstpVersion = true
+					}
+					go p.BEGIN(true)
+				}
+			}
+		}
+	}
+}
+
+func StpPortPrioritySet(pId int32, bId int32, priority uint16) {
+	var p *StpPort
+	if StpFindPortByIfIndex(pId, bId, &p) {
+		if p.Priority != priority {
+			p.Priority = priority
+			p.Selected = false
+			p.Reselect = true
+
+			p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
+				e:   PrsEventReselect,
+				src: "CONFIG: PortPrioritySet",
+			}
+		}
+	}
+
+}
+
+func StpPortPortPathCostSet(pId int32, bId int32, pathcost uint32) {
+	// TODO
+}
+
+func StpPortAdminEdgeSet(pId int32, bId int32, adminedge bool) {
+	var p *StpPort
+	if StpFindPortByIfIndex(pId, bId, &p) {
+		if p.AdminEdge != adminedge {
+			p.AdminEdge = adminedge
+
+			if !p.AdminEdge {
+				p.BdmMachineFsm.BdmEvents <- MachineEvent{
+					e:   BdmEventBeginNotAdminEdge,
+					src: "CONFIG: AdminEgeSet",
+				}
+			} else {
+				p.BdmMachineFsm.BdmEvents <- MachineEvent{
+					e:   BdmEventBeginAdminEdge,
+					src: "CONFIG: AdminEgeSet",
+				}
+			}
+		}
+	}
+}
+
+func StpBrgForwardDelaySet(bId int32, fwddelay uint16) {
+	var b *Bridge
+	var p *StpPort
+	if StpFindBridgeByIfIndex(bId, &b) {
+		b.BridgeTimes.ForwardingDelay = fwddelay
+
+		// if we are root lets update the port times
+		if b.RootPortId == 0 {
+			b.RootTimes.ForwardingDelay = fwddelay
+			for _, pId := range b.StpPorts {
+				if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
+					p.PortTimes.ForwardingDelay = b.RootTimes.ForwardingDelay
+				}
+			}
+		}
+	}
+}
+
+func StpBrgHelloTimeSet(bId int32, hellotime uint16) {
+	var b *Bridge
+	var p *StpPort
+	if StpFindBridgeByIfIndex(bId, &b) {
+		b.BridgeTimes.HelloTime = hellotime
+
+		// if we are root lets update the port times
+		if b.RootPortId == 0 {
+			b.RootTimes.HelloTime = hellotime
+			for _, pId := range b.StpPorts {
+				if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
+					p.PortTimes.HelloTime = b.RootTimes.HelloTime
+				}
+			}
+		}
+	}
+}
+
+func StpBrgMaxAgeSet(bId int32, maxage uint16) {
+	var b *Bridge
+	var p *StpPort
+	if StpFindBridgeByIfIndex(bId, &b) {
+		b.BridgeTimes.MaxAge = maxage
+
+		// if we are root lets update the port times
+		if b.RootPortId == 0 {
+			b.RootTimes.MaxAge = maxage
+			for _, pId := range b.StpPorts {
+				if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
+					p.PortTimes.MaxAge = b.RootTimes.MaxAge
+				}
+			}
+		}
+	}
+}
+
+func StpBrgTxHoldCountSet(bId int32, txholdcount uint16) {
+	var b *Bridge
+	if StpFindBridgeByIfIndex(bId, &b) {
+		b.TxHoldCount = uint64(txholdcount)
+	}
+}
+
+func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) {
+	var p *StpPort
+	if StpFindPortByIfIndex(pId, bId, &p) {
+		if p.Mcheck != protocolmigration && protocolmigration {
+			p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventMcheck,
+				src: "CONFIG: ProtocolMigrationSet",
+			}
+			p.Mcheck = true
 		}
 	}
 }
