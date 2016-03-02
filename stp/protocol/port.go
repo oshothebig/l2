@@ -413,6 +413,8 @@ func (p *StpPort) BEGIN(restart bool) {
 
 	if !restart {
 		// start all the State machines
+		// Port Role Transitions State Machine
+		p.PrtMachineMain()
 		// Port Timer State Machine
 		p.PtmMachineMain()
 		// Port Receive State Machine
@@ -425,10 +427,6 @@ func (p *StpPort) BEGIN(restart bool) {
 		p.PimMachineMain()
 		// Bridge Detection State Machine
 		p.BdmMachineMain()
-		// Port Role Selection State Machine (one instance per bridge)
-		//p.PrsMachineMain()
-		// Port Role Transitions State Machine
-		p.PrtMachineMain()
 		// Topology Change State Machine
 		p.TcMachineMain()
 		// Port State Transition State Machine
