@@ -39,7 +39,7 @@ type StpPort struct {
 	ProtocolPortId uint16
 
 	// 17.19
-	AgeingTime                  int32
+	AgeingTime                  int32 // TODO STP functionality
 	Agree                       bool
 	Agreed                      bool
 	AdminEdge                   bool
