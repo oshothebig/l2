@@ -143,7 +143,7 @@ func (ptxm *PtxmMachine) PtxmMachineTransmitIdle(m fsm.Machine, data interface{}
 func (ptxm *PtxmMachine) PtxmMachineTransmitPeriodic(m fsm.Machine, data interface{}) fsm.State {
 	p := ptxm.p
 	//StpMachineLogger("INFO", "PTXM", p.IfIndex, fmt.Sprintf("TransmitPeriodic: newinfo[%t] role[%d] tcwhile[%d]", p.NewInfo, p.Role, p.TcWhileTimer.count))
-	p.NewInfo = p.NewInfo || (p.Role == PortRoleDesignatedPort || (p.Role == PortRoleRootPort && p.TcWhileTimer.count != 0))
+	p.NewInfo = p.NewInfo || (p.Role == PortRoleDesignatedPort || (p.Role == PortRoleRootPort && p.TcWhileTimer.count != 0) || p.BridgeAssurance)
 
 	return PtxmStateTransmitPeriodic
 }

@@ -445,13 +445,8 @@ func (prsm *PrsMachine) updtRolesTree() {
 					defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleRootPort)
 					p.SelectedRole = PortRoleRootPort
 					// this will allow for packets to tx the interface
-					if !p.BridgeAssurance {
-						defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
-						p.UpdtInfo = false
-					} else {
-						defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
-						p.UpdtInfo = true
-					}
+					defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
+					p.UpdtInfo = false
 					if prsm.debugLevel > 1 {
 						StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, "updtRolesTree: port role selected ROOT")
 					}
@@ -483,23 +478,16 @@ func (prsm *PrsMachine) updtRolesTree() {
 								defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleBackupPort)
 								p.SelectedRole = PortRoleBackupPort
 								// this will allow for packets to tx the interface
-								if !p.BridgeAssurance {
-									defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
-									p.UpdtInfo = false
-								} else {
-									defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
-									p.UpdtInfo = true
-								}
+								defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
+								p.UpdtInfo = false
 								if prsm.debugLevel > 1 {
 									StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, "updtRolesTree: port role selected BACKUP")
 								}
 							} else {
-								//if p.SelectedRole != PortRoleDesignatedPort {
 								defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
 								p.SelectedRole = PortRoleDesignatedPort
 								defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
 								p.UpdtInfo = true
-								//}
 								if prsm.debugLevel > 1 {
 									StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, "updtRolesTree:3 port role selected DESIGNATED")
 								}
