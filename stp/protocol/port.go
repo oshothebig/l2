@@ -206,7 +206,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		Role:                PortRoleDisabledPort,
 		SelectedRole:        PortRoleDisabledPort,
 		PortTimes:           RootTimes,
-		SendRSTP:            false, // default
+		SendRSTP:            true,  // default
 		RcvdRSTP:            false, // default
 		RstpVersion:         b.ForceVersion >= 2,
 		Mcheck:              b.ForceVersion >= 2,

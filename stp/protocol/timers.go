@@ -204,7 +204,8 @@ func (p *StpPort) DecrementTimerCounters() {
 		p.BAWhileTimer.count--
 	}
 
-	if p.BAWhileTimer.count == 0 {
+	if p.BridgeAssurance &&
+		p.BAWhileTimer.count == 0 {
 		p.BridgeAssuranceInconsistant = true
 		p.NotifySelectedRoleChanged("BAM", p.SelectedRole, PortRoleDisabledPort)
 		p.SelectedRole = PortRoleDisabledPort
