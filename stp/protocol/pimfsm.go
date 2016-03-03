@@ -953,6 +953,11 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 	if pim.isTcnBPDU(data) {
 		return OtherInfo
 	}
+	// 17.21.8 NOTE
+	switch bpduLayer.(type) {
+	case *layers.STP:
+		msgRole = PortRoleDesignatedPort
+	}
 
 	// TODO find where this is in spec
 	if CompareBridgeAddr(GetBridgeAddrFromBridgeId(msgpriority.RootBridgeId), GetBridgeAddrFromBridgeId(p.b.BridgeIdentifier)) == 0 {
