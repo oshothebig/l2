@@ -523,7 +523,8 @@ func (tcm *TcMachine) FlushFdb() {
 	//time.Sleep(delay)
 	StpMachineLogger("INFO", "TCM", p.IfIndex, p.BrgIfIndex, "FDB Flush")
 	p.FdbFlush = false
-	if p.Learn; p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateInactive {
+	if p.Learn &&
+		p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateInactive {
 		p.TcMachineFsm.TcEvents <- MachineEvent{
 			e:   TcEventLearnAndNotFdbFlush,
 			src: "ASICD",
