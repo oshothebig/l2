@@ -366,7 +366,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			validPdu = true
 		}
 
-		//StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received RSTP packet")
+		StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received RSTP packet flags", rstp.Flags))
 
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, false)
 		p.RcvdTc = StpGetBpduTopoChange(flags)
@@ -400,7 +400,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			validPdu = true
 		}
 
-		//StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received RSTP packet")
+		StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received PVST packet flags", pvst.Flags))
 
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, StpGetBpduTopoChangeAck(flags))
 		p.RcvdTc = StpGetBpduTopoChange(flags)
