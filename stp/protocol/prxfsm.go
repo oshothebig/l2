@@ -359,6 +359,9 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 						src:  PrxmMachineModuleStr}
 				}
 			}
+			// lets reset the timer as we have received an rstp frame
+			p.MdelayWhiletimer.count = MigrateTimeDefault
+
 			p.RcvdRSTP = true
 			validPdu = true
 		}
@@ -390,6 +393,9 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 						src:  PrxmMachineModuleStr}
 				}
 			}
+			// lets reset the timer as we have received an rstp frame
+			p.MdelayWhiletimer.count = MigrateTimeDefault
+
 			p.RcvdRSTP = true
 			validPdu = true
 		}
@@ -450,15 +456,17 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			// Inform the Port Protocol Migration State Machine
 			// that we have received an STP packet when we were previously
 			// sending RSTP
-			if p.SendRSTP {
-				if p.PpmmMachineFsm != nil {
-					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
-						e:    PpmmEventSendRSTPAndRcvdSTP,
-						data: bpduLayer,
-						src:  PrxmMachineModuleStr}
+			if p.MdelayWhiletimer.count == 0 {
+				if p.SendRSTP {
+					if p.PpmmMachineFsm != nil {
+						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+							e:    PpmmEventSendRSTPAndRcvdSTP,
+							data: bpduLayer,
+							src:  PrxmMachineModuleStr}
+					}
 				}
+				p.RcvdSTP = true
 			}
-			p.RcvdSTP = true
 			validPdu = true
 			StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, "Received TCN packet")
 			defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, false, true, false)
