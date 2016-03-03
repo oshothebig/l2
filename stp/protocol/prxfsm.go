@@ -423,7 +423,12 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 						src:  PrxmMachineModuleStr}
 				}
 			}
-			p.RcvdSTP = true
+			// do not transition this to STP true until
+			// mdelay while exires, this gives the far end enough
+			// time to transition
+			if p.MdelayWhiletimer.count == 0 {
+				p.RcvdSTP = true
+			}
 			//			}
 
 			validPdu = true
