@@ -199,6 +199,7 @@ func (p *StpPort) DecrementTimerCounters() {
 
 	// Bridge Assurance
 	if p.BridgeAssurance &&
+		!p.OperEdge &&
 		p.PortEnabled &&
 		p.BAWhileTimer.count > 0 {
 		p.BAWhileTimer.count--
