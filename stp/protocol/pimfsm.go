@@ -122,7 +122,7 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	pim.Machine.Rules = r
 	pim.Machine.Curr = &StpStateEvent{
 		strStateMap: PimStateStrMap,
-		logEna:      true, // this will produce excessive logging as rx packets cause machine to change states constantly
+		logEna:      false, // this will produce excessive logging as rx packets cause machine to change states constantly
 		logger:      pim.PimLogger,
 		owner:       PimMachineModuleStr,
 		ps:          PimStateNone,
