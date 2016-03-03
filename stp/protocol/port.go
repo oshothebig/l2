@@ -203,8 +203,8 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		AdminPortEnabled:    c.Dot1dStpPortEnable,
 		PortEnabled:         enabled,
 		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
-		Role:                PortRoleInvalid,
-		SelectedRole:        PortRoleInvalid,
+		Role:                PortRoleDisabledPort,
+		SelectedRole:        PortRoleDisabledPort,
 		PortTimes:           RootTimes,
 		SendRSTP:            false, // default
 		RcvdRSTP:            false, // default
@@ -412,7 +412,7 @@ func (p *StpPort) BEGIN(restart bool) {
 	mEvtChan := make([]chan MachineEvent, 0)
 	evt := make([]MachineEvent, 0)
 
-	p.begin = true
+	//p.begin = true
 
 	if !restart {
 		// start all the State machines
