@@ -213,9 +213,9 @@ func (prsm *PrsMachine) clearReselectTree() {
 
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
-			if p.PortEnabled {
-				p.Reselect = false
-			}
+			//if p.PortEnabled {
+			p.Reselect = false
+			//}
 		}
 	}
 }
@@ -511,7 +511,7 @@ func (prsm *PrsMachine) setSelectedTree() {
 
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
-			if p.Reselect && p.PortEnabled {
+			if p.Reselect {
 				if prsm.debugLevel > 1 {
 					StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, "setSelectedTree: is in reselet mode")
 				}
