@@ -17,6 +17,7 @@ const (
 	TimerTypeRcvdInfoWhile
 	TimerTypeRrWhile
 	TimerTypeTcWhile
+	TimerTypeBAWhile
 )
 
 var TimerTypeStrMap map[TimerType]string
@@ -31,6 +32,7 @@ func TimerTypeStrStateMapInit() {
 	TimerTypeStrMap[TimerTypeRcvdInfoWhile] = "Received Info Timer"
 	TimerTypeStrMap[TimerTypeRrWhile] = "Recent Root Timer"
 	TimerTypeStrMap[TimerTypeTcWhile] = "topology Change Timer"
+	TimerTypeStrMap[TimerTypeBAWhile] = "Bridge Assurance While Timer"
 }
 
 // TickTimerStart: Port Timers Tick timer
@@ -193,6 +195,19 @@ func (p *StpPort) DecrementTimerCounters() {
 	}
 	if p.TcWhileTimer.count == 0 {
 		defer p.NotifyTcWhileTimerExpired()
+	}
+
+	// Bridge Assurance
+	if p.BridgeAssurance &&
+		p.PortEnabled &&
+		p.BAWhileTimer.count > 0 {
+		p.BAWhileTimer.count--
+	}
+
+	if p.BAWhileTimer.count == 0 {
+		p.BridgeAssuranceInconsistant = true
+		p.NotifySelectedRoleChanged("BAM", p.SelectedRole, PortRoleDisabledPort)
+		p.SelectedRole = PortRoleDisabledPort
 	}
 }
 

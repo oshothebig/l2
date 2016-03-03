@@ -218,6 +218,12 @@ func (pim *PimMachine) PimMachineCurrent(m fsm.Machine, data interface{}) fsm.St
 func (pim *PimMachine) PimMachineReceive(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
 	p.RcvdInfo = pim.rcvInfo(data)
+
+	if p.BridgeAssurance {
+		p.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
+		p.BridgeAssuranceInconsistant = false
+	}
+
 	return PimStateReceive
 }
 

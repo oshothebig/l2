@@ -62,6 +62,8 @@ func ConvertThriftPortConfigToStpPortConfig(config *stpd.Dot1dStpPortEntryConfig
 	portconfig.Dot1dStpPortAdminPointToPoint = int32(config.Dot1dStpPortAdminPointToPoint)
 	portconfig.Dot1dStpPortAdminEdgePort = ConvertInt32ToBool(config.Dot1dStpPortAdminEdgePort)
 	portconfig.Dot1dStpPortAdminPathCost = int32(config.Dot1dStpPortAdminPathCost)
+	portconfig.BridgeAssurance = ConvertInt32ToBool(config.BridgeAssurance)
+	portconfig.BpduGuard = ConvertInt32ToBool(config.BpduGuard)
 }
 
 func ConvertBridgeIdToString(bridgeid stp.BridgeId) string {
@@ -357,6 +359,7 @@ func (s *STPDServiceHandler) UpdateDot1dStpPortEntryConfig(origconfig *stpd.Dot1
 				// TOOD
 			}
 			if objName == "BridgeAssurance" {
+				stp.StpPortBridgeAssuranceSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.BridgeAssurance))
 
 			}
 		}
@@ -468,6 +471,11 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStatesPortT
 		nextStpPortState.Dot1dStpPortDesignatedCost = int32(p.PortPathCost)
 		nextStpPortState.Dot1dStpPortAdminPathCost = p.AdminPathCost
 		nextStpPortState.Dot1dStpPortPathCost32 = int32(p.PortPathCost)
+		// Bridge Assurance
+		nextStpPortState.BridgeAssuranceInconsistant = ConvertBoolToInt32(p.BridgeAssuranceInconsistant)
+		nextStpPortState.BridgeAssurance = ConvertBoolToInt32(p.BridgeAssurance)
+		// Bpdu Guard
+		nextStpPortState.BpduGuard = ConvertBoolToInt32(p.BpduGuard)
 		// root timers
 		nextStpPortState.Dot1dStpBridgePortMaxAge = int32(p.PortTimes.MaxAge)
 		nextStpPortState.Dot1dStpBridgePortForwardDelay = int32(p.PortTimes.ForwardingDelay)
@@ -511,6 +519,7 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStatesPortT
 		nextStpPortState.RcvdInfoWhile = p.RcvdInfoWhiletimer.GetCount()
 		nextStpPortState.RrWhile = p.RrWhileTimer.GetCount()
 		nextStpPortState.TcWhile = p.TcWhileTimer.GetCount()
+		nextStpPortState.BaWhile = p.BAWhileTimer.GetCount()
 
 		if len(returnStpPortStates) == 0 {
 			returnStpPortStates = make([]*stpd.Dot1dStpPortEntryStateCountersFsmStatesPortTimer, 0)

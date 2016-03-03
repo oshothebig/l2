@@ -26,6 +26,8 @@ type StpPortConfig struct {
 	Dot1dStpPortAdminEdgePort     bool
 	Dot1dStpPortAdminPathCost     int32
 	Dot1dStpBridgeIfIndex         int32
+	BridgeAssurance               bool
+	BpduGuard                     bool
 }
 
 func StpBridgeCreate(c *StpBridgeConfig) {
@@ -310,6 +312,18 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) {
 				src: "CONFIG: ProtocolMigrationSet",
 			}
 			p.Mcheck = true
+		}
+	}
+}
+
+func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) {
+	var p *StpPort
+	if StpFindPortByIfIndex(pId, bId, &p) {
+		if p.BridgeAssurance != bridgeassurance &&
+			!p.OperEdge {
+			p.BridgeAssurance = bridgeassurance
+			p.BridgeAssuranceInconsistant = false
+			p.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
 		}
 	}
 }
