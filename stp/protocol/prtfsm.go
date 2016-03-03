@@ -1059,8 +1059,8 @@ func (prtm *PrtMachine) ProcessPostStateRootPort() {
 	p := prtm.p
 	b := p.b
 	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-		//StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateRootPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
-		//	p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
+		StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateRootPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+			p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if p.Proposed &&
 			!p.Agree &&
 			p.Selected &&
