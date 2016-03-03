@@ -412,14 +412,19 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		if stp.ProtocolVersionId == layers.STPProtocolVersion &&
 			stp.BPDUType == layers.BPDUTypeSTP {
 
-			if p.MdelayWhiletimer.count == 0 {
-				StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, "MDELAY WHILE EXPIRED, will now set rcvdSTP if not topology")
-				// Found that Cisco send dot1d frame for tc going to
-				// still interpret this as RSTP frame
-				//if StpGetBpduTopoChange(flags) ||
-				//	StpGetBpduTopoChangeAck(flags) {
-				//	p.RcvdRSTP = true
-				//} else {
+			// Found that Cisco send dot1d frame for tc going to
+			// still interpret this as RSTP frame
+			if p.SendRSTP &&
+				(StpGetBpduTopoChange(flags) ||
+					StpGetBpduTopoChangeAck(flags)) {
+				// lets reset the timer as we have received an stp config frame
+				// according to Cisco:
+				//Protocol migration—For backward compatibility with 802.1D switches,
+				//802.1w selectively sends 802.1D configuration BPDUs and TCN BPDUs
+				//on a per-port basis.
+				p.MdelayWhiletimer.count = MigrateTimeDefault
+				p.RcvdRSTP = true
+			} else {
 				// Inform the Port Protocol Migration State Machine
 				// that we have received an STP packet when we were previously
 				// sending RSTP
@@ -438,7 +443,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 					p.RcvdSTP = true
 				}
 			}
-			//}
+
 			validPdu = true
 		}
 
