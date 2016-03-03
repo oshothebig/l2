@@ -83,11 +83,11 @@ func (p *StpPort) DecrementTimerCounters() {
 	// ed owner
 	if p.EdgeDelayWhileTimer.count > 0 {
 		p.EdgeDelayWhileTimer.count--
-	}
-	if p.EdgeDelayWhileTimer.count == 0 {
-		defer p.NotifyEdgeDelayWhileTimerExpired()
-	}
 
+		if p.EdgeDelayWhileTimer.count == 0 {
+			defer p.NotifyEdgeDelayWhileTimerExpired()
+		}
+	}
 	// Prt owner
 	if p.FdWhileTimer.count > 0 {
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort &&
@@ -100,24 +100,27 @@ func (p *StpPort) DecrementTimerCounters() {
 			}
 		}
 		p.FdWhileTimer.count--
-	}
-	if p.FdWhileTimer.count == 0 {
-		defer p.NotifyFdWhileTimerExpired()
+
+		if p.FdWhileTimer.count == 0 {
+			defer p.NotifyFdWhileTimerExpired()
+		}
 	}
 	// ptx owner
 	if p.HelloWhenTimer.count > 0 {
 		p.HelloWhenTimer.count--
-	}
-	if p.HelloWhenTimer.count == 0 {
-		defer p.NotifyHelloWhenTimerExpired()
+
+		if p.HelloWhenTimer.count == 0 {
+			defer p.NotifyHelloWhenTimerExpired()
+		}
 	}
 
 	// ppm owner
 	if p.MdelayWhiletimer.count > 0 {
 		p.MdelayWhiletimer.count--
-	}
-	if p.MdelayWhiletimer.count == 0 {
-		defer p.NotifyMdelayWhileTimerExpired()
+
+		if p.MdelayWhiletimer.count == 0 {
+			defer p.NotifyMdelayWhileTimerExpired()
+		}
 	}
 	// prt owner
 	if p.RbWhileTimer.count > 0 {
@@ -132,16 +135,18 @@ func (p *StpPort) DecrementTimerCounters() {
 			}
 		}
 		p.RbWhileTimer.count--
-	}
-	if p.RbWhileTimer.count == 0 {
-		defer p.NotifyRbWhileTimerExpired()
+
+		if p.RbWhileTimer.count == 0 {
+			defer p.NotifyRbWhileTimerExpired()
+		}
 	}
 	// pi owner
 	if p.RcvdInfoWhiletimer.count > 0 {
 		p.RcvdInfoWhiletimer.count--
-	}
-	if p.RcvdInfoWhiletimer.count == 0 {
-		defer p.NotifyRcvdInfoWhileTimerExpired()
+
+		if p.RcvdInfoWhiletimer.count == 0 {
+			defer p.NotifyRcvdInfoWhileTimerExpired()
+		}
 	}
 	// prt owner
 	if p.RrWhileTimer.count > 0 {
@@ -185,31 +190,31 @@ func (p *StpPort) DecrementTimerCounters() {
 				}
 			}
 		}
-	}
-	if p.RrWhileTimer.count == 0 {
-		defer p.NotifyRrWhileTimerExpired()
+
+		if p.RrWhileTimer.count == 0 {
+			defer p.NotifyRrWhileTimerExpired()
+		}
 	}
 	// tc owner
 	if p.TcWhileTimer.count > 0 {
 		p.TcWhileTimer.count--
-	}
-	if p.TcWhileTimer.count == 0 {
-		defer p.NotifyTcWhileTimerExpired()
-	}
 
+		if p.TcWhileTimer.count == 0 {
+			defer p.NotifyTcWhileTimerExpired()
+		}
+	}
 	// Bridge Assurance
 	if p.BridgeAssurance &&
 		!p.OperEdge &&
 		p.PortEnabled &&
 		p.BAWhileTimer.count > 0 {
 		p.BAWhileTimer.count--
-	}
 
-	if p.BridgeAssurance &&
-		p.BAWhileTimer.count == 0 {
-		p.BridgeAssuranceInconsistant = true
-		p.NotifySelectedRoleChanged("BAM", p.SelectedRole, PortRoleDisabledPort)
-		p.SelectedRole = PortRoleDisabledPort
+		if p.BAWhileTimer.count == 0 {
+			p.BridgeAssuranceInconsistant = true
+			p.NotifySelectedRoleChanged("BAM", p.SelectedRole, PortRoleDisabledPort)
+			p.SelectedRole = PortRoleDisabledPort
+		}
 	}
 }
 

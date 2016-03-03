@@ -410,29 +410,29 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 				StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, "MDELAY WHILE EXPIRED, will now set rcvdSTP if not topology")
 				// Found that Cisco send dot1d frame for tc going to
 				// still interpret this as RSTP frame
-				if StpGetBpduTopoChange(flags) ||
-					StpGetBpduTopoChangeAck(flags) {
-					p.RcvdRSTP = true
-				} else {
-					// Inform the Port Protocol Migration State Machine
-					// that we have received an STP packet when we were previously
-					// sending RSTP
-					// do not transition this to STP true until
-					// mdelay while exires, this gives the far end enough
-					// time to transition
-					if p.MdelayWhiletimer.count == 0 {
-						if p.SendRSTP {
-							if p.PpmmMachineFsm != nil {
-								p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
-									e:    PpmmEventSendRSTPAndRcvdSTP,
-									data: bpduLayer,
-									src:  PrxmMachineModuleStr}
-							}
+				//if StpGetBpduTopoChange(flags) ||
+				//	StpGetBpduTopoChangeAck(flags) {
+				//	p.RcvdRSTP = true
+				//} else {
+				// Inform the Port Protocol Migration State Machine
+				// that we have received an STP packet when we were previously
+				// sending RSTP
+				// do not transition this to STP true until
+				// mdelay while exires, this gives the far end enough
+				// time to transition
+				if p.MdelayWhiletimer.count == 0 {
+					if p.SendRSTP {
+						if p.PpmmMachineFsm != nil {
+							p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+								e:    PpmmEventSendRSTPAndRcvdSTP,
+								data: bpduLayer,
+								src:  PrxmMachineModuleStr}
 						}
-						p.RcvdSTP = true
 					}
+					p.RcvdSTP = true
 				}
 			}
+			//}
 			validPdu = true
 		}
 
