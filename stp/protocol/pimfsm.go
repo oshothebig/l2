@@ -954,7 +954,7 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 		return OtherInfo
 	}
 	// 17.21.8 NOTE
-	switch bpduLayer.(type) {
+	switch data.(type) {
 	case *layers.STP:
 		msgRole = PortRoleDesignatedPort
 	}
