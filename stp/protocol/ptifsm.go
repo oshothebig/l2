@@ -102,7 +102,7 @@ func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ptm.Machine.Rules = r
 	ptm.Machine.Curr = &StpStateEvent{
 		strStateMap: PtmStateStrMap,
-		logEna:      true, // WARNING do not enable as this will cause a log ever second
+		logEna:      false, // WARNING do not enable as this will cause a log ever second
 		logger:      ptm.PtmLogger,
 		owner:       PtmMachineModuleStr,
 		ps:          PtmStateNone,

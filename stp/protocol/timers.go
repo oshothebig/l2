@@ -2,7 +2,7 @@
 package stp
 
 import (
-	"fmt"
+	//"fmt"
 	"time"
 )
 
@@ -62,17 +62,17 @@ func (p *StpPort) ResetTimerCounters(counterType TimerType) {
 }
 
 func (p *StpPort) DecrementTimerCounters() {
-	StpMachineLogger("INFO", "PTIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("EdgeDelayWhile[%d] FdWhileTimer[%d] HelloWhen[%d] MdelayWhile[%d] RbWhile[%d] RcvdInfoWhile[%d] RrWhile[%d] TcWhile[%d] txcount[%d]",
-		p.EdgeDelayWhileTimer.count,
-		p.FdWhileTimer.count,
-		p.HelloWhenTimer.count,
-		p.MdelayWhiletimer.count,
-		p.RbWhileTimer.count,
-		p.RcvdInfoWhiletimer.count,
-		p.RrWhileTimer.count,
-		p.TcWhileTimer.count,
-		p.TxCount))
-
+	/*StpMachineLogger("INFO", "PTIM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("EdgeDelayWhile[%d] FdWhileTimer[%d] HelloWhen[%d] MdelayWhile[%d] RbWhile[%d] RcvdInfoWhile[%d] RrWhile[%d] TcWhile[%d] txcount[%d]",
+	p.EdgeDelayWhileTimer.count,
+	p.FdWhileTimer.count,
+	p.HelloWhenTimer.count,
+	p.MdelayWhiletimer.count,
+	p.RbWhileTimer.count,
+	p.RcvdInfoWhiletimer.count,
+	p.RrWhileTimer.count,
+	p.TcWhileTimer.count,
+	p.TxCount))
+	*/
 	// 17.19.44
 	if p.TxCount > 0 {
 		p.TxCount--
@@ -211,8 +211,8 @@ func (p *StpPort) NotifyEdgeDelayWhileTimerExpired() {
 }
 
 func (p *StpPort) NotifyFdWhileTimerExpired() {
-	StpMachineLogger("INFO", "TIMER", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("FdWhileTimerExpired: PrtState[%s] RstpVersion[%t] Learn[%t] Forward[%t] Sync[%t] reroot[%t] rrwhile[%d] selected[%t] updtInfo[%t]",
-		PrtStateStrMap[p.PrtMachineFsm.Machine.Curr.CurrentState()], p.RstpVersion, p.Learn, p.Forward, p.Sync, p.ReRoot, p.RrWhileTimer.count, p.Selected, p.UpdtInfo))
+	//StpMachineLogger("INFO", "TIMER", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("FdWhileTimerExpired: PrtState[%s] RstpVersion[%t] Learn[%t] Forward[%t] Sync[%t] reroot[%t] rrwhile[%d] selected[%t] updtInfo[%t]",
+	//	PrtStateStrMap[p.PrtMachineFsm.Machine.Curr.CurrentState()], p.RstpVersion, p.Learn, p.Forward, p.Sync, p.ReRoot, p.RrWhileTimer.count, p.Selected, p.UpdtInfo))
 	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
 		// events from Figure 17-21
 		if p.RstpVersion &&
