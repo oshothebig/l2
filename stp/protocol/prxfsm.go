@@ -407,7 +407,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			stp.BPDUType == layers.BPDUTypeSTP {
 
 			if p.MdelayWhiletimer.count == 0 {
-				StpMachineLogger("INFO", p.IfIndex, p.BrgIfIndex, "MDELAY WHILE EXPIRED, will now set rcvdSTP if not topology")
+				StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, "MDELAY WHILE EXPIRED, will now set rcvdSTP if not topology")
 				// Found that Cisco send dot1d frame for tc going to
 				// still interpret this as RSTP frame
 				if StpGetBpduTopoChange(flags) ||
