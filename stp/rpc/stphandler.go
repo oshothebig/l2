@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"stpd"
 	//"time"
+	"errors"
 )
 
 const DBName string = "UsrConfDb.db"
@@ -147,8 +148,9 @@ func (s *STPDServiceHandler) HandleDbReadDot1dStpBridgeConfig(dbHdl *sql.DB) err
 	for rows.Next() {
 
 		object := new(stpd.Dot1dStpBridgeConfig)
-		if err = rows.Scan(&object.Dot1dBridgeAddress,
+		if err = rows.Scan(
 			&object.Dot1dStpVlan,
+			&object.Dot1dBridgeAddress,
 			&object.Dot1dStpPriority,
 			&object.Dot1dStpBridgeMaxAge,
 			&object.Dot1dStpBridgeHelloTime,
@@ -189,7 +191,9 @@ func (s *STPDServiceHandler) HandleDbReadDot1dStpPortEntryConfig(dbHdl *sql.DB) 
 			&object.Dot1dStpPortProtocolMigration,
 			&object.Dot1dStpPortAdminPointToPoint,
 			&object.Dot1dStpPortAdminEdgePort,
-			&object.Dot1dStpPortAdminPathCost); err != nil {
+			&object.Dot1dStpPortAdminPathCost,
+			&object.BpduGuard,
+			&object.BridgeAssurance); err != nil {
 			stp.StpLogger("ERROR", "Db method Scan failed when interating over Dot1dStpPortEntryConfig")
 			return err
 		}
@@ -238,9 +242,20 @@ func (s *STPDServiceHandler) DeleteDot1dStpBridgeConfig(config *stpd.Dot1dStpBri
 }
 
 func (s *STPDServiceHandler) UpdateDot1dStpBridgeConfig(origconfig *stpd.Dot1dStpBridgeConfig, updateconfig *stpd.Dot1dStpBridgeConfig, attrset []bool) (bool, error) {
+	var b *stp.Bridge
 	objTyp := reflect.TypeOf(*origconfig)
 	//objVal := reflect.ValueOf(origconfig)
 	//updateObjVal := reflect.ValueOf(*updateconfig)
+
+	key := stp.BridgeKey{
+		Vlan: uint16(origconfig.Dot1dStpVlan),
+	}
+	brgIfIndex := int32(0)
+	if stp.StpFindBridgeById(key, &b) {
+		brgIfIndex = b.BrgIfIndex
+	} else {
+		return false, errors.New("Unknown Bridge in update config")
+	}
 
 	// important to note that the attrset starts at index 0 which is the BaseObj
 	// which is not the first element on the thrift obj, thus we need to skip
@@ -250,6 +265,27 @@ func (s *STPDServiceHandler) UpdateDot1dStpBridgeConfig(origconfig *stpd.Dot1dSt
 		//fmt.Println("UpdateDot1dStpBridgeConfig (server): (index, objName) ", i, objName)
 		if attrset[i] {
 			stp.StpLogger("INFO", fmt.Sprintf("UpdateDot1dStpBridgeConfig (server): changed ", objName))
+
+			if objName == "Dot1dStpBridgeMaxAge" {
+				stp.StpBrgMaxAgeSet(brgIfIndex, uint16(updateconfig.Dot1dStpBridgeMaxAge))
+			}
+			if objName == "Dot1dStpBridgeHelloTime" {
+				stp.StpBrgHelloTimeSet(brgIfIndex, uint16(updateconfig.Dot1dStpBridgeHelloTime))
+			}
+			if objName == "Dot1dStpBridgeForwardDelay" {
+				stp.StpBrgForwardDelaySet(brgIfIndex, uint16(updateconfig.Dot1dStpBridgeForwardDelay))
+			}
+			if objName == "Dot1dStpBridgeTxHoldCount" {
+				stp.StpBrgTxHoldCountSet(brgIfIndex, uint16(updateconfig.Dot1dStpBridgeTxHoldCount))
+			}
+			// causes re-selection
+			if objName == "Dot1dStpPriority" {
+				stp.StpBrgPrioritySet(brgIfIndex, uint16(updateconfig.Dot1dStpPriority))
+			}
+			// causes restart
+			if objName == "Dot1dStpBridgeForceVersion" {
+				stp.StpBrgForceVersion(brgIfIndex, updateconfig.Dot1dStpBridgeForceVersion)
+			}
 		}
 	}
 	return true, nil
@@ -278,6 +314,15 @@ func (s *STPDServiceHandler) UpdateDot1dStpPortEntryConfig(origconfig *stpd.Dot1
 	//objVal := reflect.ValueOf(origconfig)
 	//updateObjVal := reflect.ValueOf(*updateconfig)
 
+	var p *stp.StpPort
+	ifIndex := int32(origconfig.Dot1dStpPort)
+	brgIfIndex := int32(origconfig.Dot1dBrgIfIndex)
+	if stp.StpFindPortByIfIndex(ifIndex, brgIfIndex, &p) {
+		ifIndex = p.IfIndex
+	} else {
+		return false, errors.New("Unknown Stp port in update config")
+	}
+
 	// important to note that the attrset starts at index 0 which is the BaseObj
 	// which is not the first element on the thrift obj, thus we need to skip
 	// this attribute
@@ -286,6 +331,34 @@ func (s *STPDServiceHandler) UpdateDot1dStpPortEntryConfig(origconfig *stpd.Dot1
 		//fmt.Println("UpdateDot1dStpBridgeConfig (server): (index, objName) ", i, objName)
 		if attrset[i] {
 			stp.StpLogger("INFO", fmt.Sprintf("UpdateDot1dStpBridgeConfig (server): changed ", objName))
+
+			if objName == "Dot1dStpPortPriority" {
+				stp.StpPortPrioritySet(ifIndex, brgIfIndex, uint16(updateconfig.Dot1dStpPortPriority))
+			}
+			if objName == "Dot1dStpPortEnable" {
+				stp.StpPortEnable(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.Dot1dStpPortEnable))
+			}
+			if objName == "Dot1dStpPortPathCost" {
+				stp.StpPortPortPathCostSet(ifIndex, brgIfIndex, uint32(updateconfig.Dot1dStpPortPathCost))
+			}
+			if objName == "Dot1dStpPortProtocolMigration" {
+				stp.StpPortProtocolMigrationSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.Dot1dStpPortProtocolMigration))
+			}
+			if objName == "Dot1dStpPortAdminPointToPoint" {
+				// TODO
+			}
+			if objName == "Dot1dStpPortAdminEdgePort" {
+				stp.StpPortAdminEdgeSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.Dot1dStpPortAdminEdgePort))
+			}
+			if objName == "Dot1dStpPortAdminPathCost" {
+				// TODO
+			}
+			if objName == "BpduGuard" {
+				// TOOD
+			}
+			if objName == "BridgeAssurance" {
+
+			}
 		}
 	}
 

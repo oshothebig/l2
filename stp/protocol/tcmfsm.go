@@ -318,6 +318,12 @@ func (p *StpPort) TcMachineMain() {
 				return
 
 			case event := <-m.TcEvents:
+
+				if m.Machine.Curr.CurrentState() == TcStateNone && event.e != TcEventBegin {
+					m.TcEvents <- event
+					continue
+				}
+
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {

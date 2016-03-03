@@ -99,7 +99,7 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	prxm.Machine.Rules = r
 	prxm.Machine.Curr = &StpStateEvent{
 		strStateMap: PrxmStateStrMap,
-		logEna:      false,
+		logEna:      true,
 		logger:      prxm.PrxmLogger,
 		owner:       PrxmMachineModuleStr,
 		ps:          PrxmStateNone,
@@ -220,6 +220,12 @@ func (p *StpPort) PrxmMachineMain() {
 				return
 
 			case event := <-m.PrxmEvents:
+
+				if m.Machine.Curr.CurrentState() == PrxmStateNone && event.e != PrxmEventBegin {
+					m.PrxmEvents <- event
+					continue
+				}
+
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
@@ -233,6 +239,11 @@ func (p *StpPort) PrxmMachineMain() {
 					SendResponse(PrxmMachineModuleStr, event.responseChan)
 				}
 			case rx := <-m.PrxmRxBpduPkt:
+
+				if m.Machine.Curr.CurrentState() == PrxmStateNone {
+					continue
+				}
+
 				//fmt.Println("Event PKT Rx", rx.src, rx.ptype, p.PortEnabled)
 				if m.Machine.Curr.CurrentState() == PrxmStateDiscard {
 					if p.PortEnabled {
@@ -397,23 +408,28 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 
 			// Found that Cisco send dot1d frame for tc going to
 			// still interpret this as RSTP frame
-			if StpGetBpduTopoChange(flags) ||
-				StpGetBpduTopoChangeAck(flags) {
-				p.RcvdRSTP = true
-			} else {
-				// Inform the Port Protocol Migration State Machine
-				// that we have received an STP packet when we were previously
-				// sending RSTP
-				if p.SendRSTP {
-					if p.PpmmMachineFsm != nil {
-						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
-							e:    PpmmEventSendRSTPAndRcvdSTP,
-							data: bpduLayer,
-							src:  PrxmMachineModuleStr}
-					}
+			//			if StpGetBpduTopoChange(flags) ||
+			//				StpGetBpduTopoChangeAck(flags) {
+			//				p.RcvdRSTP = true
+			//			} else {
+			// Inform the Port Protocol Migration State Machine
+			// that we have received an STP packet when we were previously
+			// sending RSTP
+			if p.SendRSTP {
+				if p.PpmmMachineFsm != nil {
+					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+						e:    PpmmEventSendRSTPAndRcvdSTP,
+						data: bpduLayer,
+						src:  PrxmMachineModuleStr}
 				}
+			}
+			// do not transition this to STP true until
+			// mdelay while exires, this gives the far end enough
+			// time to transition
+			if p.MdelayWhiletimer.count == 0 {
 				p.RcvdSTP = true
 			}
+			//			}
 
 			validPdu = true
 		}

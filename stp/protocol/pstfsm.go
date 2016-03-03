@@ -204,6 +204,12 @@ func (p *StpPort) PstMachineMain() {
 				return
 
 			case event := <-m.PstEvents:
+
+				if m.Machine.Curr.CurrentState() == PstStateNone && event.e != PstEventBegin {
+					m.PstEvents <- event
+					continue
+				}
+
 				//fmt.Println("Event Rx", event.src, event.e)
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {

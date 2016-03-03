@@ -213,9 +213,9 @@ func (prsm *PrsMachine) clearReselectTree() {
 
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
-			if p.PortEnabled {
-				p.Reselect = false
-			}
+			//if p.PortEnabled {
+			p.Reselect = false
+			//}
 		}
 	}
 }
@@ -387,6 +387,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 			if prsm.debugLevel > 1 {
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, b.BrgIfIndex, fmt.Sprintf("updtRolesTree: portEnabled %t, infoIs %d\n", p.PortEnabled, p.InfoIs))
 			}
+
 			// Assign the port roles
 			if !p.PortEnabled || p.InfoIs == PortInfoStateDisabled {
 				// 17.21.25 (f) if port is disabled

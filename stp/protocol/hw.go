@@ -140,19 +140,19 @@ func asicDPortBmpFormatGet(distPortList []string) string {
 
 }
 
-func asicdGetPortLinkStatus(intfNum string) bool {
+func asicdGetPortLinkStatus(pId int32) bool {
 
 	if asicdclnt.ClientHdl != nil {
-		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(asicdServices.Int(hwconst.MIN_SYS_PORTS), asicdServices.Int(hwconst.MIN_SYS_PORTS))
+		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(asicdServices.Int(hwconst.MIN_SYS_PORTS), asicdServices.Int(hwconst.MAX_SYS_PORTS))
 		if err == nil && bulkInfo.Count != 0 {
 			objCount := int64(bulkInfo.Count)
 			for i := int64(0); i < objCount; i++ {
-				if bulkInfo.PortStateList[i].Name == intfNum {
+				if bulkInfo.PortStateList[i].IfIndex == pId {
 					return bulkInfo.PortStateList[i].OperState == pluginCommon.UpDownState[1]
 				}
 			}
 		}
-		StpLogger("INFO", fmt.Sprintf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum))
+		StpLogger("INFO", fmt.Sprintf("asicDGetPortLinkSatus: could not get status for port %d, failure in get method\n", pId))
 	}
 	return true
 

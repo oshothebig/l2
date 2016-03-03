@@ -39,12 +39,14 @@ type StpPort struct {
 	ProtocolPortId uint16
 
 	// 17.19
-	AgeingTime    int32
-	Agree         bool
-	Agreed        bool
-	AdminEdge     bool
-	AutoEdgePort  bool // optional
-	AdminPathCost int32
+	AgeingTime      int32
+	Agree           bool
+	Agreed          bool
+	AdminEdge       bool
+	AutoEdgePort    bool // optional
+	AdminPathCost   int32
+	BpduGuard       bool
+	BridgeAssurance bool
 	//DesignatedPriority PriorityVector
 	//DesignatedTimes    Times
 	Disputed     bool
@@ -166,16 +168,19 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	enabled := c.Dot1dStpPortEnable
 	if enabled {
 		// TODO get the status from asicd
-		netif, err := netlink.LinkByName(PortConfigMap[c.Dot1dStpPort].Name)
-		StpLogger("INFO", fmt.Sprintf("LinkByName err %#v", err))
+		/*
+			netif, err := netlink.LinkByName(PortConfigMap[c.Dot1dStpPort].Name)
+			StpLogger("INFO", fmt.Sprintf("LinkByName err %#v", err))
 
-		if err == nil {
-			netifattr := netif.Attrs()
-			//if netifattr.Flags&syscall.IFF_RUNNING == syscall.IFF_RUNNING {
-			if (netifattr.Flags & 1) == 1 {
-				enabled = true
+			if err == nil {
+				netifattr := netif.Attrs()
+				//if netifattr.Flags&syscall.IFF_RUNNING == syscall.IFF_RUNNING {
+				if (netifattr.Flags & 1) == 1 {
+					enabled = true
+				}
 			}
-		}
+		*/
+		enabled = asicdGetPortLinkStatus(c.Dot1dStpPort)
 	} else {
 		// in the case of tests we may not find the actual link so lets force
 		// enabled to configured value
@@ -199,6 +204,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		PortEnabled:         enabled,
 		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
 		Role:                PortRoleDisabledPort,
+		SelectedRole:        PortRoleDisabledPort,
 		PortTimes:           RootTimes,
 		SendRSTP:            false, // default
 		RcvdRSTP:            false, // default
@@ -406,6 +412,8 @@ func (p *StpPort) BEGIN(restart bool) {
 	mEvtChan := make([]chan MachineEvent, 0)
 	evt := make([]MachineEvent, 0)
 
+	//p.begin = true
+
 	if !restart {
 		// start all the State machines
 		// Port Timer State Machine
@@ -451,7 +459,7 @@ func (p *StpPort) BEGIN(restart bool) {
 			src: PortConfigModuleStr})
 	}
 
-	// Ppm
+	// Ptxm
 	if p.PtxmMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.PtxmMachineFsm.PtxmEvents)
 		evt = append(evt, MachineEvent{e: PtxmEventBegin,
@@ -512,7 +520,7 @@ func (p *StpPort) BEGIN(restart bool) {
 	if p.PtmMachineFsm != nil {
 		p.PtmMachineFsm.TickTimerStart()
 	}
-
+	StpMachineLogger("INFO", "PORT", p.IfIndex, p.BrgIfIndex, "BEGIN complete")
 	p.begin = false
 }
 

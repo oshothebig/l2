@@ -14,8 +14,7 @@ var BridgeListTable []*Bridge
 
 type BridgeId [8]uint8
 type BridgeKey struct {
-	vlan uint16
-	mac  [6]uint8
+	Vlan uint16
 }
 
 type Bridge struct {
@@ -112,8 +111,7 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 	}
 
 	key := BridgeKey{
-		vlan: b.Vlan,
-		mac:  addr,
+		Vlan: b.Vlan,
 	}
 
 	BridgeMapTable[key] = b
@@ -156,10 +154,8 @@ func DelStpBridge(b *Bridge, force bool) {
 	}
 	b.Stop()
 
-	addr := [6]uint8{b.BridgeIdentifier[2], b.BridgeIdentifier[3], b.BridgeIdentifier[4], b.BridgeIdentifier[5], b.BridgeIdentifier[6], b.BridgeIdentifier[7]}
 	key := BridgeKey{
-		vlan: b.Vlan,
-		mac:  addr,
+		Vlan: b.Vlan,
 	}
 
 	delete(BridgeMapTable, key)
@@ -258,6 +254,10 @@ func GetBridgeAddrFromBridgeId(b BridgeId) [6]uint8 {
 		b[6],
 		b[7],
 	}
+}
+
+func GetBridgeVlanFromBridgeId(b BridgeId) (vlan uint16) {
+	return uint16(((b[0] & 0xF) << 8) | b[1])
 }
 
 func GetBridgePriorityFromBridgeId(b BridgeId) uint16 {

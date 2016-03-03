@@ -407,6 +407,12 @@ func (p *StpPort) PimMachineMain() {
 				return
 
 			case event := <-m.PimEvents:
+
+				if m.Machine.Curr.CurrentState() == PimStateNone && event.e != PimEventBegin {
+					m.PimEvents <- event
+					continue
+				}
+
 				//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
 				rv := m.Machine.ProcessEvent(event.src, event.e, event.data)
 				if rv != nil {
