@@ -189,6 +189,7 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 					MacAddrMask: "FF:FF:FF:FF:FF:FF",
 					VlanId:      int32(v),
 				}
+				StpLogger("INFO", fmt.Sprintf("Creating PVST MAC entry %#v", protocolmac))
 				asicdclnt.ClientHdl.EnablePacketReception(&protocolmac)
 			}
 		}
@@ -214,9 +215,12 @@ func asicdDeleteStgBridge(stgid int32, vlanList []uint16) error {
 					MacAddrMask: "FF:FF:FF:FF:FF:FF",
 					VlanId:      int32(v),
 				}
+
+				StpLogger("INFO", fmt.Sprintf("Deleting PVST MAC entry %#v", protocolmac))
 				asicdclnt.ClientHdl.DisablePacketReception(&protocolmac)
 			}
 		}
+		StpLogger("INFO", fmt.Sprintf("Deleting Stg Group %d with vlans %#v", stgId, vl))
 
 		_, err := asicdclnt.ClientHdl.DeleteStg(stgid)
 		if err != nil {
