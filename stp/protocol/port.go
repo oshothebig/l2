@@ -2107,7 +2107,8 @@ func (p *StpPort) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn bool, 
 	//if oldrcvdtc != newrcvdtc ||
 	//	oldrcvdtcn != newrcvdtcn ||
 	//	oldrcvdtcack != newrcvdtcack {
-
+	StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("TC state[%s] tcn[%t] tcack[%t] tcn[%t]",
+		TcStateStrMap[p.TcMachineFsm.Machine.Curr.CurrentState()], p.RcvdTc, p.RcvdTcAck, p.RcvdTcn))
 	if p.RcvdTc &&
 		(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
 			p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {

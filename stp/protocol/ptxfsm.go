@@ -365,7 +365,7 @@ func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 			}
 		} else if !p.SendRSTP &&
 			p.NewInfo &&
-			(p.Role == PortRoleRootPort || p.BridgeAssurance) &&
+			p.Role == PortRoleRootPort &&
 			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected &&
@@ -378,7 +378,7 @@ func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 			}
 		} else if !p.SendRSTP &&
 			p.NewInfo &&
-			(p.Role == PortRoleDesignatedPort || p.BridgeAssurance) &&
+			p.Role == PortRoleDesignatedPort &&
 			p.TxCount < p.b.TxHoldCount &&
 			p.HelloWhenTimer.count != 0 &&
 			p.Selected &&

@@ -14,6 +14,21 @@ func ConvertBoolToUint8(v bool) (rv uint8) {
 	return rv
 }
 
+func ConvertRoleToPktRole(r PortRole) (rv uint8) {
+
+	switch r {
+	case PortRoleAlternatePort, PortRoleBackupPort:
+		rv = layers.RoleAlternateBackupPort
+	case PortRoleRootPort:
+		rv = layers.RoleRootPort
+	case PortRoleDesignatedPort:
+		rv = layers.RoleDesignatedPort
+	default:
+		rv = layers.RoleMasterPort
+	}
+	return
+}
+
 func (p *StpPort) BuildRSTPEthernetLlcHeaders() (eth layers.Ethernet, llc layers.LLC) {
 	pIntf, _ := PortConfigMap[p.IfIndex]
 
@@ -91,7 +106,7 @@ func (p *StpPort) TxPVST() {
 		ConvertBoolToUint8(p.Agree),
 		ConvertBoolToUint8(p.Forwarding),
 		ConvertBoolToUint8(p.Learning),
-		p.Role,
+		ConvertRoleToPktRole(p.Role),
 		ConvertBoolToUint8(p.Proposed),
 		ConvertBoolToUint8(p.TcWhileTimer.count != 0),
 		&flags)
@@ -163,7 +178,7 @@ func (p *StpPort) TxRSTP() {
 		ConvertBoolToUint8(p.Agree),
 		ConvertBoolToUint8(p.Forwarding),
 		ConvertBoolToUint8(p.Learning),
-		p.Role,
+		ConvertRoleToPktRole(p.Role),
 		ConvertBoolToUint8(p.Proposed),
 		ConvertBoolToUint8(p.TcWhileTimer.count != 0),
 		&flags)
