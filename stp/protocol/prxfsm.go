@@ -157,13 +157,6 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 		p.OperEdge = false
 	}
 
-	// rcvd a valid BPDU
-	if rcvdMsg &&
-		p.BridgeAssurance {
-		p.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
-		p.BridgeAssuranceInconsistant = false
-	}
-
 	//p.OperEdge = false
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
@@ -252,7 +245,7 @@ func (p *StpPort) PrxmMachineMain() {
 					continue
 				}
 
-				fmt.Println("Event PKT Rx", p.IfIndex, p.BrgIfIndex, rx.src, PrxmStateStrMap[m.Machine.Curr.CurrentState()], rx.ptype, p.RcvdMsg, p.PortEnabled)
+				//fmt.Println("Event PKT Rx", p.IfIndex, p.BrgIfIndex, rx.src, PrxmStateStrMap[m.Machine.Curr.CurrentState()], rx.ptype, p.RcvdMsg, p.PortEnabled)
 				if m.Machine.Curr.CurrentState() == PrxmStateDiscard {
 					if p.PortEnabled {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)

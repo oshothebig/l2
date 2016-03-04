@@ -122,7 +122,7 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	pim.Machine.Rules = r
 	pim.Machine.Curr = &StpStateEvent{
 		strStateMap: PimStateStrMap,
-		logEna:      true, // this will produce excessive logging as rx packets cause machine to change states constantly
+		logEna:      false, // this will produce excessive logging as rx packets cause machine to change states constantly
 		logger:      pim.PimLogger,
 		owner:       PimMachineModuleStr,
 		ps:          PimStateNone,
@@ -218,6 +218,12 @@ func (pim *PimMachine) PimMachineCurrent(m fsm.Machine, data interface{}) fsm.St
 func (pim *PimMachine) PimMachineReceive(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
 	p.RcvdInfo = pim.rcvInfo(data)
+
+	// rcvd a valid BPDU
+	if p.BridgeAssurance {
+		p.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
+		p.BridgeAssuranceInconsistant = false
+	}
 
 	return PimStateReceive
 }
@@ -1001,7 +1007,7 @@ func (pim *PimMachine) getRcvdMsgFlags(bpduLayer interface{}) uint8 {
 		flags = uint8(rstp.Flags)
 	case *layers.PVST:
 		//StpMachineLogger("INFO", "PIM", p.IfIndex, "Found PVST frame getting flags")
-		pvst := bpduLayer.(*layers.STP)
+		pvst := bpduLayer.(*layers.PVST)
 		flags = uint8(pvst.Flags)
 		//default:
 		//	StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("Error getRcvdMsgFlags rcvd TCN %T\n", bpduLayer))
