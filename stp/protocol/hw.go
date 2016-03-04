@@ -176,22 +176,21 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 		stgid, err := asicdclnt.ClientHdl.CreateStg(vl)
 		if err == nil {
 			StpLogger("INFO", fmt.Sprintf("Created Stg Group %d with vlans %#v", stgid, vl))
+			for _, v := range vl {
+				if v != 0 &&
+					v != DEFAULT_STP_BRIDGE_VLAN {
+					protocolmac := asicdServices.RsvdProtocolMacConfig{
+						MacAddr:     "01:00:0C:CC:CC:CD",
+						MacAddrMask: "FF:FF:FF:FF:FF:FF",
+						VlanId:      int32(v),
+					}
+					StpLogger("INFO", fmt.Sprintf("Creating PVST MAC entry %#v", protocolmac))
+					asicdclnt.ClientHdl.EnablePacketReception(&protocolmac)
+				}
+			}
 			return stgid
 		} else {
 			StpLogger("INFO", fmt.Sprintf("Create Stg Group error %#v", err))
-		}
-
-		for _, v := range vl {
-			if v != 0 &&
-				v != DEFAULT_STP_BRIDGE_VLAN {
-				protocolmac := asicdServices.RsvdProtocolMacConfig{
-					MacAddr:     "01:00:0C:CC:CC:CD",
-					MacAddrMask: "FF:FF:FF:FF:FF:FF",
-					VlanId:      int32(v),
-				}
-				StpLogger("INFO", fmt.Sprintf("Creating PVST MAC entry %#v", protocolmac))
-				asicdclnt.ClientHdl.EnablePacketReception(&protocolmac)
-			}
 		}
 	} else {
 		StpLogger("INFO", fmt.Sprintf("Create Stg Group failed asicd not connected"))
