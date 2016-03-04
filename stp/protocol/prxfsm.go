@@ -156,6 +156,14 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 		defer p.NotifyOperEdgeChanged(PrxmMachineModuleStr, p.OperEdge, false)
 		p.OperEdge = false
 	}
+
+	// rcvd a valid BPDU
+	if rcvdMsg &&
+		p.BridgeAssurance {
+		p.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
+		p.BridgeAssuranceInconsistant = false
+	}
+
 	//p.OperEdge = false
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
