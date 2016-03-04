@@ -160,7 +160,7 @@ func asicdGetPortLinkStatus(pId int32) bool {
 
 func asicdCreateStgBridge(vlanList []uint16) int32 {
 
-	vl := make([]int32, len(vlanList))
+	vl := make([]int32, 0)
 	//StpLogger("INFO", fmt.Sprintf("Created Stg Group vlanList[%#v]", vlanList))
 
 	if asicdclnt.ClientHdl != nil {
@@ -181,7 +181,7 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 			StpLogger("INFO", fmt.Sprintf("Create Stg Group error %#v", err))
 		}
 
-		for v := range vl {
+		for _, v := range vl {
 			if v != 0 &&
 				v != DEFAULT_STP_BRIDGE_VLAN {
 				protocolmac := asicdServices.RsvdProtocolMacConfig{
@@ -200,14 +200,14 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 }
 
 func asicdDeleteStgBridge(stgid int32, vlanList []uint16) error {
-	vl := make([]int32, len(vlanList))
+	vl := make([]int32, 0)
 
 	if asicdclnt.ClientHdl != nil {
 
 		for _, v := range vlanList {
 			vl = append(vl, int32(v))
 		}
-		for v := range vl {
+		for _, v := range vl {
 			if v != 0 &&
 				v != DEFAULT_STP_BRIDGE_VLAN {
 				protocolmac := asicdServices.RsvdProtocolMacConfig{
