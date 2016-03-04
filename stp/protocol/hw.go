@@ -180,15 +180,43 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 		} else {
 			StpLogger("INFO", fmt.Sprintf("Create Stg Group error %#v", err))
 		}
+
+		for v := range vl {
+			if v != 0 &&
+				v != DEFAULT_STP_BRIDGE_VLAN {
+				protocolmac := asicdServices.RsvdProtocolMacConfig{
+					MacAddr:     "01:00:0C:CC:CC:CD",
+					MacAddrMask: "FF:FF:FF:FF:FF:FF",
+					VlanId:      int32(v),
+				}
+				asicdclnt.ClientHdl.EnablePacketReception(&protocolmac)
+			}
+		}
 	} else {
 		StpLogger("INFO", fmt.Sprintf("Create Stg Group failed asicd not connected"))
 	}
 	return -1
 }
 
-func asicdDeleteStgBridge(stgid int32) error {
+func asicdDeleteStgBridge(stgid int32, vlanList []uint16) error {
+	vl := make([]int32, len(vlanList))
 
 	if asicdclnt.ClientHdl != nil {
+
+		for _, v := range vlanList {
+			vl = append(vl, int32(v))
+		}
+		for v := range vl {
+			if v != 0 &&
+				v != DEFAULT_STP_BRIDGE_VLAN {
+				protocolmac := asicdServices.RsvdProtocolMacConfig{
+					MacAddr:     "01:00:0C:CC:CC:CD",
+					MacAddrMask: "FF:FF:FF:FF:FF:FF",
+					VlanId:      int32(v),
+				}
+				asicdclnt.ClientHdl.DisablePacketReception(&protocolmac)
+			}
+		}
 
 		_, err := asicdclnt.ClientHdl.DeleteStg(stgid)
 		if err != nil {
