@@ -156,6 +156,7 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 		defer p.NotifyOperEdgeChanged(PrxmMachineModuleStr, p.OperEdge, false)
 		p.OperEdge = false
 	}
+
 	//p.OperEdge = false
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
@@ -244,7 +245,7 @@ func (p *StpPort) PrxmMachineMain() {
 					continue
 				}
 
-				//fmt.Println("Event PKT Rx", rx.src, rx.ptype, p.PortEnabled)
+				//fmt.Println("Event PKT Rx", p.IfIndex, p.BrgIfIndex, rx.src, PrxmStateStrMap[m.Machine.Curr.CurrentState()], rx.ptype, p.RcvdMsg, p.PortEnabled)
 				if m.Machine.Curr.CurrentState() == PrxmStateDiscard {
 					if p.PortEnabled {
 						rv := m.Machine.ProcessEvent("RX MODULE", PrxmEventRcvdBpduAndPortEnabled, rx)
@@ -282,7 +283,6 @@ func (p *StpPort) PrxmMachineMain() {
 							m.ProcessPostStateProcessing(rx)
 						}
 					}
-
 				}
 
 				p.SetRxPortCounters(rx.ptype)
@@ -337,6 +337,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 	bpdumsg := data.(RxBpduPdu)
 	bpduLayer := bpdumsg.pdu
 	flags := uint8(0)
+	StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("UpdtBPDUVersion: pbduType %#v", bpduLayer))
 	switch bpduLayer.(type) {
 	case *layers.RSTP:
 		// 17.21.22
@@ -366,7 +367,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			validPdu = true
 		}
 
-		//StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received RSTP packet flags rcvdRSTP[%t] sendRSTP[%t]", rstp.Flags, p.RcvdRSTP, p.SendRSTP))
+		StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received RSTP packet flags rcvdRSTP[%t] sendRSTP[%t]", rstp.Flags, p.RcvdRSTP, p.SendRSTP))
 
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, false)
 		p.RcvdTc = StpGetBpduTopoChange(flags)
@@ -400,7 +401,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			validPdu = true
 		}
 
-		//StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received PVST packet flags", pvst.Flags))
+		StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received PVST packet flags", pvst.Flags))
 
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, StpGetBpduTopoChangeAck(flags))
 		p.RcvdTc = StpGetBpduTopoChange(flags)

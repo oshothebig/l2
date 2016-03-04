@@ -160,7 +160,7 @@ func asicdGetPortLinkStatus(pId int32) bool {
 
 func asicdCreateStgBridge(vlanList []uint16) int32 {
 
-	vl := make([]int32, len(vlanList))
+	vl := make([]int32, 0)
 	//StpLogger("INFO", fmt.Sprintf("Created Stg Group vlanList[%#v]", vlanList))
 
 	if asicdclnt.ClientHdl != nil {
@@ -173,10 +173,22 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 			vl = append(vl, int32(v))
 		}
 		// default vlan is already created in opennsl
-		stgId, err := asicdclnt.ClientHdl.CreateStg(vl)
+		stgid, err := asicdclnt.ClientHdl.CreateStg(vl)
 		if err == nil {
-			StpLogger("INFO", fmt.Sprintf("Created Stg Group %d with vlans %#v", stgId, vl))
-			return stgId
+			StpLogger("INFO", fmt.Sprintf("Created Stg Group %d with vlans %#v", stgid, vl))
+			for _, v := range vl {
+				if v != 0 &&
+					v != DEFAULT_STP_BRIDGE_VLAN {
+					protocolmac := asicdServices.RsvdProtocolMacConfig{
+						MacAddr:     "01:00:0C:CC:CC:CD",
+						MacAddrMask: "FF:FF:FF:FF:FF:FF",
+						VlanId:      int32(v),
+					}
+					StpLogger("INFO", fmt.Sprintf("Creating PVST MAC entry %#v", protocolmac))
+					asicdclnt.ClientHdl.EnablePacketReception(&protocolmac)
+				}
+			}
+			return stgid
 		} else {
 			StpLogger("INFO", fmt.Sprintf("Create Stg Group error %#v", err))
 		}
@@ -186,9 +198,28 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 	return -1
 }
 
-func asicdDeleteStgBridge(stgid int32) error {
+func asicdDeleteStgBridge(stgid int32, vlanList []uint16) error {
+	vl := make([]int32, 0)
 
 	if asicdclnt.ClientHdl != nil {
+
+		for _, v := range vlanList {
+			vl = append(vl, int32(v))
+		}
+		for _, v := range vl {
+			if v != 0 &&
+				v != DEFAULT_STP_BRIDGE_VLAN {
+				protocolmac := asicdServices.RsvdProtocolMacConfig{
+					MacAddr:     "01:00:0C:CC:CC:CD",
+					MacAddrMask: "FF:FF:FF:FF:FF:FF",
+					VlanId:      int32(v),
+				}
+
+				StpLogger("INFO", fmt.Sprintf("Deleting PVST MAC entry %#v", protocolmac))
+				asicdclnt.ClientHdl.DisablePacketReception(&protocolmac)
+			}
+		}
+		StpLogger("INFO", fmt.Sprintf("Deleting Stg Group %d with vlans %#v", stgid, vl))
 
 		_, err := asicdclnt.ClientHdl.DeleteStg(stgid)
 		if err != nil {

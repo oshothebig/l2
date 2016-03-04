@@ -190,7 +190,7 @@ func DelStpBridge(b *Bridge, force bool) {
 				BridgeListTable = nil
 			} else {
 				BridgeListTable = append(BridgeListTable[:i], BridgeListTable[i+1:]...)
-				asicdDeleteStgBridge(b.StgId)
+				asicdDeleteStgBridge(b.StgId, []uint16{b.Vlan})
 			}
 		}
 	}

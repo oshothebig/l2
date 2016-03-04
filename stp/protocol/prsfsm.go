@@ -73,7 +73,7 @@ func (m *PrsMachine) GetPrevStateStr() string {
 func NewStpPrsMachine(b *Bridge) *PrsMachine {
 	prsm := &PrsMachine{
 		b:                  b,
-		debugLevel:         1,
+		debugLevel:         1
 		PrsEvents:          make(chan MachineEvent, 50),
 		PrsKillSignalEvent: make(chan bool),
 		PrsLogEnableEvent:  make(chan bool)}

@@ -219,6 +219,7 @@ func (pim *PimMachine) PimMachineReceive(m fsm.Machine, data interface{}) fsm.St
 	p := pim.p
 	p.RcvdInfo = pim.rcvInfo(data)
 
+	// rcvd a valid BPDU
 	if p.BridgeAssurance {
 		p.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
 		p.BridgeAssuranceInconsistant = false
@@ -1006,7 +1007,7 @@ func (pim *PimMachine) getRcvdMsgFlags(bpduLayer interface{}) uint8 {
 		flags = uint8(rstp.Flags)
 	case *layers.PVST:
 		//StpMachineLogger("INFO", "PIM", p.IfIndex, "Found PVST frame getting flags")
-		pvst := bpduLayer.(*layers.STP)
+		pvst := bpduLayer.(*layers.PVST)
 		flags = uint8(pvst.Flags)
 		//default:
 		//	StpMachineLogger("ERROR", "PIM", p.IfIndex, fmt.Sprintf("Error getRcvdMsgFlags rcvd TCN %T\n", bpduLayer))
@@ -1033,7 +1034,7 @@ func (pim *PimMachine) getRcvdMsgPriority(bpduLayer interface{}) (msgpriority *P
 		msgpriority.DesignatedPortId = rstp.PortId
 		msgpriority.BridgePortId = rstp.PortId
 	case *layers.PVST:
-		pvst := bpduLayer.(*layers.STP)
+		pvst := bpduLayer.(*layers.PVST)
 		msgpriority.RootBridgeId = pvst.RootId
 		msgpriority.RootPathCost = pvst.RootPathCost
 		msgpriority.DesignatedBridgeId = pvst.BridgeId
@@ -1060,7 +1061,7 @@ func (pim *PimMachine) getRcvdMsgTimes(bpduLayer interface{}) (msgtimes *Times) 
 		msgtimes.HelloTime = rstp.HelloTime >> 8
 		msgtimes.ForwardingDelay = rstp.FwdDelay >> 8
 	case *layers.PVST:
-		pvst := bpduLayer.(*layers.STP)
+		pvst := bpduLayer.(*layers.PVST)
 		msgtimes.MessageAge = pvst.MsgAge >> 8
 		msgtimes.MaxAge = pvst.MaxAge >> 8
 		msgtimes.HelloTime = pvst.HelloTime >> 8
