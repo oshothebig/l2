@@ -1034,7 +1034,7 @@ func (pim *PimMachine) getRcvdMsgPriority(bpduLayer interface{}) (msgpriority *P
 		msgpriority.DesignatedPortId = rstp.PortId
 		msgpriority.BridgePortId = rstp.PortId
 	case *layers.PVST:
-		pvst := bpduLayer.(*layers.STP)
+		pvst := bpduLayer.(*layers.PVST)
 		msgpriority.RootBridgeId = pvst.RootId
 		msgpriority.RootPathCost = pvst.RootPathCost
 		msgpriority.DesignatedBridgeId = pvst.BridgeId
@@ -1061,7 +1061,7 @@ func (pim *PimMachine) getRcvdMsgTimes(bpduLayer interface{}) (msgtimes *Times) 
 		msgtimes.HelloTime = rstp.HelloTime >> 8
 		msgtimes.ForwardingDelay = rstp.FwdDelay >> 8
 	case *layers.PVST:
-		pvst := bpduLayer.(*layers.STP)
+		pvst := bpduLayer.(*layers.PVST)
 		msgtimes.MessageAge = pvst.MsgAge >> 8
 		msgtimes.MaxAge = pvst.MaxAge >> 8
 		msgtimes.HelloTime = pvst.HelloTime >> 8
