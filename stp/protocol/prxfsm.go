@@ -344,6 +344,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 	bpdumsg := data.(RxBpduPdu)
 	bpduLayer := bpdumsg.pdu
 	flags := uint8(0)
+	StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("UpdtBPDUVersion: pbduType %#v", bpduLayer))
 	switch bpduLayer.(type) {
 	case *layers.RSTP:
 		// 17.21.22

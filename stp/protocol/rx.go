@@ -197,6 +197,7 @@ func ValidateBPDUFrame(p *StpPort, packet gopacket.Packet) (bpduType BPDURxType)
 func ProcessBpduFrame(p *StpPort, ptype BPDURxType, packet gopacket.Packet) {
 
 	bpduLayer := packet.Layer(layers.LayerTypeBPDU)
+	pvstLayer := packet.Layer(layers.LayerTypePVST)
 
 	//fmt.Printf("ProcessBpduFrame on port/bridge\n", pId, bId)
 	//fmt.Printf("ProcessBpduFrame %T\n", bpduLayer)
@@ -204,10 +205,19 @@ func ProcessBpduFrame(p *StpPort, ptype BPDURxType, packet gopacket.Packet) {
 	p.RcvdBPDU = true
 	//fmt.Println("Sending rx message to Port Rcvd State Machine", p.IfIndex, p.BrgIfIndex)
 	if p.PrxmMachineFsm != nil {
-		p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
-			pdu:   bpduLayer, // this is a pointer
-			ptype: ptype,
-			src:   RxModuleStr}
+		if pvstLayer == nil {
+			p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
+				pdu:   bpduLayer, // this is a pointer
+				ptype: ptype,
+				src:   RxModuleStr}
+		} else {
+			p.PrxmMachineFsm.PrxmRxBpduPkt <- RxBpduPdu{
+				pdu:   pvstLayer, // this is a pointer
+				ptype: ptype,
+				src:   RxModuleStr}
+
+		}
+
 	} else {
 		StpLogger("ERROR", fmt.Sprintf("RXMAIN: rcvd FSM not running %d\n", p.IfIndex))
 	}
