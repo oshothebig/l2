@@ -173,10 +173,10 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 			vl = append(vl, int32(v))
 		}
 		// default vlan is already created in opennsl
-		stgId, err := asicdclnt.ClientHdl.CreateStg(vl)
+		stgid, err := asicdclnt.ClientHdl.CreateStg(vl)
 		if err == nil {
-			StpLogger("INFO", fmt.Sprintf("Created Stg Group %d with vlans %#v", stgId, vl))
-			return stgId
+			StpLogger("INFO", fmt.Sprintf("Created Stg Group %d with vlans %#v", stgid, vl))
+			return stgid
 		} else {
 			StpLogger("INFO", fmt.Sprintf("Create Stg Group error %#v", err))
 		}
@@ -220,7 +220,7 @@ func asicdDeleteStgBridge(stgid int32, vlanList []uint16) error {
 				asicdclnt.ClientHdl.DisablePacketReception(&protocolmac)
 			}
 		}
-		StpLogger("INFO", fmt.Sprintf("Deleting Stg Group %d with vlans %#v", stgId, vl))
+		StpLogger("INFO", fmt.Sprintf("Deleting Stg Group %d with vlans %#v", stgid, vl))
 
 		_, err := asicdclnt.ClientHdl.DeleteStg(stgid)
 		if err != nil {
