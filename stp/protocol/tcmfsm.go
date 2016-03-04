@@ -137,7 +137,6 @@ func (tcm *TcMachine) Stop() {
 func (tcm *TcMachine) TcMachineInactive(m fsm.Machine, data interface{}) fsm.State {
 	p := tcm.p
 	defer tcm.NotifyFdbFlush()
-	p.FdbFlush = true
 	p.TcWhileTimer.count = 0
 	p.TcAck = false
 	return TcStateInactive
@@ -524,7 +523,8 @@ func (tcm *TcMachine) FlushFdb() {
 	//time.Sleep(delay)
 	StpMachineLogger("INFO", "TCM", p.IfIndex, p.BrgIfIndex, "FDB Flush")
 	p.FdbFlush = false
-	if p.Learn {
+	if p.Learn &&
+		p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateInactive {
 		p.TcMachineFsm.TcEvents <- MachineEvent{
 			e:   TcEventLearnAndNotFdbFlush,
 			src: "ASICD",

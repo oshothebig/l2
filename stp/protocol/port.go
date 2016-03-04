@@ -39,58 +39,57 @@ type StpPort struct {
 	ProtocolPortId uint16
 
 	// 17.19
-	AgeingTime      int32
-	Agree           bool
-	Agreed          bool
-	AdminEdge       bool
-	AutoEdgePort    bool // optional
-	AdminPathCost   int32
-	BpduGuard       bool
-	BridgeAssurance bool
-	//DesignatedPriority PriorityVector
-	//DesignatedTimes    Times
-	Disputed     bool
-	FdbFlush     bool
-	Forward      bool
-	Forwarding   bool
-	InfoIs       PortInfoState
-	Learn        bool
-	Learning     bool
-	Mcheck       bool
-	MsgPriority  PriorityVector
-	MsgTimes     Times
-	NewInfo      bool
-	OperEdge     bool
-	PortEnabled  bool
-	PortId       uint16
-	PortPathCost uint32
-	PortPriority PriorityVector
-	PortTimes    Times
-	Priority     uint16
-	Proposed     bool
-	Proposing    bool
-	RcvdBPDU     bool
-	RcvdInfo     PortDesignatedRcvInfo
-	RcvdMsg      bool
-	RcvdRSTP     bool
-	RcvdSTP      bool
-	RcvdTc       bool
-	RcvdTcAck    bool
-	RcvdTcn      bool
-	RstpVersion  bool
-	ReRoot       bool
-	Reselect     bool
-	Role         PortRole
-	Selected     bool
-	SelectedRole PortRole
-	SendRSTP     bool
-	Sync         bool
-	Synced       bool
-	TcAck        bool
-	TcProp       bool
-	Tick         bool
-	TxCount      uint64
-	UpdtInfo     bool
+	AgeingTime                  int32 // TODO STP functionality
+	Agree                       bool
+	Agreed                      bool
+	AdminEdge                   bool
+	AutoEdgePort                bool // optional
+	AdminPathCost               int32
+	BpduGuard                   bool
+	BridgeAssurance             bool
+	BridgeAssuranceInconsistant bool
+	Disputed                    bool
+	FdbFlush                    bool
+	Forward                     bool
+	Forwarding                  bool
+	InfoIs                      PortInfoState
+	Learn                       bool
+	Learning                    bool
+	Mcheck                      bool
+	MsgPriority                 PriorityVector
+	MsgTimes                    Times
+	NewInfo                     bool
+	OperEdge                    bool
+	PortEnabled                 bool
+	PortId                      uint16
+	PortPathCost                uint32
+	PortPriority                PriorityVector
+	PortTimes                   Times
+	Priority                    uint16
+	Proposed                    bool
+	Proposing                   bool
+	RcvdBPDU                    bool
+	RcvdInfo                    PortDesignatedRcvInfo
+	RcvdMsg                     bool
+	RcvdRSTP                    bool
+	RcvdSTP                     bool
+	RcvdTc                      bool
+	RcvdTcAck                   bool
+	RcvdTcn                     bool
+	RstpVersion                 bool
+	ReRoot                      bool
+	Reselect                    bool
+	Role                        PortRole
+	Selected                    bool
+	SelectedRole                PortRole
+	SendRSTP                    bool
+	Sync                        bool
+	Synced                      bool
+	TcAck                       bool
+	TcProp                      bool
+	Tick                        bool
+	TxCount                     uint64
+	UpdtInfo                    bool
 	// 6.4.3
 	OperPointToPointMAC  bool
 	AdminPointToPointMAC PointToPointMac
@@ -126,6 +125,7 @@ type StpPort struct {
 	RcvdInfoWhiletimer  PortTimer
 	RrWhileTimer        PortTimer
 	TcWhileTimer        PortTimer
+	BAWhileTimer        PortTimer
 
 	PrxmMachineFsm *PrxmMachine
 	PtmMachineFsm  *PtmMachine
@@ -206,18 +206,19 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		Role:                PortRoleDisabledPort,
 		SelectedRole:        PortRoleDisabledPort,
 		PortTimes:           RootTimes,
-		SendRSTP:            false, // default
-		RcvdRSTP:            false, // default
+		SendRSTP:            b.ForceVersion >= 2, // default
+		RcvdRSTP:            b.ForceVersion >= 2, // default
 		RstpVersion:         b.ForceVersion >= 2,
 		Mcheck:              b.ForceVersion >= 2,
 		EdgeDelayWhileTimer: PortTimer{count: MigrateTimeDefault},
-		FdWhileTimer:        PortTimer{count: BridgeMaxAgeDefault}, // TODO same as ForwardingDelay above
-		HelloWhenTimer:      PortTimer{count: BridgeHelloTimeDefault},
+		FdWhileTimer:        PortTimer{count: int32(b.RootTimes.ForwardingDelay)}, // TODO same as ForwardingDelay above
+		HelloWhenTimer:      PortTimer{count: int32(b.RootTimes.HelloTime)},
 		MdelayWhiletimer:    PortTimer{count: MigrateTimeDefault},
-		RbWhileTimer:        PortTimer{count: BridgeHelloTimeDefault * 2},
-		RcvdInfoWhiletimer:  PortTimer{count: BridgeHelloTimeDefault * 3},
-		RrWhileTimer:        PortTimer{count: BridgeMaxAgeDefault},
-		TcWhileTimer:        PortTimer{count: BridgeHelloTimeDefault}, // should be updated by newTcWhile func
+		RbWhileTimer:        PortTimer{count: int32(b.RootTimes.HelloTime * 2)},
+		RcvdInfoWhiletimer:  PortTimer{count: int32(b.RootTimes.HelloTime * 3)},
+		RrWhileTimer:        PortTimer{count: int32(b.RootTimes.MaxAge)},
+		TcWhileTimer:        PortTimer{count: int32(b.RootTimes.HelloTime)}, // should be updated by newTcWhile func
+		BAWhileTimer:        PortTimer{count: int32(b.RootTimes.HelloTime * 3)},
 		portChan:            make(chan string),
 		BrgIfIndex:          c.Dot1dStpBridgeIfIndex,
 		AdminEdge:           c.Dot1dStpPortAdminEdgePort,
@@ -227,7 +228,9 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 			DesignatedBridgeId: b.BridgeIdentifier,
 			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)) | c.Dot1dStpPortPriority<<8),
 		},
-		b: b, // reference to brige
+		BridgeAssurance: c.BridgeAssurance,
+		BpduGuard:       c.BpduGuard,
+		b:               b, // reference to brige
 	}
 
 	if c.Dot1dStpPortAdminPathCost == 0 {
@@ -729,6 +732,12 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 			}
 
 		} else {
+
+			// reset this timer to allow for packet to be received
+			if p.BridgeAssurance {
+				p.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
+			}
+
 			/*
 				This should only be triggered from RcvdBpdu being set becuase
 				we need packet setn
@@ -2098,7 +2107,8 @@ func (p *StpPort) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn bool, 
 	//if oldrcvdtc != newrcvdtc ||
 	//	oldrcvdtcn != newrcvdtcn ||
 	//	oldrcvdtcack != newrcvdtcack {
-
+	//StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("TC state[%s] tcn[%t] tcack[%t] tcn[%t]",
+	//	TcStateStrMap[p.TcMachineFsm.Machine.Curr.CurrentState()], p.RcvdTc, p.RcvdTcAck, p.RcvdTcn))
 	if p.RcvdTc &&
 		(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
 			p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {

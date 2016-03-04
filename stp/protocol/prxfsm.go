@@ -359,11 +359,14 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 						src:  PrxmMachineModuleStr}
 				}
 			}
+			// lets reset the timer as we have received an rstp frame
+			p.MdelayWhiletimer.count = MigrateTimeDefault
+
 			p.RcvdRSTP = true
 			validPdu = true
 		}
 
-		//StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received RSTP packet")
+		//StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received RSTP packet flags rcvdRSTP[%t] sendRSTP[%t]", rstp.Flags, p.RcvdRSTP, p.SendRSTP))
 
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, false)
 		p.RcvdTc = StpGetBpduTopoChange(flags)
@@ -390,11 +393,14 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 						src:  PrxmMachineModuleStr}
 				}
 			}
+			// lets reset the timer as we have received an rstp frame
+			p.MdelayWhiletimer.count = MigrateTimeDefault
+
 			p.RcvdRSTP = true
 			validPdu = true
 		}
 
-		//StpMachineLogger("INFO", "PRXM", p.IfIndex, "Received RSTP packet")
+		//StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received PVST packet flags", pvst.Flags))
 
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, StpGetBpduTopoChangeAck(flags))
 		p.RcvdTc = StpGetBpduTopoChange(flags)
@@ -408,33 +414,40 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 
 			// Found that Cisco send dot1d frame for tc going to
 			// still interpret this as RSTP frame
-			//			if StpGetBpduTopoChange(flags) ||
-			//				StpGetBpduTopoChangeAck(flags) {
-			//				p.RcvdRSTP = true
-			//			} else {
+			//if p.SendRSTP &&
+			//	(StpGetBpduTopoChange(flags) ||
+			//		StpGetBpduTopoChangeAck(flags)) {
+			// lets reset the timer as we have received an stp config frame
+			// according to Cisco:
+			//Protocol migration—For backward compatibility with 802.1D switches,
+			//802.1w selectively sends 802.1D configuration BPDUs and TCN BPDUs
+			//on a per-port basis.
+			//	p.MdelayWhiletimer.count = MigrateTimeDefault
+			//	p.RcvdRSTP = true
+			//} else {
 			// Inform the Port Protocol Migration State Machine
 			// that we have received an STP packet when we were previously
 			// sending RSTP
-			if p.SendRSTP {
-				if p.PpmmMachineFsm != nil {
-					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
-						e:    PpmmEventSendRSTPAndRcvdSTP,
-						data: bpduLayer,
-						src:  PrxmMachineModuleStr}
-				}
-			}
 			// do not transition this to STP true until
 			// mdelay while exires, this gives the far end enough
 			// time to transition
 			if p.MdelayWhiletimer.count == 0 {
+				if p.SendRSTP {
+					if p.PpmmMachineFsm != nil {
+						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+							e:    PpmmEventSendRSTPAndRcvdSTP,
+							data: bpduLayer,
+							src:  PrxmMachineModuleStr}
+					}
+				}
 				p.RcvdSTP = true
 			}
-			//			}
+			//}
 
 			validPdu = true
 		}
 
-		StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received STP packet flags", stp.Flags))
+		StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received STP packet %#v", stp))
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, StpGetBpduTopoChangeAck(flags))
 		p.RcvdTc = StpGetBpduTopoChange(flags)
 		p.RcvdTcn = false
@@ -448,15 +461,17 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			// Inform the Port Protocol Migration State Machine
 			// that we have received an STP packet when we were previously
 			// sending RSTP
-			if p.SendRSTP {
-				if p.PpmmMachineFsm != nil {
-					p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
-						e:    PpmmEventSendRSTPAndRcvdSTP,
-						data: bpduLayer,
-						src:  PrxmMachineModuleStr}
+			if p.MdelayWhiletimer.count == 0 {
+				if p.SendRSTP {
+					if p.PpmmMachineFsm != nil {
+						p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+							e:    PpmmEventSendRSTPAndRcvdSTP,
+							data: bpduLayer,
+							src:  PrxmMachineModuleStr}
+					}
 				}
+				p.RcvdSTP = true
 			}
-			p.RcvdSTP = true
 			validPdu = true
 			StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, "Received TCN packet")
 			defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, false, true, false)

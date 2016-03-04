@@ -218,6 +218,12 @@ func (pim *PimMachine) PimMachineCurrent(m fsm.Machine, data interface{}) fsm.St
 func (pim *PimMachine) PimMachineReceive(m fsm.Machine, data interface{}) fsm.State {
 	p := pim.p
 	p.RcvdInfo = pim.rcvInfo(data)
+
+	if p.BridgeAssurance {
+		p.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
+		p.BridgeAssuranceInconsistant = false
+	}
+
 	return PimStateReceive
 }
 
@@ -946,6 +952,11 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 
 	if pim.isTcnBPDU(data) {
 		return OtherInfo
+	}
+	// 17.21.8 NOTE
+	switch data.(type) {
+	case *layers.STP:
+		msgRole = PortRoleDesignatedPort
 	}
 
 	// TODO find where this is in spec

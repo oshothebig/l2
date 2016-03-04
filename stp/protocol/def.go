@@ -2,6 +2,7 @@
 package stp
 
 import (
+	"github.com/google/gopacket/layers"
 	"strconv"
 	"strings"
 	"utils/fsm"
@@ -110,20 +111,30 @@ func (se *StpStateEvent) SetState(s fsm.State) {
 	}
 }
 
-func StpSetBpduFlags(topochangeack uint8, agreement uint8, forwarding uint8, learning uint8, role PortRole, proposal uint8, topochange uint8, flags *uint8) {
+func StpSetBpduFlags(topochangeack uint8, agreement uint8, forwarding uint8, learning uint8, role uint8, proposal uint8, topochange uint8, flags *uint8) {
 
 	*flags |= topochangeack << 7
 	*flags |= agreement << 6
 	*flags |= forwarding << 5
 	*flags |= learning << 4
-	*flags |= uint8(role << 2)
+	*flags |= role << 2
 	*flags |= proposal << 1
 	*flags |= topochange << 0
 
 }
 
-func StpGetBpduRole(flags uint8) PortRole {
-	return PortRole(flags >> 2 & 0x3)
+func StpGetBpduRole(flags uint8) (role PortRole) {
+	switch flags >> 2 & 0x3 {
+	case layers.RoleAlternateBackupPort:
+		role = PortRoleAlternatePort
+	case layers.RoleRootPort:
+		role = PortRoleRootPort
+	case layers.RoleDesignatedPort:
+		role = PortRoleDesignatedPort
+	default:
+		role = PortRoleInvalid
+	}
+	return
 }
 
 func StpGetBpduProposal(flags uint8) bool {

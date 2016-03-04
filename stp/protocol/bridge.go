@@ -2,7 +2,9 @@
 package stp
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"sync"
 )
@@ -11,10 +13,19 @@ const BridgeConfigModuleStr = "Bridge Config"
 
 var BridgeMapTable map[BridgeKey]*Bridge
 var BridgeListTable []*Bridge
+var StpBridgeMac [6]uint8
 
 type BridgeId [8]uint8
 type BridgeKey struct {
 	Vlan uint16
+}
+
+type cfgFileJson struct {
+	SwitchMac        string            `json:"SwitchMac"`
+	PluginList       []string          `json:"PluginList"`
+	IfNameMap        map[string]string `json:"IfNameMap"`
+	IfNamePrefix     map[string]string `json:"IfNamePrefix"`
+	SysRsvdVlanRange string            `json:"SysRsvdVlanRange"`
 }
 
 type Bridge struct {
@@ -70,19 +81,33 @@ type Times struct {
 	MessageAge      uint16
 }
 
-func NewStpBridge(c *StpBridgeConfig) *Bridge {
-	tmpaddr := c.Dot1dBridgeAddress
-	if tmpaddr == "" {
-		tmpaddr = "00:AA:AA:BB:BB:DD"
+func SaveSwitchMac(asicdconffilename string) {
+	var cfgFile cfgFileJson
+
+	cfgFileData, err := ioutil.ReadFile(asicdconffilename)
+	if err != nil {
+		StpLogger("ERROR", "Error reading config file - asicd.conf. Using defaults (linux plugin only)")
+		return
 	}
-	netAddr, _ := net.ParseMAC(tmpaddr)
-	addr := [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
+	err = json.Unmarshal(cfgFileData, &cfgFile)
+	if err != nil {
+		StpLogger("ERROR", "Error parsing config file, using defaults (linux plugin only)")
+		return
+	}
+
+	netAddr, _ := net.ParseMAC(cfgFile.SwitchMac)
+	StpBridgeMac = [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
+
+}
+
+func NewStpBridge(c *StpBridgeConfig) *Bridge {
+
 	vlan := c.Dot1dStpBridgeVlan
 	if vlan == 0 {
 		vlan = DEFAULT_STP_BRIDGE_VLAN
 	}
 
-	bridgeId := CreateBridgeId(addr, c.Dot1dStpPriority, vlan)
+	bridgeId := CreateBridgeId(StpBridgeMac, c.Dot1dStpPriority, vlan)
 
 	b := &Bridge{
 		Begin:            true,

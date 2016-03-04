@@ -23,6 +23,7 @@ func main() {
 		path = path + "/"
 	}
 	fileName := path + "clients.json"
+	asicdConfName := path + "asicd.conf"
 
 	port := stp.GetClientPort(fileName, "stpd")
 	if port != 0 {
@@ -39,6 +40,7 @@ func main() {
 		server := thrift.NewTSimpleServer4(processor, transport, transportFactory, protocolFactory)
 
 		// connect to any needed services
+		stp.SaveSwitchMac(asicdConfName)
 		stp.ConnectToClients(fileName)
 
 		// lets replay any config that is in the db

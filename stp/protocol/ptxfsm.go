@@ -143,7 +143,7 @@ func (ptxm *PtxmMachine) PtxmMachineTransmitIdle(m fsm.Machine, data interface{}
 func (ptxm *PtxmMachine) PtxmMachineTransmitPeriodic(m fsm.Machine, data interface{}) fsm.State {
 	p := ptxm.p
 	//StpMachineLogger("INFO", "PTXM", p.IfIndex, fmt.Sprintf("TransmitPeriodic: newinfo[%t] role[%d] tcwhile[%d]", p.NewInfo, p.Role, p.TcWhileTimer.count))
-	p.NewInfo = p.NewInfo || (p.Role == PortRoleDesignatedPort || (p.Role == PortRoleRootPort && p.TcWhileTimer.count != 0))
+	p.NewInfo = p.NewInfo || (p.Role == PortRoleDesignatedPort || (p.Role == PortRoleRootPort && p.TcWhileTimer.count != 0) || p.BridgeAssurance)
 
 	return PtxmStateTransmitPeriodic
 }
@@ -334,13 +334,14 @@ func (ptxm *PtxmMachine) ProcessPostStateTransmitRstp() {
 func (ptxm *PtxmMachine) ProcessPostStateIdle() {
 	p := ptxm.p
 	if ptxm.Machine.Curr.CurrentState() == PtxmStateIdle {
-		/*StpMachineLogger("INFO", "PTX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("sendRSTP[%t] newInfo[%t] txCount[%d] hellwhen[%d] selected[%t] updtinfo[%t]\n",
+		/*StpMachineLogger("INFO", "PTX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("sendRSTP[%t] newInfo[%t] txCount[%d] hellwhen[%d] selected[%t] updtinfo[%t] brgAssurace[%t]\n",
 		p.SendRSTP,
 		p.NewInfo,
 		p.TxCount,
 		p.HelloWhenTimer.count,
 		p.Selected,
-		!p.UpdtInfo))*/
+		!p.UpdtInfo,
+		p.BridgeAssurance))*/
 		if p.HelloWhenTimer.count == 0 &&
 			p.Selected &&
 			!p.UpdtInfo {

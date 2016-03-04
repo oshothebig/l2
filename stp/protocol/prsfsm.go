@@ -388,8 +388,17 @@ func (prsm *PrsMachine) updtRolesTree() {
 				StpMachineLogger("INFO", "PRSM", p.IfIndex, b.BrgIfIndex, fmt.Sprintf("updtRolesTree: portEnabled %t, infoIs %d\n", p.PortEnabled, p.InfoIs))
 			}
 
-			// Assign the port roles
-			if !p.PortEnabled || p.InfoIs == PortInfoStateDisabled {
+			if p.BridgeAssurance &&
+				!p.OperEdge &&
+				p.BridgeAssuranceInconsistant {
+				defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
+				p.UpdtInfo = false
+				defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleAlternatePort)
+				p.SelectedRole = PortRoleAlternatePort
+				if prsm.debugLevel > 1 {
+					StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, "updtRolesTree: Bridge Assurance port role selected ALTERNATE")
+				}
+			} else if !p.PortEnabled || p.InfoIs == PortInfoStateDisabled {
 				// 17.21.25 (f) if port is disabled
 				defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDisabledPort)
 				p.SelectedRole = PortRoleDisabledPort
@@ -435,6 +444,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 				if rootPortId == int32(localPortId) {
 					defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleRootPort)
 					p.SelectedRole = PortRoleRootPort
+					// this will allow for packets to tx the interface
 					defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
 					p.UpdtInfo = false
 					if prsm.debugLevel > 1 {
@@ -456,6 +466,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 							GetBridgeAddrFromBridgeId(myBridgeId)) != 0 {
 							defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleAlternatePort)
 							p.SelectedRole = PortRoleAlternatePort
+							// this will allow for packets to tx the interface
 							defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
 							p.UpdtInfo = false
 							if prsm.debugLevel > 1 {
@@ -466,18 +477,17 @@ func (prsm *PrsMachine) updtRolesTree() {
 							if (p.Priority<<8 | p.PortId) != p.PortPriority.DesignatedPortId {
 								defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleBackupPort)
 								p.SelectedRole = PortRoleBackupPort
+								// this will allow for packets to tx the interface
 								defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, false)
 								p.UpdtInfo = false
 								if prsm.debugLevel > 1 {
 									StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, "updtRolesTree: port role selected BACKUP")
 								}
 							} else {
-								//if p.SelectedRole != PortRoleDesignatedPort {
 								defer p.NotifySelectedRoleChanged(PrsMachineModuleStr, p.SelectedRole, PortRoleDesignatedPort)
 								p.SelectedRole = PortRoleDesignatedPort
 								defer p.NotifyUpdtInfoChanged(PrsMachineModuleStr, p.UpdtInfo, true)
 								p.UpdtInfo = true
-								//}
 								if prsm.debugLevel > 1 {
 									StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, "updtRolesTree:3 port role selected DESIGNATED")
 								}
