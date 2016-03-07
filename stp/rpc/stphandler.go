@@ -477,7 +477,7 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStatesPortT
 		nextStpPortState.BridgeAssurance = ConvertBoolToInt32(p.BridgeAssurance)
 		// Bpdu Guard
 		nextStpPortState.BpduGuard = ConvertBoolToInt32(p.BpduGuard)
-		nextStpPortState.BpduGuardDetected = p.BPDUGuardTimer.GetCount() != 0
+		nextStpPortState.BpduGuardDetected = ConvertBoolToInt32(p.BPDUGuardTimer.GetCount() != 0)
 		// root timers
 		nextStpPortState.Dot1dStpBridgePortMaxAge = int32(p.PortTimes.MaxAge)
 		nextStpPortState.Dot1dStpBridgePortForwardDelay = int32(p.PortTimes.ForwardingDelay)
