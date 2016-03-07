@@ -64,6 +64,7 @@ func ConvertThriftPortConfigToStpPortConfig(config *stpd.Dot1dStpPortEntryConfig
 	portconfig.Dot1dStpPortAdminPathCost = int32(config.Dot1dStpPortAdminPathCost)
 	portconfig.BridgeAssurance = ConvertInt32ToBool(config.BridgeAssurance)
 	portconfig.BpduGuard = ConvertInt32ToBool(config.BpduGuard)
+	portconfig.BpduGuardInterval = config.BpduGuardInterval
 }
 
 func ConvertBridgeIdToString(bridgeid stp.BridgeId) string {
@@ -476,6 +477,7 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStatesPortT
 		nextStpPortState.BridgeAssurance = ConvertBoolToInt32(p.BridgeAssurance)
 		// Bpdu Guard
 		nextStpPortState.BpduGuard = ConvertBoolToInt32(p.BpduGuard)
+		nextStpPortState.BpduGuardDetected = p.BPDUGuardTimer.GetCount() != 0
 		// root timers
 		nextStpPortState.Dot1dStpBridgePortMaxAge = int32(p.PortTimes.MaxAge)
 		nextStpPortState.Dot1dStpBridgePortForwardDelay = int32(p.PortTimes.ForwardingDelay)

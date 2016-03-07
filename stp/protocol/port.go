@@ -46,6 +46,7 @@ type StpPort struct {
 	AutoEdgePort                bool // optional
 	AdminPathCost               int32
 	BpduGuard                   bool
+	BpduGuardInterval           int32
 	BridgeAssurance             bool
 	BridgeAssuranceInconsistant bool
 	Disputed                    bool
@@ -126,6 +127,7 @@ type StpPort struct {
 	RrWhileTimer        PortTimer
 	TcWhileTimer        PortTimer
 	BAWhileTimer        PortTimer
+	BPDUGuardTimer      PortTimer
 
 	PrxmMachineFsm *PrxmMachine
 	PtmMachineFsm  *PtmMachine
@@ -228,9 +230,10 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 			DesignatedBridgeId: b.BridgeIdentifier,
 			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)) | c.Dot1dStpPortPriority<<8),
 		},
-		BridgeAssurance: c.BridgeAssurance,
-		BpduGuard:       c.BpduGuard,
-		b:               b, // reference to brige
+		BridgeAssurance:   c.BridgeAssurance,
+		BpduGuard:         c.BpduGuard,
+		BpduGuardInterval: c.BpduGuardInterval,
+		b:                 b, // reference to brige
 	}
 
 	if c.Dot1dStpPortAdminPathCost == 0 {

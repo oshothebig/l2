@@ -216,6 +216,17 @@ func (p *StpPort) DecrementTimerCounters() {
 			p.SelectedRole = PortRoleDisabledPort
 		}
 	}
+
+	if p.BpduGuard &&
+		p.OperEdge &&
+		p.BPDUGuardTimer.count > 0 {
+		p.BPDUGuardTimer.count--
+		// condition has not been detected lets clear the
+		// Detection
+		if p.BPDUGuardTimer.count == 0 {
+			asicdBPDUGuardDetected(p.IfIndex, false)
+		}
+	}
 }
 
 func (p *StpPort) NotifyEdgeDelayWhileTimerExpired() {

@@ -28,6 +28,7 @@ type StpPortConfig struct {
 	Dot1dStpBridgeIfIndex         int32
 	BridgeAssurance               bool
 	BpduGuard                     bool
+	BpduGuardInterval             int32
 }
 
 func StpBridgeCreate(c *StpBridgeConfig) {
