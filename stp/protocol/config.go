@@ -207,7 +207,7 @@ func StpPortCreate(c *StpPortConfig) error {
 	var b *Bridge
 	if !StpFindPortByIfIndex(c.Dot1dStpPort, c.Dot1dStpBridgeIfIndex, &p) {
 		// lets store the configuration
-		if _, ok := StpPortConfigMap[c.Dot1dStpPort]; ok {
+		if _, ok := StpPortConfigMap[c.Dot1dStpPort]; !ok {
 			StpPortConfigMap[c.Dot1dStpPort] = *c
 		} else {
 			if *c != StpPortConfigMap[c.Dot1dStpPort] {
