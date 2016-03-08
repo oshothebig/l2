@@ -206,16 +206,21 @@ func StpPortCreate(c *StpPortConfig) error {
 	var p *StpPort
 	var b *Bridge
 	if !StpFindPortByIfIndex(c.Dot1dStpPort, c.Dot1dStpBridgeIfIndex, &p) {
+		brgIfIndex := c.Dot1dStpBridgeIfIndex
+		c.Dot1dStpBridgeIfIndex = 0
 		// lets store the configuration
 		if _, ok := StpPortConfigMap[c.Dot1dStpPort]; !ok {
 			StpPortConfigMap[c.Dot1dStpPort] = *c
 		} else {
 			if *c != StpPortConfigMap[c.Dot1dStpPort] {
+				// TODO failing for now will need to add code to update all other bridges that use
+				// this physical port
 				return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
-					StpPortConfigMap[c.Dot1dStpPort], *c))
+					c.Dot1dStpPort, StpPortConfigMap[c.Dot1dStpPort], *c))
 			}
 		}
 
+		c.Dot1dStpBridgeIfIndex = brgIfIndex
 		// nothing should happen until a birdge is assigned to the port
 		if StpFindBridgeByIfIndex(c.Dot1dStpBridgeIfIndex, &b) {
 			p := NewStpPort(c)
