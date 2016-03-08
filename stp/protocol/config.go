@@ -95,7 +95,8 @@ func StpBrgConfigParamCheck(c *StpBridgeConfig) error {
 	}
 
 	// if zero is used then we will convert this to use default
-	if c.Dot1dStpBridgeVlan != 0 {
+	if c.Dot1dStpBridgeVlan != 0 &&
+		c.Dot1dStpBridgeVlan != DEFAULT_STP_BRIDGE_VLAN {
 		if c.Dot1dStpBridgeVlan < 1 ||
 			c.Dot1dStpBridgeVlan > 4094 {
 			return errors.New(fmt.Sprintf("Invalid Bridge Vlan %d valid range 1 - 4094", c.Dot1dStpBridgeTxHoldCount))
@@ -172,6 +173,9 @@ func StpBridgeCreate(c *StpBridgeConfig) error {
 		// lets store the configuration
 		if _, ok := StpBridgeConfigMap[b.BrgIfIndex]; !ok {
 			StpBridgeConfigMap[b.BrgIfIndex] = *c
+		} else {
+			// lets update all other bridge ports in case any of the parameters changed
+
 		}
 	} else {
 		return errors.New(fmt.Sprintf("Invalid config, bridge vlan %d already exists", c.Dot1dStpBridgeVlan))
