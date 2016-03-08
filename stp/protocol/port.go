@@ -2159,3 +2159,17 @@ func (p *StpPort) EdgeDelay() uint16 {
 		return p.b.RootTimes.MaxAge
 	}
 }
+
+// check if any other bridge port is adminEdge
+func (p *StpPort) IsAdminEdgePort() bool {
+
+	for _, ptmp := range PortListTable {
+		if p != ptmp &&
+			ptmp.IfIndex == p.IfIndex {
+			if p.AdminEdge || p.OperEdge {
+				return true
+			}
+		}
+	}
+	return false
+}

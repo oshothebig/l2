@@ -11,6 +11,8 @@ func init() {
 	PortConfigMap = make(map[int32]portConfig)
 	PortMapTable = make(map[PortMapKey]*StpPort, 0)
 	BridgeMapTable = make(map[BridgeKey]*Bridge, 0)
+	StpPortConfigMap = make(map[int32]StpPortConfig, 0)
+	StpBridgeConfigMap = make(map[int32]StpBridgeConfig, 0)
 
 	// Init the state string maps
 	TimerTypeStrStateMapInit()
