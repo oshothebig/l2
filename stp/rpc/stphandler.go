@@ -135,7 +135,7 @@ func (s *STPDServiceHandler) CreateDot1dStpBridgeConfig(config *stpd.Dot1dStpBri
 	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
 
 	if brgconfig.Dot1dStpBridgeVlan == 0 {
-		brgconfig.Dot1dStpBridgeVlan = DEFAULT_STP_BRIDGE_VLAN
+		brgconfig.Dot1dStpBridgeVlan = stp.DEFAULT_STP_BRIDGE_VLAN
 	}
 
 	err := stp.StpBrgConfigParamCheck(brgconfig)
