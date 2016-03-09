@@ -790,13 +790,12 @@ func (p *StpPort) PrtMachineMain() {
 				return
 
 			case event := <-m.PrtEvents:
-
+				StpMachineLogger("INFO", "PRTM", m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
 				if m.Machine.Curr.CurrentState() == PrtStateNone && event.e != PrtEventBegin {
 					m.PrtEvents <- event
 					break
 				}
 
-				//StpMachineLogger("INFO", "PRTM", m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
 					StpMachineLogger("ERROR", "PRTM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, PrtStateStrMap[m.Machine.Curr.CurrentState()], event.e))
