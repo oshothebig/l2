@@ -1673,23 +1673,15 @@ func (prtm *PrtMachine) ProcessingPostStateDisable() {
 		//StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDisablePort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 
-		if p.SelectedRole != PortRoleDisabledPort {
-			// this is to force the state to a different designation to work around during initialization
-			// where the begin event was the role change was received before the begin
-			// PRSM may have change the selection
-			p.NotifySelectedRoleChanged(PrtMachineModuleStr, PortRoleDisabledPort, p.SelectedRole)
-			p.SelectedRole = PortRoleDisabledPort
-		} else {
-			if !p.Learning &&
-				!p.Forwarding &&
-				p.Selected &&
-				!p.UpdtInfo {
-				rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", "PRTM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo))
-				} else {
-					prtm.ProcessPostStateProcessing()
-				}
+		if !p.Learning &&
+			!p.Forwarding &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		}
 	}
