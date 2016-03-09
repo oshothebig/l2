@@ -194,7 +194,7 @@ func (p *StpPort) BdmMachineMain() {
 
 				if m.Machine.Curr.CurrentState() == BdmStateNone && (event.e != BdmEventBeginAdminEdge && event.e != BdmEventBeginNotAdminEdge) {
 					m.BdmEvents <- event
-					continue
+					break
 				}
 
 				//fmt.Println("Event Rx", event.src, event.e)

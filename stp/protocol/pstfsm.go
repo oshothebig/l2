@@ -207,7 +207,7 @@ func (p *StpPort) PstMachineMain() {
 
 				if m.Machine.Curr.CurrentState() == PstStateNone && event.e != PstEventBegin {
 					m.PstEvents <- event
-					continue
+					break
 				}
 
 				//fmt.Println("Event Rx", event.src, event.e)

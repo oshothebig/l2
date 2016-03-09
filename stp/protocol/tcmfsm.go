@@ -320,7 +320,7 @@ func (p *StpPort) TcMachineMain() {
 
 				if m.Machine.Curr.CurrentState() == TcStateNone && event.e != TcEventBegin {
 					m.TcEvents <- event
-					continue
+					break
 				}
 
 				//fmt.Println("Event Rx", event.src, event.e)

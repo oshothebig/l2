@@ -276,7 +276,7 @@ func (p *StpPort) PpmmMachineMain() {
 
 				if m.Machine.Curr.CurrentState() == PpmmStateNone && event.e != PpmmEventBegin {
 					m.PpmmEvents <- event
-					continue
+					break
 				}
 
 				//fmt.Println("Event Rx", event.src, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()])

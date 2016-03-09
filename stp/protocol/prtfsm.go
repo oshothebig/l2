@@ -793,7 +793,7 @@ func (p *StpPort) PrtMachineMain() {
 
 				if m.Machine.Curr.CurrentState() == PrtStateNone && event.e != PrtEventBegin {
 					m.PrtEvents <- event
-					continue
+					break
 				}
 
 				//StpMachineLogger("INFO", "PRTM", m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))

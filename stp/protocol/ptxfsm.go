@@ -249,7 +249,7 @@ func (p *StpPort) PtxmMachineMain() {
 
 				if m.Machine.Curr.CurrentState() == PtxmStateNone && event.e != PtxmEventBegin {
 					m.PtxmEvents <- event
-					continue
+					break
 				}
 
 				//StpMachineLogger("INFO", "PTXM", p.IfIndex, fmt.Sprintf("Event Rx", event.src, event.e))

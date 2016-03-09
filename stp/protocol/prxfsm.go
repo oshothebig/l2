@@ -224,7 +224,7 @@ func (p *StpPort) PrxmMachineMain() {
 
 				if m.Machine.Curr.CurrentState() == PrxmStateNone && event.e != PrxmEventBegin {
 					m.PrxmEvents <- event
-					continue
+					break
 				}
 
 				//fmt.Println("Event Rx", event.src, event.e)
