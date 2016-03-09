@@ -6,6 +6,7 @@ IPC_GEN_CMD=thrift
 IPC_SRCS=rpc/lacpd.thrift
 SRCS=main.go
 COMP_NAME=lacpd
+GOLDFLAGS=-r /opt/flexswitch/sharedlib
 all:ipc exe
 ipc:
 	 $(IPC_GEN_CMD) -r --gen go -out $(GENERATED_IPC) $(IPC_SRCS)
