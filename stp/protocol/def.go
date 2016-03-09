@@ -107,7 +107,7 @@ func (se *StpStateEvent) SetEvent(es string, e fsm.Event) {
 func (se *StpStateEvent) SetState(s fsm.State) {
 	se.ps = se.s
 	se.s = s
-	if se.IsLoggerEna() /* && se.ps != se.s*/ {
+	if se.IsLoggerEna() && se.ps != se.s {
 		se.logger((strings.Join([]string{"Src", se.esrc, "OldState", se.strStateMap[se.ps], "Evt", strconv.Itoa(int(se.e)), "NewState", se.strStateMap[s]}, ":")))
 	}
 }

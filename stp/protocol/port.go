@@ -2044,7 +2044,7 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole, newselectedrole PortRole) {
 
 	if oldselectedrole != newselectedrole {
-		StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
+		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
 		if p.Role != p.SelectedRole {
 			if p.SelectedRole == PortRoleDisabledPort {
 				p.PrtMachineFsm.PrtEvents <- MachineEvent{
@@ -2057,6 +2057,7 @@ func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole
 					src: src,
 				}
 			} else if p.SelectedRole == PortRoleDesignatedPort {
+				StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: sending event %d to PRTM", PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo))
 				p.PrtMachineFsm.PrtEvents <- MachineEvent{
 					e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
 					src: src,
