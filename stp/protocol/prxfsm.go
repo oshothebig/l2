@@ -382,10 +382,13 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, false)
 		p.RcvdTc = StpGetBpduTopoChange(flags)
 		p.RcvdTcn = false
-		p.RcvdTcAck = false
+		p.RcvdTcAck = StpGetBpduTopoChangeAck(flags)
 
 		if p.RcvdTc {
 			p.SetRxPortCounters(BPDURxTypeTopo)
+		}
+		if p.RcvdTcAck {
+			p.SetRxPortCounters(BPDURxTypeTopoAck)
 		}
 
 	case *layers.PVST:
@@ -425,6 +428,9 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 
 		if p.RcvdTc {
 			p.SetRxPortCounters(BPDURxTypeTopo)
+		}
+		if p.RcvdTcAck {
+			p.SetRxPortCounters(BPDURxTypeTopoAck)
 		}
 
 	case *layers.STP:
@@ -477,6 +483,9 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		if p.RcvdTc {
 			p.SetRxPortCounters(BPDURxTypeTopo)
 		}
+		if p.RcvdTcAck {
+			p.SetRxPortCounters(BPDURxTypeTopoAck)
+		}
 
 	case *layers.BPDUTopology:
 		topo := bpduLayer.(*layers.BPDUTopology)
@@ -504,6 +513,9 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			p.RcvdTc = false
 			p.RcvdTcn = true
 			p.RcvdTcAck = false
+			if p.RcvdTc {
+				p.SetRxPortCounters(BPDURxTypeTopo)
+			}
 
 		}
 	}

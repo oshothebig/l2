@@ -104,16 +104,18 @@ type StpPort struct {
 	b          *Bridge
 
 	// statistics
-	BpduRx uint64
-	BpduTx uint64
-	StpRx  uint64
-	StpTx  uint64
-	TcRx   uint64
-	TcTx   uint64
-	RstpRx uint64
-	RstpTx uint64
-	PvstRx uint64
-	PvstTx uint64
+	BpduRx  uint64
+	BpduTx  uint64
+	StpRx   uint64
+	StpTx   uint64
+	TcRx    uint64
+	TcTx    uint64
+	TcAckRx uint64
+	TcAckTx uint64
+	RstpRx  uint64
+	RstpTx  uint64
+	PvstRx  uint64
+	PvstTx  uint64
 
 	ForwardingTransitions uint64
 
@@ -588,6 +590,8 @@ func (p *StpPort) SetRxPortCounters(ptype BPDURxType) {
 		p.RstpRx++
 	case BPDURxTypeTopo:
 		p.TcRx++
+	case BPDURxTypeTopoAck:
+		p.TcAckRx++
 	case BPDURxTypePVST:
 		p.PvstRx++
 	}
@@ -602,6 +606,8 @@ func (p *StpPort) SetTxPortCounters(ptype BPDURxType) {
 		p.RstpTx++
 	case BPDURxTypeTopo:
 		p.TcTx++
+	case BPDURxTypeTopoAck:
+		p.TcAckTx++
 	case BPDURxTypePVST:
 		p.PvstTx++
 	}

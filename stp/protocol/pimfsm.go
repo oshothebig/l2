@@ -868,10 +868,12 @@ func (pim *PimMachine) NotifyProposedChanged(oldproposed bool, newproposed bool)
 
 func (pim *PimMachine) NotifyReselectChanged(oldreselect bool, newreselect bool) {
 	p := pim.p
-	if p.b.PrsMachineFsm.Machine.Curr.CurrentState() == PrsStateRoleSelection {
-		p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
-			e:   PrsEventReselect,
-			src: PimMachineModuleStr,
+	if newreselect {
+		if p.b.PrsMachineFsm.Machine.Curr.CurrentState() == PrsStateRoleSelection {
+			p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
+				e:   PrsEventReselect,
+				src: PimMachineModuleStr,
+			}
 		}
 	}
 }

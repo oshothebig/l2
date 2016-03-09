@@ -522,6 +522,8 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStatesPortT
 		nextStpPortState.RstpOutPkts = int64(p.RstpTx)
 		nextStpPortState.TcInPkts = int64(p.TcRx)
 		nextStpPortState.TcOutPkts = int64(p.TcTx)
+		nextStpPortState.TcAckInPkts = int64(p.TcAckRx)
+		nextStpPortState.TcAckOutPkts = int64(p.TcAckTx)
 		nextStpPortState.PvstInPkts = int64(p.PvstRx)
 		nextStpPortState.PvstOutPkts = int64(p.PvstTx)
 		nextStpPortState.BpduInPkts = int64(p.BpduRx)

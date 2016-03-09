@@ -20,6 +20,7 @@ const (
 	BPDURxTypeSTP
 	BPDURxTypeRSTP
 	BPDURxTypeTopo
+	BPDURxTypeTopoAck
 	BPDURxTypePVST
 )
 
