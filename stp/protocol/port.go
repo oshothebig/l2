@@ -2045,35 +2045,35 @@ func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole
 
 	if oldselectedrole != newselectedrole {
 		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
-		if p.Role != p.SelectedRole {
-			if newselectedrole == PortRoleDisabledPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if newselectedrole == PortRoleRootPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if newselectedrole == PortRoleDesignatedPort {
-				StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: sending event %d to PRTM", PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo))
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if newselectedrole == PortRoleAlternatePort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if newselectedrole == PortRoleBackupPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
+		/*if p.Role != p.SelectedRole {*/
+		if newselectedrole == PortRoleDisabledPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleRootPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleDesignatedPort {
+			StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: sending event %d to PRTM", PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo))
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleAlternatePort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleBackupPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
 			}
 		}
+		/*}*/
 	}
 }
 
