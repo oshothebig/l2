@@ -1678,6 +1678,7 @@ func (prtm *PrtMachine) ProcessingPostStateDisable() {
 			// where the begin event was the role change was received before the begin
 			// PRSM may have change the selection
 			p.NotifySelectedRoleChanged(PrtMachineModuleStr, PortRoleDisabledPort, p.SelectedRole)
+			p.SelectedRole = PortRoleDisabledPort
 		} else {
 			if !p.Learning &&
 				!p.Forwarding &&
