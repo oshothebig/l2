@@ -233,9 +233,7 @@ func asicdSetStgPortState(stgid int32, ifindex int32, state int) error {
 	if asicdclnt.ClientHdl != nil {
 		for _, pc := range PortConfigMap {
 			if pc.IfIndex == ifindex {
-				StpLogger("INFO", fmt.Sprintf("start calling SetPortStpState"))
 				_, err := asicdclnt.ClientHdl.SetPortStpState(stgid, pc.PortNum, int32(state))
-				StpLogger("INFO", fmt.Sprintf("end calling SetPortStpState"))
 				return err
 			}
 		}
