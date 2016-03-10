@@ -116,6 +116,7 @@ func (pstm *PstMachine) Stop() {
 		e:            PstEventBegin,
 		responseChan: wait,
 	}
+	StpMachineLogger("INFO", "CONFIG", pstm.p.IfIndex, pstm.p.BrgIfIndex, "sending kill signal to PST machine")
 
 	<-wait
 	close(pstm.PstEvents)
