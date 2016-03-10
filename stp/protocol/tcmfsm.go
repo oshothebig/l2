@@ -315,7 +315,7 @@ func (p *StpPort) TcMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.TcKillSignalEvent:
+			case event := <-m.TcKillSignalEvent:
 				StpMachineLogger("INFO", "TCM", p.IfIndex, p.BrgIfIndex, "Machine End")
 				if event.responseChan != nil {
 					SendResponse(TcMachineModuleStr, event.responseChan)
