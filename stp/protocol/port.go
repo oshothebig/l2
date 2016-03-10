@@ -2057,7 +2057,6 @@ func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole
 				src: src,
 			}
 		} else if newselectedrole == PortRoleDesignatedPort {
-			StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: sending event %d to PRTM", PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo))
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
 				src: src,

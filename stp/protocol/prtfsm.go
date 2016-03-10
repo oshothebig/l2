@@ -798,7 +798,7 @@ func (p *StpPort) PrtMachineMain() {
 				return
 
 			case event := <-m.PrtEvents:
-				StpMachineLogger("INFO", "PRTM", m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
+				//StpMachineLogger("INFO", "PRTM", m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
 				if m.Machine.Curr.CurrentState() == PrtStateNone && event.e != PrtEventBegin {
 					m.PrtEvents <- event
 					break
