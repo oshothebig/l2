@@ -57,7 +57,7 @@ type PrxmMachine struct {
 	PrxmRxBpduPkt chan RxBpduPdu
 
 	// stop go routine
-	PrxmKillSignalEvent chan bool
+	PrxmKillSignalEvent chan MachineEvent
 	// enable logging
 	PrxmLogEnableEvent chan bool
 }
@@ -76,7 +76,7 @@ func NewStpPrxmMachine(p *StpPort) *PrxmMachine {
 		p:                   p,
 		PrxmEvents:          make(chan MachineEvent, 50),
 		PrxmRxBpduPkt:       make(chan RxBpduPdu, 50),
-		PrxmKillSignalEvent: make(chan bool),
+		PrxmKillSignalEvent: make(chan MachineEvent, 1),
 		PrxmLogEnableEvent:  make(chan bool)}
 
 	p.PrxmMachineFsm = prxm
@@ -112,8 +112,13 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (prxm *PrxmMachine) Stop() {
 
+	wait := make(chan string, 1)
 	// stop the go routine
-	prxm.PrxmKillSignalEvent <- true
+	prxm.PrxmKillSignalEvent <- MachineEvent{
+		e:            PrxmEventBegin,
+		responseChan: wait,
+	}
+	<-wait
 
 	close(prxm.PrxmEvents)
 	close(prxm.PrxmRxBpduPkt)
@@ -216,8 +221,11 @@ func (p *StpPort) PrxmMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PrxmKillSignalEvent:
+			case event := <-m.PrxmKillSignalEvent:
 				StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(PrxmMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.PrxmEvents:

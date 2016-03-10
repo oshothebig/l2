@@ -710,7 +710,7 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 			if p.PpmmMachineFsm.Machine.Curr.CurrentState() == PpmmStateCheckingRSTP {
 				if p.MdelayWhiletimer.count != MigrateTimeDefault {
 					mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
-					evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
+					evt = append(evt, MachineEvent{e: PpmmEventMdelayNotEqualMigrateTimeAndNotPortEnabled,
 						src: src})
 				}
 			} else {

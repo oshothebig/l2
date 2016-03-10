@@ -149,7 +149,7 @@ type PrtMachine struct {
 	// machine specific events
 	PrtEvents chan MachineEvent
 	// stop go routine
-	PrtKillSignalEvent chan bool
+	PrtKillSignalEvent chan MachineEvent
 	// enable logging
 	PrtLogEnableEvent chan bool
 }
@@ -167,7 +167,7 @@ func NewStpPrtMachine(p *StpPort) *PrtMachine {
 	prtm := &PrtMachine{
 		p:                  p,
 		PrtEvents:          make(chan MachineEvent, 50),
-		PrtKillSignalEvent: make(chan bool),
+		PrtKillSignalEvent: make(chan MachineEvent, 1),
 		PrtLogEnableEvent:  make(chan bool)}
 
 	p.PrtMachineFsm = prtm
@@ -203,9 +203,14 @@ func (prtm *PrtMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (prtm *PrtMachine) Stop() {
 
+	wait := make(chan string, 1)
 	// stop the go routine
-	prtm.PrtKillSignalEvent <- true
+	prtm.PrtKillSignalEvent <- MachineEvent{
+		e:            PrtEventBegin,
+		responseChan: wait,
+	}
 
+	<-wait
 	close(prtm.PrtEvents)
 	close(prtm.PrtLogEnableEvent)
 	close(prtm.PrtKillSignalEvent)
@@ -785,8 +790,11 @@ func (p *StpPort) PrtMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PrtKillSignalEvent:
+			case event := <-m.PrtKillSignalEvent:
 				StpMachineLogger("INFO", "PRTM", p.IfIndex, p.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(PrtMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.PrtEvents:

@@ -56,7 +56,7 @@ type PrsMachine struct {
 	// machine specific events
 	PrsEvents chan MachineEvent
 	// stop go routine
-	PrsKillSignalEvent chan bool
+	PrsKillSignalEvent chan MachineEvent
 	// enable logging
 	PrsLogEnableEvent chan bool
 }
@@ -75,7 +75,7 @@ func NewStpPrsMachine(b *Bridge) *PrsMachine {
 		b:                  b,
 		debugLevel:         1,
 		PrsEvents:          make(chan MachineEvent, 50),
-		PrsKillSignalEvent: make(chan bool),
+		PrsKillSignalEvent: make(chan MachineEvent, 1),
 		PrsLogEnableEvent:  make(chan bool)}
 
 	b.PrsMachineFsm = prsm
@@ -111,8 +111,14 @@ func (prsm *PrsMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (prsm *PrsMachine) Stop() {
 
+	wait := make(chan string, 1)
 	// stop the go routine
-	prsm.PrsKillSignalEvent <- true
+	prsm.PrsKillSignalEvent <- MachineEvent{
+		e:            PrsEventBegin,
+		responseChan: wait,
+	}
+
+	<-wait
 
 	close(prsm.PrsEvents)
 	close(prsm.PrsLogEnableEvent)
@@ -177,8 +183,11 @@ func (b *Bridge) PrsMachineMain() {
 		defer m.b.wg.Done()
 		for {
 			select {
-			case <-m.PrsKillSignalEvent:
+			case event := <-m.PrsKillSignalEvent:
 				StpMachineLogger("INFO", "PRSM", -1, b.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(PrsMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.PrsEvents:

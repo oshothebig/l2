@@ -50,7 +50,7 @@ type BdmMachine struct {
 	// machine specific events
 	BdmEvents chan MachineEvent
 	// stop go routine
-	BdmKillSignalEvent chan bool
+	BdmKillSignalEvent chan MachineEvent
 	// enable logging
 	BdmLogEnableEvent chan bool
 }
@@ -68,7 +68,7 @@ func NewStpBdmMachine(p *StpPort) *BdmMachine {
 	bdm := &BdmMachine{
 		p:                  p,
 		BdmEvents:          make(chan MachineEvent, 50),
-		BdmKillSignalEvent: make(chan bool),
+		BdmKillSignalEvent: make(chan MachineEvent, 1),
 		BdmLogEnableEvent:  make(chan bool)}
 
 	p.BdmMachineFsm = bdm
@@ -104,8 +104,15 @@ func (bdm *BdmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (bdm *BdmMachine) Stop() {
 
+	wait := make(chan string, 1)
+
 	// stop the go routine
-	bdm.BdmKillSignalEvent <- true
+	bdm.BdmKillSignalEvent <- MachineEvent{
+		e:            BdmEventBeginAdminEdge,
+		responseChan: wait,
+	}
+
+	<-wait
 
 	close(bdm.BdmEvents)
 	close(bdm.BdmLogEnableEvent)
@@ -186,8 +193,11 @@ func (p *StpPort) BdmMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.BdmKillSignalEvent:
+			case event := <-m.BdmKillSignalEvent:
 				StpMachineLogger("INFO", "BDM", p.IfIndex, p.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(BdmMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.BdmEvents:

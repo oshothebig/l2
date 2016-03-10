@@ -70,7 +70,7 @@ type TcMachine struct {
 	// machine specific events
 	TcEvents chan MachineEvent
 	// stop go routine
-	TcKillSignalEvent chan bool
+	TcKillSignalEvent chan MachineEvent
 	// enable logging
 	TcLogEnableEvent chan bool
 }
@@ -88,7 +88,7 @@ func NewStpTcMachine(p *StpPort) *TcMachine {
 	tcm := &TcMachine{
 		p:                 p,
 		TcEvents:          make(chan MachineEvent, 10),
-		TcKillSignalEvent: make(chan bool),
+		TcKillSignalEvent: make(chan MachineEvent, 1),
 		TcLogEnableEvent:  make(chan bool)}
 
 	p.TcMachineFsm = tcm
@@ -123,10 +123,13 @@ func (tcm *TcMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 // Stop should clean up all resources
 func (tcm *TcMachine) Stop() {
-
+	wait := make(chan string, 1)
 	// stop the go routine
-	tcm.TcKillSignalEvent <- true
-
+	tcm.TcKillSignalEvent <- MachineEvent{
+		e:            TcEventBegin,
+		responseChan: wait,
+	}
+	<-wait
 	close(tcm.TcEvents)
 	close(tcm.TcLogEnableEvent)
 	close(tcm.TcKillSignalEvent)
@@ -314,6 +317,9 @@ func (p *StpPort) TcMachineMain() {
 			select {
 			case <-m.TcKillSignalEvent:
 				StpMachineLogger("INFO", "TCM", p.IfIndex, p.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(TcMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.TcEvents:

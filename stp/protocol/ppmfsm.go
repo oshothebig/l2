@@ -55,7 +55,7 @@ type PpmmMachine struct {
 	// machine specific events
 	PpmmEvents chan MachineEvent
 	// stop go routine
-	PpmmKillSignalEvent chan bool
+	PpmmKillSignalEvent chan MachineEvent
 	// enable logging
 	PpmmLogEnableEvent chan bool
 }
@@ -73,7 +73,7 @@ func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 	ppmm := &PpmmMachine{
 		p:                   p,
 		PpmmEvents:          make(chan MachineEvent, 50),
-		PpmmKillSignalEvent: make(chan bool),
+		PpmmKillSignalEvent: make(chan MachineEvent, 1),
 		PpmmLogEnableEvent:  make(chan bool)}
 
 	p.PpmmMachineFsm = ppmm
@@ -109,8 +109,13 @@ func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (ppmm *PpmmMachine) Stop() {
 
+	wait := make(chan string, 1)
 	// stop the go routine
-	ppmm.PpmmKillSignalEvent <- true
+	ppmm.PpmmKillSignalEvent <- MachineEvent{
+		e:            PpmmEventBegin,
+		responseChan: wait,
+	}
+	<-wait
 
 	close(ppmm.PpmmEvents)
 	close(ppmm.PpmmLogEnableEvent)
@@ -268,8 +273,11 @@ func (p *StpPort) PpmmMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PpmmKillSignalEvent:
+			case event := <-m.PpmmKillSignalEvent:
 				StpMachineLogger("INFO", "PPMM", p.IfIndex, p.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(PpmmMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.PpmmEvents:
