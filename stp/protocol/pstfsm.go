@@ -74,7 +74,7 @@ func NewStpPstMachine(p *StpPort) *PstMachine {
 	pstm := &PstMachine{
 		p:                  p,
 		PstEvents:          make(chan MachineEvent, 50),
-		PstKillSignalEvent: make(chan MachineEvent, 1),
+		PstKillSignalEvent: make(chan MachineEvent, 10),
 		PstLogEnableEvent:  make(chan bool)}
 
 	p.PstMachineFsm = pstm
