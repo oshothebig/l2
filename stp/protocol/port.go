@@ -400,14 +400,14 @@ func (p *StpPort) Stop() {
 		p.PrtMachineFsm = nil
 	}
 
-	if p.TcMachineFsm != nil {
-		p.TcMachineFsm.Stop()
-		p.TcMachineFsm = nil
-	}
-
 	if p.PstMachineFsm != nil {
 		p.PstMachineFsm.Stop()
 		p.PstMachineFsm = nil
+	}
+
+	if p.TcMachineFsm != nil {
+		p.TcMachineFsm.Stop()
+		p.TcMachineFsm = nil
 	}
 
 	// lets wait for the machines to close
