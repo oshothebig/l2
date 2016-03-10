@@ -64,6 +64,7 @@ func ConvertThriftPortConfigToStpPortConfig(config *stpd.Dot1dStpPortEntryConfig
 	portconfig.Dot1dStpPortAdminPathCost = int32(config.Dot1dStpPortAdminPathCost)
 	portconfig.BridgeAssurance = ConvertInt32ToBool(config.BridgeAssurance)
 	portconfig.BpduGuard = ConvertInt32ToBool(config.BpduGuard)
+	portconfig.BpduGuardInterval = config.BpduGuardInterval
 }
 
 func ConvertBridgeIdToString(bridgeid stp.BridgeId) string {
@@ -133,8 +134,16 @@ func (s *STPDServiceHandler) CreateDot1dStpBridgeConfig(config *stpd.Dot1dStpBri
 	brgconfig := &stp.StpBridgeConfig{}
 	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
 
-	stp.StpBridgeCreate(brgconfig)
-	return true, nil
+	if brgconfig.Dot1dStpBridgeVlan == 0 {
+		brgconfig.Dot1dStpBridgeVlan = stp.DEFAULT_STP_BRIDGE_VLAN
+	}
+
+	err := stp.StpBrgConfigParamCheck(brgconfig)
+	if err == nil {
+		stp.StpBridgeCreate(brgconfig)
+		return true, err
+	}
+	return false, err
 }
 
 func (s *STPDServiceHandler) HandleDbReadDot1dStpBridgeConfig(dbHdl *sql.DB) error {
@@ -239,12 +248,16 @@ func (s *STPDServiceHandler) DeleteDot1dStpBridgeConfig(config *stpd.Dot1dStpBri
 	stp.StpLogger("INFO", "DeleteDot1dStpBridgeConfig (server): deleted ")
 	brgconfig := &stp.StpBridgeConfig{}
 	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
-	stp.StpBridgeDelete(brgconfig)
-	return true, nil
+	err := stp.StpBridgeDelete(brgconfig)
+	if err == nil {
+		return true, err
+	}
+	return false, err
 }
 
 func (s *STPDServiceHandler) UpdateDot1dStpBridgeConfig(origconfig *stpd.Dot1dStpBridgeConfig, updateconfig *stpd.Dot1dStpBridgeConfig, attrset []bool) (bool, error) {
 	var b *stp.Bridge
+	brgconfig := &stp.StpBridgeConfig{}
 	objTyp := reflect.TypeOf(*origconfig)
 	//objVal := reflect.ValueOf(origconfig)
 	//updateObjVal := reflect.ValueOf(*updateconfig)
@@ -257,6 +270,12 @@ func (s *STPDServiceHandler) UpdateDot1dStpBridgeConfig(origconfig *stpd.Dot1dSt
 		brgIfIndex = b.BrgIfIndex
 	} else {
 		return false, errors.New("Unknown Bridge in update config")
+	}
+
+	ConvertThriftBrgConfigToStpBrgConfig(updateconfig, brgconfig)
+	err := stp.StpBrgConfigParamCheck(brgconfig)
+	if err != nil {
+		return false, err
 	}
 
 	// important to note that the attrset starts at index 0 which is the BaseObj
@@ -297,9 +316,14 @@ func (s *STPDServiceHandler) CreateDot1dStpPortEntryConfig(config *stpd.Dot1dStp
 	stp.StpLogger("INFO", "CreateDot1dStpPortEntryConfig (server): created ")
 	portconfig := &stp.StpPortConfig{}
 	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
-
-	stp.StpPortCreate(portconfig)
-	return true, nil
+	err := stp.StpPortConfigParamCheck(portconfig)
+	if err == nil {
+		err = stp.StpPortCreate(portconfig)
+		if err == nil {
+			return true, err
+		}
+	}
+	return false, err
 }
 
 func (s *STPDServiceHandler) DeleteDot1dStpPortEntryConfig(config *stpd.Dot1dStpPortEntryConfig) (bool, error) {
@@ -307,22 +331,32 @@ func (s *STPDServiceHandler) DeleteDot1dStpPortEntryConfig(config *stpd.Dot1dStp
 	portconfig := &stp.StpPortConfig{}
 	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
 
-	stp.StpPortDelete(portconfig)
-	return true, nil
+	err := stp.StpPortDelete(portconfig)
+	if err == nil {
+		return true, err
+	}
+	return false, err
 }
 
 func (s *STPDServiceHandler) UpdateDot1dStpPortEntryConfig(origconfig *stpd.Dot1dStpPortEntryConfig, updateconfig *stpd.Dot1dStpPortEntryConfig, attrset []bool) (bool, error) {
+	var p *stp.StpPort
+	portconfig := &stp.StpPortConfig{}
 	objTyp := reflect.TypeOf(*origconfig)
 	//objVal := reflect.ValueOf(origconfig)
 	//updateObjVal := reflect.ValueOf(*updateconfig)
 
-	var p *stp.StpPort
 	ifIndex := int32(origconfig.Dot1dStpPort)
 	brgIfIndex := int32(origconfig.Dot1dBrgIfIndex)
 	if stp.StpFindPortByIfIndex(ifIndex, brgIfIndex, &p) {
 		ifIndex = p.IfIndex
 	} else {
 		return false, errors.New("Unknown Stp port in update config")
+	}
+
+	ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
+	err := stp.StpPortConfigParamCheck(portconfig)
+	if err != nil {
+		return false, err
 	}
 
 	// important to note that the attrset starts at index 0 which is the BaseObj
@@ -476,6 +510,7 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStatesPortT
 		nextStpPortState.BridgeAssurance = ConvertBoolToInt32(p.BridgeAssurance)
 		// Bpdu Guard
 		nextStpPortState.BpduGuard = ConvertBoolToInt32(p.BpduGuard)
+		nextStpPortState.BpduGuardDetected = ConvertBoolToInt32(p.BPDUGuardTimer.GetCount() != 0)
 		// root timers
 		nextStpPortState.Dot1dStpBridgePortMaxAge = int32(p.PortTimes.MaxAge)
 		nextStpPortState.Dot1dStpBridgePortForwardDelay = int32(p.PortTimes.ForwardingDelay)
@@ -487,6 +522,8 @@ func (s *STPDServiceHandler) GetBulkDot1dStpPortEntryStateCountersFsmStatesPortT
 		nextStpPortState.RstpOutPkts = int64(p.RstpTx)
 		nextStpPortState.TcInPkts = int64(p.TcRx)
 		nextStpPortState.TcOutPkts = int64(p.TcTx)
+		nextStpPortState.TcAckInPkts = int64(p.TcAckRx)
+		nextStpPortState.TcAckOutPkts = int64(p.TcAckTx)
 		nextStpPortState.PvstInPkts = int64(p.PvstRx)
 		nextStpPortState.PvstOutPkts = int64(p.PvstTx)
 		nextStpPortState.BpduInPkts = int64(p.BpduRx)

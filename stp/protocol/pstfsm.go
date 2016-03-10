@@ -56,7 +56,7 @@ type PstMachine struct {
 	// machine specific events
 	PstEvents chan MachineEvent
 	// stop go routine
-	PstKillSignalEvent chan bool
+	PstKillSignalEvent chan MachineEvent
 	// enable logging
 	PstLogEnableEvent chan bool
 }
@@ -74,7 +74,7 @@ func NewStpPstMachine(p *StpPort) *PstMachine {
 	pstm := &PstMachine{
 		p:                  p,
 		PstEvents:          make(chan MachineEvent, 50),
-		PstKillSignalEvent: make(chan bool),
+		PstKillSignalEvent: make(chan MachineEvent, 10),
 		PstLogEnableEvent:  make(chan bool)}
 
 	p.PstMachineFsm = pstm
@@ -110,9 +110,14 @@ func (pstm *PstMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (pstm *PstMachine) Stop() {
 
+	wait := make(chan string, 1)
 	// stop the go routine
-	pstm.PstKillSignalEvent <- true
+	pstm.PstKillSignalEvent <- MachineEvent{
+		e:            PstEventBegin,
+		responseChan: wait,
+	}
 
+	<-wait
 	close(pstm.PstEvents)
 	close(pstm.PstLogEnableEvent)
 	close(pstm.PstKillSignalEvent)
@@ -199,15 +204,19 @@ func (p *StpPort) PstMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PstKillSignalEvent:
+			case event := <-m.PstKillSignalEvent:
 				StpMachineLogger("INFO", "PSTM", p.IfIndex, p.BrgIfIndex, "Machine End")
+
+				if event.responseChan != nil {
+					SendResponse(PstMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.PstEvents:
 
 				if m.Machine.Curr.CurrentState() == PstStateNone && event.e != PstEventBegin {
 					m.PstEvents <- event
-					continue
+					break
 				}
 
 				//fmt.Println("Event Rx", event.src, event.e)

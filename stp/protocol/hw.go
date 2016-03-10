@@ -248,3 +248,15 @@ func asicdFlushFdb(stgid int32) error {
 	}
 	return nil
 }
+
+func asicdBPDUGuardDetected(ifindex int32, enable bool) error {
+	if asicdclnt.ClientHdl != nil {
+		state := "DOWN"
+		if enable {
+			state = "UP"
+		}
+		_, err := asicdclnt.ClientHdl.ErrorDisablePort(ifindex, state, "STP BPDU GUARD")
+		return err
+	}
+	return nil
+}

@@ -81,7 +81,7 @@ type PimMachine struct {
 	// machine specific events
 	PimEvents chan MachineEvent
 	// stop go routine
-	PimKillSignalEvent chan bool
+	PimKillSignalEvent chan MachineEvent
 	// enable logging
 	PimLogEnableEvent chan bool
 }
@@ -99,7 +99,7 @@ func NewStpPimMachine(p *StpPort) *PimMachine {
 	pim := &PimMachine{
 		p:                  p,
 		PimEvents:          make(chan MachineEvent, 50),
-		PimKillSignalEvent: make(chan bool),
+		PimKillSignalEvent: make(chan MachineEvent, 1),
 		PimLogEnableEvent:  make(chan bool)}
 
 	p.PimMachineFsm = pim
@@ -135,8 +135,14 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (pim *PimMachine) Stop() {
 
+	wait := make(chan string, 1)
 	// stop the go routine
-	pim.PimKillSignalEvent <- true
+	pim.PimKillSignalEvent <- MachineEvent{
+		e:            PimEventBegin,
+		responseChan: wait,
+	}
+
+	<-wait
 
 	close(pim.PimEvents)
 	close(pim.PimLogEnableEvent)
@@ -409,15 +415,18 @@ func (p *StpPort) PimMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PimKillSignalEvent:
+			case event := <-m.PimKillSignalEvent:
 				StpMachineLogger("INFO", "PIM", p.IfIndex, p.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(PimMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.PimEvents:
 
 				if m.Machine.Curr.CurrentState() == PimStateNone && event.e != PimEventBegin {
 					m.PimEvents <- event
-					continue
+					break
 				}
 
 				//StpMachineLogger("INFO", "PIM", p.IfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))

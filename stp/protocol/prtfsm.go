@@ -149,7 +149,7 @@ type PrtMachine struct {
 	// machine specific events
 	PrtEvents chan MachineEvent
 	// stop go routine
-	PrtKillSignalEvent chan bool
+	PrtKillSignalEvent chan MachineEvent
 	// enable logging
 	PrtLogEnableEvent chan bool
 }
@@ -167,7 +167,7 @@ func NewStpPrtMachine(p *StpPort) *PrtMachine {
 	prtm := &PrtMachine{
 		p:                  p,
 		PrtEvents:          make(chan MachineEvent, 50),
-		PrtKillSignalEvent: make(chan bool),
+		PrtKillSignalEvent: make(chan MachineEvent, 1),
 		PrtLogEnableEvent:  make(chan bool)}
 
 	p.PrtMachineFsm = prtm
@@ -203,9 +203,14 @@ func (prtm *PrtMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (prtm *PrtMachine) Stop() {
 
+	wait := make(chan string, 1)
 	// stop the go routine
-	prtm.PrtKillSignalEvent <- true
+	prtm.PrtKillSignalEvent <- MachineEvent{
+		e:            PrtEventBegin,
+		responseChan: wait,
+	}
 
+	<-wait
 	close(prtm.PrtEvents)
 	close(prtm.PrtLogEnableEvent)
 	close(prtm.PrtKillSignalEvent)
@@ -785,18 +790,20 @@ func (p *StpPort) PrtMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PrtKillSignalEvent:
+			case event := <-m.PrtKillSignalEvent:
 				StpMachineLogger("INFO", "PRTM", p.IfIndex, p.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(PrtMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.PrtEvents:
-
+				//StpMachineLogger("INFO", "PRTM", m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
 				if m.Machine.Curr.CurrentState() == PrtStateNone && event.e != PrtEventBegin {
 					m.PrtEvents <- event
-					continue
+					break
 				}
 
-				//StpMachineLogger("INFO", "PRTM", m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
 					StpMachineLogger("ERROR", "PRTM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, PrtStateStrMap[m.Machine.Curr.CurrentState()], event.e))
@@ -1673,22 +1680,15 @@ func (prtm *PrtMachine) ProcessingPostStateDisable() {
 		//StpMachineLogger("INFO", "PRTM", p.IfIndex, fmt.Sprintf("PrtStateDisablePort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 
-		if p.SelectedRole != PortRoleDisabledPort {
-			// this is to force the state to a different designation to work around during initialization
-			// where the begin event was the role change was received before the begin
-			// PRSM may have change the selection
-			p.NotifySelectedRoleChanged(PrtMachineModuleStr, PortRoleDisabledPort, p.SelectedRole)
-		} else {
-			if !p.Learning &&
-				!p.Forwarding &&
-				p.Selected &&
-				!p.UpdtInfo {
-				rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", "PRTM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo))
-				} else {
-					prtm.ProcessPostStateProcessing()
-				}
+		if !p.Learning &&
+			!p.Forwarding &&
+			p.Selected &&
+			!p.UpdtInfo {
+			rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", "PRTM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo))
+			} else {
+				prtm.ProcessPostStateProcessing()
 			}
 		}
 	}

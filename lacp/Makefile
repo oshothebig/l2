@@ -6,6 +6,7 @@ IPC_GEN_CMD=thrift
 IPC_SRCS=rpc/lacpd.thrift
 SRCS=main.go
 COMP_NAME=lacpd
+GOLDFLAGS=-r /opt/flexswitch/sharedlib
 all:ipc exe
 ipc:
 	 $(IPC_GEN_CMD) -r --gen go -out $(GENERATED_IPC) $(IPC_SRCS)
@@ -17,6 +18,7 @@ guard:
 ifndef SR_CODE_BASE
 	 $(error SR_CODE_BASE is not set)
 endif
+install:
 
 clean:guard
 	 $(RM) $(DESTDIR)/$(COMP_NAME) 

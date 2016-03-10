@@ -60,7 +60,7 @@ type PtxmMachine struct {
 	// machine specific events
 	PtxmEvents chan MachineEvent
 	// stop go routine
-	PtxmKillSignalEvent chan bool
+	PtxmKillSignalEvent chan MachineEvent
 	// enable logging
 	PtxmLogEnableEvent chan bool
 }
@@ -78,7 +78,7 @@ func NewStpPtxmMachine(p *StpPort) *PtxmMachine {
 	ptxm := &PtxmMachine{
 		p:                   p,
 		PtxmEvents:          make(chan MachineEvent, 50),
-		PtxmKillSignalEvent: make(chan bool),
+		PtxmKillSignalEvent: make(chan MachineEvent, 1),
 		PtxmLogEnableEvent:  make(chan bool)}
 
 	p.PtxmMachineFsm = ptxm
@@ -114,8 +114,13 @@ func (ptxm *PtxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (ptxm *PtxmMachine) Stop() {
 
+	wait := make(chan string, 1)
 	// stop the go routine
-	ptxm.PtxmKillSignalEvent <- true
+	ptxm.PtxmKillSignalEvent <- MachineEvent{
+		e:            PtxmEventBegin,
+		responseChan: wait,
+	}
+	<-wait
 
 	close(ptxm.PtxmEvents)
 	close(ptxm.PtxmLogEnableEvent)
@@ -241,15 +246,19 @@ func (p *StpPort) PtxmMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PtxmKillSignalEvent:
+			case event := <-m.PtxmKillSignalEvent:
 				StpMachineLogger("INFO", "PTXM", p.IfIndex, p.BrgIfIndex, "Machine End")
+
+				if event.responseChan != nil {
+					SendResponse(PtxmMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.PtxmEvents:
 
 				if m.Machine.Curr.CurrentState() == PtxmStateNone && event.e != PtxmEventBegin {
 					m.PtxmEvents <- event
-					continue
+					break
 				}
 
 				//StpMachineLogger("INFO", "PTXM", p.IfIndex, fmt.Sprintf("Event Rx", event.src, event.e))

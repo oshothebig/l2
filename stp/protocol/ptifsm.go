@@ -51,7 +51,7 @@ type PtmMachine struct {
 	// machine specific events
 	PtmEvents chan MachineEvent
 	// stop go routine
-	PtmKillSignalEvent chan bool
+	PtmKillSignalEvent chan MachineEvent
 	// enable logging
 	PtmLogEnableEvent chan bool
 }
@@ -75,7 +75,7 @@ func NewStpPtmMachine(p *StpPort) *PtmMachine {
 		p:                  p,
 		PreviousState:      PtmStateNone,
 		PtmEvents:          make(chan MachineEvent, 50),
-		PtmKillSignalEvent: make(chan bool),
+		PtmKillSignalEvent: make(chan MachineEvent, 1),
 		PtmLogEnableEvent:  make(chan bool)}
 
 	// start then stop
@@ -115,10 +115,15 @@ func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (ptm *PtmMachine) Stop() {
 
+	wait := make(chan string, 1)
 	ptm.TickTimerDestroy()
 
 	// stop the go routine
-	ptm.PtmKillSignalEvent <- true
+	ptm.PtmKillSignalEvent <- MachineEvent{
+		e:            PtmEventBegin,
+		responseChan: wait,
+	}
+	<-wait
 
 	close(ptm.PtmEvents)
 	close(ptm.PtmLogEnableEvent)
@@ -187,8 +192,11 @@ func (p *StpPort) PtmMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PtmKillSignalEvent:
+			case event := <-m.PtmKillSignalEvent:
 				StpMachineLogger("INFO", "PTM", p.IfIndex, p.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(PtmMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case <-m.TickTimer.C:

@@ -46,6 +46,7 @@ type StpPort struct {
 	AutoEdgePort                bool // optional
 	AdminPathCost               int32
 	BpduGuard                   bool
+	BpduGuardInterval           int32
 	BridgeAssurance             bool
 	BridgeAssuranceInconsistant bool
 	Disputed                    bool
@@ -103,16 +104,18 @@ type StpPort struct {
 	b          *Bridge
 
 	// statistics
-	BpduRx uint64
-	BpduTx uint64
-	StpRx  uint64
-	StpTx  uint64
-	TcRx   uint64
-	TcTx   uint64
-	RstpRx uint64
-	RstpTx uint64
-	PvstRx uint64
-	PvstTx uint64
+	BpduRx  uint64
+	BpduTx  uint64
+	StpRx   uint64
+	StpTx   uint64
+	TcRx    uint64
+	TcTx    uint64
+	TcAckRx uint64
+	TcAckTx uint64
+	RstpRx  uint64
+	RstpTx  uint64
+	PvstRx  uint64
+	PvstTx  uint64
 
 	ForwardingTransitions uint64
 
@@ -126,6 +129,7 @@ type StpPort struct {
 	RrWhileTimer        PortTimer
 	TcWhileTimer        PortTimer
 	BAWhileTimer        PortTimer
+	BPDUGuardTimer      PortTimer
 
 	PrxmMachineFsm *PrxmMachine
 	PtmMachineFsm  *PtmMachine
@@ -228,9 +232,10 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 			DesignatedBridgeId: b.BridgeIdentifier,
 			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)) | c.Dot1dStpPortPriority<<8),
 		},
-		BridgeAssurance: c.BridgeAssurance,
-		BpduGuard:       c.BpduGuard,
-		b:               b, // reference to brige
+		BridgeAssurance:   c.BridgeAssurance,
+		BpduGuard:         c.BpduGuard,
+		BpduGuardInterval: c.BpduGuardInterval,
+		b:                 b, // reference to brige
 	}
 
 	if c.Dot1dStpPortAdminPathCost == 0 {
@@ -446,6 +451,11 @@ func (p *StpPort) BEGIN(restart bool) {
 		mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
 		evt = append(evt, MachineEvent{e: PrxmEventBegin,
 			src: PortConfigModuleStr})
+
+		// start rx routine
+		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+		in := src.Packets()
+		BpduRxMain(p.IfIndex, p.b.BrgIfIndex, in)
 	}
 
 	// Ptm
@@ -513,12 +523,6 @@ func (p *StpPort) BEGIN(restart bool) {
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, true)
 
-	if p.PrxmMachineFsm != nil {
-		// start rx routine
-		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
-		in := src.Packets()
-		BpduRxMain(p.IfIndex, p.b.BrgIfIndex, in)
-	}
 	// lets start the tick timer
 	if p.PtmMachineFsm != nil {
 		p.PtmMachineFsm.TickTimerStart()
@@ -585,6 +589,8 @@ func (p *StpPort) SetRxPortCounters(ptype BPDURxType) {
 		p.RstpRx++
 	case BPDURxTypeTopo:
 		p.TcRx++
+	case BPDURxTypeTopoAck:
+		p.TcAckRx++
 	case BPDURxTypePVST:
 		p.PvstRx++
 	}
@@ -599,6 +605,8 @@ func (p *StpPort) SetTxPortCounters(ptype BPDURxType) {
 		p.RstpTx++
 	case BPDURxTypeTopo:
 		p.TcTx++
+	case BPDURxTypeTopoAck:
+		p.TcAckTx++
 	case BPDURxTypePVST:
 		p.PvstTx++
 	}
@@ -702,7 +710,7 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 			if p.PpmmMachineFsm.Machine.Curr.CurrentState() == PpmmStateCheckingRSTP {
 				if p.MdelayWhiletimer.count != MigrateTimeDefault {
 					mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
-					evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
+					evt = append(evt, MachineEvent{e: PpmmEventMdelayNotEqualMigrateTimeAndNotPortEnabled,
 						src: src})
 				}
 			} else {
@@ -2036,35 +2044,35 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole, newselectedrole PortRole) {
 
 	if oldselectedrole != newselectedrole {
-		StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
-		if p.Role != p.SelectedRole {
-			if p.SelectedRole == PortRoleDisabledPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if p.SelectedRole == PortRoleRootPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if p.SelectedRole == PortRoleDesignatedPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if p.SelectedRole == PortRoleAlternatePort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if p.SelectedRole == PortRoleBackupPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
+		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
+		/*if p.Role != p.SelectedRole {*/
+		if newselectedrole == PortRoleDisabledPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleRootPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleDesignatedPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleAlternatePort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleBackupPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
 			}
 		}
+		/*}*/
 	}
 }
 
@@ -2155,4 +2163,18 @@ func (p *StpPort) EdgeDelay() uint16 {
 	} else {
 		return p.b.RootTimes.MaxAge
 	}
+}
+
+// check if any other bridge port is adminEdge
+func (p *StpPort) IsAdminEdgePort() bool {
+
+	for _, ptmp := range PortListTable {
+		if p != ptmp &&
+			ptmp.IfIndex == p.IfIndex {
+			if p.AdminEdge || p.OperEdge {
+				return true
+			}
+		}
+	}
+	return false
 }
