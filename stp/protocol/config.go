@@ -292,7 +292,8 @@ func StpPortDelFromBridge(pId int32, brgifindex int32) {
 	if StpFindPortByIfIndex(pId, brgifindex, &p) && StpFindBridgeByIfIndex(brgifindex, &b) {
 		// lets disable the port before we remove it so that way
 		// other ports can trigger tc event
-		StpPortLinkDown(pId)
+		p.NotifyPortEnabled("CONFIG DEL", p.PortEnabled, false)
+		p.PortEnabled = false
 		// detach the port from the bridge stp port list
 		for idx, ifindex := range b.StpPorts {
 			if ifindex == p.IfIndex {
