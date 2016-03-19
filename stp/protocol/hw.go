@@ -4,6 +4,7 @@ package stp
 import (
 	hwconst "asicd/asicdConstDefs"
 	"asicd/pluginManager/pluginCommon"
+	"asicdInt"
 	"asicdServices"
 	"encoding/json"
 	"fmt"
@@ -96,7 +97,7 @@ func ConstructPortConfigMap() {
 			}
 			StpLogger("INFO", fmt.Sprintf("Length of GetBulkPortState: %d", bulkInfo.Count))
 
-			bulkCfgInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(currMarker, count)
+			bulkCfgInfo, err := asicdclnt.ClientHdl.GetBulkPort(currMarker, count)
 			if err != nil {
 				StpLogger("ERROR", fmt.Sprintf("Error: %s", err))
 				return
@@ -112,7 +113,7 @@ func ConstructPortConfigMap() {
 				ent.PortNum = bulkInfo.PortStateList[i].PortNum
 				ent.IfIndex = ifindex
 				ent.Name = bulkInfo.PortStateList[i].Name
-				ent.HardwareAddr, _ = net.ParseMAC(bulkCfgInfo.PortConfigList[i].MacAddr)
+				ent.HardwareAddr, _ = net.ParseMAC(bulkCfgInfo.PortList[i].MacAddr)
 				PortConfigMap[ifindex] = ent
 				StpLogger("INIT", fmt.Sprintf("Found Port %d IfIndex %d Name %s\n", ent.PortNum, ent.IfIndex, ent.Name))
 			}
@@ -179,7 +180,7 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 			for _, v := range vl {
 				if v != 0 &&
 					v != DEFAULT_STP_BRIDGE_VLAN {
-					protocolmac := asicdServices.RsvdProtocolMacConfig{
+					protocolmac := asicdInt.RsvdProtocolMacConfig{
 						MacAddr:     "01:00:0C:CC:CC:CD",
 						MacAddrMask: "FF:FF:FF:FF:FF:FF",
 						VlanId:      int32(v),
@@ -209,7 +210,7 @@ func asicdDeleteStgBridge(stgid int32, vlanList []uint16) error {
 		for _, v := range vl {
 			if v != 0 &&
 				v != DEFAULT_STP_BRIDGE_VLAN {
-				protocolmac := asicdServices.RsvdProtocolMacConfig{
+				protocolmac := asicdInt.RsvdProtocolMacConfig{
 					MacAddr:     "01:00:0C:CC:CC:CD",
 					MacAddrMask: "FF:FF:FF:FF:FF:FF",
 					VlanId:      int32(v),
