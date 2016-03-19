@@ -56,13 +56,13 @@ func UsedForTestOnlyPtxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 	UsedForTestOnlyTxInitPortConfigTest()
 
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -167,15 +167,15 @@ func TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     true,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     true,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)
@@ -256,15 +256,15 @@ func TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     true,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     true,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)
@@ -345,15 +345,15 @@ func TestTxHelloWhenEqualZeroTransmitTCN(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     true,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     true,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)

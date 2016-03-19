@@ -170,13 +170,13 @@ func UsedForTestOnlyStartPpmInSensingState(p *StpPort, t *testing.T, viaselectin
 func TestPpmmBEGIN(t *testing.T) {
 	UsedForTestOnlyPpmmInitPortConfigTest()
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -187,15 +187,15 @@ func TestPpmmBEGIN(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -223,13 +223,13 @@ func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -240,15 +240,15 @@ func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -307,13 +307,13 @@ func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testin
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -324,15 +324,15 @@ func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testin
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -381,14 +381,14 @@ func TestPpmCheckingRSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:               TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
+		IfIndex:               TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
 	}
 
 	// create a port
@@ -462,13 +462,13 @@ func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -479,15 +479,15 @@ func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -538,13 +538,13 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 	// test valid states
 	UsedForTestOnlyPpmmInitPortConfigTest()
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		BridgeMaxAge: BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -555,15 +555,15 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -614,13 +614,13 @@ func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -631,15 +631,15 @@ func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -679,13 +679,13 @@ func TestPpmSelectingSTPMcheck(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -696,15 +696,15 @@ func TestPpmSelectingSTPMcheck(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -766,13 +766,13 @@ func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -783,15 +783,15 @@ func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -843,13 +843,13 @@ func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -860,15 +860,15 @@ func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -921,13 +921,13 @@ func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
 	UsedForTestOnlyPpmmInitPortConfigTest()
 
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -938,15 +938,15 @@ func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -1038,13 +1038,13 @@ func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 	testChan := make(chan string)
 	UsedForTestOnlyPpmmInitPortConfigTest()
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -1055,15 +1055,15 @@ func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -1156,13 +1156,13 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 	UsedForTestOnlyPpmmInitPortConfigTest()
 
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -1173,15 +1173,15 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
-		Dot1dStpBridgeIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port

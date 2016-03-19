@@ -7,29 +7,29 @@ import (
 )
 
 type StpBridgeConfig struct {
-	Dot1dBridgeAddress         string
-	Dot1dStpPriority           uint16
-	Dot1dStpBridgeMaxAge       uint16
-	Dot1dStpBridgeHelloTime    uint16
-	Dot1dStpBridgeForwardDelay uint16
-	Dot1dStpBridgeForceVersion int32
-	Dot1dStpBridgeTxHoldCount  int32
-	Dot1dStpBridgeVlan         uint16
+	Address      string
+	Priority     uint16
+	MaxAge       uint16
+	HelloTime    uint16
+	ForwardDelay uint16
+	ForceVersion int32
+	TxHoldCount  int32
+	Vlan         uint16
 }
 
 type StpPortConfig struct {
-	Dot1dStpPort                  int32
-	Dot1dStpPortPriority          uint16
-	Dot1dStpPortEnable            bool
-	Dot1dStpPortPathCost          int32
-	Dot1dStpPortProtocolMigration int32
-	Dot1dStpPortAdminPointToPoint int32
-	Dot1dStpPortAdminEdgePort     bool
-	Dot1dStpPortAdminPathCost     int32
-	Dot1dStpBridgeIfIndex         int32
-	BridgeAssurance               bool
-	BpduGuard                     bool
-	BpduGuardInterval             int32
+	IfIndex           int32
+	Priority          uint16
+	Enable            bool
+	PathCost          int32
+	ProtocolMigration int32
+	AdminPointToPoint int32
+	AdminEdgePort     bool
+	AdminPathCost     int32
+	BrgIfIndex        int32
+	BridgeAssurance   bool
+	BpduGuard         bool
+	BpduGuardInterval int32
 }
 
 var StpPortConfigMap map[int32]StpPortConfig
@@ -61,45 +61,45 @@ func StpBrgConfigParamCheck(c *StpBridgeConfig) error {
 		32768: true,
 	}
 
-	if _, ok := validStpPriorityMap[c.Dot1dStpPriority]; !ok {
-		return errors.New(fmt.Sprintf("Invalid Bridge Priority %d valid values %v", c.Dot1dStpPriority, []uint16{4096, 8192, 16384, 32768}))
+	if _, ok := validStpPriorityMap[c.Priority]; !ok {
+		return errors.New(fmt.Sprintf("Invalid Bridge Priority %d valid values %v", c.Priority, []uint16{4096, 8192, 16384, 32768}))
 	}
 
 	// valid values according to Table 17-1
-	if c.Dot1dStpBridgeMaxAge < 6 ||
-		c.Dot1dStpBridgeMaxAge > 40 {
-		return errors.New(fmt.Sprintf("Invalid Bridge Max Age %d valid range 6.0 - 40.0", c.Dot1dStpBridgeMaxAge))
+	if c.MaxAge < 6 ||
+		c.MaxAge > 40 {
+		return errors.New(fmt.Sprintf("Invalid Bridge Max Age %d valid range 6.0 - 40.0", c.MaxAge))
 	}
 
-	if c.Dot1dStpBridgeHelloTime < 1 ||
-		c.Dot1dStpBridgeHelloTime > 2 {
-		return errors.New(fmt.Sprintf("Invalid Bridge Hello Time %d valid range 1.0 - 2.0", c.Dot1dStpBridgeHelloTime))
+	if c.HelloTime < 1 ||
+		c.HelloTime > 2 {
+		return errors.New(fmt.Sprintf("Invalid Bridge Hello Time %d valid range 1.0 - 2.0", c.HelloTime))
 	}
 
-	if c.Dot1dStpBridgeForwardDelay < 3 ||
-		c.Dot1dStpBridgeForwardDelay > 30 {
-		return errors.New(fmt.Sprintf("Invalid Bridge Hello Time %d valid range 3.0 - 30.0", c.Dot1dStpBridgeForwardDelay))
+	if c.ForwardDelay < 3 ||
+		c.ForwardDelay > 30 {
+		return errors.New(fmt.Sprintf("Invalid Bridge Hello Time %d valid range 3.0 - 30.0", c.ForwardDelay))
 	}
 
 	// 1 == STP
 	// 2 == RSTP
 	// 3 == MSTP currently not support
-	if c.Dot1dStpBridgeForceVersion != 1 &&
-		c.Dot1dStpBridgeForceVersion != 2 {
-		return errors.New(fmt.Sprintf("Invalid Bridge Force Version %d valid 1 (STP) 2 (RSTP)", c.Dot1dStpBridgeForceVersion))
+	if c.ForceVersion != 1 &&
+		c.ForceVersion != 2 {
+		return errors.New(fmt.Sprintf("Invalid Bridge Force Version %d valid 1 (STP) 2 (RSTP)", c.ForceVersion))
 	}
 
-	if c.Dot1dStpBridgeTxHoldCount < 1 ||
-		c.Dot1dStpBridgeTxHoldCount > 10 {
-		return errors.New(fmt.Sprintf("Invalid Bridge Tx Hold Count %d valid range 1 - 10", c.Dot1dStpBridgeTxHoldCount))
+	if c.TxHoldCount < 1 ||
+		c.TxHoldCount > 10 {
+		return errors.New(fmt.Sprintf("Invalid Bridge Tx Hold Count %d valid range 1 - 10", c.TxHoldCount))
 	}
 
 	// if zero is used then we will convert this to use default
-	if c.Dot1dStpBridgeVlan != 0 &&
-		c.Dot1dStpBridgeVlan != DEFAULT_STP_BRIDGE_VLAN {
-		if c.Dot1dStpBridgeVlan < 1 ||
-			c.Dot1dStpBridgeVlan > 4094 {
-			return errors.New(fmt.Sprintf("Invalid Bridge Vlan %d valid range 1 - 4094", c.Dot1dStpBridgeTxHoldCount))
+	if c.Vlan != 0 &&
+		c.Vlan != DEFAULT_STP_BRIDGE_VLAN {
+		if c.Vlan < 1 ||
+			c.Vlan > 4094 {
+			return errors.New(fmt.Sprintf("Invalid Bridge Vlan %d valid range 1 - 4094", c.TxHoldCount))
 		}
 	}
 	return nil
@@ -127,29 +127,29 @@ func StpPortConfigParamCheck(c *StpPortConfig) error {
 		240: true,
 	}
 
-	if c.Dot1dStpBridgeIfIndex == 0 {
-		return errors.New(fmt.Sprintf("Invalid Port %d Must be created against a valid bridge interface", c.Dot1dStpPort))
+	if c.IfIndex == 0 {
+		return errors.New(fmt.Sprintf("Invalid Port %d Must be created against a valid bridge interface", c.IfIndex))
 	}
 
 	// Table 17-2
-	if _, ok := validStpPortPriorityMap[c.Dot1dStpPortPriority]; !ok {
-		return errors.New(fmt.Sprintf("Invalid Port %d Priority %d valid values %v", c.Dot1dStpPortPriority, c.Dot1dStpPortPriority, []uint16{
+	if _, ok := validStpPortPriorityMap[c.Priority]; !ok {
+		return errors.New(fmt.Sprintf("Invalid Port %d Priority %d valid values %v", c.Priority, c.Priority, []uint16{
 			0, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240}))
 	}
 
-	if c.Dot1dStpPortAdminPathCost > 200000000 {
-		return errors.New(fmt.Sprintf("Invalid Port %d Path Cost %d valid values 0 (AUTO) or 1 - 200,000,000", c.Dot1dStpPortPriority, c.Dot1dStpPortAdminPathCost))
+	if c.AdminPathCost > 200000000 {
+		return errors.New(fmt.Sprintf("Invalid Port %d Path Cost %d valid values 0 (AUTO) or 1 - 200,000,000", c.Priority, c.AdminPathCost))
 	}
 
-	if StpFindPortByIfIndex(c.Dot1dStpPort, c.Dot1dStpBridgeIfIndex, &p) {
-		if (!p.OperEdge && !c.Dot1dStpPortAdminEdgePort) &&
+	if StpFindPortByIfIndex(c.IfIndex, c.BrgIfIndex, &p) {
+		if (!p.OperEdge && !c.AdminEdgePort) &&
 			p.BpduGuard {
-			return errors.New(fmt.Sprintf("Invalid Port %d Bpdu Guard only available on Edge Ports", c.Dot1dStpPort))
+			return errors.New(fmt.Sprintf("Invalid Port %d Bpdu Guard only available on Edge Ports", c.IfIndex))
 		}
 
-		if (p.OperEdge || c.Dot1dStpPortAdminEdgePort) &&
+		if (p.OperEdge || c.AdminEdgePort) &&
 			p.BridgeAssurance {
-			return errors.New(fmt.Sprintf("Invalid Port %d Bridge Assurance only available on non Edge Ports", c.Dot1dStpPort))
+			return errors.New(fmt.Sprintf("Invalid Port %d Bridge Assurance only available on non Edge Ports", c.IfIndex))
 		}
 	}
 	return nil
@@ -157,13 +157,13 @@ func StpPortConfigParamCheck(c *StpPortConfig) error {
 
 func StpBridgeCreate(c *StpBridgeConfig) error {
 	var b *Bridge
-	tmpaddr := c.Dot1dBridgeAddress
+	tmpaddr := c.Address
 	if tmpaddr == "" {
 		tmpaddr = "00:AA:AA:BB:BB:DD"
 	}
 
 	key := BridgeKey{
-		Vlan: c.Dot1dStpBridgeVlan,
+		Vlan: c.Vlan,
 	}
 
 	if !StpFindBridgeById(key, &b) {
@@ -178,7 +178,7 @@ func StpBridgeCreate(c *StpBridgeConfig) error {
 
 		}
 	} else {
-		return errors.New(fmt.Sprintf("Invalid config, bridge vlan %d already exists", c.Dot1dStpBridgeVlan))
+		return errors.New(fmt.Sprintf("Invalid config, bridge vlan %d already exists", c.Vlan))
 	}
 	return nil
 }
@@ -187,17 +187,17 @@ func StpBridgeDelete(c *StpBridgeConfig) error {
 	var b *Bridge
 
 	key := BridgeKey{
-		Vlan: c.Dot1dStpBridgeVlan,
+		Vlan: c.Vlan,
 	}
 	if StpFindBridgeById(key, &b) {
 		DelStpBridge(b, true)
 		for _, btmp := range StpBridgeConfigMap {
-			if btmp.Dot1dStpBridgeVlan == c.Dot1dStpBridgeVlan {
+			if btmp.Vlan == c.Vlan {
 				delete(StpBridgeConfigMap, b.BrgIfIndex)
 			}
 		}
 	} else {
-		return errors.New(fmt.Sprintf("Invalid config, bridge vlan %d does not exists", c.Dot1dStpBridgeVlan))
+		return errors.New(fmt.Sprintf("Invalid config, bridge vlan %d does not exists", c.Vlan))
 	}
 	return nil
 }
@@ -205,29 +205,29 @@ func StpBridgeDelete(c *StpBridgeConfig) error {
 func StpPortCreate(c *StpPortConfig) error {
 	var p *StpPort
 	var b *Bridge
-	if !StpFindPortByIfIndex(c.Dot1dStpPort, c.Dot1dStpBridgeIfIndex, &p) {
-		brgIfIndex := c.Dot1dStpBridgeIfIndex
-		c.Dot1dStpBridgeIfIndex = 0
+	if !StpFindPortByIfIndex(c.IfIndex, c.BrgIfIndex, &p) {
+		brgIfIndex := c.IfIndex
+		c.IfIndex = 0
 		// lets store the configuration
-		if _, ok := StpPortConfigMap[c.Dot1dStpPort]; !ok {
-			StpPortConfigMap[c.Dot1dStpPort] = *c
+		if _, ok := StpPortConfigMap[c.IfIndex]; !ok {
+			StpPortConfigMap[c.IfIndex] = *c
 		} else {
-			if *c != StpPortConfigMap[c.Dot1dStpPort] {
+			if *c != StpPortConfigMap[c.IfIndex] {
 				// TODO failing for now will need to add code to update all other bridges that use
 				// this physical port
 				return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
-					c.Dot1dStpPort, StpPortConfigMap[c.Dot1dStpPort], *c))
+					c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
 			}
 		}
 
-		c.Dot1dStpBridgeIfIndex = brgIfIndex
+		c.IfIndex = brgIfIndex
 		// nothing should happen until a birdge is assigned to the port
-		if StpFindBridgeByIfIndex(c.Dot1dStpBridgeIfIndex, &b) {
+		if StpFindBridgeByIfIndex(c.IfIndex, &b) {
 			p := NewStpPort(c)
 			StpPortAddToBridge(p.IfIndex, p.BrgIfIndex)
 		}
 	} else {
-		return errors.New(fmt.Sprintf("Invalid config, port %d bridge %d already exists", c.Dot1dStpPort, c.Dot1dStpBridgeIfIndex))
+		return errors.New(fmt.Sprintf("Invalid config, port %d bridge %d already exists", c.IfIndex, c.BrgIfIndex))
 	}
 	return nil
 }
@@ -235,9 +235,9 @@ func StpPortCreate(c *StpPortConfig) error {
 func StpPortDelete(c *StpPortConfig) error {
 	var p *StpPort
 	var b *Bridge
-	if StpFindPortByIfIndex(c.Dot1dStpPort, c.Dot1dStpBridgeIfIndex, &p) {
+	if StpFindPortByIfIndex(c.IfIndex, c.BrgIfIndex, &p) {
 		if StpFindBridgeByIfIndex(p.BrgIfIndex, &b) {
-			StpPortDelFromBridge(c.Dot1dStpPort, p.BrgIfIndex)
+			StpPortDelFromBridge(c.IfIndex, p.BrgIfIndex)
 		}
 		DelStpPort(p)
 		foundPort := false
@@ -247,10 +247,10 @@ func StpPortDelete(c *StpPortConfig) error {
 			}
 		}
 		if !foundPort {
-			delete(StpPortConfigMap, c.Dot1dStpPort)
+			delete(StpPortConfigMap, c.IfIndex)
 		}
 	} else {
-		return errors.New(fmt.Sprintf("Invalid config, port %d bridge %d does not exists", c.Dot1dStpPort, c.Dot1dStpBridgeIfIndex))
+		return errors.New(fmt.Sprintf("Invalid config, port %d bridge %d does not exists", c.IfIndex, c.BrgIfIndex))
 	}
 	return nil
 }
@@ -354,8 +354,8 @@ func StpBrgPrioritySet(bId int32, priority uint16) error {
 		prio := GetBridgePriorityFromBridgeId(b.BridgeIdentifier)
 		if prio != priority {
 			c := StpBrgConfigGet(bId)
-			prevval := c.Dot1dStpPriority
-			c.Dot1dStpPriority = priority
+			prevval := c.Priority
+			c.Priority = priority
 			err := StpBrgConfigParamCheck(c)
 			if err == nil {
 				addr := GetBridgeAddrFromBridgeId(b.BridgeIdentifier)
@@ -374,7 +374,7 @@ func StpBrgPrioritySet(bId int32, priority uint16) error {
 					src: "CONFIG: BrgPrioritySet",
 				}
 			} else {
-				c.Dot1dStpPriority = prevval
+				c.Priority = prevval
 			}
 			return err
 		}
@@ -391,8 +391,8 @@ func StpBrgForceVersion(bId int32, version int32) error {
 		// version 2 RSTP
 		if b.ForceVersion != version {
 			c := StpBrgConfigGet(bId)
-			prevval := c.Dot1dStpBridgeForceVersion
-			c.Dot1dStpBridgeForceVersion = version
+			prevval := c.ForceVersion
+			c.ForceVersion = version
 			err := StpBrgConfigParamCheck(c)
 			if err == nil {
 				b.ForceVersion = version
@@ -407,7 +407,7 @@ func StpBrgForceVersion(bId int32, version int32) error {
 					}
 				}
 			} else {
-				c.Dot1dStpBridgeForceVersion = prevval
+				c.ForceVersion = prevval
 			}
 			return err
 		}
@@ -420,7 +420,7 @@ func StpPortPrioritySet(pId int32, bId int32, priority uint16) error {
 	if StpFindPortByIfIndex(pId, bId, &p) {
 		if p.Priority != priority {
 			c := StpPortConfigGet(pId)
-			c.Dot1dStpPortPriority = priority
+			c.Priority = priority
 			err := StpPortConfigParamCheck(c)
 			if err == nil {
 				p.Priority = priority
@@ -449,8 +449,8 @@ func StpPortAdminEdgeSet(pId int32, bId int32, adminedge bool) error {
 		p.AdminEdge = adminedge
 		if p.OperEdge != adminedge {
 			c := StpPortConfigGet(pId)
-			prevval := c.Dot1dStpPortAdminEdgePort
-			c.Dot1dStpPortAdminEdgePort = adminedge
+			prevval := c.AdminEdgePort
+			c.AdminEdgePort = adminedge
 			err := StpPortConfigParamCheck(c)
 			if err == nil {
 				isOtherBrgPortOperEdge := p.IsAdminEdgePort()
@@ -487,7 +487,7 @@ func StpPortAdminEdgeSet(pId int32, bId int32, adminedge bool) error {
 					}
 				}
 			} else {
-				c.Dot1dStpPortAdminEdgePort = prevval
+				c.AdminEdgePort = prevval
 			}
 			return err
 		}
@@ -500,8 +500,8 @@ func StpBrgForwardDelaySet(bId int32, fwddelay uint16) error {
 	var p *StpPort
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
-		prevval := c.Dot1dStpBridgeForwardDelay
-		c.Dot1dStpBridgeForwardDelay = fwddelay
+		prevval := c.ForwardDelay
+		c.ForwardDelay = fwddelay
 		err := StpBrgConfigParamCheck(c)
 		if err == nil {
 
@@ -517,7 +517,7 @@ func StpBrgForwardDelaySet(bId int32, fwddelay uint16) error {
 				}
 			}
 		} else {
-			c.Dot1dStpBridgeForwardDelay = prevval
+			c.ForwardDelay = prevval
 		}
 		return err
 	}
@@ -529,8 +529,8 @@ func StpBrgHelloTimeSet(bId int32, hellotime uint16) error {
 	var p *StpPort
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
-		prevval := c.Dot1dStpBridgeHelloTime
-		c.Dot1dStpBridgeHelloTime = hellotime
+		prevval := c.HelloTime
+		c.HelloTime = hellotime
 		err := StpBrgConfigParamCheck(c)
 		if err == nil {
 			b.BridgeTimes.HelloTime = hellotime
@@ -545,7 +545,7 @@ func StpBrgHelloTimeSet(bId int32, hellotime uint16) error {
 				}
 			}
 		} else {
-			c.Dot1dStpBridgeHelloTime = prevval
+			c.HelloTime = prevval
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid bridge %d supplied for setting Hello Time", bId))
@@ -556,8 +556,8 @@ func StpBrgMaxAgeSet(bId int32, maxage uint16) error {
 	var p *StpPort
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
-		prevval := c.Dot1dStpBridgeMaxAge
-		c.Dot1dStpBridgeMaxAge = maxage
+		prevval := c.MaxAge
+		c.MaxAge = maxage
 		err := StpBrgConfigParamCheck(c)
 		if err == nil {
 
@@ -573,7 +573,7 @@ func StpBrgMaxAgeSet(bId int32, maxage uint16) error {
 				}
 			}
 		} else {
-			c.Dot1dStpBridgeMaxAge = prevval
+			c.MaxAge = prevval
 		}
 		return err
 	}
@@ -584,13 +584,13 @@ func StpBrgTxHoldCountSet(bId int32, txholdcount uint16) error {
 	var b *Bridge
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
-		prevval := c.Dot1dStpBridgeTxHoldCount
-		c.Dot1dStpBridgeTxHoldCount = int32(txholdcount)
+		prevval := c.TxHoldCount
+		c.TxHoldCount = int32(txholdcount)
 		err := StpBrgConfigParamCheck(c)
 		if err == nil {
 			b.TxHoldCount = uint64(txholdcount)
 		} else {
-			c.Dot1dStpBridgeTxHoldCount = prevval
+			c.TxHoldCount = prevval
 		}
 		return err
 	}
@@ -602,11 +602,11 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) e
 	if StpFindPortByIfIndex(pId, bId, &p) {
 		if p.Mcheck != protocolmigration && protocolmigration {
 			c := StpPortConfigGet(pId)
-			prevval := c.Dot1dStpPortProtocolMigration
+			prevval := c.ProtocolMigration
 			if protocolmigration {
-				c.Dot1dStpPortProtocolMigration = int32(1)
+				c.ProtocolMigration = int32(1)
 			} else {
-				c.Dot1dStpPortProtocolMigration = int32(0)
+				c.ProtocolMigration = int32(0)
 			}
 			err := StpPortConfigParamCheck(c)
 			if err == nil {
@@ -615,7 +615,7 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) e
 				}
 				p.Mcheck = true
 			} else {
-				c.Dot1dStpPortProtocolMigration = prevval
+				c.ProtocolMigration = prevval
 			}
 			return err
 		}
