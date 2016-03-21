@@ -107,11 +107,17 @@ func (p *StpPort) DecrementTimerCounters() {
 	}
 	// ptx owner
 	if p.HelloWhenTimer.count > 0 {
-		p.HelloWhenTimer.count--
+		// if hellowhen never expires then packets should not get transmitted
+		if p.PortEnabled {
+			p.HelloWhenTimer.count--
 
-		if p.HelloWhenTimer.count == 0 {
-			defer p.NotifyHelloWhenTimerExpired()
+			if p.HelloWhenTimer.count == 0 {
+				defer p.NotifyHelloWhenTimerExpired()
+			}
+		} else {
+			p.HelloWhenTimer.count = int32(p.PortTimes.HelloTime)
 		}
+
 	}
 
 	// ppm owner

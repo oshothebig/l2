@@ -169,11 +169,11 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		BridgeForwardDelayDefault = 15
 		TransmitHoldCountDefault = 6
 	*/
-	enabled := c.Dot1dStpPortEnable
+	enabled := c.Enable
 	if enabled {
 		// TODO get the status from asicd
 		/*
-			netif, err := netlink.LinkByName(PortConfigMap[c.Dot1dStpPort].Name)
+			netif, err := netlink.LinkByName(PortConfigMap[c.].Name)
 			StpLogger("INFO", fmt.Sprintf("LinkByName err %#v", err))
 
 			if err == nil {
@@ -184,29 +184,29 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 				}
 			}
 		*/
-		enabled = asicdGetPortLinkStatus(c.Dot1dStpPort)
+		enabled = asicdGetPortLinkStatus(c.IfIndex)
 	} else {
 		// in the case of tests we may not find the actual link so lets force
 		// enabled to configured value
-		StpLogger("INFO", fmt.Sprintf("Did not find port, forcing enabled to %t", c.Dot1dStpPortEnable))
-		enabled = c.Dot1dStpPortEnable
+		StpLogger("INFO", fmt.Sprintf("Did not find port, forcing enabled to %t", c.Enable))
+		enabled = c.Enable
 	}
 
 	var RootTimes Times
-	if StpFindBridgeByIfIndex(c.Dot1dStpBridgeIfIndex, &b) {
+	if StpFindBridgeByIfIndex(c.BrgIfIndex, &b) {
 		RootTimes = b.RootTimes
 	}
 	p := &StpPort{
-		IfIndex:              c.Dot1dStpPort,
+		IfIndex:              c.IfIndex,
 		AutoEdgePort:         false, // default and not configurable
-		AdminPathCost:        c.Dot1dStpPortAdminPathCost,
-		AdminPointToPointMAC: PointToPointMac(c.Dot1dStpPortAdminPointToPoint),
+		AdminPathCost:        c.AdminPathCost,
+		AdminPointToPointMAC: PointToPointMac(c.AdminPointToPoint),
 		// protocol portId
-		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
-		Priority:            c.Dot1dStpPortPriority, // default usually 0x80
-		AdminPortEnabled:    c.Dot1dStpPortEnable,
+		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.IfIndex)),
+		Priority:            c.Priority, // default usually 0x80
+		AdminPortEnabled:    c.Enable,
 		PortEnabled:         enabled,
-		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
+		PortPathCost:        uint32(c.PathCost),
 		Role:                PortRoleDisabledPort,
 		SelectedRole:        PortRoleDisabledPort,
 		PortTimes:           RootTimes,
@@ -224,13 +224,13 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		TcWhileTimer:        PortTimer{count: int32(b.RootTimes.HelloTime)}, // should be updated by newTcWhile func
 		BAWhileTimer:        PortTimer{count: int32(b.RootTimes.HelloTime * 3)},
 		portChan:            make(chan string),
-		BrgIfIndex:          c.Dot1dStpBridgeIfIndex,
-		AdminEdge:           c.Dot1dStpPortAdminEdgePort,
+		BrgIfIndex:          c.BrgIfIndex,
+		AdminEdge:           c.AdminEdgePort,
 		PortPriority: PriorityVector{
 			RootBridgeId:       b.BridgeIdentifier,
 			RootPathCost:       0,
 			DesignatedBridgeId: b.BridgeIdentifier,
-			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)) | c.Dot1dStpPortPriority<<8),
+			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.IfIndex)) | c.Priority<<8),
 		},
 		BridgeAssurance:   c.BridgeAssurance,
 		BpduGuard:         c.BpduGuard,
@@ -238,7 +238,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		b:                 b, // reference to brige
 	}
 
-	if c.Dot1dStpPortAdminPathCost == 0 {
+	if c.AdminPathCost == 0 {
 		// TODO need to get speed of port to automatically the port path cost
 		// Table 17-3
 		AutoPathCostDefaultMap := map[int32]uint32{

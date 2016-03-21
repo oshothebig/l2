@@ -55,13 +55,13 @@ func UsedForTestOnlyPrxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 	UsedForTestOnlyRxInitPortConfigTest()
 
 	bridgeconfig := &StpBridgeConfig{
-		Dot1dBridgeAddress:         "00:55:55:55:55:55",
-		Dot1dStpPriority:           0x20,
-		Dot1dStpBridgeMaxAge:       BridgeMaxAgeDefault,
-		Dot1dStpBridgeHelloTime:    BridgeHelloTimeDefault,
-		Dot1dStpBridgeForwardDelay: BridgeForwardDelayDefault,
-		Dot1dStpBridgeForceVersion: 2,
-		Dot1dStpBridgeTxHoldCount:  TransmitHoldCountDefault,
+		Address:      "00:55:55:55:55:55",
+		Priority:     0x20,
+		MaxAge:       BridgeMaxAgeDefault,
+		HelloTime:    BridgeHelloTimeDefault,
+		ForwardDelay: BridgeForwardDelayDefault,
+		ForceVersion: 2,
+		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
 	//StpBridgeCreate
@@ -70,7 +70,7 @@ func UsedForTestOnlyPrxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
 	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
-	stpconfig.Dot1dStpBridgeIfIndex = DEFAULT_STP_BRIDGE_VLAN
+	stpconfig.IfIndex = DEFAULT_STP_BRIDGE_VLAN
 
 	// create a port
 	p = NewStpPort(stpconfig)
@@ -399,14 +399,14 @@ func TestRxValidStpPacket(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
 	}
 
 	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
@@ -477,14 +477,14 @@ func TestRxValidStpPacket(t *testing.T) {
 func TestRxValidRStpPacket(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
 	}
 
 	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
@@ -556,14 +556,14 @@ func TestRxValidRStpPacket(t *testing.T) {
 func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
 	}
 
 	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
@@ -634,14 +634,14 @@ func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
 	}
 
 	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
@@ -713,14 +713,14 @@ func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
 	}
 
 	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
@@ -792,14 +792,14 @@ func TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            false,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            false,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
 	}
 
 	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
@@ -862,14 +862,14 @@ func TestRxValidTopoChange(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		Dot1dStpPort:                  TEST_RX_PORT_CONFIG_IFINDEX,
-		Dot1dStpPortPriority:          0x80,
-		Dot1dStpPortEnable:            true,
-		Dot1dStpPortPathCost:          1,
-		Dot1dStpPortProtocolMigration: 0,
-		Dot1dStpPortAdminPointToPoint: StpPointToPointForceFalse,
-		Dot1dStpPortAdminEdgePort:     false,
-		Dot1dStpPortAdminPathCost:     0,
+		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
 	}
 
 	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
