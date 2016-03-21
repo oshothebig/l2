@@ -210,7 +210,7 @@ func StpPortCreate(c *StpPortConfig) error {
 		c.IfIndex = 0
 		// lets store the configuration
 		if _, ok := StpPortConfigMap[ifIndex]; !ok {
-			StpPortConfigMap[IfIndex] = *c
+			StpPortConfigMap[ifIndex] = *c
 		} else {
 			if *c != StpPortConfigMap[ifIndex] {
 				// TODO failing for now will need to add code to update all other bridges that use
