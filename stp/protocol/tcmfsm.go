@@ -111,7 +111,7 @@ func (tcm *TcMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	tcm.Machine.Rules = r
 	tcm.Machine.Curr = &StpStateEvent{
 		strStateMap: TcStateStrMap,
-		logEna:      true,
+		logEna:      false,
 		logger:      tcm.TcmLogger,
 		owner:       TcMachineModuleStr,
 		ps:          TcStateNone,
@@ -189,6 +189,7 @@ func (tcm *TcMachine) TcMachineNotifiedTc(m fsm.Machine, data interface{}) fsm.S
 	p.RcvdTcn = false
 	p.RcvdTc = false
 	if p.Role == PortRoleDesignatedPort {
+		defer tcm.NotifyTcAckChanged(true)
 		p.TcAck = true
 	}
 	// Figure 17-25 says setTcPropBridge, but this is the only mention of this in
@@ -546,6 +547,13 @@ func (tcm *TcMachine) NotifyFdbFlush() {
 	go tcm.FlushFdb()
 }
 
+func (tcm *TcMachine) NotifyTcAckChanged(val bool) {
+	// lets force transmit, this should have come via state path
+	// Detected -> Active -> Notified Tc
+	// New info is set in Detected
+	tcm.NotifyNewInfoChanged(false, true)
+}
+
 func (tcm *TcMachine) NotifyTcWhileChanged(val int32) {
 	p := tcm.p
 
@@ -553,6 +561,29 @@ func (tcm *TcMachine) NotifyTcWhileChanged(val int32) {
 	if val == 0 {
 		// this should stop transmit of tcn messages
 	}
+}
+
+func (tcm *TcMachine) NotifyTcPropChanged(oldtcprop bool, newtcprop bool) {
+	p := tcm.p
+	if oldtcprop != newtcprop {
+		if tcm.Machine.Curr.CurrentState() == TcStateActive {
+			if newtcprop &&
+				!p.OperEdge {
+				tcm.TcEvents <- MachineEvent{
+					e:   TcEventTcPropAndNotOperEdge,
+					src: TcMachineModuleStr,
+				}
+			}
+		} else if tcm.Machine.Curr.CurrentState() == TcStateLearning {
+			if newtcprop {
+				tcm.TcEvents <- MachineEvent{
+					e:   TcEventTcProp,
+					src: TcMachineModuleStr,
+				}
+			}
+		}
+	}
+
 }
 
 func (tcm *TcMachine) NotifyNewInfoChanged(oldnewinfo bool, newnewinfo bool) {
@@ -615,6 +646,7 @@ func (tcm *TcMachine) setTcPropTree() {
 	for _, pId := range b.StpPorts {
 		if pId != p.IfIndex &&
 			StpFindPortByIfIndex(pId, b.BrgIfIndex, &port) {
+			port.TcMachineFsm.NotifyTcPropChanged(port.TcProp, true)
 			port.TcProp = true
 		}
 	}

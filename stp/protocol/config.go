@@ -626,6 +626,26 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) e
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Protcol Migration", pId, bId))
 }
 
+func StpPortBpduGuardSet(pId int32, bId int32, bpduguard bool) error {
+	var p *StpPort
+	if StpFindPortByIfIndex(pId, bId, &p) {
+		if p.BpduGuard != bpduguard &&
+			p.OperEdge {
+			c := StpPortConfigGet(pId)
+			prevval := c.BpduGuard
+			c.BpduGuard = bpduguard
+			err := StpPortConfigParamCheck(c)
+			if err == nil {
+				p.BpduGuard = bpduguard
+			} else {
+				c.BpduGuard = prevval
+			}
+			return err
+		}
+	}
+	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Bpdu Guard", pId, bId))
+}
+
 func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) error {
 	var p *StpPort
 	if StpFindPortByIfIndex(pId, bId, &p) {
