@@ -3,6 +3,7 @@ package stp
 
 import (
 	"log/syslog"
+	"sync"
 )
 
 var gLogger *syslog.Writer
@@ -13,6 +14,8 @@ func init() {
 	BridgeMapTable = make(map[BridgeKey]*Bridge, 0)
 	StpPortConfigMap = make(map[int32]StpPortConfig, 0)
 	StpBridgeConfigMap = make(map[int32]StpBridgeConfig, 0)
+
+	asicdmutex = &sync.Mutex{}
 
 	// Init the state string maps
 	TimerTypeStrStateMapInit()
