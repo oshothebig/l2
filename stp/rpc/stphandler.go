@@ -499,7 +499,7 @@ func (s *STPDServiceHandler) GetBulkStpPortState(fromIndex stpd.Int, count stpd.
 		nextStpPortState.DesignatedBridge = stp.CreateBridgeIdStr(p.PortPriority.DesignatedBridgeId)
 		//nextStpPortState.AdminPointToPoint  int32(p.)  //The administrative point-to-point status of the LAN segment attached to this port, using the enumeration values of the IEEE 802.1w clause.  A value of forceTrue(0) indicates that this port should always be treated as if it is connected to a point-to-point link.  A value of forceFalse(1) indicates that this port should be treated as having a shared media connection.  A value of auto(2) indicates that this port is considered to have a point-to-point link if it is an Aggregator and all of its    members are aggregatable, or if the MAC entity is configured for full duplex operation, either through auto-negotiation or by management means.  Manipulating this object changes the underlying adminPortToPortMAC.  The value of this object MUST be retained across reinitializations of the management system.
 		nextStpPortState.State = GetPortState(p)
-		//nextStpPortState.Enable = ConvertBoolToInt32(p.PortEnabled)
+		nextStpPortState.Enable = ConvertBoolToInt32(p.PortEnabled)
 		nextStpPortState.DesignatedRoot = stp.CreateBridgeIdStr(p.PortPriority.RootBridgeId)
 		nextStpPortState.DesignatedCost = int32(p.PortPathCost)
 		//nextStpPortState.AdminPathCost = p.AdminPathCost
