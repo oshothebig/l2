@@ -152,6 +152,22 @@ func StpPortConfigParamCheck(c *StpPortConfig) error {
 			return errors.New(fmt.Sprintf("Invalid Port %d Bridge Assurance only available on non Edge Ports", c.IfIndex))
 		}
 	}
+	/*
+		Taken care of as part of create
+		// all bridge port configurations are applied against all bridge ports applied to a given
+		// port
+		brgifindex := c.BrgIfIndex
+		c.BrgIfIndex = 0
+		if _, ok := StpPortConfigMap[c.IfIndex]; !ok {
+			StpPortConfigMap[c.IfIndex] = *c
+		} else {
+			if *c != StpPortConfigMap[c.IfIndex] {
+				return errors.New(fmt.Sprintf("Invalid Config params don't equal other bridge port config", c, StpPortConfigMap[c.IfIndex]))
+			}
+		}
+		c.BrgIfIndex = brgifindex
+	*/
+
 	return nil
 }
 
@@ -206,23 +222,20 @@ func StpPortCreate(c *StpPortConfig) error {
 	var p *StpPort
 	var b *Bridge
 	if !StpFindPortByIfIndex(c.IfIndex, c.BrgIfIndex, &p) {
-		ifIndex := c.IfIndex
 		brgIfIndex := c.BrgIfIndex
-		c.IfIndex = 0
 		c.BrgIfIndex = 0
 		// lets store the configuration
-		if _, ok := StpPortConfigMap[ifIndex]; !ok {
-			StpPortConfigMap[ifIndex] = *c
+		if _, ok := StpPortConfigMap[c.IfIndex]; !ok {
+			StpPortConfigMap[c.IfIndex] = *c
 		} else {
-			if *c != StpPortConfigMap[ifIndex] {
+			if *c != StpPortConfigMap[c.IfIndex] {
 				// TODO failing for now will need to add code to update all other bridges that use
 				// this physical port
 				return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
-					ifIndex, StpPortConfigMap[ifIndex], *c))
+					c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
 			}
 		}
 
-		c.IfIndex = ifIndex
 		c.BrgIfIndex = brgIfIndex
 		// nothing should happen until a birdge is assigned to the port
 		if StpFindBridgeByIfIndex(c.BrgIfIndex, &b) {
@@ -426,13 +439,17 @@ func StpPortPrioritySet(pId int32, bId int32, priority uint16) error {
 			c.Priority = priority
 			err := StpPortConfigParamCheck(c)
 			if err == nil {
-				p.Priority = priority
-				p.Selected = false
-				p.Reselect = true
+				// apply to all bridge ports
+				for _, port := range p.GetPortListToApplyConfigTo() {
 
-				p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
-					e:   PrsEventReselect,
-					src: "CONFIG: PortPrioritySet",
+					port.Priority = priority
+					port.Selected = false
+					port.Reselect = true
+
+					port.b.PrsMachineFsm.PrsEvents <- MachineEvent{
+						e:   PrsEventReselect,
+						src: "CONFIG: PortPrioritySet",
+					}
 				}
 			}
 			return err
@@ -613,10 +630,14 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) e
 			}
 			err := StpPortConfigParamCheck(c)
 			if err == nil {
-				p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventMcheck,
-					src: "CONFIG: ProtocolMigrationSet",
+				// apply to all bridge ports
+				for _, port := range p.GetPortListToApplyConfigTo() {
+
+					port.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventMcheck,
+						src: "CONFIG: ProtocolMigrationSet",
+					}
+					port.Mcheck = true
 				}
-				p.Mcheck = true
 			} else {
 				c.ProtocolMigration = prevval
 			}
@@ -624,6 +645,29 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) e
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Protcol Migration", pId, bId))
+}
+
+func StpPortBpduGuardSet(pId int32, bId int32, bpduguard bool) error {
+	var p *StpPort
+	if StpFindPortByIfIndex(pId, bId, &p) {
+		if p.BpduGuard != bpduguard &&
+			p.OperEdge {
+			c := StpPortConfigGet(pId)
+			prevval := c.BpduGuard
+			c.BpduGuard = bpduguard
+			err := StpPortConfigParamCheck(c)
+			if err == nil {
+				// apply to all bridge ports
+				for _, port := range p.GetPortListToApplyConfigTo() {
+					port.BpduGuard = bpduguard
+				}
+			} else {
+				c.BpduGuard = prevval
+			}
+			return err
+		}
+	}
+	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Bpdu Guard", pId, bId))
 }
 
 func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) error {
@@ -636,9 +680,12 @@ func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) error
 			c.BridgeAssurance = bridgeassurance
 			err := StpPortConfigParamCheck(c)
 			if err == nil {
-				p.BridgeAssurance = bridgeassurance
-				p.BridgeAssuranceInconsistant = false
-				p.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
+				// apply to all bridge ports
+				for _, port := range p.GetPortListToApplyConfigTo() {
+					port.BridgeAssurance = bridgeassurance
+					port.BridgeAssuranceInconsistant = false
+					port.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
+				}
 			} else {
 				c.BridgeAssurance = prevval
 			}

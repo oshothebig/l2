@@ -580,6 +580,17 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 	}
 }
 
+// This function can be used to know whether or not to apply configuration parameters
+// to one port or all ports, as of 3/21/16 applying to all ports
+func (p *StpPort) GetPortListToApplyConfigTo() (newlist []*StpPort) {
+	for _, port := range PortListTable {
+		if p.IfIndex == port.IfIndex {
+			newlist = append(newlist, port)
+		}
+	}
+	return
+}
+
 func (p *StpPort) SetRxPortCounters(ptype BPDURxType) {
 	p.BpduRx++
 	switch ptype {
