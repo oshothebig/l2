@@ -193,7 +193,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	}
 
 	var RootTimes Times
-	if StpFindBridgeByIfIndex(c.IfIndex, &b) {
+	if StpFindBridgeByIfIndex(c.BrgIfIndex, &b) {
 		RootTimes = b.RootTimes
 	}
 	p := &StpPort{
@@ -224,7 +224,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		TcWhileTimer:        PortTimer{count: int32(b.RootTimes.HelloTime)}, // should be updated by newTcWhile func
 		BAWhileTimer:        PortTimer{count: int32(b.RootTimes.HelloTime * 3)},
 		portChan:            make(chan string),
-		BrgIfIndex:          c.IfIndex,
+		BrgIfIndex:          c.BrgIfIndex,
 		AdminEdge:           c.AdminEdgePort,
 		PortPriority: PriorityVector{
 			RootBridgeId:       b.BridgeIdentifier,

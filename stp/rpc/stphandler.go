@@ -314,7 +314,7 @@ func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeI
 }
 
 func (s *STPDServiceHandler) CreateStpPort(config *stpd.StpPort) (bool, error) {
-	stp.StpLogger("INFO", "CreateStpPort (server): created ")
+	stp.StpLogger("INFO", fmt.Sprintf("CreateStpPort (server): created %#v", config))
 	portconfig := &stp.StpPortConfig{}
 	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
 	err := stp.StpPortConfigParamCheck(portconfig)
