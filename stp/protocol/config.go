@@ -207,7 +207,9 @@ func StpPortCreate(c *StpPortConfig) error {
 	var b *Bridge
 	if !StpFindPortByIfIndex(c.IfIndex, c.BrgIfIndex, &p) {
 		ifIndex := c.IfIndex
+		brgIfIndex := c.BrgIfIndex
 		c.IfIndex = 0
+		c.BrgIfIndex = 0
 		// lets store the configuration
 		if _, ok := StpPortConfigMap[ifIndex]; !ok {
 			StpPortConfigMap[ifIndex] = *c
@@ -221,6 +223,7 @@ func StpPortCreate(c *StpPortConfig) error {
 		}
 
 		c.IfIndex = ifIndex
+		c.BrgIfIndex = brgIfIndex
 		// nothing should happen until a birdge is assigned to the port
 		if StpFindBridgeByIfIndex(c.BrgIfIndex, &b) {
 			p := NewStpPort(c)
