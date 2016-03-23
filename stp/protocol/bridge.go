@@ -421,7 +421,7 @@ func (b *Bridge) ReRooted(p *StpPort) bool {
 				continue
 			}
 			if StpFindPortByIfIndex(pId, b.BrgIfIndex, &op) {
-				if p.RrWhileTimer.count != 0 {
+				if op.RrWhileTimer.count != 0 {
 					rerooted = false
 				}
 			}
