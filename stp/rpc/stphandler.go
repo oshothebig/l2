@@ -80,6 +80,16 @@ func ConvertBridgeIdToString(bridgeid stp.BridgeId) string {
 		bridgeid[7])
 }
 
+func ConvertAddrToString(mac [6]uint8) string {
+	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
+		bridgeid[0],
+		bridgeid[1],
+		bridgeid[2],
+		bridgeid[3],
+		bridgeid[4],
+		bridgeid[5])
+}
+
 //NOTE—The current IETF Bridge MIB (IETF RFC 1493) uses disabled, blocking, listening, learning, forwarding, and
 //broken dot1dStpPortStates. The learning and forwarding states correspond exactly to the Learning and Forwarding Port
 //States specified in this standard. Disabled, blocking, listening, and broken all correspond to the Discarding Port State —
@@ -428,13 +438,13 @@ func (s *STPDServiceHandler) GetBulkStpBridgeState(fromIndex stpd.Int, count stp
 		nextStpBridgeState.TxHoldCount = stp.TransmitHoldCountDefault
 		nextStpBridgeState.BridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
 		nextStpBridgeState.BridgeMaxAge = int32(b.BridgeTimes.MaxAge)
-		nextStpBridgeState.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgeIdentifier))
+		nextStpBridgeState.Address = ConvertAddrToString(stp.GetBridgeAddrFromBridgeId(b.BridgePriority.DesignatedBridgeId))
+		nextStpBridgeState.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
 		nextStpBridgeState.IfIndex = b.BrgIfIndex
 		nextStpBridgeState.ProtocolSpecification = 2
 		//nextStpBridgeState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
 		//nextStpBridgeState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
 		nextStpBridgeState.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
-		nextStpBridgeState.DesignatedBridge = ConvertBridgeIdToString(b.BridgePriority.DesignatedBridgeId)
 		nextStpBridgeState.RootCost = int32(b.BridgePriority.RootPathCost)
 		nextStpBridgeState.RootPort = int32(b.BridgePriority.DesignatedPortId)
 		nextStpBridgeState.MaxAge = int32(b.RootTimes.MaxAge)
