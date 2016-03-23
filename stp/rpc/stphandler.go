@@ -434,6 +434,7 @@ func (s *STPDServiceHandler) GetBulkStpBridgeState(fromIndex stpd.Int, count stp
 		//nextStpBridgeState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
 		//nextStpBridgeState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
 		nextStpBridgeState.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
+		nextStpBridgeState.DesignatedBridge = ConvertBridgeIdToString(b.BridgePriority.DesignatedBridgeId)
 		nextStpBridgeState.RootCost = int32(b.BridgePriority.RootPathCost)
 		nextStpBridgeState.RootPort = int32(b.BridgePriority.DesignatedPortId)
 		nextStpBridgeState.MaxAge = int32(b.RootTimes.MaxAge)

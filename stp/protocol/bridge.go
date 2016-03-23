@@ -282,11 +282,11 @@ func GetBridgeAddrFromBridgeId(b BridgeId) [6]uint8 {
 }
 
 func GetBridgeVlanFromBridgeId(b BridgeId) (vlan uint16) {
-	return uint16(((b[0] & 0xF) << 8) | b[1])
+	return ((uint16(b[0]) & 0xF) << 8) | uint16(b[1])
 }
 
 func GetBridgePriorityFromBridgeId(b BridgeId) uint16 {
-	return uint16(b[0]<<8 | b[1])
+	return uint16(b[0]<<8) | uint16(b[1])
 }
 
 // Compare BridgeId
