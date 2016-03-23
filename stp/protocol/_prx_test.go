@@ -70,7 +70,7 @@ func UsedForTestOnlyPrxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
 	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
 
-	stpconfig.IfIndex = DEFAULT_STP_BRIDGE_VLAN
+	stpconfig.BrgIfIndex = DEFAULT_STP_BRIDGE_VLAN
 
 	// create a port
 	p = NewStpPort(stpconfig)
@@ -178,7 +178,7 @@ func UsedForTestOnlySendValidStpTopoFrame(txifindex int32, t *testing.T) {
 	topo := layers.BPDUTopology{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: layers.STPProtocolVersion,
-		BPDUType:          byte(layers.BPDUTypeTopoChange),
+		BPDUType:          layers.StpBpduType(layers.BPDUTypeTopoChange),
 	}
 
 	// Set up buffer and options for serialization.
@@ -225,7 +225,7 @@ func UsedForTestOnlySendValidStpFrame(txifindex int32, t *testing.T) {
 	stp := layers.STP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: layers.STPProtocolVersion,
-		BPDUType:          byte(layers.BPDUTypeSTP),
+		BPDUType:          layers.StpBpduType(layers.BPDUTypeSTP),
 		Flags:             0,
 		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
 		RootPathCost:      1,
@@ -294,7 +294,10 @@ func UsedForTestOnlySendValidRStpFrame(txifindex int32, t *testing.T) {
 		Version1Length:    0,
 	}
 
-	StpSetBpduFlags(0, 0, 0, 0, PortRoleDesignatedPort, 1, 0, &stp.Flags)
+	var flags uint8
+	StpSetBpduFlags(0, 0, 0, 0, ConvertRoleToPktRole(PortRoleDesignatedPort), 1, 0, &flags)
+
+	stp.Flags = layers.StpFlags(flags)
 
 	// Set up buffer and options for serialization.
 	buf := gopacket.NewSerializeBuffer()
@@ -335,8 +338,10 @@ func UsedForTestOnlySendInvalidStpFrame(txifindex int32, stp *layers.STP, t *tes
 		CR:      false,
 		Control: 0x03,
 	}
+	var flags uint8
+	StpSetBpduFlags(0, 0, 0, 0, ConvertRoleToPktRole(PortRoleDesignatedPort), 1, 0, &flags)
 
-	StpSetBpduFlags(0, 0, 0, 0, PortRoleDesignatedPort, 1, 0, &stp.Flags)
+	stp.Flags = layers.StpFlags(flags)
 
 	// Set up buffer and options for serialization.
 	buf := gopacket.NewSerializeBuffer()
@@ -378,7 +383,10 @@ func UsedForTestOnlySendInvalidRStpFrame(txifindex int32, rstp *layers.RSTP, t *
 		Control: 0x03,
 	}
 
-	StpSetBpduFlags(0, 0, 0, 0, PortRoleDesignatedPort, 1, 0, &rstp.Flags)
+	var flags uint8
+	StpSetBpduFlags(0, 0, 0, 0, ConvertRoleToPktRole(PortRoleDesignatedPort), 1, 0, &flags)
+
+	rstp.Flags = layers.StpFlags(flags)
 
 	// Set up buffer and options for serialization.
 	buf := gopacket.NewSerializeBuffer()
@@ -399,7 +407,7 @@ func TestRxValidStpPacket(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -410,6 +418,9 @@ func TestRxValidStpPacket(t *testing.T) {
 	}
 
 	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
+	// force timeout, if this does not happen then event will not be sent to PPM
+	p.MdelayWhiletimer.count = 0
+
 	// send a packet
 	UsedForTestOnlySendValidStpFrame(TEST_TX_PORT_CONFIG_IFINDEX, t)
 
@@ -477,7 +488,7 @@ func TestRxValidStpPacket(t *testing.T) {
 func TestRxValidRStpPacket(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -556,7 +567,7 @@ func TestRxValidRStpPacket(t *testing.T) {
 func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -634,7 +645,7 @@ func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -713,7 +724,7 @@ func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -729,7 +740,7 @@ func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 	stp := layers.STP{
 		ProtocolId:        layers.RSTPProtocolIdentifier,
 		ProtocolVersionId: layers.RSTPProtocolVersion,
-		BPDUType:          byte(layers.BPDUTypeRSTP),
+		BPDUType:          layers.BPDUTypeRSTP,
 		Flags:             0,
 		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
 		RootPathCost:      1,
@@ -792,7 +803,7 @@ func TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            false,
 		PathCost:          1,
@@ -862,7 +873,7 @@ func TestRxValidTopoChange(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,

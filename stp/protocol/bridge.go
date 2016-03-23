@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-const BridgeConfigModuleStr = "Bridge Config"
+const BridgeConfigModuleStr = "BRG CFG"
 
 var BridgeMapTable map[BridgeKey]*Bridge
 var BridgeListTable []*Bridge

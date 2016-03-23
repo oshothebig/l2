@@ -10,7 +10,7 @@ import (
 	"utils/fsm"
 )
 
-const BdmMachineModuleStr = "Bridge Detection State Machine"
+const BdmMachineModuleStr = "BDM"
 
 const (
 	BdmStateNone = iota + 1
