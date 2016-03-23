@@ -82,12 +82,12 @@ func ConvertBridgeIdToString(bridgeid stp.BridgeId) string {
 
 func ConvertAddrToString(mac [6]uint8) string {
 	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
-		bridgeid[0],
-		bridgeid[1],
-		bridgeid[2],
-		bridgeid[3],
-		bridgeid[4],
-		bridgeid[5])
+		mac[0],
+		mac[1],
+		mac[2],
+		mac[3],
+		mac[4],
+		mac[5])
 }
 
 //NOTE—The current IETF Bridge MIB (IETF RFC 1493) uses disabled, blocking, listening, learning, forwarding, and
