@@ -19,7 +19,7 @@ var PortMapTable map[PortMapKey]*StpPort
 var PortListTable []*StpPort
 var PortConfigMap map[int32]portConfig
 
-const PortConfigModuleStr = "Port Config"
+const PortConfigModuleStr = "PORT CFG"
 
 type PortMapKey struct {
 	IfIndex    int32
@@ -527,7 +527,7 @@ func (p *StpPort) BEGIN(restart bool) {
 	if p.PtmMachineFsm != nil {
 		p.PtmMachineFsm.TickTimerStart()
 	}
-	StpMachineLogger("INFO", "PORT", p.IfIndex, p.BrgIfIndex, "BEGIN complete")
+	StpMachineLogger("INFO", PortConfigModuleStr, p.IfIndex, p.BrgIfIndex, "BEGIN complete")
 	p.begin = false
 }
 
@@ -706,7 +706,7 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 	// 3) Port Information
 	// 4) Bridge Detection
 	if oldportenabled != newportenabled {
-		StpMachineLogger("INFO", "PORT", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
+		StpMachineLogger("INFO", PortConfigModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
 		mEvtChan := make([]chan MachineEvent, 0)
 		evt := make([]MachineEvent, 0)
 
@@ -2126,7 +2126,7 @@ func (p *StpPort) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn bool, 
 	//if oldrcvdtc != newrcvdtc ||
 	//	oldrcvdtcn != newrcvdtcn ||
 	//	oldrcvdtcack != newrcvdtcack {
-	//StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("TC state[%s] tcn[%t] tcack[%t] tcn[%t]",
+	//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("TC state[%s] tcn[%t] tcack[%t] tcn[%t]",
 	//	TcStateStrMap[p.TcMachineFsm.Machine.Curr.CurrentState()], p.RcvdTc, p.RcvdTcAck, p.RcvdTcn))
 	if p.RcvdTc &&
 		(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||

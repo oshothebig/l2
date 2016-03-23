@@ -57,7 +57,7 @@ func UsedForTestOnlyPimTestSetup(t *testing.T, enable bool) (p *StpPort) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            enable,
 		PathCost:          1,
@@ -65,7 +65,7 @@ func UsedForTestOnlyPimTestSetup(t *testing.T, enable bool) (p *StpPort) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -286,9 +286,6 @@ func UsedForTestOnlyPimCheckUpdateState(p *StpPort, t *testing.T) {
 		t.Error("Failed Synced is not set")
 	}
 	*/
-	if p.PortPriority != p.DesignatedPriority {
-		t.Error("Failed Port Priority not equal Designated Priority")
-	}
 	if p.PortTimes != p.b.RootTimes {
 		t.Error("Failed Port Times not equal Designated times")
 	}
@@ -599,7 +596,7 @@ func UsedForTestOnlyPimStartInCurrentState(t *testing.T) *StpPort {
 }
 
 func UsedForTestOnlyPimCheckSuperiorDesignatedState(p *StpPort, t *testing.T) {
-	if p.RcvdfInfo != SuperiorDesignatedInfo {
+	if p.RcvdInfo != SuperiorDesignatedInfo {
 		t.Error("Failed RcvdInfo is not Superior")
 	}
 	if p.Agreed != false {
@@ -773,8 +770,10 @@ func TestPimAgedStateSelectedAndUpdtInfo(t *testing.T) {
 
 	p := UsedForTestOnlyPimStartInAgedState(t)
 	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDisabledPort)
+	p.InfoIs = PortInfoStateReceived
 	p.Selected = true
 	p.UpdtInfo = true
+	p.Synced = true
 	p.PimMachineFsm.PimEvents <- MachineEvent{
 		e:            PimEventSelectedAndUpdtInfo,
 		src:          "TEST",
@@ -941,7 +940,7 @@ func xTestPimCurrentStateRcvdMsgAndNotUpdtInfo(t *testing.T) {
 		for i, v := range MsgVectorList {
 			p := UsedForTestOnlyPimStartInCurrentState(t)
 			p.MsgPriority = v
-			p.DesignatedPriority = PortVectorList[i]
+			p.PortPriority = PortVectorList[i]
 			p.RcvdMsg = true
 			p.UpdtInfo = false
 			p.Role = r
@@ -962,14 +961,17 @@ func xTestPimCurrentStateRcvdMsgAndNotUpdtInfo(t *testing.T) {
 				Version1Length:    0,
 			}
 
+			var flags uint8
 			StpSetBpduFlags(ConvertBoolToUint8(false),
 				ConvertBoolToUint8(p.Agree),
 				ConvertBoolToUint8(p.Forward),
 				ConvertBoolToUint8(p.Learning),
-				r,
+				ConvertRoleToPktRole(r),
 				ConvertBoolToUint8(p.Proposed),
 				ConvertBoolToUint8(p.TcWhileTimer.count != 0),
-				&rstp.Flags)
+				&flags)
+
+			rstp.Flags = layers.StpFlags(flags)
 
 			p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
 				src:          "TEST",
@@ -1063,6 +1065,9 @@ func TestPimCurrentStateSelectedAndUpdtInfo(t *testing.T) {
 	testChan := make(chan string)
 	p := UsedForTestOnlyPimStartInCurrentState(t)
 
+	p.InfoIs = PortInfoStateReceived
+	p.Synced = true
+	p.Agreed = true
 	p.Selected = true
 	p.UpdtInfo = true
 	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDisabledPort)

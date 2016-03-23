@@ -11,7 +11,7 @@ func UsedForTestOnlyBdmTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 	bridgeconfig := &StpBridgeConfig{
 		Address:      "00:55:55:55:55:55",
 		Priority:     0x20,
-		BridgeMaxAge: BridgeMaxAgeDefault,
+		MaxAge:       BridgeMaxAgeDefault,
 		HelloTime:    BridgeHelloTimeDefault,
 		ForwardDelay: BridgeForwardDelayDefault,
 		ForceVersion: 2,
@@ -21,7 +21,7 @@ func UsedForTestOnlyBdmTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 	//StpBridgeCreate
 	b := NewStpBridge(bridgeconfig)
 
-	stpconfig.IfIndex = DEFAULT_STP_BRIDGE_VLAN
+	stpconfig.BrgIfIndex = DEFAULT_STP_BRIDGE_VLAN
 
 	// create a port
 	p = NewStpPort(stpconfig)
@@ -144,7 +144,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_1(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -202,7 +202,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_2(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -263,7 +263,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_3(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -324,7 +324,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_4(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -386,7 +386,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_5(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -448,7 +448,7 @@ func TestBdmMachineNotPortEnabledAndNotAdminEdge_6(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -632,7 +632,7 @@ func TestBdmMachineNotOperEdge_2(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -804,7 +804,7 @@ func TestBdmMachineNotOperEdge_5(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1063,7 +1063,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_2(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1122,7 +1122,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_3(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1179,7 +1179,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_4(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1238,7 +1238,7 @@ func TestBdmMachineNotPortEnabledAndAdminEdge_5(t *testing.T) {
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1296,7 +1296,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_1(t
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1356,7 +1356,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_2(t
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1419,7 +1419,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_3(t
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1480,7 +1480,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_4(t
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1543,7 +1543,7 @@ func TestBdmMachineEdgeDelayWhileEqualZeroAndAutoEdgeAndSendRstpAndProposing_5(t
 	testChan := make(chan string)
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,

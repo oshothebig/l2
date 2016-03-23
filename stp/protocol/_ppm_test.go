@@ -240,7 +240,7 @@ func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -248,7 +248,7 @@ func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -324,7 +324,7 @@ func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testin
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -332,7 +332,7 @@ func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testin
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -479,7 +479,7 @@ func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -487,7 +487,7 @@ func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -540,7 +540,7 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 	bridgeconfig := &StpBridgeConfig{
 		Address:      "00:55:55:55:55:55",
 		Priority:     0x20,
-		BridgeMaxAge: BridgeMaxAgeDefault,
+		MaxAge:       BridgeMaxAgeDefault,
 		HelloTime:    BridgeHelloTimeDefault,
 		ForwardDelay: BridgeForwardDelayDefault,
 		ForceVersion: 2,
@@ -555,7 +555,7 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -563,7 +563,7 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -631,7 +631,7 @@ func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -639,7 +639,7 @@ func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -696,7 +696,7 @@ func TestPpmSelectingSTPMcheck(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -704,7 +704,7 @@ func TestPpmSelectingSTPMcheck(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -783,7 +783,7 @@ func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -791,7 +791,7 @@ func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -860,7 +860,7 @@ func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -868,7 +868,7 @@ func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -938,7 +938,7 @@ func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -946,7 +946,7 @@ func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -1055,7 +1055,7 @@ func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1063,7 +1063,7 @@ func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
@@ -1173,7 +1173,7 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -1181,7 +1181,7 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     false,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	// create a port
