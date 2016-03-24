@@ -112,7 +112,7 @@ func GetPortState(p *stp.StpPort) (state int32) {
 	        }
 	*/
 	state = 0
-	stp.StpLogger("INFO", fmt.Sprintf("PortEnabled[%t] Learning[%t] Forwarding[%t]", p.PortEnabled, p.Learning, p.Forwarding))
+	//stp.StpLogger("INFO", fmt.Sprintf("PortEnabled[%t] Learning[%t] Forwarding[%t]", p.PortEnabled, p.Learning, p.Forwarding))
 	if !p.PortEnabled {
 		state = 1
 	} else if p.Forwarding {
@@ -492,7 +492,7 @@ func (s *STPDServiceHandler) GetBulkStpPortState(fromIndex stpd.Int, count stpd.
 	stp.StpLogger("INFO", fmt.Sprintf("Total configured ports %d fromIndex %d count %d", stpPortListLen, fromIndex, count))
 	for currIndex := fromIndex; validCount != count && currIndex < stpPortListLen; currIndex++ {
 
-		stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
+		//stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
 
 		p := stp.PortListTable[currIndex]
 		nextStpPortState = &stpPortStateList[validCount]

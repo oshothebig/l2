@@ -659,6 +659,11 @@ func StpPortBpduGuardSet(pId int32, bId int32, bpduguard bool) error {
 			if err == nil {
 				// apply to all bridge ports
 				for _, port := range p.GetPortListToApplyConfigTo() {
+					if bpduguard {
+						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Setting BPDU Guard")
+					} else {
+						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Clearing BPDU Guard")
+					}
 					port.BpduGuard = bpduguard
 				}
 			} else {
@@ -682,6 +687,11 @@ func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) error
 			if err == nil {
 				// apply to all bridge ports
 				for _, port := range p.GetPortListToApplyConfigTo() {
+					if bridgeassurance {
+						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Setting Bridge Assurance")
+					} else {
+						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Clearing Bridge Assurance")
+					}
 					port.BridgeAssurance = bridgeassurance
 					port.BridgeAssuranceInconsistant = false
 					port.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
