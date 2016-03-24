@@ -305,7 +305,7 @@ func (pstm *PstMachine) NotifyLearningChanged(oldlearning bool, newlearning bool
 				p.Selected &&
 				!p.UpdtInfo {
 				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
+					e:   PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo,
 					src: PstMachineModuleStr,
 				}
 			}
@@ -358,7 +358,7 @@ func (pstm *PstMachine) NotifyForwardingChanged(oldforwarding bool, newforwardin
 				p.Selected &&
 				!p.UpdtInfo {
 				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
+					e:   PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo,
 					src: PstMachineModuleStr,
 				}
 			}
