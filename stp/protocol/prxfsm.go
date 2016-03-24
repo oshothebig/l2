@@ -394,9 +394,11 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 
 		if p.RcvdTc {
 			p.SetRxPortCounters(BPDURxTypeTopo)
+			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC packet"))
 		}
 		if p.RcvdTcAck {
 			p.SetRxPortCounters(BPDURxTypeTopoAck)
+			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC Ack packet "))
 		}
 
 	case *layers.PVST:
@@ -427,7 +429,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			validPdu = true
 		}
 
-		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received PVST packet flags", pvst.Flags))
+		//StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received PVST packet flags", pvst.Flags))
 
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, StpGetBpduTopoChangeAck(flags))
 		p.RcvdTc = StpGetBpduTopoChange(flags)
@@ -435,9 +437,11 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		p.RcvdTcAck = StpGetBpduTopoChangeAck(flags)
 
 		if p.RcvdTc {
+			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC packet"))
 			p.SetRxPortCounters(BPDURxTypeTopo)
 		}
 		if p.RcvdTcAck {
+			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC Ack packet"))
 			p.SetRxPortCounters(BPDURxTypeTopoAck)
 		}
 
@@ -477,9 +481,11 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 
 		if p.RcvdTc {
 			p.SetRxPortCounters(BPDURxTypeTopo)
+			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC packet"))
 		}
 		if p.RcvdTcAck {
 			p.SetRxPortCounters(BPDURxTypeTopoAck)
+			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC Ack packet"))
 		}
 
 	case *layers.BPDUTopology:

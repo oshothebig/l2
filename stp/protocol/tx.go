@@ -143,11 +143,14 @@ func (p *StpPort) TxPVST() {
 		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
 		return
 	}
+
 	p.SetTxPortCounters(BPDURxTypePVST)
 	if p.TcWhileTimer.count != 0 {
+		StpMachineLogger("INFO", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC packet on interface %s\n", pIntf.Name))
 		p.SetTxPortCounters(BPDURxTypeTopo)
 	}
 	if p.TcAck {
+		StpMachineLogger("INFO", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC Ack packet on interface %s\n", pIntf.Name))
 		p.SetTxPortCounters(BPDURxTypeTopoAck)
 	}
 
@@ -203,15 +206,16 @@ func (p *StpPort) TxRSTP() {
 		StpLogger("ERROR", fmt.Sprintf("Error writing packet to interface %s\n", err))
 		return
 	}
+	pIntf, _ := PortConfigMap[p.IfIndex]
 	p.SetTxPortCounters(BPDURxTypeRSTP)
 	if p.TcWhileTimer.count != 0 {
+		StpMachineLogger("INFO", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC packet on interface %s\n", pIntf.Name))
 		p.SetTxPortCounters(BPDURxTypeTopo)
 	}
 	if p.TcAck {
+		StpMachineLogger("INFO", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC Ack packet on interface %s\n", pIntf.Name))
 		p.SetTxPortCounters(BPDURxTypeTopoAck)
 	}
-
-	//pIntf, _ := PortConfigMap[p.IfIndex]
 	//StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
 }
 
@@ -244,8 +248,8 @@ func (p *StpPort) TxTCN() {
 
 	p.SetTxPortCounters(BPDURxTypeSTP)
 	p.SetTxPortCounters(BPDURxTypeTopo)
-	//pIntf, _ := PortConfigMap[p.IfIndex]
-	//StpLogger("INFO", fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
+	pIntf, _ := PortConfigMap[p.IfIndex]
+	StpMachineLogger("INFO", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
 
 }
 
