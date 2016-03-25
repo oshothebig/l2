@@ -7,7 +7,7 @@ import (
 	"utils/fsm"
 )
 
-const PtmMachineModuleStr = "Port Timer State Machine"
+const PtmMachineModuleStr = "PTIM"
 
 const (
 	PtmStateNone = iota + 1
@@ -51,7 +51,7 @@ type PtmMachine struct {
 	// machine specific events
 	PtmEvents chan MachineEvent
 	// stop go routine
-	PtmKillSignalEvent chan bool
+	PtmKillSignalEvent chan MachineEvent
 	// enable logging
 	PtmLogEnableEvent chan bool
 }
@@ -75,7 +75,7 @@ func NewStpPtmMachine(p *StpPort) *PtmMachine {
 		p:                  p,
 		PreviousState:      PtmStateNone,
 		PtmEvents:          make(chan MachineEvent, 50),
-		PtmKillSignalEvent: make(chan bool),
+		PtmKillSignalEvent: make(chan MachineEvent, 1),
 		PtmLogEnableEvent:  make(chan bool)}
 
 	// start then stop
@@ -88,7 +88,7 @@ func NewStpPtmMachine(p *StpPort) *PtmMachine {
 }
 
 func (ptm *PtmMachine) PtmLogger(s string) {
-	//StpMachineLogger("INFO", "PTM", ptm.p.IfIndex, s)
+	//StpMachineLogger("INFO", PtmMachineModuleStr, ptm.p.IfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -115,10 +115,15 @@ func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (ptm *PtmMachine) Stop() {
 
+	wait := make(chan string, 1)
 	ptm.TickTimerDestroy()
 
 	// stop the go routine
-	ptm.PtmKillSignalEvent <- true
+	ptm.PtmKillSignalEvent <- MachineEvent{
+		e:            PtmEventBegin,
+		responseChan: wait,
+	}
+	<-wait
 
 	close(ptm.PtmEvents)
 	close(ptm.PtmLogEnableEvent)
@@ -183,12 +188,15 @@ func (p *StpPort) PtmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PtmMachine) {
-		StpMachineLogger("INFO", "PTM", p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("INFO", PtmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PtmKillSignalEvent:
-				StpMachineLogger("INFO", "PTM", p.IfIndex, p.BrgIfIndex, "Machine End")
+			case event := <-m.PtmKillSignalEvent:
+				StpMachineLogger("INFO", PtmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(PtmMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case <-m.TickTimer.C:

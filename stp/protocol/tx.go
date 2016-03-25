@@ -144,6 +144,12 @@ func (p *StpPort) TxPVST() {
 		return
 	}
 	p.SetTxPortCounters(BPDURxTypePVST)
+	if p.TcWhileTimer.count != 0 {
+		p.SetTxPortCounters(BPDURxTypeTopo)
+	}
+	if p.TcAck {
+		p.SetTxPortCounters(BPDURxTypeTopoAck)
+	}
 
 	//StpLogger("INFO", fmt.Sprintf("Sent PVST packet on interface %s %#v\n", pIntf.Name, pvst))
 }
@@ -198,6 +204,12 @@ func (p *StpPort) TxRSTP() {
 		return
 	}
 	p.SetTxPortCounters(BPDURxTypeRSTP)
+	if p.TcWhileTimer.count != 0 {
+		p.SetTxPortCounters(BPDURxTypeTopo)
+	}
+	if p.TcAck {
+		p.SetTxPortCounters(BPDURxTypeTopoAck)
+	}
 
 	//pIntf, _ := PortConfigMap[p.IfIndex]
 	//StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
@@ -230,6 +242,7 @@ func (p *StpPort) TxTCN() {
 		p.TxRSTP()
 	}
 
+	p.SetTxPortCounters(BPDURxTypeSTP)
 	p.SetTxPortCounters(BPDURxTypeTopo)
 	//pIntf, _ := PortConfigMap[p.IfIndex]
 	//StpLogger("INFO", fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
@@ -285,6 +298,13 @@ func (p *StpPort) TxConfig() {
 	}
 
 	p.SetTxPortCounters(BPDURxTypeSTP)
+	if p.TcWhileTimer.count != 0 {
+		p.SetTxPortCounters(BPDURxTypeTopo)
+	}
+	if p.TcAck {
+		p.SetTxPortCounters(BPDURxTypeTopoAck)
+	}
+
 	//pIntf, _ := PortConfigMap[p.IfIndex]
 	//StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s %#v\n", pIntf.Name, stp))
 }

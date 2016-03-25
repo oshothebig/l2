@@ -107,11 +107,17 @@ func (p *StpPort) DecrementTimerCounters() {
 	}
 	// ptx owner
 	if p.HelloWhenTimer.count > 0 {
-		p.HelloWhenTimer.count--
+		// if hellowhen never expires then packets should not get transmitted
+		if p.PortEnabled {
+			p.HelloWhenTimer.count--
 
-		if p.HelloWhenTimer.count == 0 {
-			defer p.NotifyHelloWhenTimerExpired()
+			if p.HelloWhenTimer.count == 0 {
+				defer p.NotifyHelloWhenTimerExpired()
+			}
+		} else {
+			p.HelloWhenTimer.count = int32(p.PortTimes.HelloTime)
 		}
+
 	}
 
 	// ppm owner
@@ -214,6 +220,17 @@ func (p *StpPort) DecrementTimerCounters() {
 			p.BridgeAssuranceInconsistant = true
 			p.NotifySelectedRoleChanged("BAM", p.SelectedRole, PortRoleDisabledPort)
 			p.SelectedRole = PortRoleDisabledPort
+		}
+	}
+
+	if p.BpduGuard &&
+		p.OperEdge &&
+		p.BPDUGuardTimer.count > 0 {
+		p.BPDUGuardTimer.count--
+		// condition has not been detected lets clear the
+		// Detection
+		if p.BPDUGuardTimer.count == 0 {
+			asicdBPDUGuardDetected(p.IfIndex, false)
 		}
 	}
 }

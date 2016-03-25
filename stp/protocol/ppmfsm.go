@@ -12,7 +12,7 @@ import (
 	"utils/fsm"
 )
 
-const PpmmMachineModuleStr = "Port Receive State Machine"
+const PpmmMachineModuleStr = "PPMM"
 
 const (
 	PpmmStateNone = iota + 1
@@ -55,7 +55,7 @@ type PpmmMachine struct {
 	// machine specific events
 	PpmmEvents chan MachineEvent
 	// stop go routine
-	PpmmKillSignalEvent chan bool
+	PpmmKillSignalEvent chan MachineEvent
 	// enable logging
 	PpmmLogEnableEvent chan bool
 }
@@ -73,7 +73,7 @@ func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 	ppmm := &PpmmMachine{
 		p:                   p,
 		PpmmEvents:          make(chan MachineEvent, 50),
-		PpmmKillSignalEvent: make(chan bool),
+		PpmmKillSignalEvent: make(chan MachineEvent, 1),
 		PpmmLogEnableEvent:  make(chan bool)}
 
 	p.PpmmMachineFsm = ppmm
@@ -82,7 +82,7 @@ func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 }
 
 func (ppm *PpmmMachine) PpmLogger(s string) {
-	StpMachineLogger("INFO", "PPM", ppm.p.IfIndex, ppm.p.BrgIfIndex, s)
+	StpMachineLogger("INFO", PpmmMachineModuleStr, ppm.p.IfIndex, ppm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -109,8 +109,13 @@ func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (ppmm *PpmmMachine) Stop() {
 
+	wait := make(chan string, 1)
 	// stop the go routine
-	ppmm.PpmmKillSignalEvent <- true
+	ppmm.PpmmKillSignalEvent <- MachineEvent{
+		e:            PpmmEventBegin,
+		responseChan: wait,
+	}
+	<-wait
 
 	close(ppmm.PpmmEvents)
 	close(ppmm.PpmmLogEnableEvent)
@@ -264,25 +269,28 @@ func (p *StpPort) PpmmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PpmmMachine) {
-		StpMachineLogger("INFO", "PPMM", p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("INFO", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PpmmKillSignalEvent:
-				StpMachineLogger("INFO", "PPMM", p.IfIndex, p.BrgIfIndex, "Machine End")
+			case event := <-m.PpmmKillSignalEvent:
+				StpMachineLogger("INFO", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+				if event.responseChan != nil {
+					SendResponse(PpmmMachineModuleStr, event.responseChan)
+				}
 				return
 
 			case event := <-m.PpmmEvents:
 
 				if m.Machine.Curr.CurrentState() == PpmmStateNone && event.e != PpmmEventBegin {
 					m.PpmmEvents <- event
-					continue
+					break
 				}
 
 				//fmt.Println("Event Rx", event.src, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()])
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 				if rv != nil {
-					StpMachineLogger("INFO", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()]))
+					StpMachineLogger("INFO", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()]))
 				} else {
 
 					// post processing
@@ -309,14 +317,14 @@ func (ppmm *PpmmMachine) ProcessPostStateSensing() {
 		if !p.PortEnabled {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventNotPortEnabled, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventNotPortEnabled, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
 		} else if p.Mcheck {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventMcheck, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventMcheck, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
@@ -325,7 +333,7 @@ func (ppmm *PpmmMachine) ProcessPostStateSensing() {
 			p.RcvdRSTP {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
@@ -339,14 +347,14 @@ func (ppmm *PpmmMachine) ProcessPostStateSelectingSTP() {
 		if !p.PortEnabled {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventNotPortEnabled, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventNotPortEnabled, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventNotPortEnabled, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}
 		} else if p.Mcheck {
 			rv := ppmm.Machine.ProcessEvent(PpmmMachineModuleStr, PpmmEventMcheck, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", "PPMM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventMcheck, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, PpmmEventMcheck, PpmmStateStrMap[ppmm.Machine.Curr.CurrentState()]))
 			} else {
 				ppmm.ProcessPostStateProcessing()
 			}

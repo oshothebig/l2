@@ -4,6 +4,7 @@ package stp
 import (
 	hwconst "asicd/asicdConstDefs"
 	"asicd/pluginManager/pluginCommon"
+	"asicdInt"
 	"asicdServices"
 	"encoding/json"
 	"fmt"
@@ -12,9 +13,13 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"utils/ipcutils"
 )
+
+// to protect against thrift not being thread safe
+var asicdmutex *sync.Mutex
 
 type STPClientBase struct {
 	Address            string
@@ -96,7 +101,7 @@ func ConstructPortConfigMap() {
 			}
 			StpLogger("INFO", fmt.Sprintf("Length of GetBulkPortState: %d", bulkInfo.Count))
 
-			bulkCfgInfo, err := asicdclnt.ClientHdl.GetBulkPortConfig(currMarker, count)
+			bulkCfgInfo, err := asicdclnt.ClientHdl.GetBulkPort(currMarker, count)
 			if err != nil {
 				StpLogger("ERROR", fmt.Sprintf("Error: %s", err))
 				return
@@ -112,7 +117,7 @@ func ConstructPortConfigMap() {
 				ent.PortNum = bulkInfo.PortStateList[i].PortNum
 				ent.IfIndex = ifindex
 				ent.Name = bulkInfo.PortStateList[i].Name
-				ent.HardwareAddr, _ = net.ParseMAC(bulkCfgInfo.PortConfigList[i].MacAddr)
+				ent.HardwareAddr, _ = net.ParseMAC(bulkCfgInfo.PortList[i].MacAddr)
 				PortConfigMap[ifindex] = ent
 				StpLogger("INIT", fmt.Sprintf("Found Port %d IfIndex %d Name %s\n", ent.PortNum, ent.IfIndex, ent.Name))
 			}
@@ -143,7 +148,9 @@ func asicDPortBmpFormatGet(distPortList []string) string {
 func asicdGetPortLinkStatus(pId int32) bool {
 
 	if asicdclnt.ClientHdl != nil {
+		asicdmutex.Lock()
 		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(asicdServices.Int(hwconst.MIN_SYS_PORTS), asicdServices.Int(hwconst.MAX_SYS_PORTS))
+		asicdmutex.Unlock()
 		if err == nil && bulkInfo.Count != 0 {
 			objCount := int64(bulkInfo.Count)
 			for i := int64(0); i < objCount; i++ {
@@ -172,20 +179,24 @@ func asicdCreateStgBridge(vlanList []uint16) int32 {
 			}
 			vl = append(vl, int32(v))
 		}
+		asicdmutex.Lock()
 		// default vlan is already created in opennsl
 		stgid, err := asicdclnt.ClientHdl.CreateStg(vl)
+		asicdmutex.Unlock()
 		if err == nil {
 			StpLogger("INFO", fmt.Sprintf("Created Stg Group %d with vlans %#v", stgid, vl))
 			for _, v := range vl {
 				if v != 0 &&
 					v != DEFAULT_STP_BRIDGE_VLAN {
-					protocolmac := asicdServices.RsvdProtocolMacConfig{
+					protocolmac := asicdInt.RsvdProtocolMacConfig{
 						MacAddr:     "01:00:0C:CC:CC:CD",
 						MacAddrMask: "FF:FF:FF:FF:FF:FF",
 						VlanId:      int32(v),
 					}
 					StpLogger("INFO", fmt.Sprintf("Creating PVST MAC entry %#v", protocolmac))
+					asicdmutex.Lock()
 					asicdclnt.ClientHdl.EnablePacketReception(&protocolmac)
+					asicdmutex.Unlock()
 				}
 			}
 			return stgid
@@ -209,19 +220,23 @@ func asicdDeleteStgBridge(stgid int32, vlanList []uint16) error {
 		for _, v := range vl {
 			if v != 0 &&
 				v != DEFAULT_STP_BRIDGE_VLAN {
-				protocolmac := asicdServices.RsvdProtocolMacConfig{
+				protocolmac := asicdInt.RsvdProtocolMacConfig{
 					MacAddr:     "01:00:0C:CC:CC:CD",
 					MacAddrMask: "FF:FF:FF:FF:FF:FF",
 					VlanId:      int32(v),
 				}
 
 				StpLogger("INFO", fmt.Sprintf("Deleting PVST MAC entry %#v", protocolmac))
+				asicdmutex.Lock()
 				asicdclnt.ClientHdl.DisablePacketReception(&protocolmac)
+				asicdmutex.Unlock()
 			}
 		}
 		StpLogger("INFO", fmt.Sprintf("Deleting Stg Group %d with vlans %#v", stgid, vl))
 
+		asicdmutex.Lock()
 		_, err := asicdclnt.ClientHdl.DeleteStg(stgid)
+		asicdmutex.Unlock()
 		if err != nil {
 			return err
 		}
@@ -233,7 +248,9 @@ func asicdSetStgPortState(stgid int32, ifindex int32, state int) error {
 	if asicdclnt.ClientHdl != nil {
 		for _, pc := range PortConfigMap {
 			if pc.IfIndex == ifindex {
+				asicdmutex.Lock()
 				_, err := asicdclnt.ClientHdl.SetPortStpState(stgid, pc.PortNum, int32(state))
+				asicdmutex.Unlock()
 				return err
 			}
 		}
@@ -243,7 +260,23 @@ func asicdSetStgPortState(stgid int32, ifindex int32, state int) error {
 
 func asicdFlushFdb(stgid int32) error {
 	if asicdclnt.ClientHdl != nil {
+		asicdmutex.Lock()
 		_, err := asicdclnt.ClientHdl.FlushFdbStgGroup(stgid)
+		asicdmutex.Unlock()
+		return err
+	}
+	return nil
+}
+
+func asicdBPDUGuardDetected(ifindex int32, enable bool) error {
+	if asicdclnt.ClientHdl != nil {
+		state := "DOWN"
+		if enable {
+			state = "UP"
+		}
+		asicdmutex.Lock()
+		_, err := asicdclnt.ClientHdl.ErrorDisablePort(ifindex, state, "STP BPDU GUARD")
+		asicdmutex.Unlock()
 		return err
 	}
 	return nil

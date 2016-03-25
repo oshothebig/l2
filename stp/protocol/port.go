@@ -19,7 +19,7 @@ var PortMapTable map[PortMapKey]*StpPort
 var PortListTable []*StpPort
 var PortConfigMap map[int32]portConfig
 
-const PortConfigModuleStr = "Port Config"
+const PortConfigModuleStr = "PORT CFG"
 
 type PortMapKey struct {
 	IfIndex    int32
@@ -46,6 +46,7 @@ type StpPort struct {
 	AutoEdgePort                bool // optional
 	AdminPathCost               int32
 	BpduGuard                   bool
+	BpduGuardInterval           int32
 	BridgeAssurance             bool
 	BridgeAssuranceInconsistant bool
 	Disputed                    bool
@@ -103,16 +104,18 @@ type StpPort struct {
 	b          *Bridge
 
 	// statistics
-	BpduRx uint64
-	BpduTx uint64
-	StpRx  uint64
-	StpTx  uint64
-	TcRx   uint64
-	TcTx   uint64
-	RstpRx uint64
-	RstpTx uint64
-	PvstRx uint64
-	PvstTx uint64
+	BpduRx  uint64
+	BpduTx  uint64
+	StpRx   uint64
+	StpTx   uint64
+	TcRx    uint64
+	TcTx    uint64
+	TcAckRx uint64
+	TcAckTx uint64
+	RstpRx  uint64
+	RstpTx  uint64
+	PvstRx  uint64
+	PvstTx  uint64
 
 	ForwardingTransitions uint64
 
@@ -126,6 +129,7 @@ type StpPort struct {
 	RrWhileTimer        PortTimer
 	TcWhileTimer        PortTimer
 	BAWhileTimer        PortTimer
+	BPDUGuardTimer      PortTimer
 
 	PrxmMachineFsm *PrxmMachine
 	PtmMachineFsm  *PtmMachine
@@ -165,11 +169,11 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		BridgeForwardDelayDefault = 15
 		TransmitHoldCountDefault = 6
 	*/
-	enabled := c.Dot1dStpPortEnable
+	enabled := c.Enable
 	if enabled {
 		// TODO get the status from asicd
 		/*
-			netif, err := netlink.LinkByName(PortConfigMap[c.Dot1dStpPort].Name)
+			netif, err := netlink.LinkByName(PortConfigMap[c.].Name)
 			StpLogger("INFO", fmt.Sprintf("LinkByName err %#v", err))
 
 			if err == nil {
@@ -180,29 +184,29 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 				}
 			}
 		*/
-		enabled = asicdGetPortLinkStatus(c.Dot1dStpPort)
+		enabled = asicdGetPortLinkStatus(c.IfIndex)
 	} else {
 		// in the case of tests we may not find the actual link so lets force
 		// enabled to configured value
-		StpLogger("INFO", fmt.Sprintf("Did not find port, forcing enabled to %t", c.Dot1dStpPortEnable))
-		enabled = c.Dot1dStpPortEnable
+		StpLogger("INFO", fmt.Sprintf("Did not find port, forcing enabled to %t", c.Enable))
+		enabled = c.Enable
 	}
 
 	var RootTimes Times
-	if StpFindBridgeByIfIndex(c.Dot1dStpBridgeIfIndex, &b) {
+	if StpFindBridgeByIfIndex(c.BrgIfIndex, &b) {
 		RootTimes = b.RootTimes
 	}
 	p := &StpPort{
-		IfIndex:              c.Dot1dStpPort,
+		IfIndex:              c.IfIndex,
 		AutoEdgePort:         false, // default and not configurable
-		AdminPathCost:        c.Dot1dStpPortAdminPathCost,
-		AdminPointToPointMAC: PointToPointMac(c.Dot1dStpPortAdminPointToPoint),
+		AdminPathCost:        c.AdminPathCost,
+		AdminPointToPointMAC: PointToPointMac(c.AdminPointToPoint),
 		// protocol portId
-		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)),
-		Priority:            c.Dot1dStpPortPriority, // default usually 0x80
-		AdminPortEnabled:    c.Dot1dStpPortEnable,
+		PortId:              uint16(pluginCommon.GetIdFromIfIndex(c.IfIndex)),
+		Priority:            c.Priority, // default usually 0x80
+		AdminPortEnabled:    c.Enable,
 		PortEnabled:         enabled,
-		PortPathCost:        uint32(c.Dot1dStpPortPathCost),
+		PortPathCost:        uint32(c.PathCost),
 		Role:                PortRoleDisabledPort,
 		SelectedRole:        PortRoleDisabledPort,
 		PortTimes:           RootTimes,
@@ -220,20 +224,21 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		TcWhileTimer:        PortTimer{count: int32(b.RootTimes.HelloTime)}, // should be updated by newTcWhile func
 		BAWhileTimer:        PortTimer{count: int32(b.RootTimes.HelloTime * 3)},
 		portChan:            make(chan string),
-		BrgIfIndex:          c.Dot1dStpBridgeIfIndex,
-		AdminEdge:           c.Dot1dStpPortAdminEdgePort,
+		BrgIfIndex:          c.BrgIfIndex,
+		AdminEdge:           c.AdminEdgePort,
 		PortPriority: PriorityVector{
 			RootBridgeId:       b.BridgeIdentifier,
 			RootPathCost:       0,
 			DesignatedBridgeId: b.BridgeIdentifier,
-			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.Dot1dStpPort)) | c.Dot1dStpPortPriority<<8),
+			DesignatedPortId:   uint16(uint16(pluginCommon.GetIdFromIfIndex(c.IfIndex)) | c.Priority<<8),
 		},
-		BridgeAssurance: c.BridgeAssurance,
-		BpduGuard:       c.BpduGuard,
-		b:               b, // reference to brige
+		BridgeAssurance:   c.BridgeAssurance,
+		BpduGuard:         c.BpduGuard,
+		BpduGuardInterval: c.BpduGuardInterval,
+		b:                 b, // reference to brige
 	}
 
-	if c.Dot1dStpPortAdminPathCost == 0 {
+	if c.AdminPathCost == 0 {
 		// TODO need to get speed of port to automatically the port path cost
 		// Table 17-3
 		AutoPathCostDefaultMap := map[int32]uint32{
@@ -446,6 +451,11 @@ func (p *StpPort) BEGIN(restart bool) {
 		mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
 		evt = append(evt, MachineEvent{e: PrxmEventBegin,
 			src: PortConfigModuleStr})
+
+		// start rx routine
+		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+		in := src.Packets()
+		BpduRxMain(p.IfIndex, p.b.BrgIfIndex, in)
 	}
 
 	// Ptm
@@ -513,17 +523,11 @@ func (p *StpPort) BEGIN(restart bool) {
 	// distribute the port disable event to various machines
 	p.DistributeMachineEvents(mEvtChan, evt, true)
 
-	if p.PrxmMachineFsm != nil {
-		// start rx routine
-		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
-		in := src.Packets()
-		BpduRxMain(p.IfIndex, p.b.BrgIfIndex, in)
-	}
 	// lets start the tick timer
 	if p.PtmMachineFsm != nil {
 		p.PtmMachineFsm.TickTimerStart()
 	}
-	StpMachineLogger("INFO", "PORT", p.IfIndex, p.BrgIfIndex, "BEGIN complete")
+	StpMachineLogger("INFO", PortConfigModuleStr, p.IfIndex, p.BrgIfIndex, "BEGIN complete")
 	p.begin = false
 }
 
@@ -576,6 +580,17 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 	}
 }
 
+// This function can be used to know whether or not to apply configuration parameters
+// to one port or all ports, as of 3/21/16 applying to all ports
+func (p *StpPort) GetPortListToApplyConfigTo() (newlist []*StpPort) {
+	for _, port := range PortListTable {
+		if p.IfIndex == port.IfIndex {
+			newlist = append(newlist, port)
+		}
+	}
+	return
+}
+
 func (p *StpPort) SetRxPortCounters(ptype BPDURxType) {
 	p.BpduRx++
 	switch ptype {
@@ -585,6 +600,8 @@ func (p *StpPort) SetRxPortCounters(ptype BPDURxType) {
 		p.RstpRx++
 	case BPDURxTypeTopo:
 		p.TcRx++
+	case BPDURxTypeTopoAck:
+		p.TcAckRx++
 	case BPDURxTypePVST:
 		p.PvstRx++
 	}
@@ -599,6 +616,8 @@ func (p *StpPort) SetTxPortCounters(ptype BPDURxType) {
 		p.RstpTx++
 	case BPDURxTypeTopo:
 		p.TcTx++
+	case BPDURxTypeTopoAck:
+		p.TcAckTx++
 	case BPDURxTypePVST:
 		p.PvstTx++
 	}
@@ -687,7 +706,7 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 	// 3) Port Information
 	// 4) Bridge Detection
 	if oldportenabled != newportenabled {
-		StpMachineLogger("INFO", "PORT", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
+		StpMachineLogger("INFO", PortConfigModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
 		mEvtChan := make([]chan MachineEvent, 0)
 		evt := make([]MachineEvent, 0)
 
@@ -702,7 +721,7 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 			if p.PpmmMachineFsm.Machine.Curr.CurrentState() == PpmmStateCheckingRSTP {
 				if p.MdelayWhiletimer.count != MigrateTimeDefault {
 					mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
-					evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
+					evt = append(evt, MachineEvent{e: PpmmEventMdelayNotEqualMigrateTimeAndNotPortEnabled,
 						src: src})
 				}
 			} else {
@@ -2036,35 +2055,35 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole, newselectedrole PortRole) {
 
 	if oldselectedrole != newselectedrole {
-		StpMachineLogger("INFO", "PRSM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
-		if p.Role != p.SelectedRole {
-			if p.SelectedRole == PortRoleDisabledPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if p.SelectedRole == PortRoleRootPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if p.SelectedRole == PortRoleDesignatedPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if p.SelectedRole == PortRoleAlternatePort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
-			} else if p.SelectedRole == PortRoleBackupPort {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-					src: src,
-				}
+		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
+		/*if p.Role != p.SelectedRole {*/
+		if newselectedrole == PortRoleDisabledPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleRootPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleDesignatedPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleAlternatePort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
+			}
+		} else if newselectedrole == PortRoleBackupPort {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
+				src: src,
 			}
 		}
+		/*}*/
 	}
 }
 
@@ -2107,7 +2126,7 @@ func (p *StpPort) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn bool, 
 	//if oldrcvdtc != newrcvdtc ||
 	//	oldrcvdtcn != newrcvdtcn ||
 	//	oldrcvdtcack != newrcvdtcack {
-	//StpMachineLogger("INFO", "PRXM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("TC state[%s] tcn[%t] tcack[%t] tcn[%t]",
+	//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("TC state[%s] tcn[%t] tcack[%t] tcn[%t]",
 	//	TcStateStrMap[p.TcMachineFsm.Machine.Curr.CurrentState()], p.RcvdTc, p.RcvdTcAck, p.RcvdTcn))
 	if p.RcvdTc &&
 		(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
@@ -2155,4 +2174,18 @@ func (p *StpPort) EdgeDelay() uint16 {
 	} else {
 		return p.b.RootTimes.MaxAge
 	}
+}
+
+// check if any other bridge port is adminEdge
+func (p *StpPort) IsAdminEdgePort() bool {
+
+	for _, ptmp := range PortListTable {
+		if p != ptmp &&
+			ptmp.IfIndex == p.IfIndex {
+			if p.AdminEdge || p.OperEdge {
+				return true
+			}
+		}
+	}
+	return false
 }

@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-const BridgeConfigModuleStr = "Bridge Config"
+const BridgeConfigModuleStr = "BRG CFG"
 
 var BridgeMapTable map[BridgeKey]*Bridge
 var BridgeListTable []*Bridge
@@ -102,12 +102,12 @@ func SaveSwitchMac(asicdconffilename string) {
 
 func NewStpBridge(c *StpBridgeConfig) *Bridge {
 
-	vlan := c.Dot1dStpBridgeVlan
+	vlan := c.Vlan
 	if vlan == 0 {
 		vlan = DEFAULT_STP_BRIDGE_VLAN
 	}
 
-	bridgeId := CreateBridgeId(StpBridgeMac, c.Dot1dStpPriority, vlan)
+	bridgeId := CreateBridgeId(StpBridgeMac, c.Priority, vlan)
 
 	b := &Bridge{
 		Begin:            true,
@@ -121,17 +121,17 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 			BridgePortId:       0,
 		},
 		BridgeTimes: Times{
-			ForwardingDelay: c.Dot1dStpBridgeForwardDelay,
-			HelloTime:       c.Dot1dStpBridgeHelloTime,
-			MaxAge:          c.Dot1dStpBridgeMaxAge,
+			ForwardingDelay: c.ForwardDelay,
+			HelloTime:       c.HelloTime,
+			MaxAge:          c.MaxAge,
 			MessageAge:      0,
 		},
 		RootPortId: 0, // this will be set once a port is set as root
-		RootTimes: Times{ForwardingDelay: c.Dot1dStpBridgeForwardDelay,
-			HelloTime:  c.Dot1dStpBridgeHelloTime,
-			MaxAge:     c.Dot1dStpBridgeMaxAge,
+		RootTimes: Times{ForwardingDelay: c.ForwardDelay,
+			HelloTime:  c.HelloTime,
+			MaxAge:     c.MaxAge,
 			MessageAge: 0}, // this will be set once a port is set as root
-		TxHoldCount: uint64(c.Dot1dStpBridgeTxHoldCount),
+		TxHoldCount: uint64(c.TxHoldCount),
 		Vlan:        vlan,
 	}
 
@@ -147,11 +147,11 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 	BridgeListTable = append(BridgeListTable, b)
 
 	// TODO lets get the linux bridge
-	if c.Dot1dStpBridgeVlan == 0 {
+	if c.Vlan == 0 {
 		// default vlan
 		b.BrgIfIndex = DEFAULT_STP_BRIDGE_VLAN
 	} else {
-		b.BrgIfIndex = int32(c.Dot1dStpBridgeVlan)
+		b.BrgIfIndex = int32(c.Vlan)
 	}
 
 	// lets create the stg group
@@ -282,11 +282,11 @@ func GetBridgeAddrFromBridgeId(b BridgeId) [6]uint8 {
 }
 
 func GetBridgeVlanFromBridgeId(b BridgeId) (vlan uint16) {
-	return uint16(((b[0] & 0xF) << 8) | b[1])
+	return ((uint16(b[0]) & 0xF) << 8) | uint16(b[1])
 }
 
 func GetBridgePriorityFromBridgeId(b BridgeId) uint16 {
-	return uint16(b[0]<<8 | b[1])
+	return uint16(b[0]<<8) | uint16(b[1])
 }
 
 // Compare BridgeId
@@ -421,7 +421,7 @@ func (b *Bridge) ReRooted(p *StpPort) bool {
 				continue
 			}
 			if StpFindPortByIfIndex(pId, b.BrgIfIndex, &op) {
-				if p.RrWhileTimer.count != 0 {
+				if op.RrWhileTimer.count != 0 {
 					rerooted = false
 				}
 			}
