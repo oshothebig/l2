@@ -151,3 +151,19 @@ func asicdGetPortLinkStatus(intfNum string) bool {
 	return true
 
 }
+
+func asicdGetIfName(ifindex int32) string {
+	if asicdclnt.ClientHdl != nil {
+		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(hwconst.MIN_SYS_PORTS, hwconst.MAX_SYS_PORTS)
+		if err == nil && bulkInfo.Count != 0 {
+			objCount := int64(bulkInfo.Count)
+			for i := int64(0); i < objCount; i++ {
+				if bulkInfo.PortStateList[i].IfIndex == ifindex {
+					return bulkInfo.PortStateList[i].Name
+				}
+			}
+		}
+		fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
+	}
+	return true
+}
