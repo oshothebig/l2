@@ -366,7 +366,7 @@ func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) (
 		lacp.CreateLaAgg(conf)
 
 		var a *lacp.LaAggregator
-		if !lacp.LaFindAggById(conf.Id, &a) {
+		if lacp.LaFindAggById(conf.Id, &a) {
 
 			for _, ifindex := range config.Members {
 				mode, ok := aggModeMap[uint32(a.Config.Mode)]
