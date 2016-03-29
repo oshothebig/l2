@@ -487,6 +487,7 @@ func StpPortAdminEdgeSet(pId int32, bId int32, adminedge bool) error {
 			c.AdminEdgePort = adminedge
 			err := StpPortConfigParamCheck(c)
 			if err == nil {
+				p.AdminEdge = adminedge
 				isOtherBrgPortOperEdge := p.IsAdminEdgePort()
 				// if we transition from Admin Edge to non-Admin edge
 				if !p.AdminEdge && !isOtherBrgPortOperEdge {
