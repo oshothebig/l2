@@ -28,13 +28,6 @@ func NewLACPDServiceHandler() *LACPDServiceHandler {
 	return &LACPDServiceHandler{}
 }
 
-func ConvertAdminStateStringToBool(s string) bool {
-	if s == "UP" {
-		return true
-	}
-	return false
-}
-
 func ConvertStringToUint8Array(s string) [6]uint8 {
 	var arr [6]uint8
 	x, _ := hex.DecodeString(s)
@@ -145,6 +138,17 @@ func ConvertSqlBooleanToBool(sqlbool string) bool {
 	} else if sqlbool == "True" {
 		return true
 	} else if sqlbool == "1" {
+		return true
+	}
+	return false
+}
+
+func ConvertAdminStateStringToBool(s string) bool {
+	if s == "UP" {
+		return true
+	} else if s == "ON" {
+		return true
+	} else if s == "ENABLE" {
 		return true
 	}
 	return false
@@ -385,7 +389,7 @@ func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) (
 					lacpd.Uint16(a.Config.SystemPriority),
 					lacpd.Uint16(config.LagId),
 					lacpd.Int(GetIdByName(nameKey)),
-					ConvertSqlBooleanToBool(config.AdminState),
+					conf.Enabled,
 					mode,
 					timeout,
 					"", // taken from port
@@ -511,7 +515,7 @@ func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChanne
 							lacpd.Uint16(updateconfig.SystemPriority),
 							lacpd.Uint16(conf.Id),
 							lacpd.Int(GetIdByName(nameKey)),
-							ConvertAdminStateStringToBool(updateconfig.AdminState),
+							conf.Enabled,
 							mode,
 							timeout,
 							"", // taken from port
