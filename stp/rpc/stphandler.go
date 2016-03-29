@@ -379,34 +379,39 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 		if attrset[i] {
 			stp.StpLogger("INFO", fmt.Sprintf("StpPort (server): changed ", objName))
 
+			var err error
 			if objName == "Priority" {
-				stp.StpPortPrioritySet(ifIndex, brgIfIndex, uint16(updateconfig.Priority))
+				err = stp.StpPortPrioritySet(ifIndex, brgIfIndex, uint16(updateconfig.Priority))
 			}
 			if objName == "Enable" {
-				stp.StpPortEnable(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.Enable))
+				err = stp.StpPortEnable(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.Enable))
 			}
 			if objName == "PathCost" {
-				stp.StpPortPortPathCostSet(ifIndex, brgIfIndex, uint32(updateconfig.PathCost))
+				err = stp.StpPortPortPathCostSet(ifIndex, brgIfIndex, uint32(updateconfig.PathCost))
 			}
 			if objName == "ProtocolMigration" {
-				stp.StpPortProtocolMigrationSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.ProtocolMigration))
+				err = stp.StpPortProtocolMigrationSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.ProtocolMigration))
 			}
 			if objName == "AdminPointToPoint" {
 				// TODO
 			}
 			if objName == "AdminEdgePort" {
-				stp.StpPortAdminEdgeSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.AdminEdgePort))
+				err = stp.StpPortAdminEdgeSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.AdminEdgePort))
 			}
 			if objName == "AdminPathCost" {
 				// TODO
 			}
 			if objName == "BpduGuard" {
 				// TOOD
-				stp.StpPortBpduGuardSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.BpduGuard))
+				err = stp.StpPortBpduGuardSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.BpduGuard))
 			}
 			if objName == "BridgeAssurance" {
-				stp.StpPortBridgeAssuranceSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.BridgeAssurance))
+				err = stp.StpPortBridgeAssuranceSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.BridgeAssurance))
 
+			}
+
+			if err != nil {
+				return false, err
 			}
 		}
 	}
