@@ -369,6 +369,10 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 	if err != nil {
 		return false, err
 	}
+	err = stp.StpPortConfigSave(portconfig, true)
+	if err != nil {
+		return false, err
+	}
 
 	// important to note that the attrset starts at index 0 which is the BaseObj
 	// which is not the first element on the thrift obj, thus we need to skip

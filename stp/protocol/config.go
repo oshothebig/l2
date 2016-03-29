@@ -51,6 +51,20 @@ func StpBrgConfigGet(bId int32) *StpBridgeConfig {
 	return nil
 }
 
+func StpPortConfigSave(c *StpPortConfig, update bool) error {
+	if _, ok := StpPortConfigMap[c.IfIndex]; !ok {
+		StpPortConfigMap[c.IfIndex] = *c
+	} else {
+		if !update && *c != StpPortConfigMap[c.IfIndex] {
+			// TODO failing for now will need to add code to update all other bridges that use
+			// this physical port
+			return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
+				c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
+		}
+	}
+	return nil
+}
+
 func StpBrgConfigParamCheck(c *StpBridgeConfig) error {
 
 	// Table 17-2 says the values can be 0-32768 in increments of 4096
@@ -225,15 +239,9 @@ func StpPortCreate(c *StpPortConfig) error {
 		brgIfIndex := c.BrgIfIndex
 		c.BrgIfIndex = 0
 		// lets store the configuration
-		if _, ok := StpPortConfigMap[c.IfIndex]; !ok {
-			StpPortConfigMap[c.IfIndex] = *c
-		} else {
-			if *c != StpPortConfigMap[c.IfIndex] {
-				// TODO failing for now will need to add code to update all other bridges that use
-				// this physical port
-				return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
-					c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
-			}
+		err := StpPortConfigSave(c, false)
+		if err != nil {
+			return err
 		}
 
 		c.BrgIfIndex = brgIfIndex
@@ -650,8 +658,7 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) e
 func StpPortBpduGuardSet(pId int32, bId int32, bpduguard bool) error {
 	var p *StpPort
 	if StpFindPortByIfIndex(pId, bId, &p) {
-		if p.BpduGuard != bpduguard &&
-			p.OperEdge {
+		if p.BpduGuard != bpduguard {
 			c := StpPortConfigGet(pId)
 			prevval := c.BpduGuard
 			c.BpduGuard = bpduguard
