@@ -78,7 +78,14 @@ func asicDPortBmpFormatGet(distPortList []string) string {
 	dLength := len(distPortList)
 
 	for i := 0; i < dLength; i++ {
-		num := strings.Split(distPortList[i], "-")[1]
+		var num string
+		if strings.Contains(distPortList[i], "-") {
+			num = strings.Split(distPortList[i], "-")[1]
+		} else if strings.HasPrefix(distPortList[i], "eth") {
+			num = strings.TrimLeft(distPortList[i], "eth")
+		} else if strings.HasPrefix(distPortList[i], "fpPort") {
+			num = strings.TrimLeft(distPortList[i], "fpPort")
+		}
 		if i == dLength-1 {
 			s += num
 		} else {
