@@ -9,7 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	lacp "l2/lacp/protocol"
 	"lacpd"
-	"net"
+	//"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -260,7 +260,7 @@ func GetIdByName(AggName string) int {
 	return i
 }
 
-func (la *LACPDServiceHandler) HandleDbReadAggregationLacpConfig(dbHdl *sql.DB) error {
+func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *sql.DB) error {
 	dbCmd := "select * from AggregationLacpConfig"
 	rows, err := dbHdl.Query(dbCmd)
 	if err != nil {
@@ -270,47 +270,17 @@ func (la *LACPDServiceHandler) HandleDbReadAggregationLacpConfig(dbHdl *sql.DB) 
 
 	defer rows.Close()
 
-	var tmp1 string
 	for rows.Next() {
 
-		object := new(lacpd.AggregationLacpConfig)
-		if err = rows.Scan(&object.LagType, &tmp1, &object.Description, &object.Mtu, &object.Type, &object.MinLinks, &object.NameKey, &object.Interval, &object.LacpMode, &object.SystemIdMac, &object.SystemPriority, &object.LagHash); err != nil {
+		object := new(lacpd.LaPortChannel)
+		if err = rows.Scan(&object.LagId, &object.LagType, &object.MinLinks, &object.Interval, &object.LacpMode, &object.SystemIdMac, &object.SystemPriority, &object.LagHash, &object.AdminState, &object.Members); err != nil {
 
 			fmt.Println("Db method Scan failed when interating over AggregationLacpConfig")
 		}
-		object.Enabled = ConvertSqlBooleanToBool(tmp1)
-		_, err = la.CreateAggregationLacpConfig(object)
+		_, err = la.CreateLaPortChannel(object)
 		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func (la *LACPDServiceHandler) HandleDbReadEthernetConfig(dbHdl *sql.DB) error {
-	dbCmd := "select * from EthernetConfig"
-	rows, err := dbHdl.Query(dbCmd)
-	if err != nil {
-		fmt.Println(fmt.Sprintf("DB method Query failed for 'EthernetConfig' with error EthernetConfig", dbCmd, err))
-		return err
-	}
-
-	defer rows.Close()
-
-	var tmp1 string
-	var tmp7 string
-	var tmp9 string
-	for rows.Next() {
-
-		object := new(lacpd.EthernetConfig)
-		if err = rows.Scan(&object.NameKey, &tmp1, &object.Description, &object.Mtu, &object.Type, &object.MacAddress, &object.DuplexMode, &tmp7, &object.Speed, &tmp9, &object.AggregateId); err != nil {
-
-			fmt.Println("Db method Scan failed when interating over EthernetConfig")
-		}
-		object.Enabled = ConvertSqlBooleanToBool(tmp1)
-		object.Auto = ConvertSqlBooleanToBool(tmp7)
-		object.EnableFlowControl = ConvertSqlBooleanToBool(tmp9)
-		la.CreateEthernetConfig(object)
 	}
 	return nil
 }
@@ -327,12 +297,7 @@ func (la *LACPDServiceHandler) ReadConfigFromDB(filePath string) error {
 
 	defer dbHdl.Close()
 
-	if err := la.HandleDbReadAggregationLacpConfig(dbHdl); err != nil {
-		fmt.Println("Error getting All AggregationLacpConfig objects")
-		return err
-	}
-
-	if err = la.HandleDbReadEthernetConfig(dbHdl); err != nil {
+	if err := la.HandleDbReadLaPortChannel(dbHdl); err != nil {
 		fmt.Println("Error getting All AggregationLacpConfig objects")
 		return err
 	}
@@ -340,7 +305,7 @@ func (la *LACPDServiceHandler) ReadConfigFromDB(filePath string) error {
 	return nil
 }
 
-// CreateAggregationLacpConfig will create an lacp lag
+// CreateLaPortChannel will create an lacp lag
 //	1 : i32 	LagType  (0 == LACP, 1 == STATIC)
 //	2 : string 	Description
 //	3 : bool 	Enabled
@@ -352,7 +317,7 @@ func (la *LACPDServiceHandler) ReadConfigFromDB(filePath string) error {
 //	9 : i32 	LacpMode (0 == ACTIVE, 1 == PASSIVE)
 //	10 : string SystemIdMac
 //	11 : i16 	SystemPriority
-func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaAggGroup) (bool, error) {
+func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) (bool, error) {
 
 	aggModeMap := map[uint32]string{
 		//LacpActivityTypeACTIVE:  "ACTIVE",
@@ -378,7 +343,7 @@ func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaAggGroup) (boo
 	} else {
 
 		conf := &lacp.LaAggConfig{
-			Id:  config.LagId,
+			Id:  int(config.LagId),
 			Key: GetKeyByAggName(nameKey),
 			// Identifier of the lag
 			Name: nameKey,
@@ -401,9 +366,9 @@ func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaAggGroup) (boo
 		lacp.CreateLaAgg(conf)
 
 		var a *lacp.LaAggregator
-		if !lacp.LaFindAggByName(config.AggregateId, &a) {
+		if !lacp.LaFindAggById(conf.Id, &a) {
 
-			for _, ifindex := range Members {
+			for _, ifindex := range config.Members {
 				mode, ok := aggModeMap[uint32(a.Config.Mode)]
 				if !ok || a.AggType == lacp.LaAggTypeSTATIC {
 					mode = "ON"
@@ -420,7 +385,7 @@ func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaAggGroup) (boo
 					lacpd.Uint16(a.Config.SystemPriority),
 					lacpd.Uint16(config.LagId),
 					lacpd.Int(GetIdByName(nameKey)),
-					config.Enabled,
+					ConvertSqlBooleanToBool(config.AdminState),
 					mode,
 					timeout,
 					"", // taken from port
@@ -436,7 +401,7 @@ func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaAggGroup) (boo
 	return true, nil
 }
 
-func (la LACPDServiceHandler) DeleteLaPortChannel(config *lacpd.LaAggGroup) (bool, error) {
+func (la LACPDServiceHandler) DeleteLaPortChannel(config *lacpd.LaPortChannel) (bool, error) {
 
 	nameKey := fmt.Sprintf("agg-%d", config.LagId)
 
@@ -445,18 +410,18 @@ func (la LACPDServiceHandler) DeleteLaPortChannel(config *lacpd.LaAggGroup) (boo
 	return true, nil
 }
 
-func GetAddDelMembers(orig, update []int32) (add, del []int32) {
+func GetAddDelMembers(orig []uint16, update []int32) (add, del []int32) {
 
 	origMap := make(map[int32]bool, len(orig))
 	// make the origional list a map
 	for _, m := range orig {
-		origMap[m] = false
+		origMap[int32(m)] = false
 	}
 
 	// iterate through list, mark found entries
 	// if entry is not found then added to add slice
 	for _, m := range update {
-		if v, ok := origMap[m]; ok {
+		if _, ok := origMap[m]; ok {
 			// found entry, don't want to just
 			// remove from map in case the user supplied duplicate values
 			origMap[m] = true
@@ -466,7 +431,7 @@ func GetAddDelMembers(orig, update []int32) (add, del []int32) {
 	}
 
 	// iterate through map to find entries wither were not found in update
-	for k, v := range origMap {
+	for m, v := range origMap {
 		if !v {
 			del = append(del, m)
 		}
@@ -474,7 +439,7 @@ func GetAddDelMembers(orig, update []int32) (add, del []int32) {
 	return
 }
 
-func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaAggGroup, updateconfig *lacpd.LaAggGroup, attrset []bool) (bool, error) {
+func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChannel, updateconfig *lacpd.LaPortChannel, attrset []bool) (bool, error) {
 
 	aggModeMap := map[uint32]string{
 		//LacpActivityTypeACTIVE:  "ACTIVE",
@@ -524,8 +489,8 @@ func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaAggGroup, 
 			if objName == "Members" {
 				var a *lacp.LaAggregator
 
-				if lacp.LaFindAggById(updateconfig.LagId, &a) {
-					addList, delList := GetAddDelMembers(updateconfig.Members, a.PortNumList)
+				if lacp.LaFindAggById(int(conf.Id), &a) {
+					addList, delList := GetAddDelMembers(a.PortNumList, updateconfig.Members)
 					for _, m := range delList {
 						la.DeleteLaAggPort(lacpd.Uint16(m))
 					}
@@ -543,8 +508,8 @@ func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaAggGroup, 
 						// origional tested thrift api
 						la.CreateLaAggPort(
 							lacpd.Uint16(m),
-							updateconfig.SystemPriority,
-							lacpd.Uint16(config.Id),
+							lacpd.Uint16(updateconfig.SystemPriority),
+							lacpd.Uint16(conf.Id),
 							lacpd.Int(GetIdByName(nameKey)),
 							ConvertAdminStateStringToBool(updateconfig.AdminState),
 							mode,
@@ -571,8 +536,7 @@ func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaAggGroup, 
 		if attrset[i] {
 			fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
 			if objName == "AdminState" {
-
-				if conf.AdminState == "UP" {
+				if conf.Enabled {
 					lacp.SaveLaAggConfig(conf)
 					EnableLaAgg(conf)
 				} else {
@@ -640,7 +604,7 @@ func (la LACPDServiceHandler) CreateLaAggPort(Id lacpd.Uint16,
 		m = lacp.LacpModePassive
 	}
 
-	mac, _ := net.ParseMAC(Mac)
+	//mac, _ := net.ParseMAC(Mac)
 	conf := &lacp.LaAggPortConfig{
 		Id:       uint16(Id),
 		Prio:     uint16(Prio),
@@ -803,14 +767,18 @@ func (la LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, cou
 		} else {
 
 			nextLagState = &lagStateList[validCount]
-			nextLagState.LagId = a.AggId
-			nextLagState.IfIndex = a.AggId
+			nextLagState.LagId = int32(a.AggId)
+			nextLagState.IfIndex = int32(a.AggId)
 			nextLagState.LagType = ConvertLaAggTypeToModelLagType(a.AggType)
-			nextLagState.AdminState = a.AdminState
-			nextLagState.OperState = a.OperState
+			nextLagState.AdminState = "DOWN"
+			if a.AdminState {
+				nextLagState.AdminState = "UP"
+			}
+			nextLagState.OperState = "DOWN"
+			if a.OperState {
+				nextLagState.OperState = "UP"
+			}
 			nextLagState.MinLinks = int16(a.AggMinLinks)
-			nextLagState.NameKey = a.AggName
-			nextLagState.Type = "ETH"
 			nextLagState.Interval = ConvertLaAggIntervalToLacpPeriod(a.Config.Interval)
 			nextLagState.LacpMode = ConvertLaAggModeToModelLacpMode(a.Config.Mode)
 			nextLagState.SystemIdMac = a.Config.SystemIdMac
@@ -818,17 +786,17 @@ func (la LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, cou
 			nextLagState.LagHash = int32(a.LagHash)
 			//nextLagState.Ifindex = int32(a.HwAggId)
 			for _, m := range a.PortNumList {
-				nextLagState.Members = append(nextLagState.Members, m)
-				var p *LaAggPort
-				if LaFindPortById(m, &p) {
+				nextLagState.Members = append(nextLagState.Members, int32(m))
+				var p *lacp.LaAggPort
+				if lacp.LaFindPortById(m, &p) {
 					if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit) {
-						nextLagState.MembersUpInBundle = append(nextLagState.MembersUpInBundle, m)
+						nextLagState.MembersUpInBundle = append(nextLagState.MembersUpInBundle, int32(m))
 					}
 				}
 			}
 
 			if len(returnLagStates) == 0 {
-				returnLagStates = make([]*lacpd.LaAggGroupState, 0)
+				returnLagStates = make([]*lacpd.LaPortChannelState, 0)
 			}
 			returnLagStates = append(returnLagStates, nextLagState)
 			validCount++
@@ -858,7 +826,7 @@ func (la LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.In
 	var lagMemberStateList []lacpd.LaPortChannelMemberState = make([]lacpd.LaPortChannelMemberState, count)
 	var nextLagMemberState *lacpd.LaPortChannelMemberState
 	var returnLagMemberStates []*lacpd.LaPortChannelMemberState
-	var returnLagMemberStateGetInfo lacpd.LaAggLacpMemberStateGetInfo
+	var returnLagMemberStateGetInfo lacpd.LaPortChannelMemberStateGetInfo
 	var p *lacp.LaAggPort
 	validCount := lacpd.Int(0)
 	toIndex := fromIndex
@@ -875,11 +843,12 @@ func (la LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.In
 			nextLagMemberState.Aggregatable = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateAggregationBit)
 			nextLagMemberState.Collecting = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateCollectingBit)
 			nextLagMemberState.Distributing = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit)
+			nextLagMemberState.Defaulted = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDefaultedBit)
 
-			if nexLagMemberState.Distributing {
-				nexLagMemberState.OperState = "UP in BUNDLE"
+			if nextLagMemberState.Distributing {
+				nextLagMemberState.OperState = "UP"
 			} else {
-				nexLagMemberState.OperState = "DOWN"
+				nextLagMemberState.OperState = "DOWN"
 			}
 
 			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateSyncBit) {
@@ -907,10 +876,10 @@ func (la LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.In
 			}
 
 			nextLagMemberState.OperKey = int16(p.ActorOper.Key)
-			nextLagMemberState.IfIndex = p.IntfNum
+			nextLagMemberState.IfIndex = int32(p.PortNum)
 			if p.AggAttached != nil {
-				nextLagMemberState.LagId = p.AggId
-				nextLagMemberState.LacpMode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)
+				nextLagMemberState.LagId = int32(p.AggId)
+				//		nextLagMemberState.Mode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)
 			}
 
 			// partner info

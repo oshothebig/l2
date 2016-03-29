@@ -163,7 +163,7 @@ func asicdGetIfName(ifindex int32) string {
 				}
 			}
 		}
-		fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", intfNum)
+		fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", ifindex)
 	}
-	return true
+	return ""
 }

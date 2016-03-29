@@ -24,37 +24,38 @@ struct LaPortChannelMemberState {
 	8 : bool Aggregatable
 	9 : bool Collecting
 	10 : bool Distributing
-	11 : string SystemId
-	12 : i16 OperKey
-	13 : string PartnerId
-	14 : i16 PartnerKey
-	15 : i32 DebugId
-	16 : i32 RxMachine
-	17 : i32 RxTime
-	18 : i32 MuxMachine
-	19 : string MuxReason
-	20 : i32 ActorChurnMachine
-	21 : i32 PartnerChurnMachine
-	22 : i64 ActorChurnCount
-	23 : i64 PartnerChurnCount
-	24 : i64 ActorSyncTransitionCount
-	25 : i64 PartnerSyncTransitionCount
-	26 : i64 ActorChangeCount
-	27 : i64 PartnerChangeCount
-	28 : i32 ActorCdsChurnMachine
-	29 : i32 PartnerCdsChurnMachine
-	30 : i64 ActorCdsChurnCount
-	31 : i64 PartnerCdsChurnCount
-	32 : i64 LacpInPkts
-	33 : i64 LacpOutPkts
-	34 : i64 LacpRxErrors
-	35 : i64 LacpTxErrors
-	36 : i64 LacpUnknownErrors
-	37 : i64 LacpErrors
-	38 : i64 LampInPdu
-	39 : i64 LampInResponsePdu
-	40 : i64 LampOutPdu
-	41 : i64 LampOutResponsePdu
+	11 : bool Defaulted
+	12 : string SystemId
+	13 : i16 OperKey
+	14 : string PartnerId
+	15 : i16 PartnerKey
+	16 : i32 DebugId
+	17 : i32 RxMachine
+	18 : i32 RxTime
+	19 : i32 MuxMachine
+	20 : string MuxReason
+	21 : i32 ActorChurnMachine
+	22 : i32 PartnerChurnMachine
+	23 : i64 ActorChurnCount
+	24 : i64 PartnerChurnCount
+	25 : i64 ActorSyncTransitionCount
+	26 : i64 PartnerSyncTransitionCount
+	27 : i64 ActorChangeCount
+	28 : i64 PartnerChangeCount
+	29 : i32 ActorCdsChurnMachine
+	30 : i32 PartnerCdsChurnMachine
+	31 : i64 ActorCdsChurnCount
+	32 : i64 PartnerCdsChurnCount
+	33 : i64 LacpInPkts
+	34 : i64 LacpOutPkts
+	35 : i64 LacpRxErrors
+	36 : i64 LacpTxErrors
+	37 : i64 LacpUnknownErrors
+	38 : i64 LacpErrors
+	39 : i64 LampInPdu
+	40 : i64 LampInResponsePdu
+	41 : i64 LampOutPdu
+	42 : i64 LampOutResponsePdu
 }
 struct LaPortChannelMemberStateGetInfo {
 	1: int StartIdx

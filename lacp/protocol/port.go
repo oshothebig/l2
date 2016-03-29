@@ -233,7 +233,6 @@ type LaAggPort struct {
 	partnerChurn bool
 	readyN       bool
 
-	// TODO this is a placeholder to be able to check that all port info agrees
 	macProperties PortProperties
 
 	// determine whether a port is up or down
@@ -379,14 +378,11 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	}
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
 
-	// get the intf num
-	ifname := asicdGetIfName(config.Id)
-
 	p := &LaAggPort{
 		portId:       LaConvertPortAndPriToPortId(config.Id, config.Prio),
-		PortNum:      config.Id,
+		PortNum:      uint16(config.Id),
 		portPriority: config.Prio,
-		IntfNum:      ifname,
+		IntfNum:      config.IntfId,
 		Key:          config.Key,
 		AggId:        0, // this should be set on config AddLaAggPortToAgg
 		aggSelected:  LacpAggUnSelected,
