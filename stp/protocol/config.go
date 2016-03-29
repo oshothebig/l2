@@ -401,6 +401,8 @@ func StpBrgPrioritySet(bId int32, priority uint16) error {
 				c.Priority = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid bridge %d supplied for setting Priority", bId))
@@ -434,6 +436,8 @@ func StpBrgForceVersion(bId int32, version int32) error {
 				c.ForceVersion = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid bridge %d supplied for setting Force Version", bId))
@@ -461,6 +465,8 @@ func StpPortPrioritySet(pId int32, bId int32, priority uint16) error {
 				}
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Port Priority", pId, bId))
@@ -518,6 +524,8 @@ func StpPortAdminEdgeSet(pId int32, bId int32, adminedge bool) error {
 				c.AdminEdgePort = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Port Admin Edge", pId, bId))
@@ -650,6 +658,8 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) e
 				c.ProtocolMigration = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Protcol Migration", pId, bId))
@@ -677,6 +687,8 @@ func StpPortBpduGuardSet(pId int32, bId int32, bpduguard bool) error {
 				c.BpduGuard = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Bpdu Guard", pId, bId))
@@ -707,6 +719,8 @@ func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) error
 				c.BridgeAssurance = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Bridge Assurance", pId, bId))
