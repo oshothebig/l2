@@ -16,11 +16,10 @@ func (svr *LLDPServer) LLDPGetInfoFromAsicd() error {
 		// Asicd subscriber thread
 		go svr.LLDPAsicdSubscriber()
 	}
-	// Get Port List Most Likely Not needed...as we are only interested
-	// in Ipv4Intf...
+	// Get L2 Port List
 	svr.LLDPGetPortList()
 	// Get Vlan List
-	svr.LLDPGetVlanList()
+	//svr.LLDPGetVlanList()
 	return nil
 }
 
@@ -57,17 +56,16 @@ func (svr *LLDPServer) LLDPRegisterWithAsicdUpdates(address string) error {
 
 func (svr *LLDPServer) LLDPAsicdSubscriber() {
 	for {
-		svr.logger.Info("LLDP: Read on Asic Subscriber socket....")
 		rxBuf, err := svr.asicdSubSocket.Recv(0)
 		if err != nil {
-			svr.logger.Err(fmt.Sprintln("LLDP: Recv on asicd Subscriber",
+			svr.logger.Err(fmt.Sprintln("Recv on asicd Subscriber",
 				"socket failed with error:", err))
 			continue
 		}
 		var msg asicdConstDefs.AsicdNotification
 		err = json.Unmarshal(rxBuf, &msg)
 		if err != nil {
-			svr.logger.Err(fmt.Sprintln("LLDP: Unable to Unmarshal",
+			svr.logger.Err(fmt.Sprintln("Unable to Unmarshal",
 				"asicd msg:", msg.Msg))
 			continue
 		}
@@ -77,7 +75,7 @@ func (svr *LLDPServer) LLDPAsicdSubscriber() {
 			var vlanNotifyMsg asicdConstDefs.VlanNotifyMsg
 			err = json.Unmarshal(msg.Msg, &vlanNotifyMsg)
 			if err != nil {
-				svr.logger.Err(fmt.Sprintln("LLDP: Unable to",
+				svr.logger.Err(fmt.Sprintln("Unable to",
 					"unmashal vlanNotifyMsg:", msg.Msg))
 				return
 			}
@@ -87,7 +85,7 @@ func (svr *LLDPServer) LLDPAsicdSubscriber() {
 			var ipv4IntfNotifyMsg asicdConstDefs.IPv4IntfNotifyMsg
 			err = json.Unmarshal(msg.Msg, &ipv4IntfNotifyMsg)
 			if err != nil {
-				svr.logger.Err(fmt.Sprintln("LLDP: Unable to Unmarshal",
+				svr.logger.Err(fmt.Sprintln("Unable to Unmarshal",
 					"ipv4IntfNotifyMsg:", msg.Msg))
 				continue
 			}
@@ -97,11 +95,20 @@ func (svr *LLDPServer) LLDPAsicdSubscriber() {
 			var l3IntfStateNotifyMsg asicdConstDefs.L3IntfStateNotifyMsg
 			err = json.Unmarshal(msg.Msg, &l3IntfStateNotifyMsg)
 			if err != nil {
-				svr.logger.Err(fmt.Sprintln("LLDP: unable to Unmarshal l3 intf",
+				svr.logger.Err(fmt.Sprintln("unable to Unmarshal l3 intf",
 					"state change:", msg.Msg))
 				continue
 			}
 			//svr.LLDPUpdateL3IntfStateChange(l3IntfStateNotifyMsg)
+		} else if msg.MsgType == asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE {
+			var l2IntfStateNotifyMsg asicdConstDefs.L2IntfStateNotifyMsg
+			err = json.Unmarshal(msg.Msg, &l2IntfStateNotifyMsg)
+			if err != nil {
+				svr.logger.Err(fmt.Sprintln("Unable to Unmarshal l2 intf",
+					"state change:", msg.Msg))
+				continue
+			}
+			svr.LLDPUpdateL2IntfStateChange(l2IntfStateNotifyMsg)
 		}
 	}
 }
@@ -151,17 +158,37 @@ func (svr *LLDPServer) LLDPGetPortList() {
 		more = bool(bulkInfo.More)
 		currMarker = int64(bulkInfo.EndIdx)
 		for i := 0; i < objCount; i++ {
-			/*
-				var ifName string
-				var portNum int32
-				portNum = bulkInfo.PortStateList[i].IfIndex
-				ifName = bulkInfo.PortStateList[i].Name
-				//svr.logger.Info("LLDP: interface global init for " + ifName)
-				//LLDPInitGblInfo(portNum, ifName, "")
-			*/
+			svr.LLDPInitL2PortInfo(bulkInfo.PortStateList[i])
 		}
 		if more == false {
 			break
 		}
 	}
+}
+
+func (svr *LLDPServer) LLDPUpdateL2IntfStateChange(
+	updateInfo asicdConstDefs.L2IntfStateNotifyMsg) {
+	stateChanged := false
+	gblInfo, found := svr.lldpGblInfo[updateInfo.IfIndex]
+	if !found {
+		return
+	}
+	gblInfo.OperStateLock.Lock()
+	switch updateInfo.IfState {
+	case asicdConstDefs.INTF_STATE_UP:
+		if gblInfo.OperState != LLDP_PORT_STATE_UP {
+			stateChanged = true
+			gblInfo.OperState = LLDP_PORT_STATE_UP
+		}
+	case asicdConstDefs.INTF_STATE_DOWN:
+		if gblInfo.OperState != LLDP_PORT_STATE_DOWN {
+			stateChanged = true
+			gblInfo.OperState = LLDP_PORT_STATE_DOWN
+		}
+	}
+	if stateChanged {
+		svr.lldpGblInfo[updateInfo.IfIndex] = gblInfo
+	}
+	gblInfo.OperStateLock.Unlock()
+	// Need to do some handling based of operation changed...
 }
