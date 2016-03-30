@@ -713,6 +713,7 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d hwAggId %d EnableDistributing PortsListLen %d PortList %v", p.AggId, a.HwAggId, len(a.DistributedPortNumList), a.DistributedPortNumList))
 		if len(a.DistributedPortNumList) == 1 {
 			a.HwAggId = asicDCreateLag(a)
+			a.OperState = true
 			// TODO UPDATE SQL DB for warm boot purposes
 		} else {
 			asicDUpdateLag(a)
@@ -751,6 +752,8 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 				muxm.LacpMuxmLog("Sending Lag Delete to ASICD")
 				asicDDeleteLag(a)
 				a.HwAggId = 0
+				// no more ports active in group, lets mark the lag as operationally down
+				a.OperState = false
 				// TODO UPDATE SQL DB
 			}
 		}

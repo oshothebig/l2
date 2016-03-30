@@ -640,10 +640,7 @@ func DisableLaAgg(conf *lacp.LaAggConfig) error {
 	var a *lacp.LaAggregator
 	if lacp.LaFindAggById(conf.Id, &a) {
 		fmt.Printf("Disable LaAgg %s portNumList %#v\n", a.AggName, a.PortNumList)
-		// configured ports
-		for _, pId := range a.PortNumList {
-			lacp.DisableLaAggPort(uint16(pId))
-		}
+		lacp.DisableLaAgg(conf.Id)
 	}
 	return nil
 }
@@ -653,10 +650,7 @@ func EnableLaAgg(conf *lacp.LaAggConfig) error {
 	if lacp.LaFindAggById(conf.Id, &a) {
 
 		fmt.Printf("Enable LaAgg %s portNumList %#v", a.AggName, a.PortNumList)
-		// configured ports
-		for _, pId := range a.PortNumList {
-			lacp.EnableLaAggPort(uint16(pId))
-		}
+		lacp.EnableLaAgg(conf.Id)
 	}
 	return nil
 }
