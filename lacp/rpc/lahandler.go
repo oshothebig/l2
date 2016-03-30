@@ -786,6 +786,10 @@ func (la LACPDServiceHandler) GetPortChannelState(portChannel *lacpd.LaPortChann
 	return pcs, nil
 }
 
+func (la LACPDServiceHandler) GetLaPortChannelState(lagId int32) (obj *lacpd.LaPortChannelState, err error) {
+	return nil, nil
+}
+
 // GetBulkLaAggrGroupState will return the status of all the lag groups
 // All lag groups are stored in a map, thus we will assume that the order
 // at which a for loop iterates over the map is preserved.  It is assumed
@@ -953,6 +957,10 @@ func (la LACPDServiceHandler) GetPortChannelMemberState(portchannelmemberstate *
 		return pcms, errors.New(fmt.Sprintf("LACP: Unabled to find port by IfIndex %d", portchannelmemberstate.IfIndex))
 	}
 	return pcms, nil
+}
+
+func (la LACPDServiceHandler) GetLaPortChannelMemberState(ifIndex int32) (obj *lacpd.LaPortChannelMemberState, err error) {
+	return nil, nil
 }
 
 // GetBulkAggregationLacpMemberStateCounters will return the status of all
