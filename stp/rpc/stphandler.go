@@ -423,6 +423,11 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 	return true, nil
 }
 
+func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (obj *stpd.StpBridgeState, err error) {
+	response := stpd.NewStpBridgeState()
+	return response, nil
+}
+
 // GetBulkAggregationLacpState will return the status of all the lag groups
 // All lag groups are stored in a map, thus we will assume that the order
 // at which a for loop iterates over the map is preserved.  It is assumed
@@ -483,6 +488,11 @@ func (s *STPDServiceHandler) GetBulkStpBridgeState(fromIndex stpd.Int, count stp
 	obj.Count = validCount
 
 	return obj, nil
+}
+
+func (s *STPDServiceHandler) GetStpPortState(ifIndex int32, brgIfIndex int32) (obj *stpd.StpPortState, err error) {
+	response := stpd.NewStpPortState()
+	return response, nil
 }
 
 // GetBulkAggregationLacpMemberStateCounters will return the status of all
