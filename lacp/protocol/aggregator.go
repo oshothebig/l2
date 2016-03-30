@@ -138,8 +138,8 @@ type LaAggregator struct {
 	//	    5 : i16 	SystemPriority
 
 	// UP/DOWN
-	adminState int
-	operState  int
+	AdminState bool
+	OperState  bool
 
 	// date of last oper change
 	timeOfLastOperChange time.Time
@@ -187,6 +187,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	a := &LaAggregator{
 		AggName:                ac.Name,
 		AggId:                  ac.Id,
+		AdminState:             ac.Enabled,
 		aggMacAddr:             sysId.actor_System,
 		actorAdminKey:          ac.Key,
 		AggType:                ac.Type,

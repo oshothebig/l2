@@ -78,7 +78,14 @@ func asicDPortBmpFormatGet(distPortList []string) string {
 	dLength := len(distPortList)
 
 	for i := 0; i < dLength; i++ {
-		num := strings.Split(distPortList[i], "-")[1]
+		var num string
+		if strings.Contains(distPortList[i], "-") {
+			num = strings.Split(distPortList[i], "-")[1]
+		} else if strings.HasPrefix(distPortList[i], "eth") {
+			num = strings.TrimLeft(distPortList[i], "eth")
+		} else if strings.HasPrefix(distPortList[i], "fpPort") {
+			num = strings.TrimLeft(distPortList[i], "fpPort")
+		}
 		if i == dLength-1 {
 			s += num
 		} else {
@@ -150,4 +157,20 @@ func asicdGetPortLinkStatus(intfNum string) bool {
 	}
 	return true
 
+}
+
+func asicdGetIfName(ifindex int32) string {
+	if asicdclnt.ClientHdl != nil {
+		bulkInfo, err := asicdclnt.ClientHdl.GetBulkPortState(hwconst.MIN_SYS_PORTS, hwconst.MAX_SYS_PORTS)
+		if err == nil && bulkInfo.Count != 0 {
+			objCount := int64(bulkInfo.Count)
+			for i := int64(0); i < objCount; i++ {
+				if bulkInfo.PortStateList[i].IfIndex == ifindex {
+					return bulkInfo.PortStateList[i].Name
+				}
+			}
+		}
+		fmt.Printf("asicDGetPortLinkSatus: could not get status for port %s, failure in get method\n", ifindex)
+	}
+	return ""
 }
