@@ -223,6 +223,16 @@ func DeleteLaAgg(Id int) {
 	}
 }
 
+func EnableLaAgg(Id int) {
+	var a *LaAggregator
+	if LaFindAggById(Id, &a) {
+
+		for _, pId := range a.PortNumList {
+			EnableLaAggPort(pId)
+		}
+	}
+}
+
 func DisableLaAgg(Id int) {
 	var a *LaAggregator
 	if LaFindAggById(Id, &a) {
@@ -286,7 +296,7 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 		}
 		// check for selection
 		p.checkConfigForSelection()
-		
+
 		p.LacpDebug.logger.Info(fmt.Sprintf("PORT Config:\n%#v\n", port))
 		p.LacpDebug.logger.Info(fmt.Sprintf("PORT (after config create):\n%#v\n", p))
 	} else {
