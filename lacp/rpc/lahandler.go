@@ -397,7 +397,7 @@ func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) (
 					0,  // taken from port
 					0,  // taken from port
 					a.Config.SystemIdMac,
-					fmt.Sprintf("fpPort%s", ifindex), // taken from port
+					fmt.Sprintf("fpPort%d", ifindex), // taken from port
 				)
 			}
 		}
@@ -523,7 +523,7 @@ func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChanne
 							0,  // taken from port
 							0,  // taken from port
 							updateconfig.SystemIdMac,
-							fmt.Sprintf("fpPort%s", ifindex), // TODO read from port if taken from port
+							fmt.Sprintf("fpPort%d", ifindex), // TODO read from port if taken from port
 						)
 					}
 				}
