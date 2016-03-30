@@ -450,7 +450,7 @@ func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState
 		sbs.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
 		sbs.Vlan = int16(b.Vlan)
 	} else {
-		return sbs, errors.New(fmt.Sprintf("STP: Error could not find bridge vlan %d", stpbridgestate.Vlan))
+		return sbs, errors.New(fmt.Sprintf("STP: Error could not find bridge vlan %d", vlan))
 	}
 
 	return sbs, nil
@@ -596,7 +596,7 @@ func (s *STPDServiceHandler) GetStpPortState(ifIndex int32, brgIfIndex int32) (*
 		sps.BaWhile = p.BAWhileTimer.GetCount()
 
 	} else {
-		return sps, errors.New(fmt.Sprintf("STP: Error unabled to locate bridge ifindex %d stp port ifindex %d", stpportstate.BrgIfIndex, stpportstate.IfIndex))
+		return sps, errors.New(fmt.Sprintf("STP: Error unabled to locate bridge ifindex %d stp port ifindex %d", brgIfIndex, ifIndex))
 	}
 	return sps, nil
 }
