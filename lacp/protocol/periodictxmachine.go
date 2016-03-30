@@ -149,9 +149,10 @@ func (ptxm *LacpPtxMachine) LacpPtxMachineSlowPeriodic(m fsm.Machine, data inter
 func (ptxm *LacpPtxMachine) LacpPtxMachinePeriodicTx(m fsm.Machine, data interface{}) fsm.State {
 	// inform the tx machine that ntt should change to true which should transmit a
 	// packet
-
-	ptxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
-		src: PtxMachineModuleStr}
+	if ptxm.p.TxMachineFsm.Machine.Curr.CurrentState() != LacpTxmStateOff {
+		ptxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+			src: PtxMachineModuleStr}
+	}
 
 	return LacpPtxmStatePeriodicTx
 }

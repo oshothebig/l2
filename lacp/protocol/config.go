@@ -270,24 +270,23 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 		linkStatus := p.IsPortOperStatusUp()
 		p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d is link up %t admin up %t", port.Id, linkStatus, port.Enable))
 
-		if linkStatus && port.Enable {
-
-			if p.Key != 0 {
-				var a *LaAggregator
-				if LaFindAggByKey(p.Key, &a) {
-					p.LaPortLog("Found Agg by Key, attaching port to agg")
-					// If the agg is defined lets add port to
-					AddLaAggPortToAgg(a.actorAdminKey, p.PortNum)
-				}
+		if p.Key != 0 {
+			var a *LaAggregator
+			if LaFindAggByKey(p.Key, &a) {
+				p.LaPortLog("Found Agg by Key, attaching port to agg")
+				// If the agg is defined lets add port to
+				AddLaAggPortToAgg(a.actorAdminKey, p.PortNum)
 			}
+		}
 
+		if linkStatus && port.Enable {
 			// if port is enabled and lacp is enabled
 			p.LaAggPortEnabled()
 
-			// check for selection
-			p.checkConfigForSelection()
-
 		}
+		// check for selection
+		p.checkConfigForSelection()
+		
 		p.LacpDebug.logger.Info(fmt.Sprintf("PORT Config:\n%#v\n", port))
 		p.LacpDebug.logger.Info(fmt.Sprintf("PORT (after config create):\n%#v\n", p))
 	} else {

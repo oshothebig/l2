@@ -380,7 +380,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 
 	p := &LaAggPort{
 		portId:       LaConvertPortAndPriToPortId(config.Id, config.Prio),
-		PortNum:      config.Id,
+		PortNum:      uint16(config.Id),
 		portPriority: config.Prio,
 		IntfNum:      config.IntfId,
 		Key:          config.Key,
