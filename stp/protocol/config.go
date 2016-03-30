@@ -51,6 +51,20 @@ func StpBrgConfigGet(bId int32) *StpBridgeConfig {
 	return nil
 }
 
+func StpPortConfigSave(c *StpPortConfig, update bool) error {
+	if _, ok := StpPortConfigMap[c.IfIndex]; !ok {
+		StpPortConfigMap[c.IfIndex] = *c
+	} else {
+		if !update && *c != StpPortConfigMap[c.IfIndex] {
+			// TODO failing for now will need to add code to update all other bridges that use
+			// this physical port
+			return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
+				c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
+		}
+	}
+	return nil
+}
+
 func StpBrgConfigParamCheck(c *StpBridgeConfig) error {
 
 	// Table 17-2 says the values can be 0-32768 in increments of 4096
@@ -225,15 +239,9 @@ func StpPortCreate(c *StpPortConfig) error {
 		brgIfIndex := c.BrgIfIndex
 		c.BrgIfIndex = 0
 		// lets store the configuration
-		if _, ok := StpPortConfigMap[c.IfIndex]; !ok {
-			StpPortConfigMap[c.IfIndex] = *c
-		} else {
-			if *c != StpPortConfigMap[c.IfIndex] {
-				// TODO failing for now will need to add code to update all other bridges that use
-				// this physical port
-				return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
-					c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
-			}
+		err := StpPortConfigSave(c, false)
+		if err != nil {
+			return err
 		}
 
 		c.BrgIfIndex = brgIfIndex
@@ -393,6 +401,8 @@ func StpBrgPrioritySet(bId int32, priority uint16) error {
 				c.Priority = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid bridge %d supplied for setting Priority", bId))
@@ -426,6 +436,8 @@ func StpBrgForceVersion(bId int32, version int32) error {
 				c.ForceVersion = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid bridge %d supplied for setting Force Version", bId))
@@ -453,6 +465,8 @@ func StpPortPrioritySet(pId int32, bId int32, priority uint16) error {
 				}
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Port Priority", pId, bId))
@@ -473,6 +487,7 @@ func StpPortAdminEdgeSet(pId int32, bId int32, adminedge bool) error {
 			c.AdminEdgePort = adminedge
 			err := StpPortConfigParamCheck(c)
 			if err == nil {
+				p.AdminEdge = adminedge
 				isOtherBrgPortOperEdge := p.IsAdminEdgePort()
 				// if we transition from Admin Edge to non-Admin edge
 				if !p.AdminEdge && !isOtherBrgPortOperEdge {
@@ -510,6 +525,8 @@ func StpPortAdminEdgeSet(pId int32, bId int32, adminedge bool) error {
 				c.AdminEdgePort = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Port Admin Edge", pId, bId))
@@ -642,6 +659,8 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) e
 				c.ProtocolMigration = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Protcol Migration", pId, bId))
@@ -650,8 +669,7 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) e
 func StpPortBpduGuardSet(pId int32, bId int32, bpduguard bool) error {
 	var p *StpPort
 	if StpFindPortByIfIndex(pId, bId, &p) {
-		if p.BpduGuard != bpduguard &&
-			p.OperEdge {
+		if p.BpduGuard != bpduguard {
 			c := StpPortConfigGet(pId)
 			prevval := c.BpduGuard
 			c.BpduGuard = bpduguard
@@ -659,12 +677,19 @@ func StpPortBpduGuardSet(pId int32, bId int32, bpduguard bool) error {
 			if err == nil {
 				// apply to all bridge ports
 				for _, port := range p.GetPortListToApplyConfigTo() {
+					if bpduguard {
+						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Setting BPDU Guard")
+					} else {
+						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Clearing BPDU Guard")
+					}
 					port.BpduGuard = bpduguard
 				}
 			} else {
 				c.BpduGuard = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Bpdu Guard", pId, bId))
@@ -682,6 +707,11 @@ func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) error
 			if err == nil {
 				// apply to all bridge ports
 				for _, port := range p.GetPortListToApplyConfigTo() {
+					if bridgeassurance {
+						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Setting Bridge Assurance")
+					} else {
+						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Clearing Bridge Assurance")
+					}
 					port.BridgeAssurance = bridgeassurance
 					port.BridgeAssuranceInconsistant = false
 					port.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
@@ -690,6 +720,8 @@ func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) error
 				c.BridgeAssurance = prevval
 			}
 			return err
+		} else {
+			return nil
 		}
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Bridge Assurance", pId, bId))
