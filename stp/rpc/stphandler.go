@@ -423,11 +423,11 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 	return true, nil
 }
 
-func (s *STPDServiceHandler) GetStpBridgeState(stpbridgestate *stpd.StpBridgeState) (*stpd.StpBridgeState, error) {
+func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState, error) {
 	sbs := &stpd.StpBridgeState{}
 
 	key := stp.BridgeKey{
-		Vlan: uint16(stpbridgestate.Vlan),
+		Vlan: uint16(vlan),
 	}
 	var b *stp.Bridge
 	if stp.StpFindBridgeById(key, &b) {
@@ -450,7 +450,7 @@ func (s *STPDServiceHandler) GetStpBridgeState(stpbridgestate *stpd.StpBridgeSta
 		sbs.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
 		sbs.Vlan = int16(b.Vlan)
 	} else {
-		return sbs, errors.New(fmt.Sprintf("STP: Error could not find bridge vlan %d", stpbridgestate.Vlan))
+		return sbs, errors.New(fmt.Sprintf("STP: Error could not find bridge vlan %d", vlan))
 	}
 
 	return sbs, nil
@@ -518,11 +518,11 @@ func (s *STPDServiceHandler) GetBulkStpBridgeState(fromIndex stpd.Int, count stp
 	return obj, nil
 }
 
-func (s *STPDServiceHandler) GetStpPortState(stpportstate *stpd.StpPortState) (*stpd.StpPortState, error) {
+func (s *STPDServiceHandler) GetStpPortState(ifIndex int32, brgIfIndex int32) (*stpd.StpPortState, error) {
 	sps := &stpd.StpPortState{}
 
 	var p *stp.StpPort
-	if stp.StpFindPortByIfIndex(stpportstate.IfIndex, stpportstate.BrgIfIndex, &p) {
+	if stp.StpFindPortByIfIndex(ifIndex, brgIfIndex, &p) {
 
 		sps.OperPointToPoint = ConvertBoolToInt32(p.OperPointToPointMAC)
 		sps.BrgIfIndex = p.BrgIfIndex
@@ -596,7 +596,7 @@ func (s *STPDServiceHandler) GetStpPortState(stpportstate *stpd.StpPortState) (*
 		sps.BaWhile = p.BAWhileTimer.GetCount()
 
 	} else {
-		return sps, errors.New(fmt.Sprintf("STP: Error unabled to locate bridge ifindex %d stp port ifindex %d", stpportstate.BrgIfIndex, stpportstate.IfIndex))
+		return sps, errors.New(fmt.Sprintf("STP: Error unabled to locate bridge ifindex %d stp port ifindex %d", brgIfIndex, ifIndex))
 	}
 	return sps, nil
 }
