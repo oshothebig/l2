@@ -397,7 +397,7 @@ func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) (
 					0,  // taken from port
 					0,  // taken from port
 					a.Config.SystemIdMac,
-					"", // taken from port
+					fmt.Sprintf("fpPort%s", ifindex), // taken from port
 				)
 			}
 		}
@@ -498,7 +498,7 @@ func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChanne
 					for _, m := range delList {
 						la.DeleteLaAggPort(lacpd.Uint16(m))
 					}
-					for _, m := range addList {
+					for _, ifindex := range addList {
 						mode, ok := aggModeMap[uint32(a.Config.Mode)]
 						if !ok || a.AggType == lacp.LaAggTypeSTATIC {
 							mode = "ON"
@@ -511,7 +511,7 @@ func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChanne
 
 						// origional tested thrift api
 						la.CreateLaAggPort(
-							lacpd.Uint16(m),
+							lacpd.Uint16(ifindex),
 							lacpd.Uint16(updateconfig.SystemPriority),
 							lacpd.Uint16(conf.Id),
 							lacpd.Int(GetIdByName(nameKey)),
@@ -523,7 +523,7 @@ func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChanne
 							0,  // taken from port
 							0,  // taken from port
 							updateconfig.SystemIdMac,
-							fmt.Sprintf("fpPort%s", m), // TODO read from port if taken from port
+							fmt.Sprintf("fpPort%s", ifindex), // TODO read from port if taken from port
 						)
 					}
 				}
