@@ -7,13 +7,14 @@ import (
 	"errors"
 	"fmt"
 	_ "github.com/google/gopacket"
+	"github.com/google/gopacket/pcap"
 	"io/ioutil"
 	_ "net"
 	"os"
 	"os/signal"
 	"strconv"
 	_ "strings"
-	_ "sync"
+	"sync"
 	"syscall"
 	"time"
 	"utils/ipcutils"
@@ -24,8 +25,32 @@ func LLDPNewServer(log *logging.Writer) *LLDPServer {
 	lldpServerInfo := &LLDPServer{}
 	lldpServerInfo.logger = log
 	// Allocate memory to all the Data Structures
-	//lldpServerInfo.LLDPInitGlobalDS()
+	lldpServerInfo.LLDPInitGlobalDS()
 	return lldpServerInfo
+}
+
+func (svr *LLDPServer) LLDPInitGlobalDS() {
+	svr.lldpGblInfo = make(map[int32]LLDPGlobalInfo,
+		LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
+	svr.lldpSnapshotLen = 1024
+	svr.lldpPromiscuous = false
+	svr.lldpTimeout = 10 * time.Microsecond
+}
+
+func (svr *LLDPServer) LLDPDeInitGlobalDS() {
+	svr.lldpGblInfo = nil
+}
+
+func (svr *LLDPServer) LLDPCloseAllPcapHandlers() {
+	for i := 0; i < len(svr.lldpIntfStateSlice); i++ {
+		key := svr.lldpIntfStateSlice[i]
+		gblInfo := svr.lldpGblInfo[key]
+		if gblInfo.PcapHandle != nil {
+			gblInfo.PcapHdlLock.Lock()
+			gblInfo.PcapHandle.Close()
+			gblInfo.PcapHdlLock.Unlock()
+		}
+	}
 }
 
 func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
@@ -102,8 +127,6 @@ func (svr *LLDPServer) LLDPConnectToUnConnectedClient(client LLDPClientJson) err
 }
 
 func (svr *LLDPServer) LLDPConnectToAsicd(client LLDPClientJson) error {
-	svr.logger.Info(fmt.Sprintln("Connecting to asicd at port",
-		client.Port))
 	var err error
 	svr.asicdClient.Address = "localhost:" + strconv.Itoa(client.Port)
 	svr.asicdClient.Transport, svr.asicdClient.PtrProtocolFactory, err =
@@ -136,7 +159,7 @@ func (svr *LLDPServer) LLDPSignalHandler(sigChannel <-chan os.Signal) {
 	case syscall.SIGHUP:
 		svr.logger.Alert("Received SIGHUP Signal")
 		//svr.LLDPCloseAllPcapHandlers()
-		//svr.LLDPDeAllocateMemoryToGlobalDS()
+		svr.LLDPDeInitGlobalDS()
 		svr.logger.Alert("Closed all pcap's and freed memory")
 		os.Exit(0)
 	default:
@@ -146,4 +169,27 @@ func (svr *LLDPServer) LLDPSignalHandler(sigChannel <-chan os.Signal) {
 
 func (svr *LLDPServer) LLDPChannelHanlder() {
 	// Start receviing in rpc values in the channell
+}
+
+func (svr *LLDPServer) LLDPInitL2PortInfo(portConf *asicdServices.PortState) {
+	gblInfo, _ := svr.lldpGblInfo[portConf.IfIndex]
+	gblInfo.IfIndex = portConf.IfIndex
+	gblInfo.Name = portConf.Name
+	gblInfo.OperState = portConf.OperState
+	gblInfo.PortNum = portConf.PortNum
+	gblInfo.OperStateLock = &sync.RWMutex{}
+	gblInfo.PcapHdlLock = &sync.RWMutex{}
+	svr.lldpGblInfo[portConf.IfIndex] = gblInfo
+	pcapHdl, err := pcap.OpenLive(gblInfo.Name, svr.lldpSnapshotLen,
+		svr.lldpPromiscuous, svr.lldpTimeout)
+	if err != nil {
+		svr.logger.Err(fmt.Sprintln("Creating Pcap Handler failed for",
+			gblInfo.Name, "Error:", err))
+	}
+	gblInfo.PcapHdlLock.Lock()
+	gblInfo.PcapHandle = pcapHdl
+	gblInfo.PcapHdlLock.Unlock()
+	svr.lldpGblInfo[portConf.IfIndex] = gblInfo
+	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.IfIndex)
+	svr.logger.Info("Port " + gblInfo.Name + " is " + gblInfo.OperState)
 }
