@@ -265,7 +265,7 @@ func GetIdByName(AggName string) int {
 }
 
 func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *sql.DB) error {
-	dbCmd := "select * from AggregationLacpConfig"
+	dbCmd := "select * from LaPortChannel"
 	rows, err := dbHdl.Query(dbCmd)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("DB method Query failed for 'AggregationLacpConfig' with error AggregationLacpConfig", dbCmd, err))
