@@ -69,4 +69,6 @@ const (
 	// Port Operation State
 	LLDP_PORT_STATE_DOWN = "DOWN"
 	LLDP_PORT_STATE_UP   = "UP"
+
+	LLDP_BPF_FILTER = "ether proto 0x88cc"
 )

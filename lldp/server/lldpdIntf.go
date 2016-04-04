@@ -18,8 +18,6 @@ func (svr *LLDPServer) LLDPGetInfoFromAsicd() error {
 	}
 	// Get L2 Port List
 	svr.LLDPGetPortList()
-	// Get Vlan List
-	//svr.LLDPGetVlanList()
 	return nil
 }
 
@@ -69,38 +67,7 @@ func (svr *LLDPServer) LLDPAsicdSubscriber() {
 				"asicd msg:", msg.Msg))
 			continue
 		}
-		if msg.MsgType == asicdConstDefs.NOTIFY_VLAN_CREATE ||
-			msg.MsgType == asicdConstDefs.NOTIFY_VLAN_DELETE {
-			//Vlan Create Msg
-			var vlanNotifyMsg asicdConstDefs.VlanNotifyMsg
-			err = json.Unmarshal(msg.Msg, &vlanNotifyMsg)
-			if err != nil {
-				svr.logger.Err(fmt.Sprintln("Unable to",
-					"unmashal vlanNotifyMsg:", msg.Msg))
-				return
-			}
-			//svr.LLDPUpdateVlanGblInfo(vlanNotifyMsg, msg.MsgType)
-		} else if msg.MsgType == asicdConstDefs.NOTIFY_IPV4INTF_CREATE ||
-			msg.MsgType == asicdConstDefs.NOTIFY_IPV4INTF_DELETE {
-			var ipv4IntfNotifyMsg asicdConstDefs.IPv4IntfNotifyMsg
-			err = json.Unmarshal(msg.Msg, &ipv4IntfNotifyMsg)
-			if err != nil {
-				svr.logger.Err(fmt.Sprintln("Unable to Unmarshal",
-					"ipv4IntfNotifyMsg:", msg.Msg))
-				continue
-			}
-			//svr.LLDPUpdateIPv4GblInfo(ipv4IntfNotifyMsg, msg.MsgType)
-		} else if msg.MsgType == asicdConstDefs.NOTIFY_L3INTF_STATE_CHANGE {
-			//INTF_STATE_CHANGE
-			var l3IntfStateNotifyMsg asicdConstDefs.L3IntfStateNotifyMsg
-			err = json.Unmarshal(msg.Msg, &l3IntfStateNotifyMsg)
-			if err != nil {
-				svr.logger.Err(fmt.Sprintln("unable to Unmarshal l3 intf",
-					"state change:", msg.Msg))
-				continue
-			}
-			//svr.LLDPUpdateL3IntfStateChange(l3IntfStateNotifyMsg)
-		} else if msg.MsgType == asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE {
+		if msg.MsgType == asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE {
 			var l2IntfStateNotifyMsg asicdConstDefs.L2IntfStateNotifyMsg
 			err = json.Unmarshal(msg.Msg, &l2IntfStateNotifyMsg)
 			if err != nil {
@@ -191,4 +158,5 @@ func (svr *LLDPServer) LLDPUpdateL2IntfStateChange(
 	}
 	gblInfo.OperStateLock.Unlock()
 	// Need to do some handling based of operation changed...
+	svr.LLDPCreatePcapHandler(updateInfo.IfIndex)
 }

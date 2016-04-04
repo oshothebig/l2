@@ -158,7 +158,7 @@ func (svr *LLDPServer) LLDPSignalHandler(sigChannel <-chan os.Signal) {
 	switch signal {
 	case syscall.SIGHUP:
 		svr.logger.Alert("Received SIGHUP Signal")
-		//svr.LLDPCloseAllPcapHandlers()
+		svr.LLDPCloseAllPcapHandlers()
 		svr.LLDPDeInitGlobalDS()
 		svr.logger.Alert("Closed all pcap's and freed memory")
 		os.Exit(0)
@@ -180,16 +180,32 @@ func (svr *LLDPServer) LLDPInitL2PortInfo(portConf *asicdServices.PortState) {
 	gblInfo.OperStateLock = &sync.RWMutex{}
 	gblInfo.PcapHdlLock = &sync.RWMutex{}
 	svr.lldpGblInfo[portConf.IfIndex] = gblInfo
+	if gblInfo.OperState == LLDP_PORT_STATE_UP {
+		svr.LLDPCreatePcapHandler(gblInfo.IfIndex)
+	}
+	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.IfIndex)
+	svr.logger.Info("Port " + gblInfo.Name + " is " + gblInfo.OperState)
+}
+
+func (svr *LLDPServer) LLDPCreatePcapHandler(ifIndex int32) {
+	gblInfo, exists := svr.lldpGblInfo[ifIndex]
+	if !exists {
+		svr.logger.Err(fmt.Sprintln("No entry for ifindex", ifIndex))
+		return
+	}
 	pcapHdl, err := pcap.OpenLive(gblInfo.Name, svr.lldpSnapshotLen,
 		svr.lldpPromiscuous, svr.lldpTimeout)
 	if err != nil {
 		svr.logger.Err(fmt.Sprintln("Creating Pcap Handler failed for",
 			gblInfo.Name, "Error:", err))
 	}
+	err = pcapHdl.SetBPFFilter(LLDP_BPF_FILTER)
+	if err != nil {
+		svr.logger.Info(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
+			"for", gblInfo.Name, "failed with error:", err))
+	}
 	gblInfo.PcapHdlLock.Lock()
 	gblInfo.PcapHandle = pcapHdl
 	gblInfo.PcapHdlLock.Unlock()
-	svr.lldpGblInfo[portConf.IfIndex] = gblInfo
-	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.IfIndex)
-	svr.logger.Info("Port " + gblInfo.Name + " is " + gblInfo.OperState)
+	svr.lldpGblInfo[ifIndex] = gblInfo
 }
