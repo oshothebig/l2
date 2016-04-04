@@ -83,7 +83,7 @@ func (c *LLDPTLV) LLDPTLVMarshall() ([]byte, error) {
 }
 
 // UnMarshall tlv information from binary form to LLDPTLV
-func (c *LLDPTLV) UnmarshalBinary(b []byte) error {
+func (c *LLDPTLV) LLDPTLVUnmarshalBinary(b []byte) error {
 	// Must contain type and length values, which are mandatory fields
 	if len(b) < 2 {
 		return io.ErrUnexpectedEOF
