@@ -32,7 +32,7 @@ type LLDPPortID struct {
 	ID []byte
 }
 
-// Marshall chassis id information into binary form
+// Marshall port id information into binary form
 func (c *LLDPPortID) LLDPPortIDMarshall() ([]byte, error) {
 	// SubType : 1 Byte
 	// ID : N Bytes
@@ -46,7 +46,7 @@ func (c *LLDPPortID) LLDPPortIDMarshall() ([]byte, error) {
 	return b, nil
 }
 
-// UnMarshall chassis id information from binary form to LLDPPortID
+// UnMarshall port id information from binary form to LLDPPortID
 func (c *LLDPPortID) LLDPPortIDUnMarshall(b []byte) error {
 	// Mandatory field of subtype should be specified
 	if len(b) < 1 {

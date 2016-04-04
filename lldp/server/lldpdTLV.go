@@ -53,7 +53,7 @@ type LLDPTLV struct {
 	Value []byte
 }
 
-// Marshall chassis id information into binary form
+// Marshall tlv information into binary form
 // 1) Check type value
 // 2) Check Length
 func (c *LLDPTLV) LLDPTLVMarshall() ([]byte, error) {
@@ -82,16 +82,17 @@ func (c *LLDPTLV) LLDPTLVMarshall() ([]byte, error) {
 	return b, nil
 }
 
-// UnMarshall chassis id information from binary form to LLDPTLV
+// UnMarshall tlv information from binary form to LLDPTLV
 func (c *LLDPTLV) UnmarshalBinary(b []byte) error {
-	// Must contain type and length values
+	// Must contain type and length values, which are mandatory fields
 	if len(b) < 2 {
 		return io.ErrUnexpectedEOF
 	}
 
-	// type  : 7 bits
-	// length: 9 bits
-	// value : N bytes
+	// type : 8 bits
+	// leng : 16 bits
+	// value: N bytes
+	// @FIXME: the lenght part
 	c.Type = lldpTLVType(b[0]) >> 1
 	c.Length = binary.BigEndian.Uint16(b[0:2]) & LLDPTLVLengthMax
 
