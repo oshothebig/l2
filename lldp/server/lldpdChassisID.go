@@ -1,5 +1,9 @@
 package lldpServer
 
+import (
+	"io"
+)
+
 // chassis id type def
 type lldpChassisIDSubtype uint8
 
@@ -28,4 +32,31 @@ type LLDPChassisID struct {
 	// ID may also carry alphanumeric data or binary data, depending upon the
 	// value of Subtype, received or transmitted
 	ID []byte
+}
+
+// Marshall chassis id information into binary form
+func (c *LLDPChassisID) LLDPChassisIDMarshall() ([]byte, error) {
+	// SubType : 1 Byte
+	// ID : N Bytes
+	// This is the total length of the byte object
+	b := make([]byte, 1+len(c.ID))
+	// Copy SubType first
+	b[0] = byte(c.SubType)
+	// Copy id information
+	copy(b[1:], c.ID)
+
+	return b, nil
+}
+
+// UnMarshall chassis id information from binary form to LLDPChassisID
+func (c *LLDPChassisID) LLDPChassisIDUnMarshall(b []byte) error {
+	// Mandatory field of subtype should be specified
+	if len(b) < 1 {
+		return io.ErrUnexpectedEOF
+	}
+	c.SubType = lldpChassisIDSubtype(b[0])
+	c.ID = make([]byte, len(b[1:]))
+	copy(c.ID, b[1:])
+
+	return nil
 }

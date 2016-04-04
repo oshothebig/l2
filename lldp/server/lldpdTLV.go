@@ -1,5 +1,11 @@
 package lldpServer
 
+import (
+	"encoding/binary"
+	"errors"
+	"io"
+)
+
 // tlv type def
 type lldpTLVType uint8
 
@@ -30,6 +36,11 @@ const (
 	TLVTypeMax lldpTLVType = TLVTypeOrganizationSpecific
 )
 
+var (
+	// TLV Error type
+	LLDP_ERR_INVALID_TLV = errors.New("Invalid TLV")
+)
+
 // TLV structure used to carry information in an encoded format.
 type LLDPTLV struct {
 	// Type specifies the type of value carried in TLV.
@@ -40,4 +51,58 @@ type LLDPTLV struct {
 
 	// Value specifies the raw data carried in TLV.
 	Value []byte
+}
+
+// Marshall chassis id information into binary form
+// 1) Check type value
+// 2) Check Length
+func (c *LLDPTLV) LLDPTLVMarshall() ([]byte, error) {
+	// check type
+	if c.Type > TLVTypeMax {
+		return nil, LLDP_ERR_INVALID_TLV
+	}
+
+	// check length
+	if int(c.Length) != len(c.Value) {
+		return nil, LLDP_ERR_INVALID_TLV
+	}
+	// copy value into b
+	// type : 8 bits
+	// leng : 16 bits
+	// value: N bytes
+	// @FIXME: the lenght part
+	b := make([]byte, 2+len(c.Value))
+
+	var typeByte uint16
+	typeByte |= uint16(c.Type) << 9
+	typeByte |= c.Length
+	binary.BigEndian.PutUint16(b[0:2], typeByte)
+	copy(b[2:], c.Value)
+
+	return b, nil
+}
+
+// UnMarshall chassis id information from binary form to LLDPTLV
+func (c *LLDPTLV) UnmarshalBinary(b []byte) error {
+	// Must contain type and length values
+	if len(b) < 2 {
+		return io.ErrUnexpectedEOF
+	}
+
+	// type  : 7 bits
+	// length: 9 bits
+	// value : N bytes
+	c.Type = lldpTLVType(b[0]) >> 1
+	c.Length = binary.BigEndian.Uint16(b[0:2]) & LLDPTLVLengthMax
+
+	// Must contain at least enough bytes as indicated by length
+	if len(b[2:]) < int(c.Length) {
+		return io.ErrUnexpectedEOF
+	}
+
+	// Copy value directly into TLV
+	c.Value = make([]byte, len(b[2:2+c.Length]))
+	copy(c.Value, b[2:2+c.Length])
+
+	return nil
 }
