@@ -34,6 +34,7 @@ type LLDPChassisID struct {
 	ID []byte
 }
 
+// @FIXME: do we need to return error??
 // Marshall chassis id information into binary form
 func (c *LLDPChassisID) LLDPChassisIDMarshall() ([]byte, error) {
 	// SubType : 1 Byte

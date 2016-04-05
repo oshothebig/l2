@@ -32,6 +32,7 @@ type LLDPPortID struct {
 	ID []byte
 }
 
+// @FIXME: do we need to return error??
 // Marshall port id information into binary form
 func (c *LLDPPortID) LLDPPortIDMarshall() ([]byte, error) {
 	// SubType : 1 Byte

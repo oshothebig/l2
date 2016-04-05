@@ -27,12 +27,12 @@ type LLDPFrame struct {
 }
 
 var (
-	LLDP_ERR_INVALID_FRAME       = errors.New("invalid frame")
-	LLDP_INCOMPLETE_FRAME        = errors.New("LLDP Frame has in-complete information")
-	LLDP_INVALID_CHASSIS_ID_INFO = errors.New("invalid Chassis id info")
-	LLDP_INVALID_PORT_ID_INFO    = errors.New("invalid port id info")
-	LLDP_INVALID_TTL_INFO        = errors.New("invalid ttl info")
-	LLDP_INVALID_END_INFO        = errors.New("end of lldp frame is not defined")
+	LLDP_ERR_INVALID_FRAME           = errors.New("invalid frame")
+	LLDP_ERR_INCOMPLETE_FRAME        = errors.New("LLDP Frame has in-complete information")
+	LLDP_ERR_INVALID_CHASSIS_ID_INFO = errors.New("invalid Chassis id info")
+	LLDP_ERR_INVALID_PORT_ID_INFO    = errors.New("invalid port id info")
+	LLDP_ERR_INVALID_TTL_INFO        = errors.New("invalid ttl info")
+	LLDP_ERR_INVALID_END_INFO        = errors.New("end of lldp frame is not defined")
 )
 
 const (
@@ -57,8 +57,53 @@ func (obj *LLDPFrame) LLDPFrameMarshall() ([]byte, error) {
 	if timeTTL > LLDP_MAX_TTL_VALUE {
 		return nil, LLDP_ERR_INVALID_FRAME
 	}
-	//ttl := uint16(timeTTL)
+	ttl := uint16(timeTTL)
 	b := make([]byte, obj.MinLength())
+
+	// Add chassis id Info
+	chassisByte, _ := obj.ChassisID.LLDPChassisIDMarshall()
+	chassisTLV := &LLDPTLV{
+		Type:   TLVTypeChassisID,
+		Length: uint16(len(chassisByte)),
+		Value:  chassisByte,
+	}
+	offset := 0
+	err := chassisTLV.LLDPTLVMarshallInsert(b, &offset)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add Port id Info
+	portByte, _ := obj.PortID.LLDPPortIDMarshall()
+	portTLV := &LLDPTLV{
+		Type:   TLVTypePortID,
+		Length: uint16(len(portByte)),
+		Value:  portByte,
+	}
+	err = portTLV.LLDPTLVMarshallInsert(b, &offset)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add TTL info
+	ttlTLV := &LLDPTLV{
+		Type:   TLVTypeTTL,
+		Length: LLDP_TTL_BYTE_VALUE,
+	}
+	binary.BigEndian.PutUint16(ttlTLV.Value, ttl)
+	err = ttlTLV.LLDPTLVMarshallInsert(b, &offset)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add optional tlv's if any
+	for _, optlv := range obj.Optional {
+		err = optlv.LLDPTLVMarshallInsert(b, &offset)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return b, nil
 }
 
@@ -82,7 +127,7 @@ func (obj *LLDPFrame) LLDPFrameUnMarshall(b []byte) (err error) {
 
 	// check whether four mandatory tlv's are present or not
 	if tlvLen < LLDP_MANDATORY_TLV_SIZE {
-		return LLDP_INCOMPLETE_FRAME
+		return LLDP_ERR_INCOMPLETE_FRAME
 	}
 
 	/*  Check tlvInfo bytes before creating a frame:
@@ -92,17 +137,17 @@ func (obj *LLDPFrame) LLDPFrameUnMarshall(b []byte) (err error) {
 	 *     [3]...[N] end of lldpdu or lldp frame
 	 */
 	if tlvInfo[0].Type != TLVTypeChassisID {
-		return LLDP_INVALID_CHASSIS_ID_INFO
+		return LLDP_ERR_INVALID_CHASSIS_ID_INFO
 	}
 	if tlvInfo[1].Type != TLVTypePortID {
-		return LLDP_INVALID_PORT_ID_INFO
+		return LLDP_ERR_INVALID_PORT_ID_INFO
 	}
 	if tlvInfo[2].Type != TLVTypeTTL ||
 		tlvInfo[2].Length != LLDP_TTL_BYTE_VALUE {
-		return LLDP_INVALID_TTL_INFO
+		return LLDP_ERR_INVALID_TTL_INFO
 	}
 	if tlvInfo[tlvLen-1].Type != TLVTypeEnd || tlvInfo[tlvLen-1].Length != 0 {
-		return LLDP_INVALID_END_INFO
+		return LLDP_ERR_INVALID_END_INFO
 	}
 
 	// Get Chassis Id Info

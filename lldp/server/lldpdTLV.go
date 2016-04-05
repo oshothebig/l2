@@ -38,7 +38,8 @@ const (
 
 var (
 	// TLV Error type
-	LLDP_ERR_INVALID_TLV = errors.New("Invalid TLV")
+	LLDP_ERR_INVALID_TLV_LENGTH = errors.New("Invalid TLV length")
+	LLDP_ERR_INVALID_TLV_TYPE   = errors.New("Invalid TLV type")
 )
 
 // TLV structure used to carry information in an encoded format.
@@ -56,15 +57,43 @@ type LLDPTLV struct {
 // Marshall tlv information into binary form
 // 1) Check type value
 // 2) Check Length
-func (c *LLDPTLV) LLDPTLVMarshall() ([]byte, error) {
+func (c *LLDPTLV) LLDPTLVMarshallInsert(b []byte, offset *int) error {
 	// check type
 	if c.Type > TLVTypeMax {
-		return nil, LLDP_ERR_INVALID_TLV
+		return LLDP_ERR_INVALID_TLV_TYPE
 	}
 
 	// check length
 	if int(c.Length) != len(c.Value) {
-		return nil, LLDP_ERR_INVALID_TLV
+		return LLDP_ERR_INVALID_TLV_LENGTH
+	}
+	// copy value into b
+	// type : 8 bits
+	// leng : 16 bits
+	// value: N bytes
+	// @FIXME: the lenght part
+	// No need to make new byte as the caller will create the byte
+	// They will also specify offset
+	//b := make([]byte, 2+len(c.Value))
+
+	var typeByte uint16
+	typeByte |= uint16(c.Type) << 9
+	typeByte |= c.Length
+	binary.BigEndian.PutUint16(b[(0+*offset):(2+*offset)], typeByte)
+	copy(b[(2+*offset):(int(c.Length)+*offset)], c.Value)
+	*offset += len(b)
+	return nil
+}
+
+func (c *LLDPTLV) LLDPTLVMarshallBinary() ([]byte, error) {
+	// check type
+	if c.Type > TLVTypeMax {
+		return nil, LLDP_ERR_INVALID_TLV_TYPE
+	}
+
+	// check length
+	if int(c.Length) != len(c.Value) {
+		return nil, LLDP_ERR_INVALID_TLV_LENGTH
 	}
 	// copy value into b
 	// type : 8 bits
