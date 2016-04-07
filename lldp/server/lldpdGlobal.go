@@ -4,7 +4,7 @@ import (
 	"asicdServices"
 	"database/sql"
 	"git.apache.org/thrift.git/lib/go/thrift"
-	_ "github.com/google/gopacket"
+	"github.com/google/gopacket"
 	_ "github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	nanomsg "github.com/op/go-nanomsg"
@@ -30,6 +30,11 @@ type LLDPAsicdClient struct {
 	ClientHdl *asicdServices.ASICDServicesClient
 }
 
+type LLDPInPktChannel struct {
+	pkt     gopacket.Packet
+	ifIndex int32
+}
+
 type LLDPGlobalInfo struct {
 	PortNum       int32
 	IfIndex       int32
@@ -49,13 +54,18 @@ type LLDPServer struct {
 	paramsDir      string
 	asicdClient    LLDPAsicdClient
 	asicdSubSocket *nanomsg.SubSocket
+
 	// lldp per port global info
 	lldpGblInfo        map[int32]LLDPGlobalInfo
 	lldpIntfStateSlice []int32
+
 	// lldp pcap handler default config values
 	lldpSnapshotLen int32
 	lldpPromiscuous bool
 	lldpTimeout     time.Duration
+
+	// lldp packet rx channel
+	lldpRxPktCh chan LLDPInPktChannel
 }
 
 const (
@@ -63,8 +73,9 @@ const (
 	LLDP_USR_CONF_DB                    = "/UsrConfDb.db"
 	LLDP_CLIENT_CONNECTION_NOT_REQUIRED = "Connection to Client is not required"
 
-	// Map Size Consts
+	// Consts Init Size/Capacity
 	LLDP_INITIAL_GLOBAL_INFO_CAPACITY = 100
+	LLDP_RX_PKT_CHANNEL_SIZE          = 1
 
 	// Port Operation State
 	LLDP_PORT_STATE_DOWN = "DOWN"
