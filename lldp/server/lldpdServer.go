@@ -54,12 +54,15 @@ func (svr *LLDPServer) LLDPDeInitGlobalDS() {
 func (svr *LLDPServer) LLDPCloseAllPcapHandlers() {
 	for i := 0; i < len(svr.lldpIntfStateSlice); i++ {
 		key := svr.lldpIntfStateSlice[i]
-		gblInfo := svr.lldpGblInfo[key]
-		if gblInfo.PcapHandle != nil {
-			gblInfo.PcapHdlLock.Lock()
-			gblInfo.PcapHandle.Close()
-			gblInfo.PcapHdlLock.Unlock()
+		gblInfo, ok := svr.lldpGblInfo[key]
+		if !ok {
+			continue
 		}
+		gblInfo.PcapHdlLock.Lock()
+		if gblInfo.PcapHandle != nil {
+			gblInfo.PcapHandle.Close()
+		}
+		gblInfo.PcapHdlLock.Unlock()
 	}
 }
 
@@ -252,4 +255,19 @@ func (svr *LLDPServer) LLDPCreatePcapHandler(ifIndex int32) {
 	gblInfo.PcapHdlLock.Unlock()
 	svr.lldpGblInfo[ifIndex] = gblInfo
 	go svr.LLDPReceiveFrames(gblInfo.PcapHandle, ifIndex)
+}
+
+/*  Delete l2 port pcap handler
+ */
+func (svr *LLDPServer) LLDPDeletePcapHandler(ifIndex int32) {
+	gblInfo, exists := svr.lldpGblInfo[ifIndex]
+	if !exists {
+		svr.logger.Err(fmt.Sprintln("No entry for ifindex", ifIndex))
+		return
+	}
+	gblInfo.PcapHdlLock.Lock()
+	if gblInfo.PcapHandle != nil {
+		gblInfo.PcapHandle.Close()
+	}
+	gblInfo.PcapHdlLock.Unlock()
 }

@@ -14,12 +14,10 @@ const (
 	LLDPTLVLengthMax = 0x01ff
 
 	// Mandatory TLVType values in all LLDPDUs or LLDP Frame
-	// TLVTypeEnd is a special sentinel value used to indicate the end of
-	// TLVs in a LLDPDU or LLDP Frame
-	TLVTypeEnd       lldpTLVType = 0
-	TLVTypeChassisID lldpTLVType = 1
-	TLVTypePortID    lldpTLVType = 2
-	TLVTypeTTL       lldpTLVType = 3
+	TLVTypeEnd       lldpTLVType = 0 // indicates end of Frame
+	TLVTypeChassisID lldpTLVType = 1 // indicates tlv is for chassis id
+	TLVTypePortID    lldpTLVType = 2 // indicates tlv is for port id
+	TLVTypeTTL       lldpTLVType = 3 // indicates tlv is for ttl for rx frame
 
 	// Optional TLVType values which may occur in LLDPDUs or LLDP Frame
 	TLVTypePortDescription    lldpTLVType = 4
