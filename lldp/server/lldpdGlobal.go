@@ -3,6 +3,7 @@ package lldpServer
 import (
 	"asicdServices"
 	"database/sql"
+	"errors"
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"github.com/google/gopacket"
 	_ "github.com/google/gopacket/layers"
@@ -82,4 +83,8 @@ const (
 	LLDP_PORT_STATE_UP   = "UP"
 
 	LLDP_BPF_FILTER = "ether proto 0x88cc"
+)
+
+var (
+	LLDP_INVALID_LAYERS = errors.New("received layer are not in-sufficient for decoding packet")
 )
