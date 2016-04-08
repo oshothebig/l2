@@ -9,6 +9,8 @@ import (
 	_ "utils/commonDefs"
 )
 
+/* Register with Asicd and then get l2 port info from asicd via GetBulk
+ */
 func (svr *LLDPServer) LLDPGetInfoFromAsicd() error {
 	svr.logger.Info("Calling Asicd to initialize port properties")
 	err := svr.LLDPRegisterWithAsicdUpdates(asicdConstDefs.PUB_SOCKET_ADDR)
@@ -18,11 +20,12 @@ func (svr *LLDPServer) LLDPGetInfoFromAsicd() error {
 	}
 	// Get L2 Port List
 	svr.LLDPGetPortList()
-	// Get Vlan List
-	//svr.LLDPGetVlanList()
 	return nil
 }
 
+/* Helper function which will connect with asicd, so that any future events from
+ * asicd will be handled from lldpServer for lldp frames.
+ */
 func (svr *LLDPServer) LLDPRegisterWithAsicdUpdates(address string) error {
 	var err error
 	svr.logger.Info("setting up asicd update listener")
@@ -54,6 +57,9 @@ func (svr *LLDPServer) LLDPRegisterWithAsicdUpdates(address string) error {
 	return nil
 }
 
+/* Go routine to listen all asicd events notifications.
+ * Today lldp listens to only l2 state change. Add other notifications as needed
+ */
 func (svr *LLDPServer) LLDPAsicdSubscriber() {
 	for {
 		rxBuf, err := svr.asicdSubSocket.Recv(0)
@@ -69,38 +75,7 @@ func (svr *LLDPServer) LLDPAsicdSubscriber() {
 				"asicd msg:", msg.Msg))
 			continue
 		}
-		if msg.MsgType == asicdConstDefs.NOTIFY_VLAN_CREATE ||
-			msg.MsgType == asicdConstDefs.NOTIFY_VLAN_DELETE {
-			//Vlan Create Msg
-			var vlanNotifyMsg asicdConstDefs.VlanNotifyMsg
-			err = json.Unmarshal(msg.Msg, &vlanNotifyMsg)
-			if err != nil {
-				svr.logger.Err(fmt.Sprintln("Unable to",
-					"unmashal vlanNotifyMsg:", msg.Msg))
-				return
-			}
-			//svr.LLDPUpdateVlanGblInfo(vlanNotifyMsg, msg.MsgType)
-		} else if msg.MsgType == asicdConstDefs.NOTIFY_IPV4INTF_CREATE ||
-			msg.MsgType == asicdConstDefs.NOTIFY_IPV4INTF_DELETE {
-			var ipv4IntfNotifyMsg asicdConstDefs.IPv4IntfNotifyMsg
-			err = json.Unmarshal(msg.Msg, &ipv4IntfNotifyMsg)
-			if err != nil {
-				svr.logger.Err(fmt.Sprintln("Unable to Unmarshal",
-					"ipv4IntfNotifyMsg:", msg.Msg))
-				continue
-			}
-			//svr.LLDPUpdateIPv4GblInfo(ipv4IntfNotifyMsg, msg.MsgType)
-		} else if msg.MsgType == asicdConstDefs.NOTIFY_L3INTF_STATE_CHANGE {
-			//INTF_STATE_CHANGE
-			var l3IntfStateNotifyMsg asicdConstDefs.L3IntfStateNotifyMsg
-			err = json.Unmarshal(msg.Msg, &l3IntfStateNotifyMsg)
-			if err != nil {
-				svr.logger.Err(fmt.Sprintln("unable to Unmarshal l3 intf",
-					"state change:", msg.Msg))
-				continue
-			}
-			//svr.LLDPUpdateL3IntfStateChange(l3IntfStateNotifyMsg)
-		} else if msg.MsgType == asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE {
+		if msg.MsgType == asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE {
 			var l2IntfStateNotifyMsg asicdConstDefs.L2IntfStateNotifyMsg
 			err = json.Unmarshal(msg.Msg, &l2IntfStateNotifyMsg)
 			if err != nil {
@@ -113,33 +88,8 @@ func (svr *LLDPServer) LLDPAsicdSubscriber() {
 	}
 }
 
-func (svr *LLDPServer) LLDPGetVlanList() {
-	svr.logger.Info("LLDP: Get Vlans")
-	objCount := 0
-	var currMarker int64
-	more := false
-	count := 10
-	for {
-		bulkInfo, err := svr.asicdClient.ClientHdl.GetBulkVlanState(
-			asicdServices.Int(currMarker), asicdServices.Int(count))
-		if err != nil {
-			svr.logger.Err(fmt.Sprintln("DRA: getting bulk vlan config",
-				"from asicd failed with reason", err))
-			return
-		}
-		objCount = int(bulkInfo.Count)
-		more = bool(bulkInfo.More)
-		currMarker = int64(bulkInfo.EndIdx)
-		for i := 0; i < objCount; i++ {
-			//svr.LLDPCreateVlanEntry(int(bulkInfo.VlanStateList[i].VlanId),
-			//	bulkInfo.VlanStateList[i].VlanName)
-		}
-		if more == false {
-			break
-		}
-	}
-}
-
+/*  Helper function to get bulk port state information from asicd
+ */
 func (svr *LLDPServer) LLDPGetPortList() {
 	svr.logger.Info("Get Port List")
 	currMarker := int64(asicdConstDefs.MIN_SYS_PORTS)
@@ -166,29 +116,28 @@ func (svr *LLDPServer) LLDPGetPortList() {
 	}
 }
 
+/*  handle l2 state up/down notifications..
+ */
 func (svr *LLDPServer) LLDPUpdateL2IntfStateChange(
 	updateInfo asicdConstDefs.L2IntfStateNotifyMsg) {
-	stateChanged := false
 	gblInfo, found := svr.lldpGblInfo[updateInfo.IfIndex]
 	if !found {
 		return
 	}
-	gblInfo.OperStateLock.Lock()
 	switch updateInfo.IfState {
 	case asicdConstDefs.INTF_STATE_UP:
-		if gblInfo.OperState != LLDP_PORT_STATE_UP {
-			stateChanged = true
-			gblInfo.OperState = LLDP_PORT_STATE_UP
-		}
-	case asicdConstDefs.INTF_STATE_DOWN:
-		if gblInfo.OperState != LLDP_PORT_STATE_DOWN {
-			stateChanged = true
-			gblInfo.OperState = LLDP_PORT_STATE_DOWN
-		}
-	}
-	if stateChanged {
+		gblInfo.OperStateLock.Lock()
+		gblInfo.OperState = LLDP_PORT_STATE_UP
 		svr.lldpGblInfo[updateInfo.IfIndex] = gblInfo
+		gblInfo.OperStateLock.Unlock()
+		// Create Pcap Handler and start rx/tx packets
+		svr.LLDPCreatePcapHandler(updateInfo.IfIndex)
+	case asicdConstDefs.INTF_STATE_DOWN:
+		gblInfo.OperStateLock.Lock()
+		gblInfo.OperState = LLDP_PORT_STATE_DOWN
+		svr.lldpGblInfo[updateInfo.IfIndex] = gblInfo
+		gblInfo.OperStateLock.Unlock()
+		// Delete Pcap Handler and stop rx/tx packets
+		svr.LLDPDeletePcapHandler(updateInfo.IfIndex)
 	}
-	gblInfo.OperStateLock.Unlock()
-	// Need to do some handling based of operation changed...
 }

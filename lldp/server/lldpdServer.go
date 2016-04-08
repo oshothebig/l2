@@ -21,6 +21,8 @@ import (
 	"utils/logging"
 )
 
+/* Create lldp server object for the main handler..
+ */
 func LLDPNewServer(log *logging.Writer) *LLDPServer {
 	lldpServerInfo := &LLDPServer{}
 	lldpServerInfo.logger = log
@@ -29,30 +31,46 @@ func LLDPNewServer(log *logging.Writer) *LLDPServer {
 	return lldpServerInfo
 }
 
+/* Allocate memory to all the object which are being used by LLDP server
+ */
 func (svr *LLDPServer) LLDPInitGlobalDS() {
 	svr.lldpGblInfo = make(map[int32]LLDPGlobalInfo,
 		LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
+	svr.lldpRxPktCh = make(chan LLDPInPktChannel, LLDP_RX_PKT_CHANNEL_SIZE)
 	svr.lldpSnapshotLen = 1024
 	svr.lldpPromiscuous = false
 	svr.lldpTimeout = 10 * time.Microsecond
 }
 
+/* De-Allocate memory to all the object which are being used by LLDP server
+ */
 func (svr *LLDPServer) LLDPDeInitGlobalDS() {
+	svr.lldpRxPktCh = nil
 	svr.lldpGblInfo = nil
 }
 
+/* On de-init we will be closing all the pcap handlers that are opened up
+ */
 func (svr *LLDPServer) LLDPCloseAllPcapHandlers() {
 	for i := 0; i < len(svr.lldpIntfStateSlice); i++ {
 		key := svr.lldpIntfStateSlice[i]
-		gblInfo := svr.lldpGblInfo[key]
-		if gblInfo.PcapHandle != nil {
-			gblInfo.PcapHdlLock.Lock()
-			gblInfo.PcapHandle.Close()
-			gblInfo.PcapHdlLock.Unlock()
+		gblInfo, ok := svr.lldpGblInfo[key]
+		if !ok {
+			continue
 		}
+		gblInfo.PcapHdlLock.Lock()
+		if gblInfo.PcapHandle != nil {
+			gblInfo.PcapHandle.Close()
+		}
+		gblInfo.PcapHdlLock.Unlock()
 	}
 }
 
+/*  lldp server: 1) Connect to all the clients
+ *		 2) Initialize DB
+ *		 3) Read from DB and close DB
+ *		 5) go routine to handle all the channels within lldp server
+ */
 func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 	svr.paramsDir = paramsDir
 	// First connect to client to avoid any issues with start/re-start
@@ -70,6 +88,9 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 	go svr.LLDPChannelHanlder()
 }
 
+/* lldp server go ahead and connect to asicd.. Support is there if lldp needs to
+ * connect any other client like, lacp, stp, etc...
+ */
 func (svr *LLDPServer) LLDPConnectAndInitPortVlan() error {
 	configFile := svr.paramsDir + "/clients.json"
 	bytes, err := ioutil.ReadFile(configFile)
@@ -117,6 +138,9 @@ func (svr *LLDPServer) LLDPConnectAndInitPortVlan() error {
 	return err
 }
 
+/*  Helper function specifying which clients lldp needs to connect
+ *  if needed to connect to other client add case for it
+ */
 func (svr *LLDPServer) LLDPConnectToUnConnectedClient(client LLDPClientJson) error {
 	switch client.Name {
 	case "asicd":
@@ -126,6 +150,8 @@ func (svr *LLDPServer) LLDPConnectToUnConnectedClient(client LLDPClientJson) err
 	}
 }
 
+/*  Helper function to connect asicd
+ */
 func (svr *LLDPServer) LLDPConnectToAsicd(client LLDPClientJson) error {
 	var err error
 	svr.asicdClient.Address = "localhost:" + strconv.Itoa(client.Port)
@@ -146,6 +172,8 @@ func (svr *LLDPServer) LLDPConnectToAsicd(client LLDPClientJson) error {
 	return nil
 }
 
+/*  Create os signal handler channel and initiate go routine for that
+ */
 func (svr *LLDPServer) LLDPOSSignalHandle() {
 	sigChannel := make(chan os.Signal, 1)
 	signalList := []os.Signal{syscall.SIGHUP}
@@ -153,12 +181,16 @@ func (svr *LLDPServer) LLDPOSSignalHandle() {
 	go svr.LLDPSignalHandler(sigChannel)
 }
 
+/* OS signal handler.
+ *      If the process get a sighup signal then close all the pcap handlers.
+ *      After that delete all the memory which was used during init process
+ */
 func (svr *LLDPServer) LLDPSignalHandler(sigChannel <-chan os.Signal) {
 	signal := <-sigChannel
 	switch signal {
 	case syscall.SIGHUP:
 		svr.logger.Alert("Received SIGHUP Signal")
-		//svr.LLDPCloseAllPcapHandlers()
+		svr.LLDPCloseAllPcapHandlers()
 		svr.LLDPDeInitGlobalDS()
 		svr.logger.Alert("Closed all pcap's and freed memory")
 		os.Exit(0)
@@ -167,10 +199,21 @@ func (svr *LLDPServer) LLDPSignalHandler(sigChannel <-chan os.Signal) {
 	}
 }
 
+/* To handle all the channels in lldp server... For detail look at the
+ * LLDPInitGlobalDS api to see which all channels are getting initialized
+ */
 func (svr *LLDPServer) LLDPChannelHanlder() {
-	// Start receviing in rpc values in the channell
+	for {
+		select {
+		case rcvdInfo := <-svr.lldpRxPktCh:
+			svr.LLDPProcessRxPkt(rcvdInfo.pkt, rcvdInfo.ifIndex)
+		}
+	}
 }
 
+/* Create l2 port global map..
+ *	lldpGlbInfo will contain all the runtime information for lldp server
+ */
 func (svr *LLDPServer) LLDPInitL2PortInfo(portConf *asicdServices.PortState) {
 	gblInfo, _ := svr.lldpGblInfo[portConf.IfIndex]
 	gblInfo.IfIndex = portConf.IfIndex
@@ -180,16 +223,51 @@ func (svr *LLDPServer) LLDPInitL2PortInfo(portConf *asicdServices.PortState) {
 	gblInfo.OperStateLock = &sync.RWMutex{}
 	gblInfo.PcapHdlLock = &sync.RWMutex{}
 	svr.lldpGblInfo[portConf.IfIndex] = gblInfo
+	if gblInfo.OperState == LLDP_PORT_STATE_UP {
+		svr.LLDPCreatePcapHandler(gblInfo.IfIndex)
+	}
+	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.IfIndex)
+	svr.logger.Info("Port " + gblInfo.Name + " is " + gblInfo.OperState)
+}
+
+/* Create l2 port pcap handler.
+ *	Filter is LLDP_BPF_FILTER = "ether proto 0x88cc"
+ */
+func (svr *LLDPServer) LLDPCreatePcapHandler(ifIndex int32) {
+	gblInfo, exists := svr.lldpGblInfo[ifIndex]
+	if !exists {
+		svr.logger.Err(fmt.Sprintln("No entry for ifindex", ifIndex))
+		return
+	}
 	pcapHdl, err := pcap.OpenLive(gblInfo.Name, svr.lldpSnapshotLen,
 		svr.lldpPromiscuous, svr.lldpTimeout)
 	if err != nil {
 		svr.logger.Err(fmt.Sprintln("Creating Pcap Handler failed for",
 			gblInfo.Name, "Error:", err))
 	}
+	err = pcapHdl.SetBPFFilter(LLDP_BPF_FILTER)
+	if err != nil {
+		svr.logger.Info(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
+			"for", gblInfo.Name, "failed with error:", err))
+	}
 	gblInfo.PcapHdlLock.Lock()
 	gblInfo.PcapHandle = pcapHdl
 	gblInfo.PcapHdlLock.Unlock()
-	svr.lldpGblInfo[portConf.IfIndex] = gblInfo
-	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.IfIndex)
-	svr.logger.Info("Port " + gblInfo.Name + " is " + gblInfo.OperState)
+	svr.lldpGblInfo[ifIndex] = gblInfo
+	go svr.LLDPReceiveFrames(gblInfo.PcapHandle, ifIndex)
+}
+
+/*  Delete l2 port pcap handler
+ */
+func (svr *LLDPServer) LLDPDeletePcapHandler(ifIndex int32) {
+	gblInfo, exists := svr.lldpGblInfo[ifIndex]
+	if !exists {
+		svr.logger.Err(fmt.Sprintln("No entry for ifindex", ifIndex))
+		return
+	}
+	gblInfo.PcapHdlLock.Lock()
+	if gblInfo.PcapHandle != nil {
+		gblInfo.PcapHandle.Close()
+	}
+	gblInfo.PcapHdlLock.Unlock()
 }
