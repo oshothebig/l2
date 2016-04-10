@@ -37,6 +37,7 @@ func (svr *LLDPServer) LLDPInitGlobalDS() {
 	svr.lldpGblInfo = make(map[int32]LLDPGlobalInfo,
 		LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
 	svr.lldpRxPktCh = make(chan LLDPInPktChannel, LLDP_RX_PKT_CHANNEL_SIZE)
+	svr.lldpExit = make(chan bool)
 	svr.lldpSnapshotLen = 1024
 	svr.lldpPromiscuous = false
 	svr.lldpTimeout = 10 * time.Microsecond
@@ -45,25 +46,44 @@ func (svr *LLDPServer) LLDPInitGlobalDS() {
 /* De-Allocate memory to all the object which are being used by LLDP server
  */
 func (svr *LLDPServer) LLDPDeInitGlobalDS() {
+	// close rx packet channel
+	if svr.lldpRxPktCh != nil {
+		svr.logger.Info("Closing rx channel")
+		close(svr.lldpRxPktCh)
+	}
+	// @TODO: close tx packet channel
 	svr.lldpRxPktCh = nil
 	svr.lldpGblInfo = nil
 }
 
 /* On de-init we will be closing all the pcap handlers that are opened up
+ * We will also free up all the pointers from the gblInfo. Otherwise that will
+ * lead to memory leak
  */
-func (svr *LLDPServer) LLDPCloseAllPcapHandlers() {
+func (svr *LLDPServer) LLDPCloseAllPktHandlers() {
 	for i := 0; i < len(svr.lldpIntfStateSlice); i++ {
 		key := svr.lldpIntfStateSlice[i]
-		gblInfo, ok := svr.lldpGblInfo[key]
-		if !ok {
+		//svr.logger.Info(fmt.Sprintln("ifindex is", key))
+		gblInfo, exists := svr.lldpGblInfo[key]
+		if !exists {
 			continue
 		}
-		gblInfo.PcapHdlLock.Lock()
+		//gblInfo.PcapHdlLock.Lock()
 		if gblInfo.PcapHandle != nil {
 			gblInfo.PcapHandle.Close()
+			gblInfo.PcapHandle = nil
 		}
-		gblInfo.PcapHdlLock.Unlock()
+		//gblInfo.PcapHdlLock.Unlock()
+		gblInfo.lldpFrame = nil
+		gblInfo.PcapHdlLock = nil
+		if gblInfo.clearCacheTimer != nil {
+			gblInfo.clearCacheTimer.Stop()
+		}
+		gblInfo.clearCacheTimer = nil
+		gblInfo.OperStateLock = nil
+		svr.lldpGblInfo[key] = gblInfo
 	}
+	svr.logger.Info("closed everything")
 }
 
 /*  lldp server: 1) Connect to all the clients
@@ -95,8 +115,8 @@ func (svr *LLDPServer) LLDPConnectAndInitPortVlan() error {
 	configFile := svr.paramsDir + "/clients.json"
 	bytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		svr.logger.Err(fmt.Sprintln("Error while reading configuration file",
-			configFile))
+		svr.logger.Err(fmt.Sprintln("Error while reading ",
+			"configuration file", configFile))
 		return err
 	}
 	var unConnectedClients []LLDPClientJson
@@ -110,14 +130,16 @@ func (svr *LLDPServer) LLDPConnectAndInitPortVlan() error {
 	for {
 		time.Sleep(time.Millisecond * 500)
 		for i := 0; i < len(unConnectedClients); i++ {
-			err := svr.LLDPConnectToUnConnectedClient(unConnectedClients[i])
+			err := svr.LLDPConnectToUnConnectedClient(
+				unConnectedClients[i])
 			if err == nil {
 				svr.logger.Info("Connected to " +
 					unConnectedClients[i].Name)
 				unConnectedClients = append(unConnectedClients[:i],
 					unConnectedClients[i+1:]...)
 
-			} else if err.Error() == LLDP_CLIENT_CONNECTION_NOT_REQUIRED {
+			} else if err.Error() ==
+				LLDP_CLIENT_CONNECTION_NOT_REQUIRED {
 				svr.logger.Info("connection to " +
 					unConnectedClients[i].Name +
 					" not required")
@@ -189,10 +211,11 @@ func (svr *LLDPServer) LLDPSignalHandler(sigChannel <-chan os.Signal) {
 	signal := <-sigChannel
 	switch signal {
 	case syscall.SIGHUP:
+		svr.lldpExit <- true
 		svr.logger.Alert("Received SIGHUP Signal")
-		svr.LLDPCloseAllPcapHandlers()
-		svr.LLDPDeInitGlobalDS()
-		svr.logger.Alert("Closed all pcap's and freed memory")
+		//svr.LLDPCloseAllPktHandlers()
+		//svr.LLDPDeInitGlobalDS()
+		svr.logger.Alert("Exiting!!!!!")
 		os.Exit(0)
 	default:
 		svr.logger.Info(fmt.Sprintln("Unhandled Signal:", signal))
@@ -205,8 +228,20 @@ func (svr *LLDPServer) LLDPSignalHandler(sigChannel <-chan os.Signal) {
 func (svr *LLDPServer) LLDPChannelHanlder() {
 	for {
 		select {
-		case rcvdInfo := <-svr.lldpRxPktCh:
+		case rcvdInfo, ok := <-svr.lldpRxPktCh:
+			if !ok {
+				svr.logger.Alert("RX Channel is closed, exit")
+				return // rx channel should be closed only on exit
+			}
 			svr.LLDPProcessRxPkt(rcvdInfo.pkt, rcvdInfo.ifIndex)
+		case exit := <-svr.lldpExit:
+			if exit {
+				//svr.LLDPCloseAllPktHandlers()
+				//svr.LLDPDeInitGlobalDS()
+				svr.logger.Alert("lldp exiting stopping all" +
+					" channel handler")
+				return
+			}
 		}
 	}
 }
@@ -227,7 +262,6 @@ func (svr *LLDPServer) LLDPInitL2PortInfo(portConf *asicdServices.PortState) {
 		svr.LLDPCreatePcapHandler(gblInfo.IfIndex)
 	}
 	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.IfIndex)
-	svr.logger.Info("Port " + gblInfo.Name + " is " + gblInfo.OperState)
 }
 
 /* Create l2 port pcap handler.
@@ -254,6 +288,8 @@ func (svr *LLDPServer) LLDPCreatePcapHandler(ifIndex int32) {
 	gblInfo.PcapHandle = pcapHdl
 	gblInfo.PcapHdlLock.Unlock()
 	svr.lldpGblInfo[ifIndex] = gblInfo
+	svr.logger.Info("Start receiving lldp frames for port:" +
+		gblInfo.Name)
 	go svr.LLDPReceiveFrames(gblInfo.PcapHandle, ifIndex)
 }
 
@@ -269,5 +305,6 @@ func (svr *LLDPServer) LLDPDeletePcapHandler(ifIndex int32) {
 	if gblInfo.PcapHandle != nil {
 		gblInfo.PcapHandle.Close()
 	}
+	svr.lldpGblInfo[ifIndex] = gblInfo
 	gblInfo.PcapHdlLock.Unlock()
 }

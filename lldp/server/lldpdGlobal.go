@@ -6,7 +6,7 @@ import (
 	"errors"
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"github.com/google/gopacket"
-	_ "github.com/google/gopacket/layers"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	nanomsg "github.com/op/go-nanomsg"
 	"sync"
@@ -46,6 +46,13 @@ type LLDPGlobalInfo struct {
 	PcapHandle *pcap.Handle
 	// Pcap Handler lock to write data one routine at a time
 	PcapHdlLock *sync.RWMutex
+
+	// lldp received Frame from peer
+	lldpFrame    *layers.LinkLayerDiscovery
+	lldpLinkInfo *layers.LinkLayerDiscoveryInfo
+
+	// rx timer
+	clearCacheTimer *time.Timer
 }
 
 type LLDPServer struct {
@@ -67,6 +74,9 @@ type LLDPServer struct {
 
 	// lldp packet rx channel
 	lldpRxPktCh chan LLDPInPktChannel
+
+	// lldp exit
+	lldpExit chan bool
 }
 
 const (
