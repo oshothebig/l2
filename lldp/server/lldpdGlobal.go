@@ -80,6 +80,9 @@ type LLDPServer struct {
 }
 
 const (
+	// LLDP profiling
+	LLDP_CPU_PROFILE_FILE = "/var/log/lldp.prof"
+
 	// Error Message
 	LLDP_USR_CONF_DB                    = "/UsrConfDb.db"
 	LLDP_CLIENT_CONNECTION_NOT_REQUIRED = "Connection to Client is not required"

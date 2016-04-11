@@ -12,6 +12,7 @@ import (
 	_ "net"
 	"os"
 	"os/signal"
+	_ "runtime/pprof"
 	"strconv"
 	_ "strings"
 	"sync"
@@ -28,6 +29,13 @@ func LLDPNewServer(log *logging.Writer) *LLDPServer {
 	lldpServerInfo.logger = log
 	// Allocate memory to all the Data Structures
 	lldpServerInfo.LLDPInitGlobalDS()
+	/*
+		// Profiling code for lldp
+		prof, err := os.Create(LLDP_CPU_PROFILE_FILE)
+		if err == nil {
+			pprof.StartCPUProfile(prof)
+		}
+	*/
 	return lldpServerInfo
 }
 
@@ -46,12 +54,6 @@ func (svr *LLDPServer) LLDPInitGlobalDS() {
 /* De-Allocate memory to all the object which are being used by LLDP server
  */
 func (svr *LLDPServer) LLDPDeInitGlobalDS() {
-	// close rx packet channel
-	if svr.lldpRxPktCh != nil {
-		svr.logger.Info("Closing rx channel")
-		close(svr.lldpRxPktCh)
-	}
-	// @TODO: close tx packet channel
 	svr.lldpRxPktCh = nil
 	svr.lldpGblInfo = nil
 }
@@ -61,27 +63,13 @@ func (svr *LLDPServer) LLDPDeInitGlobalDS() {
  * lead to memory leak
  */
 func (svr *LLDPServer) LLDPCloseAllPktHandlers() {
+	// close rx packet channel
+	close(svr.lldpRxPktCh)
+
 	for i := 0; i < len(svr.lldpIntfStateSlice); i++ {
 		key := svr.lldpIntfStateSlice[i]
-		//svr.logger.Info(fmt.Sprintln("ifindex is", key))
-		gblInfo, exists := svr.lldpGblInfo[key]
-		if !exists {
-			continue
-		}
-		//gblInfo.PcapHdlLock.Lock()
-		if gblInfo.PcapHandle != nil {
-			gblInfo.PcapHandle.Close()
-			gblInfo.PcapHandle = nil
-		}
-		//gblInfo.PcapHdlLock.Unlock()
-		gblInfo.lldpFrame = nil
-		gblInfo.PcapHdlLock = nil
-		if gblInfo.clearCacheTimer != nil {
-			gblInfo.clearCacheTimer.Stop()
-		}
-		gblInfo.clearCacheTimer = nil
-		gblInfo.OperStateLock = nil
-		svr.lldpGblInfo[key] = gblInfo
+		svr.LLDPDeletePcapHandler(key)
+		svr.LLDPStopCacheTimer(key)
 	}
 	svr.logger.Info("closed everything")
 }
@@ -213,8 +201,9 @@ func (svr *LLDPServer) LLDPSignalHandler(sigChannel <-chan os.Signal) {
 	case syscall.SIGHUP:
 		svr.lldpExit <- true
 		svr.logger.Alert("Received SIGHUP Signal")
-		//svr.LLDPCloseAllPktHandlers()
-		//svr.LLDPDeInitGlobalDS()
+		svr.LLDPCloseAllPktHandlers()
+		svr.LLDPDeInitGlobalDS()
+		//pprof.StopCPUProfile()
 		svr.logger.Alert("Exiting!!!!!")
 		os.Exit(0)
 	default:
@@ -239,7 +228,7 @@ func (svr *LLDPServer) LLDPChannelHanlder() {
 				//svr.LLDPCloseAllPktHandlers()
 				//svr.LLDPDeInitGlobalDS()
 				svr.logger.Alert("lldp exiting stopping all" +
-					" channel handler")
+					" channel handlers")
 				return
 			}
 		}
@@ -303,8 +292,24 @@ func (svr *LLDPServer) LLDPDeletePcapHandler(ifIndex int32) {
 	}
 	gblInfo.PcapHdlLock.Lock()
 	if gblInfo.PcapHandle != nil {
-		gblInfo.PcapHandle.Close()
+		// some bug in close handling that causes 5 mins delay
+		//gblInfo.PcapHandle.Close()
+		gblInfo.PcapHandle = nil
+		svr.lldpGblInfo[ifIndex] = gblInfo
 	}
-	svr.lldpGblInfo[ifIndex] = gblInfo
 	gblInfo.PcapHdlLock.Unlock()
+}
+
+/*  Stop RX cache timer
+ */
+func (svr *LLDPServer) LLDPStopCacheTimer(ifIndex int32) {
+	gblInfo, exists := svr.lldpGblInfo[ifIndex]
+	if !exists {
+		return
+	}
+	if gblInfo.clearCacheTimer == nil {
+		return
+	}
+	gblInfo.clearCacheTimer.Stop()
+	svr.lldpGblInfo[ifIndex] = gblInfo
 }
