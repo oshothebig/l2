@@ -126,6 +126,7 @@ func (svr *LLDPServer) LLDPUpdateL2IntfStateChange(
 	}
 	switch updateInfo.IfState {
 	case asicdConstDefs.INTF_STATE_UP:
+		svr.logger.Info("State UP notification for " + gblInfo.Name)
 		gblInfo.OperStateLock.Lock()
 		gblInfo.OperState = LLDP_PORT_STATE_UP
 		svr.lldpGblInfo[updateInfo.IfIndex] = gblInfo
@@ -133,6 +134,7 @@ func (svr *LLDPServer) LLDPUpdateL2IntfStateChange(
 		// Create Pcap Handler and start rx/tx packets
 		svr.LLDPCreatePcapHandler(updateInfo.IfIndex)
 	case asicdConstDefs.INTF_STATE_DOWN:
+		svr.logger.Info("State DOWN notification for " + gblInfo.Name)
 		gblInfo.OperStateLock.Lock()
 		gblInfo.OperState = LLDP_PORT_STATE_DOWN
 		svr.lldpGblInfo[updateInfo.IfIndex] = gblInfo
