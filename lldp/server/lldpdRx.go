@@ -17,42 +17,41 @@ func (svr *LLDPServer) LLDPReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 	//in := pktSrc.Packets()
 	//for {
 	for pkt := range pktSrc.Packets() {
-		//select {
-		//case pkt, ok := <-in:
-		//if !ok { // on exit close the channel...
-		// if channel is closed then ok will be false
-		//	svr.logger.Info("rx channel closed return")
-		//	return
-		//}
-		// check with gblInfo whether pcap handler is still
-		// valid or not
-		gblInfo, exists := svr.lldpGblInfo[ifIndex]
-		if !exists {
-			svr.logger.Info(fmt.Sprintln("No Entry for",
-				ifIndex, "terminate go routine"))
+		// check if rx channel is still valid or not
+		if svr.lldpRxPktCh == nil {
 			return
 		}
-		// pcap will be closed only in two places
-		// 1) during interface state down
-		// 2) during os exit
-		// Because this is read we do not need to worry about
-		// doing any locks...
-		if gblInfo.PcapHandle == nil {
-			svr.logger.Info(fmt.Sprintln(
-				"Pcap closed terminate go routine for",
-				ifIndex))
-			return
+		select {
+		// check if we receive exit call
+		case exit := <-svr.lldpExit:
+			if exit {
+				svr.logger.Info(fmt.Sprintln("ifIndex:",
+					ifIndex, "received lldp exit"))
+			}
+		default:
+			// process packets
+			gblInfo, exists := svr.lldpGblInfo[ifIndex]
+			if !exists {
+				svr.logger.Info(fmt.Sprintln("No Entry for",
+					ifIndex, "terminate go routine"))
+				return
+			}
+			// pcap will be closed only in two places
+			// 1) during interface state down
+			// 2) during os exit
+			// Because this is read we do not need to worry about
+			// doing any locks...
+			if gblInfo.PcapHandle == nil {
+				svr.logger.Info(fmt.Sprintln(
+					"Pcap closed terminate go routine for",
+					ifIndex))
+				return
+			}
+			svr.lldpRxPktCh <- LLDPInPktChannel{
+				pkt:     pkt,
+				ifIndex: ifIndex,
+			}
 		}
-		svr.lldpRxPktCh <- LLDPInPktChannel{
-			pkt:     pkt,
-			ifIndex: ifIndex,
-		}
-		//case exit := <-svr.lldpExit:
-		//	if exit {
-		//		svr.logger.Info(fmt.Sprintln("ifIndex:",
-		//			ifIndex, "received lldp exit"))
-		//	}
-		//}
 	}
 }
 
@@ -67,11 +66,13 @@ func (svr *LLDPServer) LLDPProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
 			"during processing packet"))
 		return
 	}
-	ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
-	if ethernetLayer == nil {
-		return
-	}
-	eth := ethernetLayer.(*layers.Ethernet)
+	/*
+		ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
+		if ethernetLayer == nil {
+			return
+		}
+		eth := ethernetLayer.(*layers.Ethernet)
+	*/
 	lldpLayer := pkt.Layer(layers.LayerTypeLinkLayerDiscovery)
 	// Store lldp frame information received from direct connection
 	gblInfo.lldpFrame = lldpLayer.(*layers.LinkLayerDiscovery)
@@ -79,18 +80,19 @@ func (svr *LLDPServer) LLDPProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
 	// Store lldp link layer optional tlv information
 	gblInfo.lldpLinkInfo = lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
 	svr.lldpGblInfo[ifIndex] = gblInfo
-
-	svr.logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
-		gblInfo.PortNum))
-	svr.logger.Info(fmt.Sprintln("SrcMAC:", eth.SrcMAC.String(),
-		"DstMAC:", eth.DstMAC.String()))
-	svr.logger.Info(fmt.Sprintln("ChassisID info is",
-		gblInfo.lldpFrame.ChassisID))
-	svr.logger.Info(fmt.Sprintln("PortID info is",
-		gblInfo.lldpFrame.PortID))
-	svr.logger.Info(fmt.Sprintln("TTL info is", gblInfo.lldpFrame.TTL))
-	svr.logger.Info(fmt.Sprintln("Optional Values is",
-		gblInfo.lldpLinkInfo))
+	/*
+		svr.logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
+			gblInfo.PortNum))
+		svr.logger.Info(fmt.Sprintln("SrcMAC:", eth.SrcMAC.String(),
+			"DstMAC:", eth.DstMAC.String()))
+		svr.logger.Info(fmt.Sprintln("ChassisID info is",
+			gblInfo.lldpFrame.ChassisID))
+		svr.logger.Info(fmt.Sprintln("PortID info is",
+			gblInfo.lldpFrame.PortID))
+		svr.logger.Info(fmt.Sprintln("TTL info is", gblInfo.lldpFrame.TTL))
+		svr.logger.Info(fmt.Sprintln("Optional Values is",
+			gblInfo.lldpLinkInfo))
+	*/
 	// reset/start timer for recipient information
 	svr.LLDPCheckPeerEntry(ifIndex)
 }
