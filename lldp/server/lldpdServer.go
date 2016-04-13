@@ -48,7 +48,10 @@ func (svr *LLDPServer) LLDPInitGlobalDS() {
 	svr.lldpExit = make(chan bool)
 	svr.lldpSnapshotLen = 1024
 	svr.lldpPromiscuous = false
-	svr.lldpTimeout = 10 * time.Microsecond
+	// LLDP Notifications are atleast 5 seconds apart with default being
+	// 30 seconds. So, we can have the leavrage the pcap timeout (read from
+	// buffer) to be 1 second.
+	svr.lldpTimeout = 1 * time.Second
 }
 
 /* De-Allocate memory to all the object which are being used by LLDP server
@@ -113,7 +116,8 @@ func (svr *LLDPServer) LLDPConnectAndInitPortVlan() error {
 		svr.logger.Err("Error in Unmarshalling Json")
 		return err
 	}
-
+	re_connect := 15
+	count := 0
 	// connect to client
 	for {
 		time.Sleep(time.Millisecond * 500)
@@ -128,15 +132,19 @@ func (svr *LLDPServer) LLDPConnectAndInitPortVlan() error {
 
 			} else if err.Error() ==
 				LLDP_CLIENT_CONNECTION_NOT_REQUIRED {
-				svr.logger.Info("connection to " +
-					unConnectedClients[i].Name +
-					" not required")
 				unConnectedClients = append(unConnectedClients[:i],
 					unConnectedClients[i+1:]...)
+			} else {
+				count++
+				if count == re_connect {
+					svr.logger.Err(fmt.Sprintln("Connecting to",
+						unConnectedClients[i].Name,
+						"failed ERROR:", err))
+					count = 0
+				}
 			}
 		}
 		if len(unConnectedClients) == 0 {
-			svr.logger.Info("all clients connected successfully")
 			break
 		}
 	}
@@ -170,8 +178,6 @@ func (svr *LLDPServer) LLDPConnectToAsicd(client LLDPClientJson) error {
 	if svr.asicdClient.Transport == nil ||
 		svr.asicdClient.PtrProtocolFactory == nil ||
 		err != nil {
-		svr.logger.Err(fmt.Sprintln("Connecting to",
-			client.Name, "failed ", err))
 		return err
 	}
 	svr.asicdClient.ClientHdl =
@@ -225,8 +231,6 @@ func (svr *LLDPServer) LLDPChannelHanlder() {
 			svr.LLDPProcessRxPkt(rcvdInfo.pkt, rcvdInfo.ifIndex)
 		case exit := <-svr.lldpExit:
 			if exit {
-				//svr.LLDPCloseAllPktHandlers()
-				//svr.LLDPDeInitGlobalDS()
 				svr.logger.Alert("lldp exiting stopping all" +
 					" channel handlers")
 				return
@@ -292,7 +296,7 @@ func (svr *LLDPServer) LLDPDeletePcapHandler(ifIndex int32) {
 	}
 	gblInfo.PcapHdlLock.Lock()
 	if gblInfo.PcapHandle != nil {
-		// some bug in close handling that causes 5 mins delay
+		// @FIXME: some bug in close handling that causes 5 mins delay
 		//gblInfo.PcapHandle.Close()
 		gblInfo.PcapHandle = nil
 		svr.lldpGblInfo[ifIndex] = gblInfo

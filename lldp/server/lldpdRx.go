@@ -42,9 +42,8 @@ func (svr *LLDPServer) LLDPReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 			// Because this is read we do not need to worry about
 			// doing any locks...
 			if gblInfo.PcapHandle == nil {
-				svr.logger.Info(fmt.Sprintln(
-					"Pcap closed terminate go routine for",
-					ifIndex))
+				svr.logger.Info("Pcap closed terminate go " +
+					"routine for " + gblInfo.Name)
 				return
 			}
 			svr.lldpRxPktCh <- LLDPInPktChannel{
