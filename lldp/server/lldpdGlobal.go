@@ -9,6 +9,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	nanomsg "github.com/op/go-nanomsg"
+	"net"
 	"sync"
 	"time"
 	"utils/logging"
@@ -46,6 +47,10 @@ type LLDPGlobalInfo struct {
 	PcapHandle *pcap.Handle
 	// Pcap Handler lock to write data one routine at a time
 	PcapHdlLock *sync.RWMutex
+
+	// ethernet frame Info
+	SrcMAC net.HardwareAddr
+	DstMAC net.HardwareAddr
 
 	// lldp received Frame from peer
 	lldpFrame    *layers.LinkLayerDiscovery

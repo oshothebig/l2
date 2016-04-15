@@ -54,6 +54,26 @@ func (svr *LLDPServer) LLDPReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 	}
 }
 
+/*  dump received lldp frame
+ */
+func (svr *LLDPServer) LLDPDumpFrame(ifIndex int32) {
+	gblInfo, exists := svr.lldpGblInfo[ifIndex]
+	if !exists {
+		return
+	}
+	svr.logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
+		gblInfo.PortNum))
+	svr.logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.SrcMAC.String(),
+		"DstMAC:", gblInfo.DstMAC.String()))
+	svr.logger.Info(fmt.Sprintln("ChassisID info is",
+		gblInfo.lldpFrame.ChassisID))
+	svr.logger.Info(fmt.Sprintln("PortID info is",
+		gblInfo.lldpFrame.PortID))
+	svr.logger.Info(fmt.Sprintln("TTL info is", gblInfo.lldpFrame.TTL))
+	svr.logger.Info(fmt.Sprintln("Optional Values is",
+		gblInfo.lldpLinkInfo))
+}
+
 /* process incoming pkt from peer
  */
 func (svr *LLDPServer) LLDPProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
@@ -65,37 +85,32 @@ func (svr *LLDPServer) LLDPProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
 			"during processing packet"))
 		return
 	}
-	/*
-		ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
-		if ethernetLayer == nil {
-			return
-		}
-		eth := ethernetLayer.(*layers.Ethernet)
-	*/
-	lldpLayer := pkt.Layer(layers.LayerTypeLinkLayerDiscovery)
+	ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
+	if ethernetLayer == nil {
+		return
+	}
+	eth := ethernetLayer.(*layers.Ethernet)
+	// copy src mac and dst mac
+	gblInfo.SrcMAC = eth.SrcMAC
+	gblInfo.DstMAC = eth.DstMAC
 
+	lldpLayer := pkt.Layer(layers.LayerTypeLinkLayerDiscovery)
+	if gblInfo.lldpFrame == nil {
+		gblInfo.lldpFrame = new(layers.LinkLayerDiscovery)
+	}
 	// Store lldp frame information received from direct connection
 	*gblInfo.lldpFrame = *lldpLayer.(*layers.LinkLayerDiscovery)
 	lldpLayerInfo := pkt.Layer(layers.LayerTypeLinkLayerDiscoveryInfo)
 
+	if gblInfo.lldpLinkInfo == nil {
+		gblInfo.lldpLinkInfo = new(layers.LinkLayerDiscoveryInfo)
+	}
 	// Store lldp link layer optional tlv information
 	*gblInfo.lldpLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
 	svr.lldpGblInfo[ifIndex] = gblInfo
-	/*
-		svr.logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
-			gblInfo.PortNum))
-		svr.logger.Info(fmt.Sprintln("SrcMAC:", eth.SrcMAC.String(),
-			"DstMAC:", eth.DstMAC.String()))
-		svr.logger.Info(fmt.Sprintln("ChassisID info is",
-			gblInfo.lldpFrame.ChassisID))
-		svr.logger.Info(fmt.Sprintln("PortID info is",
-			gblInfo.lldpFrame.PortID))
-		svr.logger.Info(fmt.Sprintln("TTL info is", gblInfo.lldpFrame.TTL))
-		svr.logger.Info(fmt.Sprintln("Optional Values is",
-			gblInfo.lldpLinkInfo))
-	*/
 	// reset/start timer for recipient information
 	svr.LLDPCheckPeerEntry(ifIndex)
+	//svr.LLDPDumpFrame(ifIndex)
 }
 
 /*  Upon receiving incoming packet check whether all the layers which we want

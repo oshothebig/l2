@@ -73,6 +73,7 @@ func (svr *LLDPServer) LLDPCloseAllPktHandlers() {
 		key := svr.lldpIntfStateSlice[i]
 		svr.LLDPDeletePcapHandler(key)
 		svr.LLDPStopCacheTimer(key)
+		svr.LLDPFreeDynamicMemory(key)
 	}
 	svr.logger.Info("closed everything")
 }
@@ -316,4 +317,17 @@ func (svr *LLDPServer) LLDPStopCacheTimer(ifIndex int32) {
 	}
 	gblInfo.clearCacheTimer.Stop()
 	svr.lldpGblInfo[ifIndex] = gblInfo
+}
+
+/*  Return back all the memory which was allocated using new
+ */
+func (svr *LLDPServer) LLDPFreeDynamicMemory(ifIndex int32) {
+	gblInfo, exists := svr.lldpGblInfo[ifIndex]
+	if !exists {
+		return
+	}
+	gblInfo.lldpFrame = nil
+	gblInfo.lldpLinkInfo = nil
+	gblInfo.OperStateLock = nil
+	gblInfo.PcapHdlLock = nil
 }
