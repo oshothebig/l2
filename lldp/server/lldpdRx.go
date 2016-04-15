@@ -73,11 +73,13 @@ func (svr *LLDPServer) LLDPProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
 		eth := ethernetLayer.(*layers.Ethernet)
 	*/
 	lldpLayer := pkt.Layer(layers.LayerTypeLinkLayerDiscovery)
+
 	// Store lldp frame information received from direct connection
-	gblInfo.lldpFrame = lldpLayer.(*layers.LinkLayerDiscovery)
+	*gblInfo.lldpFrame = *lldpLayer.(*layers.LinkLayerDiscovery)
 	lldpLayerInfo := pkt.Layer(layers.LayerTypeLinkLayerDiscoveryInfo)
+
 	// Store lldp link layer optional tlv information
-	gblInfo.lldpLinkInfo = lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
+	*gblInfo.lldpLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
 	svr.lldpGblInfo[ifIndex] = gblInfo
 	/*
 		svr.logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
