@@ -72,15 +72,7 @@ func (gblInfo LLDPGlobalInfo) DumpFrame() {
 
 /* process incoming pkt from peer
  */
-func (svr *LLDPServer) ProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
-	//Sanity check for port up or down
-	gblInfo, exists := svr.lldpGblInfo[ifIndex]
-	if !exists {
-		//@FIXME: is this bad???
-		svr.logger.Info(fmt.Sprintln("No entry for", ifIndex,
-			"during processing packet"))
-		return
-	}
+func (gblInfo *LLDPGlobalInfo) ProcessRxPkt(pkt gopacket.Packet) {
 	ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
 	if ethernetLayer == nil {
 		return
@@ -103,10 +95,6 @@ func (svr *LLDPServer) ProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
 	}
 	// Store lldp link layer optional tlv information
 	*gblInfo.lldpLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
-	svr.lldpGblInfo[ifIndex] = gblInfo
-	// reset/start timer for recipient information
-	svr.CheckPeerEntry(ifIndex)
-	gblInfo.DumpFrame()
 }
 
 /*  Upon receiving incoming packet check whether all the layers which we want
@@ -135,13 +123,7 @@ func (svr *LLDPServer) VerifyLayers(pkt gopacket.Packet) error {
  *  Handle TTL timer. Once the timer expires, we will delete the remote entry
  *  if timer is running then reset the value
  */
-func (svr *LLDPServer) CheckPeerEntry(ifIndex int32) {
-	gblInfo, exists := svr.lldpGblInfo[ifIndex]
-	if !exists {
-		svr.logger.Err(fmt.Sprintln("No object found for ifIndex:",
-			ifIndex))
-		return
-	}
+func (gblInfo *LLDPGlobalInfo) CheckPeerEntry() {
 	if gblInfo.clearCacheTimer != nil {
 		// timer is running reset the time so that it doesn't expire
 		gblInfo.clearCacheTimer.Reset(time.Duration(
@@ -150,7 +132,7 @@ func (svr *LLDPServer) CheckPeerEntry(ifIndex int32) {
 		var clearPeerInfo_func func()
 		// On timer expiration we will delete peer info and set it to nil
 		clearPeerInfo_func = func() {
-			svr.logger.Info("Recipient info delete timer expired for " +
+			gblInfo.logger.Info("Recipient info delete timer expired for " +
 				"peer connected to port " + gblInfo.Name +
 				" and hence deleting peer information from runtime")
 			gblInfo.lldpFrame = nil
@@ -161,5 +143,4 @@ func (svr *LLDPServer) CheckPeerEntry(ifIndex int32) {
 			time.Duration(gblInfo.lldpFrame.TTL)*time.Second,
 			clearPeerInfo_func)
 	}
-	svr.lldpGblInfo[ifIndex] = gblInfo
 }

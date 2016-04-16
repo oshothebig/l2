@@ -37,6 +37,10 @@ type InPktChannel struct {
 	ifIndex int32
 }
 
+type SendPktChannel struct {
+	ifIndex int32
+}
+
 type LLDPGlobalInfo struct {
 	logger *logging.Writer
 
@@ -44,6 +48,7 @@ type LLDPGlobalInfo struct {
 	PortNum       int32
 	IfIndex       int32
 	Name          string
+	MacAddr       string
 	OperState     string
 	OperStateLock *sync.RWMutex
 	// Pcap Handler for Each Port
@@ -51,21 +56,20 @@ type LLDPGlobalInfo struct {
 	// Pcap Handler lock to write data one routine at a time
 	PcapHdlLock *sync.RWMutex
 
-	// ethernet frame Info
+	// ethernet frame Info (used for rx/tx)
 	SrcMAC net.HardwareAddr
 	DstMAC net.HardwareAddr
 
-	// lldp received Frame from peer
-	lldpFrame    *layers.LinkLayerDiscovery
-	lldpLinkInfo *layers.LinkLayerDiscoveryInfo
-
-	// rx timer
+	// lldp rx information
+	lldpFrame       *layers.LinkLayerDiscovery
+	lldpLinkInfo    *layers.LinkLayerDiscoveryInfo
 	clearCacheTimer *time.Timer
 
-	// tx timer
+	// tx information
 	ttl                         int
 	lldpMessageTxInterval       int
 	lldpMessageTxHoldMultiplier int
+	useCacheFrame               bool
 }
 
 type LLDPServer struct {
@@ -77,8 +81,9 @@ type LLDPServer struct {
 	asicdSubSocket *nanomsg.SubSocket
 
 	// lldp per port global info
-	lldpGblInfo        map[int32]LLDPGlobalInfo
-	lldpIntfStateSlice []int32
+	lldpGblInfo           map[int32]LLDPGlobalInfo
+	lldpIntfStateSlice    []int32
+	lldpPortNumIfIndexMap map[int32]int32
 
 	// lldp pcap handler default config values
 	lldpSnapshotLen int32
@@ -87,6 +92,9 @@ type LLDPServer struct {
 
 	// lldp packet rx channel
 	lldpRxPktCh chan InPktChannel
+
+	// lldp send packet channel
+	lldpTxPktCh chan SendPktChannel
 
 	// lldp exit
 	lldpExit chan bool
@@ -102,7 +110,8 @@ const (
 
 	// Consts Init Size/Capacity
 	LLDP_INITIAL_GLOBAL_INFO_CAPACITY = 100
-	LLDP_RX_PKT_CHANNEL_SIZE          = 1
+	LLDP_RX_PKT_CHANNEL_SIZE          = 10
+	LLDP_TX_PKT_CHANNEL_SIZE          = 10
 
 	// Port Operation State
 	LLDP_PORT_STATE_DOWN = "DOWN"

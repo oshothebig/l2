@@ -18,8 +18,12 @@ func (svr *LLDPServer) GetInfoFromAsicd() error {
 		// Asicd subscriber thread
 		go svr.AsicdSubscriber()
 	}
-	// Get L2 Port List
-	svr.GetPortList()
+	// Get L2 Port States
+	svr.GetPortStates()
+
+	// Get L2 Port's
+	svr.GetPorts()
+
 	return nil
 }
 
@@ -90,8 +94,8 @@ func (svr *LLDPServer) AsicdSubscriber() {
 
 /*  Helper function to get bulk port state information from asicd
  */
-func (svr *LLDPServer) GetPortList() {
-	svr.logger.Info("Get Port List")
+func (svr *LLDPServer) GetPortStates() {
+	svr.logger.Info("Get Port State List")
 	currMarker := int64(asicdConstDefs.MIN_SYS_PORTS)
 	more := false
 	objCount := 0
@@ -109,6 +113,34 @@ func (svr *LLDPServer) GetPortList() {
 		currMarker = int64(bulkInfo.EndIdx)
 		for i := 0; i < objCount; i++ {
 			svr.InitL2PortInfo(bulkInfo.PortStateList[i])
+		}
+		if more == false {
+			break
+		}
+	}
+}
+
+/*  Helper function to get bulk port state information from asicd
+ */
+func (svr *LLDPServer) GetPorts() {
+	svr.logger.Info("Get Port List")
+	currMarker := int64(asicdConstDefs.MIN_SYS_PORTS)
+	more := false
+	objCount := 0
+	count := 10
+	for {
+		bulkInfo, err := svr.asicdClient.ClientHdl.GetBulkPort(
+			asicdServices.Int(currMarker), asicdServices.Int(count))
+		if err != nil {
+			svr.logger.Err(fmt.Sprintln(": getting bulk port config"+
+				" from asicd failed with reason", err))
+			return
+		}
+		objCount = int(bulkInfo.Count)
+		more = bool(bulkInfo.More)
+		currMarker = int64(bulkInfo.EndIdx)
+		for i := 0; i < objCount; i++ {
+			svr.UpdateL2PortInfo(bulkInfo.PortList[i])
 		}
 		if more == false {
 			break

@@ -1,9 +1,12 @@
 package lldpServer
 
 import (
+	"asicdServices"
 	"fmt"
 	"github.com/google/gopacket/pcap"
+	"sync"
 	"time"
+	"utils/logging"
 )
 
 func Min(x, y int) int {
@@ -18,6 +21,60 @@ func Max(x, y int) int {
 		return x
 	}
 	return y
+}
+
+/*  Init l2 port information for global runtime information
+ */
+func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(logger *logging.Writer,
+	portConf *asicdServices.PortState) {
+	gblInfo.logger = logger
+	gblInfo.IfIndex = portConf.IfIndex
+	gblInfo.Name = portConf.Name
+	gblInfo.OperState = portConf.OperState
+	gblInfo.PortNum = portConf.PortNum
+	gblInfo.OperStateLock = &sync.RWMutex{}
+	gblInfo.PcapHdlLock = &sync.RWMutex{}
+	gblInfo.useCacheFrame = false
+	gblInfo.SetTxInterval(LLDP_DEFAULT_TX_INTERVAL)
+	gblInfo.SetTxHoldMultiplier(LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
+	gblInfo.SetTTL()
+}
+
+/*  updating l2 port information with mac address. If needed update other
+ *  information also in future
+ */
+func (gblInfo *LLDPGlobalInfo) UpdatePortInfo(portConf *asicdServices.Port) {
+	gblInfo.MacAddr = portConf.MacAddr
+}
+
+/*  De-Init l2 port information
+ */
+func (gblInfo *LLDPGlobalInfo) DeInitRuntimeInfo() {
+	gblInfo.StopCacheTimer()
+	gblInfo.DeletePcapHandler()
+	gblInfo.FreeDynamicMemory()
+}
+
+/*  Set TTL Value at the time of init or update of lldp config
+ *  default value comes out to be 120
+ */
+func (gblInfo *LLDPGlobalInfo) SetTTL() {
+	gblInfo.ttl = Min(LLDP_MAX_TTL, (gblInfo.lldpMessageTxInterval *
+		gblInfo.lldpMessageTxHoldMultiplier))
+}
+
+/*  Set tx interval during init or update
+ *  default value is 30
+ */
+func (gblInfo *LLDPGlobalInfo) SetTxInterval(interval int) {
+	gblInfo.lldpMessageTxInterval = interval
+}
+
+/*  Set tx hold multiplier during init or update
+ *  default value is 4
+ */
+func (gblInfo *LLDPGlobalInfo) SetTxHoldMultiplier(hold int) {
+	gblInfo.lldpMessageTxHoldMultiplier = hold
 }
 
 /*  Delete l2 port pcap handler
@@ -68,5 +125,4 @@ func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
 	gblInfo.PcapHdlLock.Lock()
 	gblInfo.PcapHandle = pcapHdl
 	gblInfo.PcapHdlLock.Unlock()
-
 }

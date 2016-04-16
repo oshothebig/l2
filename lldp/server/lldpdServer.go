@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	_ "runtime/pprof"
 	"strconv"
-	"sync"
+	_ "sync"
 	"syscall"
 	"time"
 	"utils/ipcutils"
@@ -39,7 +39,10 @@ func LLDPNewServer(log *logging.Writer) *LLDPServer {
 func (svr *LLDPServer) InitGlobalDS() {
 	svr.lldpGblInfo = make(map[int32]LLDPGlobalInfo,
 		LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
+	svr.lldpPortNumIfIndexMap = make(map[int32]int32,
+		LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
 	svr.lldpRxPktCh = make(chan InPktChannel, LLDP_RX_PKT_CHANNEL_SIZE)
+	svr.lldpTxPktCh = make(chan SendPktChannel, LLDP_TX_PKT_CHANNEL_SIZE)
 	svr.lldpExit = make(chan bool)
 	svr.lldpSnapshotLen = 1024
 	svr.lldpPromiscuous = false
@@ -53,7 +56,9 @@ func (svr *LLDPServer) InitGlobalDS() {
  */
 func (svr *LLDPServer) DeInitGlobalDS() {
 	svr.lldpRxPktCh = nil
+	svr.lldpTxPktCh = nil
 	svr.lldpGblInfo = nil
+	svr.lldpPortNumIfIndexMap = nil
 }
 
 /* On de-init we will be closing all the pcap handlers that are opened up
@@ -63,16 +68,16 @@ func (svr *LLDPServer) DeInitGlobalDS() {
 func (svr *LLDPServer) CloseAllPktHandlers() {
 	// close rx packet channel
 	close(svr.lldpRxPktCh)
+	close(svr.lldpTxPktCh)
 
+	// close pcap, stop cache timer and free any allocated memory
 	for i := 0; i < len(svr.lldpIntfStateSlice); i++ {
 		key := svr.lldpIntfStateSlice[i]
 		gblInfo, exists := svr.lldpGblInfo[key]
 		if !exists {
 			continue
 		}
-		gblInfo.DeletePcapHandler()
-		gblInfo.StopCacheTimer()
-		gblInfo.FreeDynamicMemory()
+		gblInfo.DeInitRuntimeInfo()
 		svr.lldpGblInfo[key] = gblInfo
 	}
 	svr.logger.Info("closed everything")
@@ -149,9 +154,8 @@ func (svr *LLDPServer) ConnectAndInitPortVlan() error {
 			break
 		}
 	}
-
+	// This will do bulk get
 	svr.GetInfoFromAsicd()
-
 	// OS Signal channel listener thread
 	svr.OSSignalHandle()
 	return err
@@ -229,12 +233,30 @@ func (svr *LLDPServer) ChannelHanlder() {
 				svr.logger.Alert("RX Channel is closed, exit")
 				return // rx channel should be closed only on exit
 			}
-			svr.ProcessRxPkt(rcvdInfo.pkt, rcvdInfo.ifIndex)
+			gblInfo, exists := svr.lldpGblInfo[rcvdInfo.ifIndex]
+			if exists {
+				// Cache the received incoming frame
+				gblInfo.ProcessRxPkt(rcvdInfo.pkt)
+				// reset/start timer for recipient information
+				gblInfo.CheckPeerEntry()
+				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
+				// dump the frame
+				gblInfo.DumpFrame()
+			}
 		case exit := <-svr.lldpExit:
 			if exit {
 				svr.logger.Alert("lldp exiting stopping all" +
 					" channel handlers")
 				return
+			}
+		case info, ok := <-svr.lldpTxPktCh:
+			if !ok {
+				svr.logger.Alert("TX Channel is closed, exit")
+				return
+			}
+			gblInfo, exists := svr.lldpGblInfo[info.ifIndex]
+			if exists {
+				gblInfo.SendFrame()
 			}
 		}
 	}
@@ -245,24 +267,36 @@ func (svr *LLDPServer) ChannelHanlder() {
  */
 func (svr *LLDPServer) InitL2PortInfo(portConf *asicdServices.PortState) {
 	gblInfo, _ := svr.lldpGblInfo[portConf.IfIndex]
-	gblInfo.logger = svr.logger
-	gblInfo.IfIndex = portConf.IfIndex
-	gblInfo.Name = portConf.Name
-	gblInfo.OperState = portConf.OperState
-	gblInfo.PortNum = portConf.PortNum
-	gblInfo.OperStateLock = &sync.RWMutex{}
-	gblInfo.PcapHdlLock = &sync.RWMutex{}
-	gblInfo.SetTxInterval(LLDP_DEFAULT_TX_INTERVAL)
-	gblInfo.SetTxHoldMultiplier(LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
-	gblInfo.SetTTL()
+	gblInfo.InitRuntimeInfo(svr.logger, portConf)
 	svr.lldpGblInfo[portConf.IfIndex] = gblInfo
-	if gblInfo.OperState == LLDP_PORT_STATE_UP {
-		svr.StartRxTx(gblInfo.IfIndex)
-	}
+	svr.lldpPortNumIfIndexMap[portConf.PortNum] = gblInfo.IfIndex
 	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.IfIndex)
 }
 
-/* Create l2 port pcap handler.
+/*  Update l2 port info done via GetBulkPort() which will return port config
+ *  information.. We will update each fpPort/ifindex with mac address of its own
+ */
+func (svr *LLDPServer) UpdateL2PortInfo(portConf *asicdServices.Port) {
+	gblInfo, exists := svr.lldpGblInfo[svr.lldpPortNumIfIndexMap[portConf.PortNum]]
+	if !exists {
+		svr.logger.Err(fmt.Sprintln("no mapping found for Port Num",
+			portConf.PortNum, "and hence we do not have any MacAddr"))
+		return
+	}
+	gblInfo.UpdatePortInfo(portConf)
+	svr.lldpGblInfo[gblInfo.IfIndex] = gblInfo
+	// Only start rx/tx once we have got the mac address from the get bulk port
+	gblInfo.OperStateLock.RLock()
+	if gblInfo.OperState == LLDP_PORT_STATE_UP {
+		gblInfo.OperStateLock.RUnlock()
+		svr.StartRxTx(gblInfo.IfIndex)
+	} else {
+		gblInfo.OperStateLock.RUnlock()
+	}
+
+}
+
+/* Create l2 port pcap handler and then start rx and tx on that pcap
  *	Filter is LLDP_BPF_FILTER = "ether proto 0x88cc"
  */
 func (svr *LLDPServer) StartRxTx(ifIndex int32) {
