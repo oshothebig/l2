@@ -12,10 +12,8 @@ import (
 /* Go routine to recieve lldp frames. This go routine is created for all the
  * ports which are in up state.
  */
-func (svr *LLDPServer) LLDPReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
+func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 	pktSrc := gopacket.NewPacketSource(pHandle, pHandle.LinkType())
-	//in := pktSrc.Packets()
-	//for {
 	for pkt := range pktSrc.Packets() {
 		// check if rx channel is still valid or not
 		if svr.lldpRxPktCh == nil {
@@ -29,6 +27,7 @@ func (svr *LLDPServer) LLDPReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 					ifIndex, "received lldp exit"))
 			}
 		default:
+
 			// process packets
 			gblInfo, exists := svr.lldpGblInfo[ifIndex]
 			if !exists {
@@ -46,37 +45,34 @@ func (svr *LLDPServer) LLDPReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 					"routine for " + gblInfo.Name)
 				return
 			}
-			svr.lldpRxPktCh <- LLDPInPktChannel{
+			svr.lldpRxPktCh <- InPktChannel{
 				pkt:     pkt,
 				ifIndex: ifIndex,
 			}
+
 		}
 	}
 }
 
-/*  dump received lldp frame
+/*  dump received lldp frame and other TX information
  */
-func (svr *LLDPServer) LLDPDumpFrame(ifIndex int32) {
-	gblInfo, exists := svr.lldpGblInfo[ifIndex]
-	if !exists {
-		return
-	}
-	svr.logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
+func (gblInfo LLDPGlobalInfo) DumpFrame() {
+	gblInfo.logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
 		gblInfo.PortNum))
-	svr.logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.SrcMAC.String(),
+	gblInfo.logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.SrcMAC.String(),
 		"DstMAC:", gblInfo.DstMAC.String()))
-	svr.logger.Info(fmt.Sprintln("ChassisID info is",
+	gblInfo.logger.Info(fmt.Sprintln("ChassisID info is",
 		gblInfo.lldpFrame.ChassisID))
-	svr.logger.Info(fmt.Sprintln("PortID info is",
+	gblInfo.logger.Info(fmt.Sprintln("PortID info is",
 		gblInfo.lldpFrame.PortID))
-	svr.logger.Info(fmt.Sprintln("TTL info is", gblInfo.lldpFrame.TTL))
-	svr.logger.Info(fmt.Sprintln("Optional Values is",
+	gblInfo.logger.Info(fmt.Sprintln("TTL info is", gblInfo.lldpFrame.TTL))
+	gblInfo.logger.Info(fmt.Sprintln("Optional Values is",
 		gblInfo.lldpLinkInfo))
 }
 
 /* process incoming pkt from peer
  */
-func (svr *LLDPServer) LLDPProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
+func (svr *LLDPServer) ProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
 	//Sanity check for port up or down
 	gblInfo, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
@@ -109,14 +105,14 @@ func (svr *LLDPServer) LLDPProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
 	*gblInfo.lldpLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
 	svr.lldpGblInfo[ifIndex] = gblInfo
 	// reset/start timer for recipient information
-	svr.LLDPCheckPeerEntry(ifIndex)
-	//svr.LLDPDumpFrame(ifIndex)
+	svr.CheckPeerEntry(ifIndex)
+	gblInfo.DumpFrame()
 }
 
 /*  Upon receiving incoming packet check whether all the layers which we want
  *  are received or not.. If not then treat the packet as corrupted and move on
  */
-func (svr *LLDPServer) LLDPVerifyLayers(pkt gopacket.Packet) error {
+func (svr *LLDPServer) VerifyLayers(pkt gopacket.Packet) error {
 	wantedLayers := []gopacket.LayerType{layers.LayerTypeEthernet,
 		layers.LayerTypeLinkLayerDiscovery,
 		layers.LayerTypeLinkLayerDiscoveryInfo,
@@ -139,7 +135,7 @@ func (svr *LLDPServer) LLDPVerifyLayers(pkt gopacket.Packet) error {
  *  Handle TTL timer. Once the timer expires, we will delete the remote entry
  *  if timer is running then reset the value
  */
-func (svr *LLDPServer) LLDPCheckPeerEntry(ifIndex int32) {
+func (svr *LLDPServer) CheckPeerEntry(ifIndex int32) {
 	gblInfo, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
 		svr.logger.Err(fmt.Sprintln("No object found for ifIndex:",

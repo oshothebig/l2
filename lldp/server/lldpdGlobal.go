@@ -32,12 +32,15 @@ type LLDPAsicdClient struct {
 	ClientHdl *asicdServices.ASICDServicesClient
 }
 
-type LLDPInPktChannel struct {
+type InPktChannel struct {
 	pkt     gopacket.Packet
 	ifIndex int32
 }
 
 type LLDPGlobalInfo struct {
+	logger *logging.Writer
+
+	// Port information
 	PortNum       int32
 	IfIndex       int32
 	Name          string
@@ -58,6 +61,11 @@ type LLDPGlobalInfo struct {
 
 	// rx timer
 	clearCacheTimer *time.Timer
+
+	// tx timer
+	ttl                         int
+	lldpMessageTxInterval       int
+	lldpMessageTxHoldMultiplier int
 }
 
 type LLDPServer struct {
@@ -78,7 +86,7 @@ type LLDPServer struct {
 	lldpTimeout     time.Duration
 
 	// lldp packet rx channel
-	lldpRxPktCh chan LLDPInPktChannel
+	lldpRxPktCh chan InPktChannel
 
 	// lldp exit
 	lldpExit chan bool
@@ -100,7 +108,10 @@ const (
 	LLDP_PORT_STATE_DOWN = "DOWN"
 	LLDP_PORT_STATE_UP   = "UP"
 
-	LLDP_BPF_FILTER = "ether proto 0x88cc"
+	LLDP_BPF_FILTER                 = "ether proto 0x88cc"
+	LLDP_MAX_TTL                    = 65535
+	LLDP_DEFAULT_TX_INTERVAL        = 30
+	LLDP_DEFAULT_TX_HOLD_MULTIPLIER = 4
 )
 
 var (
