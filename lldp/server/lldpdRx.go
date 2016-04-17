@@ -62,12 +62,12 @@ func (gblInfo LLDPGlobalInfo) DumpFrame() {
 	gblInfo.logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.SrcMAC.String(),
 		"DstMAC:", gblInfo.DstMAC.String()))
 	gblInfo.logger.Info(fmt.Sprintln("ChassisID info is",
-		gblInfo.lldpFrame.ChassisID))
+		gblInfo.rxFrame.ChassisID))
 	gblInfo.logger.Info(fmt.Sprintln("PortID info is",
-		gblInfo.lldpFrame.PortID))
-	gblInfo.logger.Info(fmt.Sprintln("TTL info is", gblInfo.lldpFrame.TTL))
+		gblInfo.rxFrame.PortID))
+	gblInfo.logger.Info(fmt.Sprintln("TTL info is", gblInfo.rxFrame.TTL))
 	gblInfo.logger.Info(fmt.Sprintln("Optional Values is",
-		gblInfo.lldpLinkInfo))
+		gblInfo.rxLinkInfo))
 }
 
 /* process incoming pkt from peer
@@ -80,21 +80,25 @@ func (gblInfo *LLDPGlobalInfo) ProcessRxPkt(pkt gopacket.Packet) {
 	eth := ethernetLayer.(*layers.Ethernet)
 	// copy src mac and dst mac
 	gblInfo.SrcMAC = eth.SrcMAC
-	gblInfo.DstMAC = eth.DstMAC
+	if gblInfo.DstMAC.String() != eth.DstMAC.String() {
+		gblInfo.logger.Err("Invalid DST MAC in received frame " +
+			eth.DstMAC.String())
+		return
+	}
 
 	lldpLayer := pkt.Layer(layers.LayerTypeLinkLayerDiscovery)
-	if gblInfo.lldpFrame == nil {
-		gblInfo.lldpFrame = new(layers.LinkLayerDiscovery)
+	if gblInfo.rxFrame == nil {
+		gblInfo.rxFrame = new(layers.LinkLayerDiscovery)
 	}
 	// Store lldp frame information received from direct connection
-	*gblInfo.lldpFrame = *lldpLayer.(*layers.LinkLayerDiscovery)
+	*gblInfo.rxFrame = *lldpLayer.(*layers.LinkLayerDiscovery)
 	lldpLayerInfo := pkt.Layer(layers.LayerTypeLinkLayerDiscoveryInfo)
 
-	if gblInfo.lldpLinkInfo == nil {
-		gblInfo.lldpLinkInfo = new(layers.LinkLayerDiscoveryInfo)
+	if gblInfo.rxLinkInfo == nil {
+		gblInfo.rxLinkInfo = new(layers.LinkLayerDiscoveryInfo)
 	}
 	// Store lldp link layer optional tlv information
-	*gblInfo.lldpLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
+	*gblInfo.rxLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
 }
 
 /*  Upon receiving incoming packet check whether all the layers which we want
@@ -127,7 +131,7 @@ func (gblInfo *LLDPGlobalInfo) CheckPeerEntry() {
 	if gblInfo.clearCacheTimer != nil {
 		// timer is running reset the time so that it doesn't expire
 		gblInfo.clearCacheTimer.Reset(time.Duration(
-			gblInfo.lldpFrame.TTL) * time.Second)
+			gblInfo.rxFrame.TTL) * time.Second)
 	} else {
 		var clearPeerInfo_func func()
 		// On timer expiration we will delete peer info and set it to nil
@@ -135,12 +139,12 @@ func (gblInfo *LLDPGlobalInfo) CheckPeerEntry() {
 			gblInfo.logger.Info("Recipient info delete timer expired for " +
 				"peer connected to port " + gblInfo.Name +
 				" and hence deleting peer information from runtime")
-			gblInfo.lldpFrame = nil
-			gblInfo.lldpLinkInfo = nil
+			gblInfo.rxFrame = nil
+			gblInfo.rxLinkInfo = nil
 		}
 		// First time start function
 		gblInfo.clearCacheTimer = time.AfterFunc(
-			time.Duration(gblInfo.lldpFrame.TTL)*time.Second,
+			time.Duration(gblInfo.rxFrame.TTL)*time.Second,
 			clearPeerInfo_func)
 	}
 }

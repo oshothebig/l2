@@ -257,6 +257,7 @@ func (svr *LLDPServer) ChannelHanlder() {
 			gblInfo, exists := svr.lldpGblInfo[info.ifIndex]
 			if exists {
 				gblInfo.SendFrame()
+				svr.lldpGblInfo[info.ifIndex] = gblInfo
 			}
 		}
 	}

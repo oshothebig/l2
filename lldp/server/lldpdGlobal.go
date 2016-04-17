@@ -48,7 +48,7 @@ type LLDPGlobalInfo struct {
 	PortNum       int32
 	IfIndex       int32
 	Name          string
-	MacAddr       string
+	MacAddr       string // This is our Port MAC ADDR
 	OperState     string
 	OperStateLock *sync.RWMutex
 	// Pcap Handler for Each Port
@@ -57,12 +57,12 @@ type LLDPGlobalInfo struct {
 	PcapHdlLock *sync.RWMutex
 
 	// ethernet frame Info (used for rx/tx)
-	SrcMAC net.HardwareAddr
+	SrcMAC net.HardwareAddr // NOTE: Please be informed this is Peer Mac Addr
 	DstMAC net.HardwareAddr
 
 	// lldp rx information
-	lldpFrame       *layers.LinkLayerDiscovery
-	lldpLinkInfo    *layers.LinkLayerDiscoveryInfo
+	rxFrame         *layers.LinkLayerDiscovery
+	rxLinkInfo      *layers.LinkLayerDiscoveryInfo
 	clearCacheTimer *time.Timer
 
 	// tx information
@@ -70,6 +70,7 @@ type LLDPGlobalInfo struct {
 	lldpMessageTxInterval       int
 	lldpMessageTxHoldMultiplier int
 	useCacheFrame               bool
+	cacheFrame                  []byte
 }
 
 type LLDPServer struct {
@@ -118,9 +119,15 @@ const (
 	LLDP_PORT_STATE_UP   = "UP"
 
 	LLDP_BPF_FILTER                 = "ether proto 0x88cc"
+	LLDP_PROTO_DST_MAC              = "01:80:c2:00:00:0e"
 	LLDP_MAX_TTL                    = 65535
 	LLDP_DEFAULT_TX_INTERVAL        = 30
 	LLDP_DEFAULT_TX_HOLD_MULTIPLIER = 4
+
+	// Mandatory TLV Type
+	LLDP_CHASSIS_ID_TLV_TYPE uint8 = 1
+	LLDP_PORT_ID_TLV_TYPE    uint8 = 2
+	LLDP_TTL_TLV_TYPE        uint8 = 3
 )
 
 var (

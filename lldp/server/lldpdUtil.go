@@ -4,6 +4,7 @@ import (
 	"asicdServices"
 	"fmt"
 	"github.com/google/gopacket/pcap"
+	"net"
 	"sync"
 	"time"
 	"utils/logging"
@@ -38,6 +39,7 @@ func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(logger *logging.Writer,
 	gblInfo.SetTxInterval(LLDP_DEFAULT_TX_INTERVAL)
 	gblInfo.SetTxHoldMultiplier(LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
 	gblInfo.SetTTL()
+	gblInfo.SetDstMac()
 }
 
 /*  updating l2 port information with mac address. If needed update other
@@ -77,6 +79,17 @@ func (gblInfo *LLDPGlobalInfo) SetTxHoldMultiplier(hold int) {
 	gblInfo.lldpMessageTxHoldMultiplier = hold
 }
 
+/*  Set DstMac as lldp protocol mac address
+ */
+func (gblInfo *LLDPGlobalInfo) SetDstMac() {
+	var err error
+	gblInfo.DstMAC, err = net.ParseMAC(LLDP_PROTO_DST_MAC)
+	if err != nil {
+		gblInfo.logger.Err(fmt.Sprintln("parsing lldp protocol mac failed",
+			err))
+	}
+}
+
 /*  Delete l2 port pcap handler
  */
 func (gblInfo *LLDPGlobalInfo) DeletePcapHandler() {
@@ -101,8 +114,8 @@ func (gblInfo *LLDPGlobalInfo) StopCacheTimer() {
 /*  Return back all the memory which was allocated using new
  */
 func (gblInfo *LLDPGlobalInfo) FreeDynamicMemory() {
-	gblInfo.lldpFrame = nil
-	gblInfo.lldpLinkInfo = nil
+	gblInfo.rxFrame = nil
+	gblInfo.rxLinkInfo = nil
 	gblInfo.OperStateLock = nil
 	gblInfo.PcapHdlLock = nil
 }
