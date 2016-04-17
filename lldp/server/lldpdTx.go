@@ -48,28 +48,28 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 	// Chassis ID: Mac Address of Port
 	// Port ID: Port Name
 	// TTL: calculated during port init default is 30 * 4 = 120
-	txFrame := &layers.LinkLayerDiscovery{
-		ChassisID: layers.LLDPChassisID{
-			Subtype: layers.LLDPChassisIDSubTypeMACAddr,
-			ID:      []byte(gblInfo.MacAddr),
-		},
-		PortID: layers.LLDPPortID{
-			Subtype: layers.LLDPPortIDSubtypeIfaceName,
-			ID:      []byte(gblInfo.Name),
-		},
-
-		TTL: uint16(gblInfo.ttl),
-	}
 	/*
-		var txFrame []layers.LinkLayerDiscoveryValue
-		val := layers.LinkLayerDiscoveryValue{
-			Type:  layers.LLDPTLVChassisID,
-			Value: []byte(gblInfo.MacAddr),
+		txFrame := &layers.LinkLayerDiscovery{
+			ChassisID: layers.LLDPChassisID{
+				Subtype: layers.LLDPChassisIDSubTypeMACAddr,
+				ID:      []byte(gblInfo.MacAddr),
+			},
+			PortID: layers.LLDPPortID{
+				Subtype: layers.LLDPPortIDSubtypeIfaceName,
+				ID:      []byte(gblInfo.Name),
+			},
+
+			TTL: uint16(gblInfo.ttl),
 		}
-		val.Length = uint16(1 + len(val.Value))
-		txFrame = append(txFrame, val)
+			var txFrame []layers.LinkLayerDiscoveryValue
+			val := layers.LinkLayerDiscoveryValue{
+				Type:  layers.LLDPTLVChassisID,
+				Value: []byte(gblInfo.MacAddr),
+			}
+			val.Length = uint16(1 + len(val.Value))
+			txFrame = append(txFrame, val)
 	*/
-	payload := gblInfo.CreatePayload(txFrame)
+	payload := gblInfo.CreatePayload() //txFrame)
 	if payload == nil {
 		gblInfo.logger.Err("Creating payload failed for port " +
 			gblInfo.Name)
@@ -115,41 +115,71 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 
 /*  helper function to create payload from lldp frame struct
  */
-func (gblInfo *LLDPGlobalInfo) CreatePayload(txFrame *layers.LinkLayerDiscovery) []byte {
-	payload := make([]byte, gblInfo.Length(txFrame))
-	var offset = 0
-	cTLV := layers.LinkLayerDiscoveryValue{
-		Type: layers.LLDPTLVChassisID,
-		Value: EncodeMandatoryTLV(byte(txFrame.ChassisID.Subtype),
-			txFrame.ChassisID.ID),
-	}
-	cTLV.Length = uint16(len(cTLV.Value))
-	EncodeTLV(cTLV, payload, &offset)
-
-	pTLV := layers.LinkLayerDiscoveryValue{
-		Type: layers.LLDPTLVPortID,
-		Value: EncodeMandatoryTLV(byte(txFrame.PortID.Subtype),
-			txFrame.PortID.ID),
-	}
-	pTLV.Length = uint16(len(pTLV.Value))
-	EncodeTLV(pTLV, payload, &offset)
-
-	tb := make([]byte, 2)
-	binary.BigEndian.PutUint16(tb, txFrame.TTL)
-	tTLV := layers.LinkLayerDiscoveryValue{
-		Type:   layers.LLDPTLVTTL,
-		Length: 2,
-		Value:  tb,
-	}
-	EncodeTLV(tTLV, payload, &offset)
-
-	for _, optTLV := range txFrame.Values {
-		err := EncodeTLV(optTLV, payload, &offset)
-		if err != nil {
-			payload = nil
+func (gblInfo *LLDPGlobalInfo) CreatePayload() []byte {
+	payload := make([]byte, 0, LLDP_MIN_FRAME_LENGTH) //gblInfo.Length(txFrame))
+	tlvType := 1
+	tlv := &layers.LinkLayerDiscoveryValue{}
+	for tlvType < 127 { // LLDPTLVType max
+		if tlvType > 8 {
 			break
 		}
+		switch tlvType {
+		case 1: // Chassis ID
+			tlv.Type = layers.LLDPTLVChassisID
+			tlv.Value = EncodeMandatoryTLV(byte(
+				layers.LLDPChassisIDSubTypeMACAddr),
+				[]byte(gblInfo.MacAddr))
+
+		case 2: // Port ID
+			tlv.Type = layers.LLDPTLVPortID
+			tlv.Value = EncodeMandatoryTLV(byte(
+				layers.LLDPPortIDSubtypeIfaceName),
+				[]byte(gblInfo.Name))
+
+		case 3: // TTL
+			tb := []byte{0, 0}
+			binary.BigEndian.PutUint16(tb, uint16(gblInfo.ttl))
+			tlv.Value = append(tlv.Value, tb...)
+
+			// @TODO: add other cases for optional tlv
+		}
+		tlv.Length = uint16(len(tlv.Value))
+		EncodeTLV(tlv, payload) //, &offset)
+		tlvType++
 	}
+	/*
+			cTLV := layers.LinkLayerDiscoveryValue{
+				Type: layers.LLDPTLVChassisID,
+				Value: EncodeMandatoryTLV(byte(txFrame.ChassisID.Subtype),
+					txFrame.ChassisID.ID),
+			}
+			cTLV.Length = uint16(len(cTLV.Value))
+			EncodeTLV(cTLV, payload, &offset)
+
+			pTLV := layers.LinkLayerDiscoveryValue{
+				Type: layers.LLDPTLVPortID,
+				Value: EncodeMandatoryTLV(byte(txFrame.PortID.Subtype),
+					txFrame.PortID.ID),
+			}
+			pTLV.Length = uint16(len(pTLV.Value))
+			EncodeTLV(pTLV, payload, &offset)
+
+			tb := make([]byte, 2)
+			binary.BigEndian.PutUint16(tb, txFrame.TTL)
+			tTLV := layers.LinkLayerDiscoveryValue{
+				Type:   layers.LLDPTLVTTL,
+				Length: 2,
+				Value:  tb,
+			}
+			EncodeTLV(tTLV, payload, &offset)
+		for _, optTLV := range txFrame.Values {
+			err := EncodeTLV(&optTLV, payload, &offset)
+			if err != nil {
+				payload = nil
+				break
+			}
+		}
+	*/
 
 	return payload
 }
@@ -172,7 +202,6 @@ func (gblInfo *LLDPGlobalInfo) WritePacket(pkt []byte) bool {
 }
 
 /*  return the total bytes of the lldp frame
- */
 func (gblInfo *LLDPGlobalInfo) Length(txFrame *layers.LinkLayerDiscovery) int {
 	// mandatory tlv's length is always calculated
 	var l int
@@ -203,6 +232,7 @@ func (gblInfo *LLDPGlobalInfo) Length(txFrame *layers.LinkLayerDiscovery) int {
 
 	return l
 }
+*/
 
 /*  Encode Mandatory tlv, chassis id and port id
  */
@@ -219,7 +249,7 @@ func EncodeMandatoryTLV(Subtype byte, ID []byte) []byte {
 // Marshall tlv information into binary form
 // 1) Check type value
 // 2) Check Length
-func EncodeTLV(tlv layers.LinkLayerDiscoveryValue, b []byte, offset *int) error {
+func EncodeTLV(tlv *layers.LinkLayerDiscoveryValue, b []byte /*, offset *int*/) error {
 	/*
 		// check type
 		if c.Type > TLVTypeMax {
@@ -236,11 +266,13 @@ func EncodeTLV(tlv layers.LinkLayerDiscoveryValue, b []byte, offset *int) error 
 	// leng : 9 bits
 	// value: N bytes
 
-	var typeByte uint16
-	typeByte |= uint16(tlv.Type) << 9
-	typeByte |= tlv.Length
-	binary.BigEndian.PutUint16(b[(0+*offset):(2+*offset)], typeByte)
-	copy(b[(2+*offset):(int(tlv.Length)+*offset)], tlv.Value)
-	*offset += len(b)
+	typeLen := uint16(tlv.Type)<<9 | tlv.Length
+	temp := []byte{0, 0}
+	b = append(b, temp...)
+	binary.BigEndian.PutUint16(b[len(b)-2:], typeLen)
+	b = append(b, tlv.Value...)
+	//binary.BigEndian.PutUint16(b[(0+*offset):(2+*offset)], typeByte)
+	//copy(b[(2+*offset):(int(tlv.Length)+*offset)], tlv.Value)
+	//*offset += len(b)
 	return nil
 }

@@ -123,6 +123,7 @@ const (
 	LLDP_MAX_TTL                    = 65535
 	LLDP_DEFAULT_TX_INTERVAL        = 30
 	LLDP_DEFAULT_TX_HOLD_MULTIPLIER = 4
+	LLDP_MIN_FRAME_LENGTH           = 12 // this is 12 bytes
 
 	// Mandatory TLV Type
 	LLDP_CHASSIS_ID_TLV_TYPE uint8 = 1
