@@ -8,6 +8,7 @@ import (
 	stp "l2/stp/protocol"
 	"l2/stp/rpc"
 	"stpd"
+	"utils/keepalive"
 )
 
 func main() {
@@ -24,6 +25,9 @@ func main() {
 	}
 	fileName := path + "clients.json"
 	asicdConfName := path + "asicd.conf"
+
+	// Start keepalive routine
+	go keepalive.InitKeepAlive("stpd", path)
 
 	port := stp.GetClientPort(fileName, "stpd")
 	if port != 0 {
