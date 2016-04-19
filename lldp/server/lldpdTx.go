@@ -36,6 +36,7 @@ func (svr *LLDPServer) TransmitFrames(pHandle *pcap.Handle, ifIndex int32) {
  *		2) if there is config object update
  */
 func (gblInfo *LLDPGlobalInfo) SendFrame() {
+	gblInfo.logger.Info("check if we can use cache entry or not")
 	// if cached then directly send the packet
 	if gblInfo.useCacheFrame {
 		if cache := gblInfo.WritePacket(gblInfo.cacheFrame); cache == false {
@@ -69,6 +70,7 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 			val.Length = uint16(1 + len(val.Value))
 			txFrame = append(txFrame, val)
 	*/
+	gblInfo.logger.Info("Creating Payload")
 	payload := gblInfo.CreatePayload() //txFrame)
 	if payload == nil {
 		gblInfo.logger.Err("Creating payload failed for port " +
@@ -76,6 +78,7 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 		gblInfo.useCacheFrame = false
 		return
 	}
+	gblInfo.logger.Info("Payload Created Successfully")
 	// Additional TLV's... @TODO: get it done later on
 	// System information... like "show version" command at Cisco
 	// System Capabilites...
@@ -107,7 +110,7 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 			gblInfo.useCacheFrame = false
 			return
 		}
-		gblInfo.useCacheFrame = true
+		//gblInfo.useCacheFrame = true
 	} else {
 		gblInfo.useCacheFrame = false
 	}
@@ -147,6 +150,9 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload() []byte {
 		EncodeTLV(tlv, payload) //, &offset)
 		tlvType++
 	}
+	tlv.Type = layers.LLDPTLVEnd
+	tlv.Length = 0
+	EncodeTLV(tlv, payload)
 	/*
 			cTLV := layers.LinkLayerDiscoveryValue{
 				Type: layers.LLDPTLVChassisID,

@@ -87,12 +87,16 @@ func (gblInfo *LLDPGlobalInfo) ProcessRxPkt(pkt gopacket.Packet) {
 	}
 
 	lldpLayer := pkt.Layer(layers.LayerTypeLinkLayerDiscovery)
+	lldpLayerInfo := pkt.Layer(layers.LayerTypeLinkLayerDiscoveryInfo)
+	if lldpLayer == nil || lldpLayerInfo == nil {
+		gblInfo.logger.Err("Invalid frame")
+		return
+	}
 	if gblInfo.rxFrame == nil {
 		gblInfo.rxFrame = new(layers.LinkLayerDiscovery)
 	}
 	// Store lldp frame information received from direct connection
 	*gblInfo.rxFrame = *lldpLayer.(*layers.LinkLayerDiscovery)
-	lldpLayerInfo := pkt.Layer(layers.LayerTypeLinkLayerDiscoveryInfo)
 
 	if gblInfo.rxLinkInfo == nil {
 		gblInfo.rxLinkInfo = new(layers.LinkLayerDiscoveryInfo)

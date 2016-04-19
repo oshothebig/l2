@@ -256,6 +256,7 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 			gblInfo, exists := svr.lldpGblInfo[info.ifIndex]
 			if exists {
+				svr.logger.Info("Timer expired for port " + gblInfo.Name)
 				gblInfo.SendFrame()
 				svr.lldpGblInfo[info.ifIndex] = gblInfo
 			}
