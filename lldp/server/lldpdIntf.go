@@ -11,22 +11,26 @@ import (
 
 /* Register with Asicd and then get l2 port info from asicd via GetBulk
  */
-func (svr *LLDPServer) LLDPGetInfoFromAsicd() error {
+func (svr *LLDPServer) GetInfoFromAsicd() error {
 	svr.logger.Info("Calling Asicd to initialize port properties")
-	err := svr.LLDPRegisterWithAsicdUpdates(asicdConstDefs.PUB_SOCKET_ADDR)
+	err := svr.RegisterWithAsicdUpdates(asicdConstDefs.PUB_SOCKET_ADDR)
 	if err == nil {
 		// Asicd subscriber thread
-		go svr.LLDPAsicdSubscriber()
+		go svr.AsicdSubscriber()
 	}
-	// Get L2 Port List
-	svr.LLDPGetPortList()
+	// Get L2 Port States
+	svr.GetPortStates()
+
+	// Get L2 Port's
+	svr.GetPorts()
+
 	return nil
 }
 
 /* Helper function which will connect with asicd, so that any future events from
  * asicd will be handled from lldpServer for lldp frames.
  */
-func (svr *LLDPServer) LLDPRegisterWithAsicdUpdates(address string) error {
+func (svr *LLDPServer) RegisterWithAsicdUpdates(address string) error {
 	var err error
 	svr.logger.Info("setting up asicd update listener")
 	if svr.asicdSubSocket, err = nanomsg.NewSubSocket(); err != nil {
@@ -60,7 +64,7 @@ func (svr *LLDPServer) LLDPRegisterWithAsicdUpdates(address string) error {
 /* Go routine to listen all asicd events notifications.
  * Today lldp listens to only l2 state change. Add other notifications as needed
  */
-func (svr *LLDPServer) LLDPAsicdSubscriber() {
+func (svr *LLDPServer) AsicdSubscriber() {
 	for {
 		rxBuf, err := svr.asicdSubSocket.Recv(0)
 		if err != nil {
@@ -83,15 +87,15 @@ func (svr *LLDPServer) LLDPAsicdSubscriber() {
 					"state change:", msg.Msg))
 				continue
 			}
-			svr.LLDPUpdateL2IntfStateChange(l2IntfStateNotifyMsg)
+			svr.UpdateL2IntfStateChange(l2IntfStateNotifyMsg)
 		}
 	}
 }
 
 /*  Helper function to get bulk port state information from asicd
  */
-func (svr *LLDPServer) LLDPGetPortList() {
-	svr.logger.Info("Get Port List")
+func (svr *LLDPServer) GetPortStates() {
+	svr.logger.Info("Get Port State List")
 	currMarker := int64(asicdConstDefs.MIN_SYS_PORTS)
 	more := false
 	objCount := 0
@@ -100,7 +104,7 @@ func (svr *LLDPServer) LLDPGetPortList() {
 		bulkInfo, err := svr.asicdClient.ClientHdl.GetBulkPortState(
 			asicdServices.Int(currMarker), asicdServices.Int(count))
 		if err != nil {
-			svr.logger.Err(fmt.Sprintln("LLDP: getting bulk port config"+
+			svr.logger.Err(fmt.Sprintln(": getting bulk port config"+
 				" from asicd failed with reason", err))
 			return
 		}
@@ -108,7 +112,35 @@ func (svr *LLDPServer) LLDPGetPortList() {
 		more = bool(bulkInfo.More)
 		currMarker = int64(bulkInfo.EndIdx)
 		for i := 0; i < objCount; i++ {
-			svr.LLDPInitL2PortInfo(bulkInfo.PortStateList[i])
+			svr.InitL2PortInfo(bulkInfo.PortStateList[i])
+		}
+		if more == false {
+			break
+		}
+	}
+}
+
+/*  Helper function to get bulk port state information from asicd
+ */
+func (svr *LLDPServer) GetPorts() {
+	svr.logger.Info("Get Port List")
+	currMarker := int64(asicdConstDefs.MIN_SYS_PORTS)
+	more := false
+	objCount := 0
+	count := 10
+	for {
+		bulkInfo, err := svr.asicdClient.ClientHdl.GetBulkPort(
+			asicdServices.Int(currMarker), asicdServices.Int(count))
+		if err != nil {
+			svr.logger.Err(fmt.Sprintln(": getting bulk port config"+
+				" from asicd failed with reason", err))
+			return
+		}
+		objCount = int(bulkInfo.Count)
+		more = bool(bulkInfo.More)
+		currMarker = int64(bulkInfo.EndIdx)
+		for i := 0; i < objCount; i++ {
+			svr.UpdateL2PortInfo(bulkInfo.PortList[i])
 		}
 		if more == false {
 			break
@@ -118,7 +150,7 @@ func (svr *LLDPServer) LLDPGetPortList() {
 
 /*  handle l2 state up/down notifications..
  */
-func (svr *LLDPServer) LLDPUpdateL2IntfStateChange(
+func (svr *LLDPServer) UpdateL2IntfStateChange(
 	updateInfo asicdConstDefs.L2IntfStateNotifyMsg) {
 	gblInfo, found := svr.lldpGblInfo[updateInfo.IfIndex]
 	if !found {
@@ -132,14 +164,15 @@ func (svr *LLDPServer) LLDPUpdateL2IntfStateChange(
 		svr.lldpGblInfo[updateInfo.IfIndex] = gblInfo
 		gblInfo.OperStateLock.Unlock()
 		// Create Pcap Handler and start rx/tx packets
-		svr.LLDPCreatePcapHandler(updateInfo.IfIndex)
+		svr.StartRxTx(updateInfo.IfIndex)
 	case asicdConstDefs.INTF_STATE_DOWN:
 		svr.logger.Info("State DOWN notification for " + gblInfo.Name)
 		gblInfo.OperStateLock.Lock()
 		gblInfo.OperState = LLDP_PORT_STATE_DOWN
-		svr.lldpGblInfo[updateInfo.IfIndex] = gblInfo
 		gblInfo.OperStateLock.Unlock()
 		// Delete Pcap Handler and stop rx/tx packets
-		svr.LLDPDeletePcapHandler(updateInfo.IfIndex)
+		//svr.LLDPDeletePcapHandler(updateInfo.IfIndex)
+		gblInfo.DeletePcapHandler()
+		svr.lldpGblInfo[updateInfo.IfIndex] = gblInfo
 	}
 }
