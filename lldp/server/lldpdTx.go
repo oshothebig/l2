@@ -82,7 +82,6 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 	// Additional TLV's... @TODO: get it done later on
 	// System information... like "show version" command at Cisco
 	// System Capabilites...
-	//txLinkInfo = &layers.LayerTypeLinkLayerDiscoveryInfo{}
 
 	// Construct ethernet information
 	srcmac, _ := net.ParseMAC(gblInfo.MacAddr)
@@ -119,11 +118,12 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 /*  helper function to create payload from lldp frame struct
  */
 func (gblInfo *LLDPGlobalInfo) CreatePayload() []byte {
-	payload := make([]byte, 0, LLDP_MIN_FRAME_LENGTH) //gblInfo.Length(txFrame))
+	//payload := make([]byte, 0, LLDP_MIN_FRAME_LENGTH)
+	var payload []byte
 	tlvType := 1
 	tlv := &layers.LinkLayerDiscoveryValue{}
 	for tlvType < 127 { // LLDPTLVType max
-		if tlvType > 8 {
+		if tlvType > 3 {
 			break
 		}
 		switch tlvType {
@@ -132,61 +132,37 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload() []byte {
 			tlv.Value = EncodeMandatoryTLV(byte(
 				layers.LLDPChassisIDSubTypeMACAddr),
 				[]byte(gblInfo.MacAddr))
+			gblInfo.logger.Info(fmt.Sprintln("Chassis id tlv", tlv))
 
 		case 2: // Port ID
 			tlv.Type = layers.LLDPTLVPortID
 			tlv.Value = EncodeMandatoryTLV(byte(
 				layers.LLDPPortIDSubtypeIfaceName),
 				[]byte(gblInfo.Name))
+			gblInfo.logger.Info(fmt.Sprintln("Port id tlv", tlv))
 
 		case 3: // TTL
 			tb := []byte{0, 0}
 			binary.BigEndian.PutUint16(tb, uint16(gblInfo.ttl))
 			tlv.Value = append(tlv.Value, tb...)
+			gblInfo.logger.Info(fmt.Sprintln("TTL tlv", tlv))
 
 			// @TODO: add other cases for optional tlv
 		}
 		tlv.Length = uint16(len(tlv.Value))
-		EncodeTLV(tlv, payload) //, &offset)
+		gblInfo.logger.Info(fmt.Sprintln("len of value is", tlv.Length))
+		//EncodeTLV(tlv, payload)
+		payload = append(payload, EncodeTLV(tlv)...)
+		gblInfo.logger.Info(fmt.Sprintln("payload is", payload, "len is",
+			len(payload)))
 		tlvType++
 	}
 	tlv.Type = layers.LLDPTLVEnd
 	tlv.Length = 0
-	EncodeTLV(tlv, payload)
-	/*
-			cTLV := layers.LinkLayerDiscoveryValue{
-				Type: layers.LLDPTLVChassisID,
-				Value: EncodeMandatoryTLV(byte(txFrame.ChassisID.Subtype),
-					txFrame.ChassisID.ID),
-			}
-			cTLV.Length = uint16(len(cTLV.Value))
-			EncodeTLV(cTLV, payload, &offset)
-
-			pTLV := layers.LinkLayerDiscoveryValue{
-				Type: layers.LLDPTLVPortID,
-				Value: EncodeMandatoryTLV(byte(txFrame.PortID.Subtype),
-					txFrame.PortID.ID),
-			}
-			pTLV.Length = uint16(len(pTLV.Value))
-			EncodeTLV(pTLV, payload, &offset)
-
-			tb := make([]byte, 2)
-			binary.BigEndian.PutUint16(tb, txFrame.TTL)
-			tTLV := layers.LinkLayerDiscoveryValue{
-				Type:   layers.LLDPTLVTTL,
-				Length: 2,
-				Value:  tb,
-			}
-			EncodeTLV(tTLV, payload, &offset)
-		for _, optTLV := range txFrame.Values {
-			err := EncodeTLV(&optTLV, payload, &offset)
-			if err != nil {
-				payload = nil
-				break
-			}
-		}
-	*/
-
+	payload = append(payload, EncodeTLV(tlv)...)
+	//EncodeTLV(tlv, payload)
+	s := string(payload[:])
+	gblInfo.logger.Info("payload is " + s)
 	return payload
 }
 
@@ -207,39 +183,6 @@ func (gblInfo *LLDPGlobalInfo) WritePacket(pkt []byte) bool {
 	return true
 }
 
-/*  return the total bytes of the lldp frame
-func (gblInfo *LLDPGlobalInfo) Length(txFrame *layers.LinkLayerDiscovery) int {
-	// mandatory tlv's length is always calculated
-	var l int
-	// Chassis ID Length:
-	// 2 byte for type and length
-	// 1 byte for chassis id type
-	// len(id) for remaining byte
-	l += 2 + 1 + len(txFrame.ChassisID.ID)
-
-	// Port ID Length:
-	// 2 byte for type and length
-	// 1 byte for port id
-	// len(id) for remaining byte
-	l += 2 + 1 + len(txFrame.PortID.ID)
-
-	// TLV length:
-	// 2 byte for type and length
-	// 2 byte for uint16
-	l += 2 + 2
-
-	// Optional TLV length
-	for _, tlv := range txFrame.Values {
-		l += 2 + len(tlv.Value)
-	}
-
-	// End of LLDP
-	l += 2
-
-	return l
-}
-*/
-
 /*  Encode Mandatory tlv, chassis id and port id
  */
 func EncodeMandatoryTLV(Subtype byte, ID []byte) []byte {
@@ -255,30 +198,19 @@ func EncodeMandatoryTLV(Subtype byte, ID []byte) []byte {
 // Marshall tlv information into binary form
 // 1) Check type value
 // 2) Check Length
-func EncodeTLV(tlv *layers.LinkLayerDiscoveryValue, b []byte /*, offset *int*/) error {
-	/*
-		// check type
-		if c.Type > TLVTypeMax {
-			return LLDP_ERR_INVALID_TLV_TYPE
-		}
+func EncodeTLV(tlv *layers.LinkLayerDiscoveryValue) []byte { //, b []byte) error {
 
-		// check length
-		if int(c.Length) != len(c.Value) {
-			return LLDP_ERR_INVALID_TLV_LENGTH
-		}
-	*/
 	// copy value into b
 	// type : 7 bits
 	// leng : 9 bits
 	// value: N bytes
-
 	typeLen := uint16(tlv.Type)<<9 | tlv.Length
-	temp := []byte{0, 0}
-	b = append(b, temp...)
-	binary.BigEndian.PutUint16(b[len(b)-2:], typeLen)
-	b = append(b, tlv.Value...)
-	//binary.BigEndian.PutUint16(b[(0+*offset):(2+*offset)], typeByte)
-	//copy(b[(2+*offset):(int(tlv.Length)+*offset)], tlv.Value)
-	//*offset += len(b)
-	return nil
+	//temp := []byte{0, 0}
+	temp := make([]byte, 2+len(tlv.Value))
+	//b = append(b, temp...)
+	//binary.BigEndian.PutUint16(b[len(b)-2:], typeLen)
+	binary.BigEndian.PutUint16(temp[0:2], typeLen)
+	copy(temp[2:], tlv.Value)
+	//b = append(b, tlv.Value...)
+	return temp
 }
