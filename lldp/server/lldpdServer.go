@@ -247,7 +247,7 @@ func (svr *LLDPServer) ChannelHanlder() {
 				gblInfo.CheckPeerEntry()
 				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
 				// dump the frame
-				gblInfo.DumpFrame()
+				//gblInfo.DumpFrame()
 			}
 		case exit := <-svr.lldpExit:
 			if exit {
@@ -262,7 +262,6 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 			gblInfo, exists := svr.lldpGblInfo[info.ifIndex]
 			if exists {
-				svr.logger.Info("Timer expired for port " + gblInfo.Name)
 				gblInfo.SendFrame()
 				svr.lldpGblInfo[info.ifIndex] = gblInfo
 			}
