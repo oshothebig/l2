@@ -36,82 +36,63 @@ func (svr *LLDPServer) TransmitFrames(pHandle *pcap.Handle, ifIndex int32) {
  *		2) if there is config object update
  */
 func (gblInfo *LLDPGlobalInfo) SendFrame() {
-	gblInfo.logger.Info("check if we can use cache entry or not")
+	gblInfo.logger.Info("Sending LLDP Frame from " + gblInfo.Name)
 	// if cached then directly send the packet
 	if gblInfo.useCacheFrame {
 		if cache := gblInfo.WritePacket(gblInfo.cacheFrame); cache == false {
 			gblInfo.useCacheFrame = false
 		}
-	}
+	} else {
 
-	// we need to construct new lldp frame based of the information that we
-	// have collected locally
-	// Chassis ID: Mac Address of Port
-	// Port ID: Port Name
-	// TTL: calculated during port init default is 30 * 4 = 120
-	/*
-		txFrame := &layers.LinkLayerDiscovery{
-			ChassisID: layers.LLDPChassisID{
-				Subtype: layers.LLDPChassisIDSubTypeMACAddr,
-				ID:      []byte(gblInfo.MacAddr),
-			},
-			PortID: layers.LLDPPortID{
-				Subtype: layers.LLDPPortIDSubtypeIfaceName,
-				ID:      []byte(gblInfo.Name),
-			},
-
-			TTL: uint16(gblInfo.ttl),
-		}
-			var txFrame []layers.LinkLayerDiscoveryValue
-			val := layers.LinkLayerDiscoveryValue{
-				Type:  layers.LLDPTLVChassisID,
-				Value: []byte(gblInfo.MacAddr),
-			}
-			val.Length = uint16(1 + len(val.Value))
-			txFrame = append(txFrame, val)
-	*/
-	gblInfo.logger.Info("Creating Payload")
-	payload := gblInfo.CreatePayload() //txFrame)
-	if payload == nil {
-		gblInfo.logger.Err("Creating payload failed for port " +
-			gblInfo.Name)
-		gblInfo.useCacheFrame = false
-		return
-	}
-	gblInfo.logger.Info("Payload Created Successfully")
-	// Additional TLV's... @TODO: get it done later on
-	// System information... like "show version" command at Cisco
-	// System Capabilites...
-
-	// Construct ethernet information
-	srcmac, _ := net.ParseMAC(gblInfo.MacAddr)
-	eth := &layers.Ethernet{
-		SrcMAC:       srcmac,
-		DstMAC:       gblInfo.DstMAC,
-		EthernetType: layers.EthernetTypeLinkLayerDiscovery,
-	}
-
-	// construct new buffer
-	buffer := gopacket.NewSerializeBuffer()
-	options := gopacket.SerializeOptions{
-		FixLengths:       true,
-		ComputeChecksums: true,
-	}
-	gopacket.SerializeLayers(buffer, options, eth, gopacket.Payload(payload))
-	pkt := buffer.Bytes()
-	cache := gblInfo.WritePacket(pkt)
-	if cache {
-		gblInfo.cacheFrame = make([]byte, len(pkt))
-		copied := copy(gblInfo.cacheFrame, pkt)
-		if copied < len(pkt) {
-			gblInfo.logger.Err("Cache cannot be created")
-			gblInfo.cacheFrame = nil
+		// we need to construct new lldp frame based of the information that we
+		// have collected locally
+		// Chassis ID: Mac Address of Port
+		// Port ID: Port Name
+		// TTL: calculated during port init default is 30 * 4 = 120
+		gblInfo.logger.Info("Creating Payload")
+		payload := gblInfo.CreatePayload() //txFrame)
+		if payload == nil {
+			gblInfo.logger.Err("Creating payload failed for port " +
+				gblInfo.Name)
 			gblInfo.useCacheFrame = false
 			return
 		}
-		//gblInfo.useCacheFrame = true
-	} else {
-		gblInfo.useCacheFrame = false
+		gblInfo.logger.Info("Payload Created Successfully")
+		// Additional TLV's... @TODO: get it done later on
+		// System information... like "show version" command at Cisco
+		// System Capabilites...
+
+		// Construct ethernet information
+		srcmac, _ := net.ParseMAC(gblInfo.MacAddr)
+		eth := &layers.Ethernet{
+			SrcMAC:       srcmac,
+			DstMAC:       gblInfo.DstMAC,
+			EthernetType: layers.EthernetTypeLinkLayerDiscovery,
+		}
+
+		// construct new buffer
+		buffer := gopacket.NewSerializeBuffer()
+		options := gopacket.SerializeOptions{
+			FixLengths:       true,
+			ComputeChecksums: true,
+		}
+		gopacket.SerializeLayers(buffer, options, eth,
+			gopacket.Payload(payload))
+		pkt := buffer.Bytes()
+		cache := gblInfo.WritePacket(pkt)
+		if cache {
+			gblInfo.cacheFrame = make([]byte, len(pkt))
+			copied := copy(gblInfo.cacheFrame, pkt)
+			if copied < len(pkt) {
+				gblInfo.logger.Err("Cache cannot be created")
+				gblInfo.cacheFrame = nil
+				gblInfo.useCacheFrame = false
+				return
+			}
+			gblInfo.useCacheFrame = true
+		} else {
+			gblInfo.useCacheFrame = false
+		}
 	}
 }
 
@@ -121,11 +102,11 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload() []byte {
 	//payload := make([]byte, 0, LLDP_MIN_FRAME_LENGTH)
 	var payload []byte
 	tlvType := 1
-	tlv := &layers.LinkLayerDiscoveryValue{}
-	for tlvType < 127 { // LLDPTLVType max
-		if tlvType > 3 {
+	for {
+		if tlvType > 3 { // right now only minimal lldp tlv
 			break
 		}
+		tlv := &layers.LinkLayerDiscoveryValue{}
 		switch tlvType {
 		case 1: // Chassis ID
 			tlv.Type = layers.LLDPTLVChassisID
@@ -142,6 +123,7 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload() []byte {
 			gblInfo.logger.Info(fmt.Sprintln("Port id tlv", tlv))
 
 		case 3: // TTL
+			tlv.Type = layers.LLDPTLVTTL
 			tb := []byte{0, 0}
 			binary.BigEndian.PutUint16(tb, uint16(gblInfo.ttl))
 			tlv.Value = append(tlv.Value, tb...)
@@ -151,18 +133,15 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload() []byte {
 		}
 		tlv.Length = uint16(len(tlv.Value))
 		gblInfo.logger.Info(fmt.Sprintln("len of value is", tlv.Length))
-		//EncodeTLV(tlv, payload)
 		payload = append(payload, EncodeTLV(tlv)...)
-		gblInfo.logger.Info(fmt.Sprintln("payload is", payload, "len is",
-			len(payload)))
 		tlvType++
 	}
+
+	// After all TLV's are added we need to go ahead and Add LLDPTLVEnd
+	tlv := &layers.LinkLayerDiscoveryValue{}
 	tlv.Type = layers.LLDPTLVEnd
 	tlv.Length = 0
 	payload = append(payload, EncodeTLV(tlv)...)
-	//EncodeTLV(tlv, payload)
-	s := string(payload[:])
-	gblInfo.logger.Info("payload is " + s)
 	return payload
 }
 
