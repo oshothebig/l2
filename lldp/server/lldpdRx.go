@@ -72,25 +72,22 @@ func (gblInfo LLDPGlobalInfo) DumpFrame() {
 
 /* process incoming pkt from peer
  */
-func (gblInfo *LLDPGlobalInfo) ProcessRxPkt(pkt gopacket.Packet) {
+func (gblInfo *LLDPGlobalInfo) ProcessRxPkt(pkt gopacket.Packet) error {
 	ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
 	if ethernetLayer == nil {
-		return
+		return errors.New("Invalid eth layer")
 	}
 	eth := ethernetLayer.(*layers.Ethernet)
 	// copy src mac and dst mac
 	gblInfo.SrcMAC = eth.SrcMAC
 	if gblInfo.DstMAC.String() != eth.DstMAC.String() {
-		gblInfo.logger.Err("Invalid DST MAC in received frame " +
-			eth.DstMAC.String())
-		return
+		return errors.New("Invalid DST MAC in rx frame")
 	}
 
 	lldpLayer := pkt.Layer(layers.LayerTypeLinkLayerDiscovery)
 	lldpLayerInfo := pkt.Layer(layers.LayerTypeLinkLayerDiscoveryInfo)
 	if lldpLayer == nil || lldpLayerInfo == nil {
-		gblInfo.logger.Err("Invalid frame")
-		return
+		return errors.New("Invalid Frame")
 	}
 	if gblInfo.rxFrame == nil {
 		gblInfo.rxFrame = new(layers.LinkLayerDiscovery)
@@ -103,6 +100,7 @@ func (gblInfo *LLDPGlobalInfo) ProcessRxPkt(pkt gopacket.Packet) {
 	}
 	// Store lldp link layer optional tlv information
 	*gblInfo.rxLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
+	return nil
 }
 
 /*  Upon receiving incoming packet check whether all the layers which we want
