@@ -36,7 +36,6 @@ func (svr *LLDPServer) TransmitFrames(pHandle *pcap.Handle, ifIndex int32) {
  *		2) if there is config object update
  */
 func (gblInfo *LLDPGlobalInfo) SendFrame() {
-	gblInfo.logger.Info("Sending LLDP Frame from " + gblInfo.Name)
 	// if cached then directly send the packet
 	if gblInfo.useCacheFrame {
 		if cache := gblInfo.WritePacket(gblInfo.cacheFrame); cache == false {
