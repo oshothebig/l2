@@ -103,3 +103,12 @@ func (h *LLDPHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
 	newconfig *lldpd.LLDPIntf, attrset []bool) (r bool, err error) {
 	return true, nil
 }
+
+func (h *LLDPHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int,
+	count lldpd.Int) (*lldpd.LLDPIntfStateGetInfo, error) {
+	return nil, nil
+}
+
+func (h *LLDPHandler) GetLLDPIntfState(ifIndex int32) (*lldpd.LLDPIntfState, error) {
+	return nil, nil
+}
