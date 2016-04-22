@@ -261,7 +261,8 @@ func (svr *LLDPServer) ChannelHanlder() {
 				return
 			}
 			gblInfo, exists := svr.lldpGblInfo[info.ifIndex]
-			if exists {
+			// extra check for pcap handle
+			if exists && gblInfo.PcapHandle != nil {
 				gblInfo.SendFrame()
 				svr.lldpGblInfo[info.ifIndex] = gblInfo
 			}
@@ -316,10 +317,28 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 		svr.lldpTimeout)
 
 	svr.lldpGblInfo[ifIndex] = gblInfo
-	svr.logger.Info("Start receiving lldp frames for port:" +
-		gblInfo.Name)
+	svr.logger.Info("Start lldp frames rx/tx for port:" + gblInfo.Name)
 	go svr.ReceiveFrames(gblInfo.PcapHandle, ifIndex)
 	go svr.TransmitFrames(gblInfo.PcapHandle, ifIndex)
+}
+
+/*  Send Signal for stopping rx/tx go routine and timers as the pcap handler for
+ *  the port is deleted
+ */
+func (svr *LLDPServer) StopRxTx(ifIndex int32) {
+	gblInfo, exists := svr.lldpGblInfo[ifIndex]
+	if !exists {
+		svr.logger.Err(fmt.Sprintln("No entry for ifIndex", ifIndex))
+		return
+	}
+	// stop the timer
+	gblInfo.StopTxTimer()
+	// delete pcap handler
+	gblInfo.DeletePcapHandler()
+	// invalid the cache information
+	gblInfo.DeleteCacheFrame()
+	svr.logger.Info("Stop lldp frames rx/tx for port:" + gblInfo.Name)
+	svr.lldpGblInfo[ifIndex] = gblInfo
 }
 
 func (svr *LLDPServer) ServerRxChClose() bool {
