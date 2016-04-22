@@ -85,6 +85,7 @@ type LLDPServer struct {
 	// lldp per port global info
 	lldpGblInfo           map[int32]LLDPGlobalInfo
 	lldpIntfStateSlice    []int32
+	lldpUpIntfStateSlice  []int32
 	lldpPortNumIfIndexMap map[int32]int32
 
 	// lldp pcap handler default config values
