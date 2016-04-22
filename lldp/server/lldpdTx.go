@@ -2,7 +2,7 @@ package lldpServer
 
 import (
 	"encoding/binary"
-	_ "errors"
+	"errors"
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -20,9 +20,15 @@ func (svr *LLDPServer) TransmitFrames(pHandle *pcap.Handle, ifIndex int32) {
 		if !exists {
 			return
 		}
-		// Start lldpMessage Tx interval
-		<-time.After(time.Duration(gblInfo.lldpMessageTxInterval) *
+
+		gblInfo.txTimer = time.NewTimer(time.Duration(gblInfo.lldpMessageTxInterval) *
 			time.Second)
+		svr.lldpGblInfo[ifIndex] = gblInfo
+		// Start lldpMessage Tx interval
+		<-gblInfo.txTimer.C
+
+		//	<-time.After(time.Duration(gblInfo.lldpMessageTxInterval) *
+		//		time.Second)
 		svr.lldpTxPktCh <- SendPktChannel{
 			ifIndex: ifIndex,
 		}
@@ -36,6 +42,7 @@ func (svr *LLDPServer) TransmitFrames(pHandle *pcap.Handle, ifIndex int32) {
  *		2) if there is config object update
  */
 func (gblInfo *LLDPGlobalInfo) SendFrame() {
+	//gblInfo.logger.Info("Sending frame for " + gblInfo.Name)
 	// if cached then directly send the packet
 	if gblInfo.useCacheFrame {
 		if cache := gblInfo.WritePacket(gblInfo.cacheFrame); cache == false {
@@ -150,8 +157,13 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload() []byte {
  *  was some error
  */
 func (gblInfo *LLDPGlobalInfo) WritePacket(pkt []byte) bool {
+	var err error
 	gblInfo.PcapHdlLock.Lock()
-	err := gblInfo.PcapHandle.WritePacketData(pkt)
+	if gblInfo.PcapHandle != nil {
+		err = gblInfo.PcapHandle.WritePacketData(pkt)
+	} else {
+		err = errors.New("Pcap Handle is invalid for " + gblInfo.Name)
+	}
 	gblInfo.PcapHdlLock.Unlock()
 	if err != nil {
 		gblInfo.logger.Err(fmt.Sprintln("Sending packet failed Error:",

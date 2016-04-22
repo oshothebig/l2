@@ -102,6 +102,14 @@ func (gblInfo *LLDPGlobalInfo) DeletePcapHandler() {
 	gblInfo.PcapHdlLock.Unlock()
 }
 
+/*  Stop Tx timer... as we have already delete the pcap handle
+ */
+func (gblInfo *LLDPGlobalInfo) StopTxTimer() {
+	if gblInfo.txTimer != nil {
+		gblInfo.txTimer.Stop()
+	}
+}
+
 /*  Stop RX cache timer
  */
 func (gblInfo *LLDPGlobalInfo) StopCacheTimer() {
@@ -109,6 +117,13 @@ func (gblInfo *LLDPGlobalInfo) StopCacheTimer() {
 		return
 	}
 	gblInfo.clearCacheTimer.Stop()
+}
+
+/*  We have deleted the pcap handler and hence we will invalid the cache buffer
+ */
+func (gblInfo *LLDPGlobalInfo) DeleteCacheFrame() {
+	gblInfo.useCacheFrame = false
+	gblInfo.cacheFrame = nil
 }
 
 /*  Return back all the memory which was allocated using new
@@ -124,6 +139,14 @@ func (gblInfo *LLDPGlobalInfo) FreeDynamicMemory() {
  */
 func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
 	lldpPromiscuous bool, lldpTimeout time.Duration) {
+	gblInfo.PcapHdlLock.RLock()
+	if gblInfo.PcapHandle != nil {
+		gblInfo.PcapHdlLock.RUnlock()
+		gblInfo.logger.Alert("Pcap already exists and create pcap called for " +
+			gblInfo.Name)
+		return
+	}
+	gblInfo.PcapHdlLock.RUnlock()
 	pcapHdl, err := pcap.OpenLive(gblInfo.Name, lldpSnapshotLen,
 		lldpPromiscuous, lldpTimeout)
 	if err != nil {

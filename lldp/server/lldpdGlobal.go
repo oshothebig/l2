@@ -71,6 +71,7 @@ type LLDPGlobalInfo struct {
 	lldpMessageTxHoldMultiplier int
 	useCacheFrame               bool
 	cacheFrame                  []byte
+	txTimer                     *time.Timer
 }
 
 type LLDPServer struct {

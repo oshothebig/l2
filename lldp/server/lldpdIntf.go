@@ -170,9 +170,8 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(
 		gblInfo.OperStateLock.Lock()
 		gblInfo.OperState = LLDP_PORT_STATE_DOWN
 		gblInfo.OperStateLock.Unlock()
-		// Delete Pcap Handler and stop rx/tx packets
-		//svr.LLDPDeletePcapHandler(updateInfo.IfIndex)
-		gblInfo.DeletePcapHandler()
 		svr.lldpGblInfo[updateInfo.IfIndex] = gblInfo
+		// Delete Pcap Handler and stop rx/tx packets
+		svr.StopRxTx(updateInfo.IfIndex)
 	}
 }
