@@ -320,6 +320,8 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 	svr.logger.Info("Start lldp frames rx/tx for port:" + gblInfo.Name)
 	go svr.ReceiveFrames(gblInfo.PcapHandle, ifIndex)
 	go svr.TransmitFrames(gblInfo.PcapHandle, ifIndex)
+	svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice,
+		gblInfo.IfIndex)
 }
 
 /*  Send Signal for stopping rx/tx go routine and timers as the pcap handler for
@@ -339,11 +341,28 @@ func (svr *LLDPServer) StopRxTx(ifIndex int32) {
 	gblInfo.DeleteCacheFrame()
 	svr.logger.Info("Stop lldp frames rx/tx for port:" + gblInfo.Name)
 	svr.lldpGblInfo[ifIndex] = gblInfo
+	svr.DeletePortFromUpState(ifIndex)
 }
 
+/*  helper function to inform whether rx channel is closed or open...
+ *  Go routine can be exited using this information
+ */
 func (svr *LLDPServer) ServerRxChClose() bool {
 	if svr.lldpRxPktCh == nil {
 		return true
 	}
 	return false
+}
+
+/*  delete ifindex from lldpUpIntfStateSlice on port down... we can use this
+ *  if user decides to disable lldp on a port
+ */
+func (svr *LLDPServer) DeletePortFromUpState(ifIndex int32) {
+	for idx, _ := range svr.lldpUpIntfStateSlice {
+		if svr.lldpUpIntfStateSlice[idx] == ifIndex {
+			svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice[:idx],
+				svr.lldpUpIntfStateSlice[idx+1:]...)
+			break
+		}
+	}
 }
