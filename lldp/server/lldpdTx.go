@@ -49,14 +49,14 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 			gblInfo.useCacheFrame = false
 		}
 	} else {
-
+		srcmac, _ := net.ParseMAC(gblInfo.MacAddr)
 		// we need to construct new lldp frame based of the information that we
 		// have collected locally
 		// Chassis ID: Mac Address of Port
 		// Port ID: Port Name
 		// TTL: calculated during port init default is 30 * 4 = 120
 		gblInfo.logger.Info("Creating Payload")
-		payload := gblInfo.CreatePayload() //txFrame)
+		payload := gblInfo.CreatePayload(srcmac)
 		if payload == nil {
 			gblInfo.logger.Err("Creating payload failed for port " +
 				gblInfo.Name)
@@ -69,7 +69,6 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 		// System Capabilites...
 
 		// Construct ethernet information
-		srcmac, _ := net.ParseMAC(gblInfo.MacAddr)
 		eth := &layers.Ethernet{
 			SrcMAC:       srcmac,
 			DstMAC:       gblInfo.DstMAC,
@@ -104,7 +103,7 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 
 /*  helper function to create payload from lldp frame struct
  */
-func (gblInfo *LLDPGlobalInfo) CreatePayload() []byte {
+func (gblInfo *LLDPGlobalInfo) CreatePayload(srcmac []byte) []byte {
 	//payload := make([]byte, 0, LLDP_MIN_FRAME_LENGTH)
 	var payload []byte
 	tlvType := 1
@@ -117,8 +116,7 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload() []byte {
 		case 1: // Chassis ID
 			tlv.Type = layers.LLDPTLVChassisID
 			tlv.Value = EncodeMandatoryTLV(byte(
-				layers.LLDPChassisIDSubTypeMACAddr),
-				[]byte(gblInfo.MacAddr))
+				layers.LLDPChassisIDSubTypeMACAddr), srcmac)
 			gblInfo.logger.Info(fmt.Sprintln("Chassis id tlv", tlv))
 
 		case 2: // Port ID
