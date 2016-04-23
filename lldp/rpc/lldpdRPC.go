@@ -111,6 +111,8 @@ func (h *LLDPHandler) convertLLDPIntfStateEntryToThriftEntry(
 	entry.PeerMac = state.PeerMac
 	entry.Port = state.Port
 	entry.HoldTime = state.HoldTime
+	entry.Enable = state.Enable
+	entry.IfIndex = state.IfIndex
 	return entry
 }
 
