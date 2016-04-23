@@ -96,12 +96,13 @@ Lacp Module is not dependent on the generated model and only uses it as a means 
 The protocol is a sandalone Process Daemon, with current dependencies with a configuration daemon CONFD and programability of HW ASIC and/or Linux Kernel via ASICD.
 
 Communication between other daemons are as follows:
-1. Asicd - Lacpd will send configuration data to program the asic and linux to create a trunk group and add member ports to the trunk group.  
-..RPC - Thrift
-..Events - Nano-msg (link up\down)
 
-1. Confd - Sends configuration data to Lacpd, Lacpd will respond with Status data based on requests made.
-..RPC - Thrift
+1. Asicd <---> Lacpd - Lacpd sends configuration data to program the asic and linux to create a trunk group and add member ports to the trunk group.  Asicd will reply with configuration status, and and return data, as well as link up/down events.
+ - RPC - Thrift
+ - Events - Nano-msg (link up\down)
+
+2. Confd <--> Lacpd - Confd sends configuration data to Lacpd, Lacpd will respond with Status data based on requests made.
+ - RPC - Thrift
 
 ## Build
 Building lacp module requires you to run the [setup](https://github.com/SnapRoute/reltools/blob/master/setupDev.py) in order to have the SnapRoute src as well as external repo dependencies.
