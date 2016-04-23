@@ -107,15 +107,22 @@ Communication between other daemons are as follows:
 ## Build
 Building lacp module requires you to run the [setup](https://github.com/SnapRoute/reltools/blob/master/setupDev.py) in order to have the SnapRoute src as well as external repo dependencies.
 
-Shortcut:
-From top level make:
-1. make codegen
-2. make ipc
-From local make:
-1. make
+**Build lacp only**
 
-Longcut:
-From top level make:
-1. make
+From top level make SnapRoute/src/:
+```
+   make codegen
+   make ipc
+```
+From lacp SnapRoute/src/l2/lacp/:
+```
+   make
+```
+**Build lacp as part of all**
+
+From top level make SnapRoute/src/:
+```
+  make
+```
 
 
