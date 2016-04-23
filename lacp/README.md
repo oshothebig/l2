@@ -9,6 +9,8 @@ Configuration and State objects are generated from the following [yang model](ht
 
 Using SnapRoute's yang to go [object generator](https://github.com/SnapRoute/reltools/tree/master/codegentools/structs) the following objects are generated for use by the LACPD.
 
+```go
+
 type LaPortChannel struct {
 	BaseObj
 	LagId          int32   `SNAPROUTE: "KEY",  DESCRIPTION: Id of the lag group`
@@ -86,7 +88,7 @@ type LaPortChannelMemberState struct {
 	LampOutPdu                 uint64 `DESCRIPTION: Number of LAMPDU transmited`
 	LampOutResponsePdu         uint64 `DESCRIPTION: Number of LAMPDU Response received`
 }
-
+```
 Lacp Module is not dependent on the generated model and only uses it as a means to the data to retreive.  The general data store within the lacp module mainly follows the standards object representations.
 
 
