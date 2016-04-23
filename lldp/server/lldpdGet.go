@@ -16,15 +16,14 @@ func (svr *LLDPServer) PopulateMandatoryTLV(ifIndex int32,
 		svr.logger.Err(fmt.Sprintln("Entry not found for", ifIndex))
 		return exists
 	}
-	if gblInfo.rxFrame == nil {
-		return exists
-	}
-	gblInfo.logger.Info("peer mac " + string(gblInfo.rxFrame.ChassisID.ID))
-	gblInfo.logger.Info("port " + string(gblInfo.rxFrame.PortID.ID))
 	entry.LocalPort = gblInfo.Name
-	entry.PeerMac = string(gblInfo.rxFrame.ChassisID.ID)
-	entry.Port = string(gblInfo.rxFrame.PortID.ID)
-	entry.HoldTime = strconv.Itoa(int(gblInfo.rxFrame.TTL))
+	if gblInfo.rxFrame != nil {
+		entry.PeerMac = gblInfo.GetChassisIdInfo()
+		entry.Port = gblInfo.GetPortIdInfo()
+		entry.HoldTime = strconv.Itoa(int(gblInfo.rxFrame.TTL))
+	}
+	entry.IfIndex = gblInfo.IfIndex
+	entry.Enable = true
 	return exists
 }
 

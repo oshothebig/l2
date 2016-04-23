@@ -3,6 +3,7 @@ package lldpServer
 import (
 	"asicdServices"
 	"fmt"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"net"
 	"sync"
@@ -155,10 +156,78 @@ func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
 	}
 	err = pcapHdl.SetBPFFilter(LLDP_BPF_FILTER)
 	if err != nil {
-		gblInfo.logger.Info(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
+		gblInfo.logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
 			"for", gblInfo.Name, "failed with error:", err))
 	}
 	gblInfo.PcapHdlLock.Lock()
 	gblInfo.PcapHandle = pcapHdl
 	gblInfo.PcapHdlLock.Unlock()
+}
+
+/*  Get Chassis Id info
+ *	 Based on SubType Return the string, mac address then form string using
+ *	 net package
+ */
+func (gblInfo *LLDPGlobalInfo) GetChassisIdInfo() string {
+
+	retVal := ""
+
+	switch gblInfo.rxFrame.ChassisID.Subtype {
+	case layers.LLDPChassisIDSubTypeReserved:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPChassisIDSubTypeChassisComp:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPChassisIDSubtypeIfaceAlias:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPChassisIDSubTypePortComp:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPChassisIDSubTypeMACAddr:
+		var mac net.HardwareAddr
+		mac = gblInfo.rxFrame.ChassisID.ID
+		return mac.String()
+	case layers.LLDPChassisIDSubTypeNetworkAddr:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPChassisIDSubtypeIfaceName:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPChassisIDSubTypeLocal:
+		gblInfo.logger.Debug("Need to handle this case")
+	default:
+		return retVal
+
+	}
+	return retVal
+}
+
+/*  Get Port Id info
+ *	 Based on SubType Return the string, mac address then form string using
+ *	 net package
+ */
+func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
+
+	retVal := ""
+
+	switch gblInfo.rxFrame.PortID.Subtype {
+	case layers.LLDPPortIDSubtypeReserved:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPPortIDSubtypeIfaceAlias:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPPortIDSubtypePortComp:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPPortIDSubtypeMACAddr:
+		var mac net.HardwareAddr
+		mac = gblInfo.rxFrame.ChassisID.ID
+		return mac.String()
+	case layers.LLDPPortIDSubtypeNetworkAddr:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPPortIDSubtypeIfaceName:
+		return string(gblInfo.rxFrame.PortID.ID)
+	case layers.LLDPPortIDSubtypeAgentCircuitID:
+		gblInfo.logger.Debug("Need to handle this case")
+	case layers.LLDPPortIDSubtypeLocal:
+		gblInfo.logger.Debug("Need to handle this case")
+	default:
+		return retVal
+
+	}
+	return retVal
 }
