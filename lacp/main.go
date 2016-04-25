@@ -47,7 +47,7 @@ func main() {
 		lacp.ConnectToClients(fileName)
 
 		// lets replay any config that is in the db
-		handler.ReadConfigFromDB(path)
+		handler.ReadConfigFromDB()
 
 		fmt.Println("Available Interfaces for use:")
 		intfs, err := net.Interfaces()

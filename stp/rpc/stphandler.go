@@ -2,10 +2,10 @@
 package rpc
 
 import (
-	"database/sql"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/garyburd/redigo/redis"
 	stp "l2/stp/protocol"
+	"models"
 	"reflect"
 	"stpd"
 	//"time"
@@ -156,87 +156,55 @@ func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInsta
 	return false, err
 }
 
-func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *sql.DB) error {
-	dbCmd := "select * from StpBridgeInstance"
-	rows, err := dbHdl.Query(dbCmd)
-	if err != nil {
-		stp.StpLogger("ERROR", fmt.Sprintf("DB method Query failed for 'StpBridgeInstance' with error", dbCmd, err))
-		return err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-
-		object := new(stpd.StpBridgeInstance)
-		if err = rows.Scan(
-			&object.Vlan,
-			&object.Address,
-			&object.Priority,
-			&object.MaxAge,
-			&object.HelloTime,
-			&object.ForwardDelay,
-			&object.ForceVersion,
-			&object.TxHoldCount); err != nil {
-			stp.StpLogger("ERROR", "Db method Scan failed when interating over StpBridgeInstance")
+func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl redis.Conn) error {
+	if dbHdl != nil {
+		var dbObj models.StpBridgeInstance
+		objList, err := dbObj.GetAllObjFromDb(dbHdl)
+		if err != nil {
+			stp.StpLogger("ERROR", "DB Query failed when retrieving StpBridgeInstance objects")
 			return err
 		}
-		_, err = s.CreateStpBridgeInstance(object)
-		if err != nil {
-			return err
+		for idx := 0; idx < len(objList); idx++ {
+			obj := stpd.NewStpBridgeInstance()
+			dbObject := objList[idx].(models.StpBridgeInstance)
+			models.ConvertstpdStpBridgeInstanceObjToThrift(&dbObject, obj)
+			_, err = s.CreateStpBridgeInstance(obj)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *sql.DB) error {
-	dbCmd := "select * from StpPort"
-	rows, err := dbHdl.Query(dbCmd)
-	if err != nil {
-		stp.StpLogger("ERROR", fmt.Sprintf("DB method Query failed for 'StpPort' with error", dbCmd, err))
-		return err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-
-		object := new(stpd.StpPort)
-		if err = rows.Scan(
-			&object.BrgIfIndex,
-			&object.IfIndex,
-			&object.Priority,
-			&object.Enable,
-			&object.PathCost,
-			&object.PathCost32,
-			&object.ProtocolMigration,
-			&object.AdminPointToPoint,
-			&object.AdminEdgePort,
-			&object.AdminPathCost,
-			&object.BpduGuard,
-			&object.BpduGuardInterval,
-			&object.BridgeAssurance); err != nil {
-			stp.StpLogger("ERROR", "Db method Scan failed when interating over StpPort")
+func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl redis.Conn) error {
+	if dbHdl != nil {
+		var dbObj models.StpPort
+		objList, err := dbObj.GetAllObjFromDb(dbHdl)
+		if err != nil {
+			stp.StpLogger("ERROR", "DB Query failed when retrieving StpPort objects")
 			return err
 		}
-		_, err = s.CreateStpPort(object)
-		if err != nil {
-			return err
+		for idx := 0; idx < len(objList); idx++ {
+			obj := stpd.NewStpPort()
+			dbObject := objList[idx].(models.StpPort)
+			models.ConvertstpdStpPortObjToThrift(&dbObject, obj)
+			_, err = s.CreateStpPort(obj)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (s *STPDServiceHandler) ReadConfigFromDB(filePath string) error {
-	var dbPath string = filePath + DBName
+func (s *STPDServiceHandler) ReadConfigFromDB() error {
 
-	dbHdl, err := sql.Open("sqlite3", dbPath)
+	dbHdl, err := redis.Dial("tcp", ":6379")
 	if err != nil {
-		//h.logger.Err(fmt.Sprintf("Failed to open the DB at %s with error %s", dbPath, err))
-		stp.StpLogger("ERROR", fmt.Sprintf("Failed to open the DB at %s with error %s", dbPath, err))
+		stp.StpLogger("ERROR", fmt.Sprintf("Failed to open connection to DB with error %s", err))
 		return err
 	}
-
 	defer dbHdl.Close()
 
 	if err := s.HandleDbReadStpBridgeInstance(dbHdl); err != nil {

@@ -2,13 +2,13 @@
 package rpc
 
 import (
-	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/garyburd/redigo/redis"
 	lacp "l2/lacp/protocol"
 	"lacpd"
+	"models"
 	//"net"
 	"reflect"
 	"strconv"
@@ -264,41 +264,33 @@ func GetIdByName(AggName string) int {
 	return i
 }
 
-func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *sql.DB) error {
-	dbCmd := "select * from LaPortChannel"
-	rows, err := dbHdl.Query(dbCmd)
-	if err != nil {
-		fmt.Println(fmt.Sprintf("DB method Query failed for 'AggregationLacpConfig' with error AggregationLacpConfig", dbCmd, err))
-		return err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-
-		object := new(lacpd.LaPortChannel)
-		if err = rows.Scan(&object.LagId, &object.LagType, &object.MinLinks, &object.Interval, &object.LacpMode, &object.SystemIdMac, &object.SystemPriority, &object.LagHash, &object.AdminState, &object.Members); err != nil {
-
-			fmt.Println("Db method Scan failed when interating over AggregationLacpConfig")
-		}
-		_, err = la.CreateLaPortChannel(object)
+func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl redis.Conn) error {
+	if dbHdl != nil {
+		var dbObj models.LaPortChannel
+		objList, err := dbObj.GetAllObjFromDb(dbHdl)
 		if err != nil {
+			fmt.Println("DB Query failed when retrieving LaPortChannel objects")
 			return err
+		}
+		for idx := 0; idx < len(objList); idx++ {
+			obj := lacpd.NewLaPortChannel()
+			dbObject := objList[idx].(models.LaPortChannel)
+			models.ConvertlacpdLaPortChannelObjToThrift(&dbObject, obj)
+			_, err = la.CreateLaPortChannel(obj)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (la *LACPDServiceHandler) ReadConfigFromDB(filePath string) error {
-	var dbPath string = filePath + DBName
-
-	dbHdl, err := sql.Open("sqlite3", dbPath)
+func (la *LACPDServiceHandler) ReadConfigFromDB() error {
+	dbHdl, err := redis.Dial("tcp", ":6379")
 	if err != nil {
-		//h.logger.Err(fmt.Sprintf("Failed to open the DB at %s with error %s", dbPath, err))
-		fmt.Printf("Failed to open the DB at %s with error %s", dbPath, err)
+		fmt.Printf("Failed to open connection to the DB with error %s", err)
 		return err
 	}
-
 	defer dbHdl.Close()
 
 	if err := la.HandleDbReadLaPortChannel(dbHdl); err != nil {
