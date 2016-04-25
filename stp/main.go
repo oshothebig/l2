@@ -48,7 +48,7 @@ func main() {
 		stp.ConnectToClients(fileName)
 
 		// lets replay any config that is in the db
-		handler.ReadConfigFromDB(path)
+		handler.ReadConfigFromDB()
 
 		stp.StpLogger("INFO", "Starting STP Thrift daemon")
 		err = server.Serve()
