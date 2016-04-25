@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"l2/lldp/rpc"
 	"l2/lldp/server"
+	"utils/keepalive"
 	"utils/logging"
 )
 
@@ -23,8 +24,11 @@ func main() {
 		fmt.Println("Failed to start the logger. Exiting!!")
 		return
 	}
-	go logger.ListenForSysdNotifications()
+	go logger.ListenForLoggingNotifications()
 	logger.Info("Started the logger successfully.")
+
+	// Start keepalive routine
+	go keepalive.InitKeepAlive("lldpd", fileName)
 
 	logger.Info("Starting LLDP server....")
 	// Create lldp server handler

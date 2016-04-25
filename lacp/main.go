@@ -9,6 +9,7 @@ import (
 	"l2/lacp/rpc"
 	"lacpd"
 	"net"
+	"utils/keepalive"
 )
 
 func main() {
@@ -24,6 +25,9 @@ func main() {
 		path = path + "/"
 	}
 	fileName := path + "clients.json"
+
+	// Start keepalive routine
+	go keepalive.InitKeepAlive("lacpd", path)
 
 	port := lacp.GetClientPort(fileName, "lacpd")
 	if port != 0 {
