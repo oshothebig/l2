@@ -83,12 +83,20 @@ func (gblInfo *LLDPGlobalInfo) ProcessRxPkt(pkt gopacket.Packet) error {
 	if gblInfo.DstMAC.String() != eth.DstMAC.String() {
 		return errors.New("Invalid DST MAC in rx frame")
 	}
-
+	// Get lldp manadatory layer and optional info
 	lldpLayer := pkt.Layer(layers.LayerTypeLinkLayerDiscovery)
 	lldpLayerInfo := pkt.Layer(layers.LayerTypeLinkLayerDiscoveryInfo)
+	// Verify that the information is not nil
 	if lldpLayer == nil || lldpLayerInfo == nil {
 		return errors.New("Invalid Frame")
 	}
+
+	// Verify that the mandatory layer info is indeed correct
+	err := gblInfo.VerifyFrame(lldpLayer.(*layers.LinkLayerDiscovery))
+	if err != nil {
+		return err
+	}
+
 	if gblInfo.rxFrame == nil {
 		gblInfo.rxFrame = new(layers.LinkLayerDiscovery)
 	}
@@ -100,6 +108,25 @@ func (gblInfo *LLDPGlobalInfo) ProcessRxPkt(pkt gopacket.Packet) error {
 	}
 	// Store lldp link layer optional tlv information
 	*gblInfo.rxLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
+	return nil
+}
+
+/*  Upon receiving incoming packet check whether all the madatory layer info is
+ *  correct or not.. If not then treat the packet as corrupted and move on
+ */
+func (gblInfo *LLDPGlobalInfo) VerifyFrame(lldpInfo *layers.LinkLayerDiscovery) error {
+
+	if lldpInfo.ChassisID.Subtype > layers.LLDPChassisIDSubTypeLocal {
+		return errors.New("Invalid chassis id subtype")
+	}
+
+	if lldpInfo.PortID.Subtype > layers.LLDPPortIDSubtypeLocal {
+		return errors.New("Invalid port id subtype")
+	}
+
+	if lldpInfo.TTL > uint16(LLDP_MAX_TTL) {
+		return errors.New("Invalid TTL value")
+	}
 	return nil
 }
 
