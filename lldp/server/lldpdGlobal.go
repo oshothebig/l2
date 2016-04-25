@@ -2,9 +2,9 @@ package lldpServer
 
 import (
 	"asicdServices"
-	"database/sql"
 	"errors"
 	"git.apache.org/thrift.git/lib/go/thrift"
+	"github.com/garyburd/redigo/redis"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -77,7 +77,7 @@ type LLDPGlobalInfo struct {
 type LLDPServer struct {
 	// Basic server start fields
 	logger         *logging.Writer
-	lldpDbHdl      *sql.DB
+	lldpDbHdl      redis.Conn
 	paramsDir      string
 	asicdClient    LLDPAsicdClient
 	asicdSubSocket *nanomsg.SubSocket
