@@ -2,7 +2,7 @@
 package rpc
 
 import (
-	"asicd/asicdConstDefs"
+	"asicd/asicdCommonDefs"
 	"asicd/pluginManager/pluginCommon"
 	"encoding/json"
 	"fmt"
@@ -107,5 +107,5 @@ func setupEventHandler(sub *nanomsg.SubSocket, address string, subtype int) {
 }
 
 func startEvtHandler() {
-	go setupEventHandler(AsicdSub, asicdConstDefs.PUB_SOCKET_ADDR, SUB_ASICD)
+	go setupEventHandler(AsicdSub, asicdCommonDefs.PUB_SOCKET_ADDR, SUB_ASICD)
 }
