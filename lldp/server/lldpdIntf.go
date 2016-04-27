@@ -1,7 +1,7 @@
 package lldpServer
 
 import (
-	"asicd/asicdConstDefs"
+	"asicd/asicdCommonDefs"
 	"asicdServices"
 	"encoding/json"
 	"fmt"
@@ -13,7 +13,7 @@ import (
  */
 func (svr *LLDPServer) GetInfoFromAsicd() error {
 	svr.logger.Info("Calling Asicd to initialize port properties")
-	err := svr.RegisterWithAsicdUpdates(asicdConstDefs.PUB_SOCKET_ADDR)
+	err := svr.RegisterWithAsicdUpdates(asicdCommonDefs.PUB_SOCKET_ADDR)
 	if err == nil {
 		// Asicd subscriber thread
 		go svr.AsicdSubscriber()
@@ -72,15 +72,15 @@ func (svr *LLDPServer) AsicdSubscriber() {
 				"socket failed with error:", err))
 			continue
 		}
-		var msg asicdConstDefs.AsicdNotification
+		var msg asicdCommonDefs.AsicdNotification
 		err = json.Unmarshal(rxBuf, &msg)
 		if err != nil {
 			svr.logger.Err(fmt.Sprintln("Unable to Unmarshal",
 				"asicd msg:", msg.Msg))
 			continue
 		}
-		if msg.MsgType == asicdConstDefs.NOTIFY_L2INTF_STATE_CHANGE {
-			var l2IntfStateNotifyMsg asicdConstDefs.L2IntfStateNotifyMsg
+		if msg.MsgType == asicdCommonDefs.NOTIFY_L2INTF_STATE_CHANGE {
+			var l2IntfStateNotifyMsg asicdCommonDefs.L2IntfStateNotifyMsg
 			err = json.Unmarshal(msg.Msg, &l2IntfStateNotifyMsg)
 			if err != nil {
 				svr.logger.Err(fmt.Sprintln("Unable to Unmarshal l2 intf",
@@ -96,7 +96,7 @@ func (svr *LLDPServer) AsicdSubscriber() {
  */
 func (svr *LLDPServer) GetPortStates() {
 	svr.logger.Info("Get Port State List")
-	currMarker := int64(asicdConstDefs.MIN_SYS_PORTS)
+	currMarker := int64(asicdCommonDefs.MIN_SYS_PORTS)
 	more := false
 	objCount := 0
 	count := 10
@@ -124,7 +124,7 @@ func (svr *LLDPServer) GetPortStates() {
  */
 func (svr *LLDPServer) GetPorts() {
 	svr.logger.Info("Get Port List")
-	currMarker := int64(asicdConstDefs.MIN_SYS_PORTS)
+	currMarker := int64(asicdCommonDefs.MIN_SYS_PORTS)
 	more := false
 	objCount := 0
 	count := 10
@@ -151,13 +151,13 @@ func (svr *LLDPServer) GetPorts() {
 /*  handle l2 state up/down notifications..
  */
 func (svr *LLDPServer) UpdateL2IntfStateChange(
-	updateInfo asicdConstDefs.L2IntfStateNotifyMsg) {
+	updateInfo asicdCommonDefs.L2IntfStateNotifyMsg) {
 	gblInfo, found := svr.lldpGblInfo[updateInfo.IfIndex]
 	if !found {
 		return
 	}
 	switch updateInfo.IfState {
-	case asicdConstDefs.INTF_STATE_UP:
+	case asicdCommonDefs.INTF_STATE_UP:
 		svr.logger.Info("State UP notification for " + gblInfo.Name)
 		gblInfo.OperStateLock.Lock()
 		gblInfo.OperState = LLDP_PORT_STATE_UP
@@ -165,7 +165,7 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(
 		gblInfo.OperStateLock.Unlock()
 		// Create Pcap Handler and start rx/tx packets
 		svr.StartRxTx(updateInfo.IfIndex)
-	case asicdConstDefs.INTF_STATE_DOWN:
+	case asicdCommonDefs.INTF_STATE_DOWN:
 		svr.logger.Info("State DOWN notification for " + gblInfo.Name)
 		gblInfo.OperStateLock.Lock()
 		gblInfo.OperState = LLDP_PORT_STATE_DOWN

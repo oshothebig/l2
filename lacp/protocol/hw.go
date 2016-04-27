@@ -2,7 +2,7 @@
 package lacp
 
 import (
-	hwconst "asicd/asicdConstDefs"
+	hwconst "asicd/asicdCommonDefs"
 	"asicd/pluginManager/pluginCommon"
 	"asicdServices"
 	"encoding/json"
