@@ -25,14 +25,15 @@ func main() {
 	}
 	logger.Info("Started the logger successfully.")
 
-	// Start keepalive routine
-	go keepalive.InitKeepAlive("lldpd", fileName)
-
 	logger.Info("Starting LLDP server....")
 	// Create lldp server handler
 	lldpSvr := lldpServer.LLDPNewServer(logger)
 	// Until Server is connected to clients do not start with RPC
 	lldpSvr.LLDPStartServer(*paramsDir)
+
+	// Start keepalive routine
+	go keepalive.InitKeepAlive("lldpd", fileName)
+
 	// Create lldp rpc handler
 	lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr, logger)
 	logger.Info("Starting LLDP RPC listener....")
