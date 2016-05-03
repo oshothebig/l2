@@ -16,8 +16,3 @@ Each L2 Protocol will run as an independent daemon.
   2. PVST
   3. STP (loosely supported)
 3. [802.1AB LLDP](lldp/README.md)
-
-
- 
-
-
