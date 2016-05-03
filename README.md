@@ -12,7 +12,4 @@ Each L2 Protocol will run as an independent daemon.
 
 1. [802.1AX (Version 1) LACP](lacp/README.md)
 2. [802.1D-2004  Spanning Tree](stp/README.md)
-  1. RSTP
-  2. PVST
-  3. STP (loosely supported)
 3. [802.1AB LLDP](lldp/README.md)
