@@ -1,7 +1,28 @@
-# lacp 
-This code base is to handle the lacp protocol according to 802.1ax-2014.  This implemention currently only supports version 1 of the protocol.  
+# Link Aggregation Control Protocol (LACP)
+This code base is to handle the LACP protocol according to 802.1ax-2014.  This implemention currently only supports functionality related to version 1 of the protocol.
 
 The protocol is a sandalone Process Daemon, with current dependencies with a configuration daemon CONFD and programability of HW ASIC and/or Linux Kernel via ASICD.
+
+The LACP protocol will have an instance running per interface.   Each LACP represented state machine represented as part of the protocol will be running as a seperate go routine.
+
+
+## Overview
+![alt text](docs/LACPArchitectureOverview.png)
+
+
+## Interfaces
+The protocol is a sandalone Process Daemon, with current dependencies with a configuration daemon CONFD and programability of HW ASIC and/or Linux Kernel via ASICD.
+
+###### IPC
+LACPD will receive configuration data from CONFD via Thrift IPC.
+LACPD will send configuration data to ASICD via Thrift IPC.
+
+
+###### Events
+LACPD will receive Link UP/DOWN events from ASICD via Nano-msg
+
+###### Packet RX/TX
+LACPD will use [GOPACKET](https://github.com/SnapRoute/gopacket) pcap library to receive packets from a network interface.  Similarly GOPACKET will be used to encapsulate/decapsulate LACP/LAMP frames.
 
 
 ## Objects
@@ -92,17 +113,7 @@ type LaPortChannelMemberState struct {
 Lacp Module is not dependent on the generated model and only uses it as a means to the data to retreive.  The general data store within the lacp module mainly follows the standards object representations.
 
 
-## Clients
-The protocol is a sandalone Process Daemon, with current dependencies with a configuration daemon CONFD and programability of HW ASIC and/or Linux Kernel via ASICD.
 
-Communication between other daemons are as follows:
-
-1. Asicd <---> Lacpd - Lacpd sends configuration data to program the asic and linux to create a trunk group and add member ports to the trunk group.  Asicd will reply with configuration status, and and return data, as well as link up/down events.
- - RPC - Thrift
- - Events - Nano-msg (link up\down)
-
-2. Confd <--> Lacpd - Confd sends configuration data to Lacpd, Lacpd will respond with Status data based on requests made.
- - RPC - Thrift
 
 ## Build
 Building lacp module requires you to run the [setup](https://github.com/SnapRoute/reltools/blob/master/setupDev.py) in order to have the SnapRoute src as well as external repo dependencies.
@@ -125,4 +136,15 @@ From top level make SnapRoute/src/:
   make
 ```
 
+## REST API
+The rest api's example are taken from an auto generated python [SDK](https://github.com/SnapRoute/flexSdk/tree/master/py)
+SDK is generated as part of 'make codegen' or 'make'
+
+###### Example API using python
+Api parameter description can be found in SDK
+```
+    createLaPortChannel
+    deleteLaPortChannel
+    updateLaPortChannel
+```
 
