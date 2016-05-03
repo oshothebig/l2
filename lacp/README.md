@@ -136,6 +136,37 @@ From top level make SnapRoute/src/:
   make
 ```
 
+## Test
+There are multiple test supported for LACP
+
+###### Unit Test
+Go test framework is used for unit testing.   The tests are meant to test the various state machines within LACP.  For these tests for some cases two lacp instances are running and packets are sent over go channels.
+
+For running the test I like to use '-v' option to let me know what test are running.
+```
+   cd protocol
+   go test -v
+```
+
+###### Integration Test
+Integration tests can be found in the in the test repo under [lacp](https://github.com/SnapRoute/test/blob/master/tests/lacp/lacp.py)
+Integration tests are written in python.   Within the file there is a python dictionary describing the setup.  The setup is assuming two switches and 2 ports each.  
+
+
+The test is dependent on using the auto-generated [Sdk](https://github.com/SnapRoute/flexSdk/blob/master/py/flexswitchV2.py).
+
+```
+   // go to reltools (your path may differ)
+   cd ~/git/reltools/
+   make codegen
+   // go to test repo (your path may differ)
+   cd ~/git/snaproute/src/test/
+   source env.sh
+   cd tests/lacp/
+   python lacp.py
+```
+
+
 ## REST API
 The rest api's example are taken from an auto generated python [SDK](https://github.com/SnapRoute/flexSdk/tree/master/py)
 SDK is generated as part of 'make codegen' or 'make'
