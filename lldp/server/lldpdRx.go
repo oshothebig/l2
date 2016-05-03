@@ -12,10 +12,8 @@ import (
 /* Go routine to recieve lldp frames. This go routine is created for all the
  * ports which are in up state.
  */
-func (svr *LLDPServer) LLDPReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
+func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 	pktSrc := gopacket.NewPacketSource(pHandle, pHandle.LinkType())
-	//in := pktSrc.Packets()
-	//for {
 	for pkt := range pktSrc.Packets() {
 		// check if rx channel is still valid or not
 		if svr.lldpRxPktCh == nil {
@@ -29,6 +27,7 @@ func (svr *LLDPServer) LLDPReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 					ifIndex, "received lldp exit"))
 			}
 		default:
+
 			// process packets
 			gblInfo, exists := svr.lldpGblInfo[ifIndex]
 			if !exists {
@@ -42,65 +41,99 @@ func (svr *LLDPServer) LLDPReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 			// Because this is read we do not need to worry about
 			// doing any locks...
 			if gblInfo.PcapHandle == nil {
-				svr.logger.Info(fmt.Sprintln(
-					"Pcap closed terminate go routine for",
-					ifIndex))
+				svr.logger.Info("Pcap closed terminate go " +
+					"routine for " + gblInfo.Name)
 				return
 			}
-			svr.lldpRxPktCh <- LLDPInPktChannel{
+			svr.lldpRxPktCh <- InPktChannel{
 				pkt:     pkt,
 				ifIndex: ifIndex,
 			}
+
 		}
 	}
 }
 
+/*  dump received lldp frame and other TX information
+ */
+func (gblInfo LLDPGlobalInfo) DumpFrame() {
+	gblInfo.logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
+		gblInfo.PortNum))
+	gblInfo.logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.SrcMAC.String(),
+		"DstMAC:", gblInfo.DstMAC.String()))
+	gblInfo.logger.Info(fmt.Sprintln("ChassisID info is",
+		gblInfo.rxFrame.ChassisID))
+	gblInfo.logger.Info(fmt.Sprintln("PortID info is",
+		gblInfo.rxFrame.PortID))
+	gblInfo.logger.Info(fmt.Sprintln("TTL info is", gblInfo.rxFrame.TTL))
+	gblInfo.logger.Info(fmt.Sprintln("Optional Values is",
+		gblInfo.rxLinkInfo))
+}
+
 /* process incoming pkt from peer
  */
-func (svr *LLDPServer) LLDPProcessRxPkt(pkt gopacket.Packet, ifIndex int32) {
-	//Sanity check for port up or down
-	gblInfo, exists := svr.lldpGblInfo[ifIndex]
-	if !exists {
-		//@FIXME: is this bad???
-		svr.logger.Info(fmt.Sprintln("No entry for", ifIndex,
-			"during processing packet"))
-		return
+func (gblInfo *LLDPGlobalInfo) ProcessRxPkt(pkt gopacket.Packet) error {
+	ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
+	if ethernetLayer == nil {
+		return errors.New("Invalid eth layer")
 	}
-	/*
-		ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
-		if ethernetLayer == nil {
-			return
-		}
-		eth := ethernetLayer.(*layers.Ethernet)
-	*/
+	eth := ethernetLayer.(*layers.Ethernet)
+	// copy src mac and dst mac
+	gblInfo.SrcMAC = eth.SrcMAC
+	if gblInfo.DstMAC.String() != eth.DstMAC.String() {
+		return errors.New("Invalid DST MAC in rx frame")
+	}
+	// Get lldp manadatory layer and optional info
 	lldpLayer := pkt.Layer(layers.LayerTypeLinkLayerDiscovery)
-	// Store lldp frame information received from direct connection
-	gblInfo.lldpFrame = lldpLayer.(*layers.LinkLayerDiscovery)
 	lldpLayerInfo := pkt.Layer(layers.LayerTypeLinkLayerDiscoveryInfo)
+	// Verify that the information is not nil
+	if lldpLayer == nil || lldpLayerInfo == nil {
+		return errors.New("Invalid Frame")
+	}
+
+	// Verify that the mandatory layer info is indeed correct
+	err := gblInfo.VerifyFrame(lldpLayer.(*layers.LinkLayerDiscovery))
+	if err != nil {
+		return err
+	}
+
+	if gblInfo.rxFrame == nil {
+		gblInfo.rxFrame = new(layers.LinkLayerDiscovery)
+	}
+	// Store lldp frame information received from direct connection
+	*gblInfo.rxFrame = *lldpLayer.(*layers.LinkLayerDiscovery)
+
+	if gblInfo.rxLinkInfo == nil {
+		gblInfo.rxLinkInfo = new(layers.LinkLayerDiscoveryInfo)
+	}
 	// Store lldp link layer optional tlv information
-	gblInfo.lldpLinkInfo = lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
-	svr.lldpGblInfo[ifIndex] = gblInfo
-	/*
-		svr.logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
-			gblInfo.PortNum))
-		svr.logger.Info(fmt.Sprintln("SrcMAC:", eth.SrcMAC.String(),
-			"DstMAC:", eth.DstMAC.String()))
-		svr.logger.Info(fmt.Sprintln("ChassisID info is",
-			gblInfo.lldpFrame.ChassisID))
-		svr.logger.Info(fmt.Sprintln("PortID info is",
-			gblInfo.lldpFrame.PortID))
-		svr.logger.Info(fmt.Sprintln("TTL info is", gblInfo.lldpFrame.TTL))
-		svr.logger.Info(fmt.Sprintln("Optional Values is",
-			gblInfo.lldpLinkInfo))
-	*/
-	// reset/start timer for recipient information
-	svr.LLDPCheckPeerEntry(ifIndex)
+	*gblInfo.rxLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
+	return nil
+}
+
+/*  Upon receiving incoming packet check whether all the madatory layer info is
+ *  correct or not.. If not then treat the packet as corrupted and move on
+ */
+func (gblInfo *LLDPGlobalInfo) VerifyFrame(lldpInfo *layers.LinkLayerDiscovery) error {
+
+	if lldpInfo.ChassisID.Subtype > layers.LLDPChassisIDSubTypeLocal {
+		return errors.New("Invalid chassis id subtype")
+	}
+
+	if lldpInfo.PortID.Subtype > layers.LLDPPortIDSubtypeLocal {
+		return errors.New("Invalid port id subtype")
+	}
+
+	if lldpInfo.TTL > uint16(LLDP_MAX_TTL) {
+		return errors.New("Invalid TTL value")
+	}
+	return nil
 }
 
 /*  Upon receiving incoming packet check whether all the layers which we want
  *  are received or not.. If not then treat the packet as corrupted and move on
  */
-func (svr *LLDPServer) LLDPVerifyLayers(pkt gopacket.Packet) error {
+func (svr *LLDPServer) VerifyLayers(pkt gopacket.Packet) error {
 	wantedLayers := []gopacket.LayerType{layers.LayerTypeEthernet,
 		layers.LayerTypeLinkLayerDiscovery,
 		layers.LayerTypeLinkLayerDiscoveryInfo,
@@ -123,31 +156,24 @@ func (svr *LLDPServer) LLDPVerifyLayers(pkt gopacket.Packet) error {
  *  Handle TTL timer. Once the timer expires, we will delete the remote entry
  *  if timer is running then reset the value
  */
-func (svr *LLDPServer) LLDPCheckPeerEntry(ifIndex int32) {
-	gblInfo, exists := svr.lldpGblInfo[ifIndex]
-	if !exists {
-		svr.logger.Err(fmt.Sprintln("No object found for ifIndex:",
-			ifIndex))
-		return
-	}
+func (gblInfo *LLDPGlobalInfo) CheckPeerEntry() {
 	if gblInfo.clearCacheTimer != nil {
 		// timer is running reset the time so that it doesn't expire
 		gblInfo.clearCacheTimer.Reset(time.Duration(
-			gblInfo.lldpFrame.TTL) * time.Second)
+			gblInfo.rxFrame.TTL) * time.Second)
 	} else {
 		var clearPeerInfo_func func()
 		// On timer expiration we will delete peer info and set it to nil
 		clearPeerInfo_func = func() {
-			svr.logger.Info("Recipient info delete timer expired for " +
+			gblInfo.logger.Info("Recipient info delete timer expired for " +
 				"peer connected to port " + gblInfo.Name +
 				" and hence deleting peer information from runtime")
-			gblInfo.lldpFrame = nil
-			gblInfo.lldpLinkInfo = nil
+			gblInfo.rxFrame = nil
+			gblInfo.rxLinkInfo = nil
 		}
 		// First time start function
 		gblInfo.clearCacheTimer = time.AfterFunc(
-			time.Duration(gblInfo.lldpFrame.TTL)*time.Second,
+			time.Duration(gblInfo.rxFrame.TTL)*time.Second,
 			clearPeerInfo_func)
 	}
-	svr.lldpGblInfo[ifIndex] = gblInfo
 }

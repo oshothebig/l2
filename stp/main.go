@@ -8,6 +8,7 @@ import (
 	stp "l2/stp/protocol"
 	"l2/stp/rpc"
 	"stpd"
+	"utils/keepalive"
 )
 
 func main() {
@@ -44,7 +45,10 @@ func main() {
 		stp.ConnectToClients(fileName)
 
 		// lets replay any config that is in the db
-		handler.ReadConfigFromDB(path)
+		handler.ReadConfigFromDB()
+
+		// Start keepalive routine
+		go keepalive.InitKeepAlive("stpd", path)
 
 		stp.StpLogger("INFO", "Starting STP Thrift daemon")
 		err = server.Serve()

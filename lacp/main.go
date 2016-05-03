@@ -9,6 +9,7 @@ import (
 	"l2/lacp/rpc"
 	"lacpd"
 	"net"
+	"utils/keepalive"
 )
 
 func main() {
@@ -43,7 +44,10 @@ func main() {
 		lacp.ConnectToClients(fileName)
 
 		// lets replay any config that is in the db
-		handler.ReadConfigFromDB(path)
+		handler.ReadConfigFromDB()
+
+		// Start keepalive routine
+		go keepalive.InitKeepAlive("lacpd", path)
 
 		fmt.Println("Available Interfaces for use:")
 		intfs, err := net.Interfaces()

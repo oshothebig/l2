@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"l2/lldp/rpc"
 	"l2/lldp/server"
+	"utils/keepalive"
 	"utils/logging"
 )
 
@@ -18,12 +19,10 @@ func main() {
 	}
 
 	fmt.Println("Start logger")
-	logger, err := logging.NewLogger(fileName, "lldpd", "LLDP")
+	logger, err := logging.NewLogger("lldpd", "LLDP", true)
 	if err != nil {
-		fmt.Println("Failed to start the logger. Exiting!!")
-		return
+		fmt.Println("Failed to start the logger. Nothing will be logged...")
 	}
-	go logger.ListenForSysdNotifications()
 	logger.Info("Started the logger successfully.")
 
 	logger.Info("Starting LLDP server....")
@@ -31,6 +30,10 @@ func main() {
 	lldpSvr := lldpServer.LLDPNewServer(logger)
 	// Until Server is connected to clients do not start with RPC
 	lldpSvr.LLDPStartServer(*paramsDir)
+
+	// Start keepalive routine
+	go keepalive.InitKeepAlive("lldpd", fileName)
+
 	// Create lldp rpc handler
 	lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr, logger)
 	logger.Info("Starting LLDP RPC listener....")

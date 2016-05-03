@@ -103,3 +103,43 @@ func (h *LLDPHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
 	newconfig *lldpd.LLDPIntf, attrset []bool) (r bool, err error) {
 	return true, nil
 }
+
+func (h *LLDPHandler) convertLLDPIntfStateEntryToThriftEntry(
+	state lldpd.LLDPIntfState) *lldpd.LLDPIntfState {
+	entry := lldpd.NewLLDPIntfState()
+	entry.LocalPort = state.LocalPort
+	entry.PeerMac = state.PeerMac
+	entry.Port = state.Port
+	entry.HoldTime = state.HoldTime
+	entry.Enable = state.Enable
+	entry.IfIndex = state.IfIndex
+	return entry
+}
+
+func (h *LLDPHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int,
+	count lldpd.Int) (*lldpd.LLDPIntfStateGetInfo, error) {
+	nextIdx, currCount, lldpIntfStateEntries := h.server.GetBulkLLDPIntfState(
+		int(fromIndex), int(count))
+	if lldpIntfStateEntries == nil {
+		return nil, errors.New("No neighbor found")
+	}
+
+	lldpEntryResp := make([]*lldpd.LLDPIntfState, len(lldpIntfStateEntries))
+
+	for idx, item := range lldpIntfStateEntries {
+		lldpEntryResp[idx] = h.convertLLDPIntfStateEntryToThriftEntry(item)
+	}
+
+	lldpEntryBulk := lldpd.NewLLDPIntfStateGetInfo()
+	lldpEntryBulk.StartIdx = fromIndex
+	lldpEntryBulk.EndIdx = lldpd.Int(nextIdx)
+	lldpEntryBulk.Count = lldpd.Int(currCount)
+	lldpEntryBulk.More = (nextIdx != 0)
+	lldpEntryBulk.LLDPIntfStateList = lldpEntryResp
+
+	return lldpEntryBulk, nil
+}
+
+func (h *LLDPHandler) GetLLDPIntfState(ifIndex int32) (*lldpd.LLDPIntfState, error) {
+	return nil, nil
+}
