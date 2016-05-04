@@ -1,4 +1,5 @@
-// aggregator
+// aggregator.go - holds the information related to the datastore of Aggregator Object as described
+// in 802.1AX-2014 7.3.1.1.
 package lacp
 
 import (
