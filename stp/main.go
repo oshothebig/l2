@@ -26,9 +26,6 @@ func main() {
 	fileName := path + "clients.json"
 	asicdConfName := path + "asicd.conf"
 
-	// Start keepalive routine
-	go keepalive.InitKeepAlive("stpd", path)
-
 	port := stp.GetClientPort(fileName, "stpd")
 	if port != 0 {
 		addr := fmt.Sprintf("localhost:%d", port)
@@ -48,7 +45,10 @@ func main() {
 		stp.ConnectToClients(fileName)
 
 		// lets replay any config that is in the db
-		handler.ReadConfigFromDB(path)
+		handler.ReadConfigFromDB()
+
+		// Start keepalive routine
+		go keepalive.InitKeepAlive("stpd", path)
 
 		stp.StpLogger("INFO", "Starting STP Thrift daemon")
 		err = server.Serve()

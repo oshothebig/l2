@@ -26,9 +26,6 @@ func main() {
 	}
 	fileName := path + "clients.json"
 
-	// Start keepalive routine
-	go keepalive.InitKeepAlive("lacpd", path)
-
 	port := lacp.GetClientPort(fileName, "lacpd")
 	if port != 0 {
 		addr := fmt.Sprintf("localhost:%d", port)
@@ -47,7 +44,10 @@ func main() {
 		lacp.ConnectToClients(fileName)
 
 		// lets replay any config that is in the db
-		handler.ReadConfigFromDB(path)
+		handler.ReadConfigFromDB()
+
+		// Start keepalive routine
+		go keepalive.InitKeepAlive("lacpd", path)
 
 		fmt.Println("Available Interfaces for use:")
 		intfs, err := net.Interfaces()

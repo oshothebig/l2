@@ -888,6 +888,8 @@ func TestRxValidTopoChange(t *testing.T) {
 	// force state of tc state machine
 	p.TcMachineFsm.Machine.Curr.SetState(TcStateLearning)
 	p.SendRSTP = true
+	// force timeout of mdelay
+	p.MdelayWhiletimer.count = 0
 
 	// send a packet
 	UsedForTestOnlySendValidStpTopoFrame(TEST_TX_PORT_CONFIG_IFINDEX, t)

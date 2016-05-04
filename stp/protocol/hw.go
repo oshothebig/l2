@@ -2,7 +2,7 @@
 package stp
 
 import (
-	hwconst "asicd/asicdConstDefs"
+	hwconst "asicd/asicdCommonDefs"
 	"asicd/pluginManager/pluginCommon"
 	"asicdInt"
 	"asicdServices"
