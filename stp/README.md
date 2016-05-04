@@ -135,3 +135,70 @@ type StpBridgeState struct {
 }
 
 ```
+## Build
+Building stp module requires you to run the [setup](https://github.com/SnapRoute/reltools/blob/master/setupDev.py) in order to have the SnapRoute src as well as external repo dependencies.
+
+**Build stp only**
+
+From top level make SnapRoute/src/:
+```
+   make codegen
+   make ipc
+```
+From stp SnapRoute/src/l2/stp/:
+```
+   make
+```
+**Build stp as part of all**
+
+From top level make SnapRoute/src/:
+```
+  make
+```
+
+## Test
+There are multiple test supported for STP
+
+###### Unit Test
+Go test framework is used for unit testing.   The tests are meant to test the various state machines within STP.  For these tests for some cases two stp instances are running and packets are sent over go channels.
+
+For running the test I like to use '-v' option to let me know what test are running.
+```
+   cd protocol
+   go test -v
+```
+
+###### Integration Test
+Integration tests can be found in the in the test repo under [stp](https://github.com/SnapRoute/test/blob/master/tests/stp/stp.py)
+Integration tests are written in python.   Within the file there is a python dictionary describing the setup.  The setup is assuming two switches and 2 ports each.  
+
+
+The test is dependent on using the auto-generated [Sdk](https://github.com/SnapRoute/flexSdk/blob/master/py/flexswitchV2.py).
+
+```
+   // go to reltools (your path may differ)
+   cd ~/git/reltools/
+   make codegen
+   // go to test repo (your path may differ)
+   cd ~/git/snaproute/src/test/
+   source env.sh
+   cd tests/stp/
+   python stp.py
+```
+
+
+## REST API
+The rest api's example are taken from an auto generated python [SDK](https://github.com/SnapRoute/flexSdk/tree/master/py)
+SDK is generated as part of 'make codegen' or 'make'
+
+###### Example API using python
+Api parameter description can be found in SDK
+```
+    createStpPort
+    deleteStpPort
+    updateStpPort
+    createStpBridgeInstance
+    deleteStpBridgeInstance
+    updateStpBridgeInstance
+```
+
