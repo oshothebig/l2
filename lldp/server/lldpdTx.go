@@ -1,4 +1,4 @@
-package lldpServer
+package server
 
 import (
 	"encoding/binary"
@@ -69,7 +69,7 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 		// Construct ethernet information
 		eth := &layers.Ethernet{
 			SrcMAC:       srcmac,
-			DstMAC:       gblInfo.DstMAC,
+			DstMAC:       gblInfo.RxInfo.DstMAC,
 			EthernetType: layers.EthernetTypeLinkLayerDiscovery,
 		}
 

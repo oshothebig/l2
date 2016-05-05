@@ -1,18 +1,18 @@
-package lldpServer
+package server
 
 import (
 	"asicdServices"
 	"errors"
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	_ "github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	nanomsg "github.com/op/go-nanomsg"
-	"net"
+	"l2/lldp/packet"
+	_ "net"
 	"sync"
 	"time"
 	"utils/dbutils"
-	"utils/logging"
 )
 
 type LLDPClientJson struct {
@@ -55,17 +55,19 @@ type LLDPGlobalInfo struct {
 	PcapHdlLock *sync.RWMutex
 
 	/*
-		rx Packet.RX
 		tx Packet.TX
 	*/
-	// ethernet frame Info (used for rx/tx)
-	SrcMAC net.HardwareAddr // NOTE: Please be informed this is Peer Mac Addr
-	DstMAC net.HardwareAddr
+	RxInfo *packet.RX
+	/*
+		// ethernet frame Info (used for rx/tx)
+		SrcMAC net.HardwareAddr // NOTE: Please be informed this is Peer Mac Addr
+		DstMAC net.HardwareAddr
 
-	// lldp rx information
-	rxFrame         *layers.LinkLayerDiscovery
-	rxLinkInfo      *layers.LinkLayerDiscoveryInfo
-	clearCacheTimer *time.Timer
+		// lldp rx information
+		rxFrame         *layers.LinkLayerDiscovery
+		rxLinkInfo      *layers.LinkLayerDiscoveryInfo
+		clearCacheTimer *time.Timer
+	*/
 	// tx information
 	ttl                         int
 	lldpMessageTxInterval       int
@@ -77,7 +79,7 @@ type LLDPGlobalInfo struct {
 
 type LLDPServer struct {
 	// Basic server start fields
-	logger         *logging.Writer
+	//logger         *logging.Writer
 	lldpDbHdl      *dbutils.DBUtil
 	paramsDir      string
 	asicdClient    LLDPAsicdClient

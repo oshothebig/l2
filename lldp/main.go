@@ -29,7 +29,7 @@ func main() {
 
 	debug.Logger.Info("Starting LLDP server....")
 	// Create lldp server handler
-	lldpSvr := lldpServer.LLDPNewServer()
+	lldpSvr := server.LLDPNewServer()
 	// Until Server is connected to clients do not start with RPC
 	lldpSvr.LLDPStartServer(*paramsDir)
 

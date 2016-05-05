@@ -1,4 +1,4 @@
-package lldpServer
+package server
 
 import (
 	"asicdServices"
@@ -233,22 +233,7 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 			gblInfo, exists := svr.lldpGblInfo[rcvdInfo.ifIndex]
 			if exists {
-				/*
-					err := svr.Packet.Process(&gblInfo, rcvdInfo.pkt)
-					if err != nil {
-						debug.Logger.Err(fmt.Sprintln("err", err,
-							" while processing rx frame on port",
-							gblInfo.Name))
-						continue
-					}
-					// reset/start timer for recipient information
-					svr.Packet.HoldTimer(&gblInfo)
-					svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
-					// dump the frame
-					//gblInfo.DumpFrame()
-				*/
-				// Cache the received incoming frame
-				err := gblInfo.ProcessRxPkt(rcvdInfo.pkt)
+				err := gblInfo.RxInfo.Process(gblInfo.RxInfo, rcvdInfo.pkt)
 				if err != nil {
 					debug.Logger.Err(fmt.Sprintln("err", err,
 						" while processing rx frame on port",
@@ -256,8 +241,23 @@ func (svr *LLDPServer) ChannelHanlder() {
 					continue
 				}
 				// reset/start timer for recipient information
-				gblInfo.CheckPeerEntry()
+				gblInfo.RxInfo.CheckPeerEntry(gblInfo.Name)
 				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
+				// dump the frame
+				//gblInfo.DumpFrame()
+				/*
+					// Cache the received incoming frame
+					err := gblInfo.ProcessRxPkt(rcvdInfo.pkt)
+					if err != nil {
+						debug.Logger.Err(fmt.Sprintln("err", err,
+							" while processing rx frame on port",
+							gblInfo.Name))
+						continue
+					}
+					// reset/start timer for recipient information
+					gblInfo.CheckPeerEntry()
+					svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
+				*/
 				// dump the frame
 				//gblInfo.DumpFrame()
 			}

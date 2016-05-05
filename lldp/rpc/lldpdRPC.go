@@ -17,14 +17,14 @@ const (
 )
 
 type LLDPHandler struct {
-	server *lldpServer.LLDPServer
+	server *server.LLDPServer
 }
 type LLDPClientJson struct {
 	Name string `json:Name`
 	Port int    `json:Port`
 }
 
-func LLDPNewHandler(lldpSvr *lldpServer.LLDPServer) *LLDPHandler {
+func LLDPNewHandler(lldpSvr *server.LLDPServer) *LLDPHandler {
 	hdl := new(LLDPHandler)
 	hdl.server = lldpSvr
 	return hdl

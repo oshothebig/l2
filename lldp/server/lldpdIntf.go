@@ -1,4 +1,4 @@
-package lldpServer
+package server
 
 import (
 	"asicd/asicdCommonDefs"
@@ -29,7 +29,7 @@ func (svr *LLDPServer) GetInfoFromAsicd() error {
 }
 
 /* Helper function which will connect with asicd, so that any future events from
- * asicd will be handled from lldpServer for lldp frames.
+ * asicd will be handled from server for lldp frames.
  */
 func (svr *LLDPServer) RegisterWithAsicdUpdates(address string) error {
 	var err error
