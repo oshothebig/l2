@@ -9,8 +9,8 @@ import (
 
 func (svr *LLDPServer) InitDB() error {
 	var err error
-	svr.logger.Info("Initializing DB")
-	svr.lldpDbHdl = dbutils.NewDBUtil(svr.logger)
+	debug.Logger.Info("Initializing DB")
+	svr.lldpDbHdl = dbutils.NewDBUtil(debug.Logger)
 	err = svr.lldpDbHdl.Connect()
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Failed to Create DB Handle", err))
@@ -21,7 +21,7 @@ func (svr *LLDPServer) InitDB() error {
 }
 
 func (svr *LLDPServer) CloseDB() {
-	svr.logger.Info("Closed lldp db")
+	debug.Logger.Info("Closed lldp db")
 	svr.lldpDbHdl.Disconnect()
 }
 

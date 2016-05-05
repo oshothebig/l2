@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 	"utils/dbutils"
-	"utils/logging"
 )
 
 type LLDPClientJson struct {
@@ -77,7 +76,6 @@ type LLDPGlobalInfo struct {
 
 type LLDPServer struct {
 	// Basic server start fields
-	logger         *logging.Writer
 	lldpDbHdl      *dbutils.DBUtil
 	paramsDir      string
 	asicdClient    LLDPAsicdClient
