@@ -53,14 +53,14 @@ type LLDPGlobalInfo struct {
 	PcapHandle *pcap.Handle
 	// Pcap Handler lock to write data one routine at a time
 	PcapHdlLock *sync.RWMutex
-	RxInfo      *packet.RX
+	// rx information
+	RxInfo *packet.RX
 	// tx information
 	TxInfo *packet.TX
 }
 
 type LLDPServer struct {
 	// Basic server start fields
-	//logger         *logging.Writer
 	lldpDbHdl      *dbutils.DBUtil
 	paramsDir      string
 	asicdClient    LLDPAsicdClient
