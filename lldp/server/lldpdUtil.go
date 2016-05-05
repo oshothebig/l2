@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"l2/lldp/utils"
 	"net"
 	"sync"
 	"time"
-	"utils/logging"
 )
 
 func Min(x, y int) int {
@@ -27,9 +27,7 @@ func Max(x, y int) int {
 
 /*  Init l2 port information for global runtime information
  */
-func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(logger *logging.Writer,
-	portConf *asicdServices.PortState) {
-	gblInfo.logger = logger
+func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(portConf *asicdServices.PortState) {
 	gblInfo.IfIndex = portConf.IfIndex
 	gblInfo.Name = portConf.Name
 	gblInfo.OperState = portConf.OperState
@@ -86,7 +84,7 @@ func (gblInfo *LLDPGlobalInfo) SetDstMac() {
 	var err error
 	gblInfo.DstMAC, err = net.ParseMAC(LLDP_PROTO_DST_MAC)
 	if err != nil {
-		gblInfo.logger.Err(fmt.Sprintln("parsing lldp protocol mac failed",
+		debug.Logger.Err(fmt.Sprintln("parsing lldp protocol mac failed",
 			err))
 	}
 }
@@ -143,7 +141,7 @@ func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
 	gblInfo.PcapHdlLock.RLock()
 	if gblInfo.PcapHandle != nil {
 		gblInfo.PcapHdlLock.RUnlock()
-		gblInfo.logger.Alert("Pcap already exists and create pcap called for " +
+		debug.Logger.Alert("Pcap already exists and create pcap called for " +
 			gblInfo.Name)
 		return
 	}
@@ -151,12 +149,12 @@ func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
 	pcapHdl, err := pcap.OpenLive(gblInfo.Name, lldpSnapshotLen,
 		lldpPromiscuous, lldpTimeout)
 	if err != nil {
-		gblInfo.logger.Err(fmt.Sprintln("Creating Pcap Handler failed for",
+		debug.Logger.Err(fmt.Sprintln("Creating Pcap Handler failed for",
 			gblInfo.Name, "Error:", err))
 	}
 	err = pcapHdl.SetBPFFilter(LLDP_BPF_FILTER)
 	if err != nil {
-		gblInfo.logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
+		debug.Logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
 			"for", gblInfo.Name, "failed with error:", err))
 	}
 	gblInfo.PcapHdlLock.Lock()
@@ -174,23 +172,23 @@ func (gblInfo *LLDPGlobalInfo) GetChassisIdInfo() string {
 
 	switch gblInfo.rxFrame.ChassisID.Subtype {
 	case layers.LLDPChassisIDSubTypeReserved:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPChassisIDSubTypeChassisComp:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPChassisIDSubtypeIfaceAlias:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPChassisIDSubTypePortComp:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPChassisIDSubTypeMACAddr:
 		var mac net.HardwareAddr
 		mac = gblInfo.rxFrame.ChassisID.ID
 		return mac.String()
 	case layers.LLDPChassisIDSubTypeNetworkAddr:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPChassisIDSubtypeIfaceName:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPChassisIDSubTypeLocal:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	default:
 		return retVal
 
@@ -208,26 +206,42 @@ func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
 
 	switch gblInfo.rxFrame.PortID.Subtype {
 	case layers.LLDPPortIDSubtypeReserved:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPPortIDSubtypeIfaceAlias:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPPortIDSubtypePortComp:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPPortIDSubtypeMACAddr:
 		var mac net.HardwareAddr
 		mac = gblInfo.rxFrame.ChassisID.ID
 		return mac.String()
 	case layers.LLDPPortIDSubtypeNetworkAddr:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPPortIDSubtypeIfaceName:
 		return string(gblInfo.rxFrame.PortID.ID)
 	case layers.LLDPPortIDSubtypeAgentCircuitID:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	case layers.LLDPPortIDSubtypeLocal:
-		gblInfo.logger.Debug("Need to handle this case")
+		debug.Logger.Debug("Need to handle this case")
 	default:
 		return retVal
 
 	}
 	return retVal
+}
+
+/*  dump received lldp frame and other TX information
+ */
+func (gblInfo LLDPGlobalInfo) DumpFrame() {
+	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
+		gblInfo.PortNum))
+	debug.Logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.SrcMAC.String(),
+		"DstMAC:", gblInfo.DstMAC.String()))
+	debug.Logger.Info(fmt.Sprintln("ChassisID info is",
+		gblInfo.rxFrame.ChassisID))
+	debug.Logger.Info(fmt.Sprintln("PortID info is",
+		gblInfo.rxFrame.PortID))
+	debug.Logger.Info(fmt.Sprintln("TTL info is", gblInfo.rxFrame.TTL))
+	debug.Logger.Info(fmt.Sprintln("Optional Values is",
+		gblInfo.rxLinkInfo))
 }

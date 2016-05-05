@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	nanomsg "github.com/op/go-nanomsg"
+	"l2/lldp/utils"
 	_ "utils/commonDefs"
 )
 
 /* Register with Asicd and then get l2 port info from asicd via GetBulk
  */
 func (svr *LLDPServer) GetInfoFromAsicd() error {
-	svr.logger.Info("Calling Asicd to initialize port properties")
+	debug.Logger.Info("Calling Asicd to initialize port properties")
 	err := svr.RegisterWithAsicdUpdates(asicdCommonDefs.PUB_SOCKET_ADDR)
 	if err == nil {
 		// Asicd subscriber thread
@@ -32,32 +33,32 @@ func (svr *LLDPServer) GetInfoFromAsicd() error {
  */
 func (svr *LLDPServer) RegisterWithAsicdUpdates(address string) error {
 	var err error
-	svr.logger.Info("setting up asicd update listener")
+	debug.Logger.Info("setting up asicd update listener")
 	if svr.asicdSubSocket, err = nanomsg.NewSubSocket(); err != nil {
-		svr.logger.Err(fmt.Sprintln("Failed to create ASIC subscribe",
+		debug.Logger.Err(fmt.Sprintln("Failed to create ASIC subscribe",
 			"socket, error:", err))
 		return err
 	}
 
 	if err = svr.asicdSubSocket.Subscribe(""); err != nil {
-		svr.logger.Err(fmt.Sprintln("Failed to subscribe to \"\" on",
+		debug.Logger.Err(fmt.Sprintln("Failed to subscribe to \"\" on",
 			"ASIC subscribe socket, error:",
 			err))
 		return err
 	}
 
 	if _, err = svr.asicdSubSocket.Connect(address); err != nil {
-		svr.logger.Err(fmt.Sprintln("Failed to connect to ASIC",
+		debug.Logger.Err(fmt.Sprintln("Failed to connect to ASIC",
 			"publisher socket, address:", address, "error:", err))
 		return err
 	}
 
 	if err = svr.asicdSubSocket.SetRecvBuffer(1024 * 1024); err != nil {
-		svr.logger.Err(fmt.Sprintln("Failed to set the buffer size for ",
+		debug.Logger.Err(fmt.Sprintln("Failed to set the buffer size for ",
 			"ASIC publisher socket, error:", err))
 		return err
 	}
-	svr.logger.Info("asicd update listener is set")
+	debug.Logger.Info("asicd update listener is set")
 	return nil
 }
 
@@ -68,14 +69,14 @@ func (svr *LLDPServer) AsicdSubscriber() {
 	for {
 		rxBuf, err := svr.asicdSubSocket.Recv(0)
 		if err != nil {
-			svr.logger.Err(fmt.Sprintln("Recv on asicd Subscriber",
+			debug.Logger.Err(fmt.Sprintln("Recv on asicd Subscriber",
 				"socket failed with error:", err))
 			continue
 		}
 		var msg asicdCommonDefs.AsicdNotification
 		err = json.Unmarshal(rxBuf, &msg)
 		if err != nil {
-			svr.logger.Err(fmt.Sprintln("Unable to Unmarshal",
+			debug.Logger.Err(fmt.Sprintln("Unable to Unmarshal",
 				"asicd msg:", msg.Msg))
 			continue
 		}
@@ -83,7 +84,7 @@ func (svr *LLDPServer) AsicdSubscriber() {
 			var l2IntfStateNotifyMsg asicdCommonDefs.L2IntfStateNotifyMsg
 			err = json.Unmarshal(msg.Msg, &l2IntfStateNotifyMsg)
 			if err != nil {
-				svr.logger.Err(fmt.Sprintln("Unable to Unmarshal l2 intf",
+				debug.Logger.Err(fmt.Sprintln("Unable to Unmarshal l2 intf",
 					"state change:", msg.Msg))
 				continue
 			}
@@ -95,7 +96,7 @@ func (svr *LLDPServer) AsicdSubscriber() {
 /*  Helper function to get bulk port state information from asicd
  */
 func (svr *LLDPServer) GetPortStates() {
-	svr.logger.Info("Get Port State List")
+	debug.Logger.Info("Get Port State List")
 	currMarker := int64(asicdCommonDefs.MIN_SYS_PORTS)
 	more := false
 	objCount := 0
@@ -104,7 +105,7 @@ func (svr *LLDPServer) GetPortStates() {
 		bulkInfo, err := svr.asicdClient.ClientHdl.GetBulkPortState(
 			asicdServices.Int(currMarker), asicdServices.Int(count))
 		if err != nil {
-			svr.logger.Err(fmt.Sprintln(": getting bulk port config"+
+			debug.Logger.Err(fmt.Sprintln(": getting bulk port config"+
 				" from asicd failed with reason", err))
 			return
 		}
@@ -123,7 +124,7 @@ func (svr *LLDPServer) GetPortStates() {
 /*  Helper function to get bulk port state information from asicd
  */
 func (svr *LLDPServer) GetPorts() {
-	svr.logger.Info("Get Port List")
+	debug.Logger.Info("Get Port List")
 	currMarker := int64(asicdCommonDefs.MIN_SYS_PORTS)
 	more := false
 	objCount := 0
@@ -132,7 +133,7 @@ func (svr *LLDPServer) GetPorts() {
 		bulkInfo, err := svr.asicdClient.ClientHdl.GetBulkPort(
 			asicdServices.Int(currMarker), asicdServices.Int(count))
 		if err != nil {
-			svr.logger.Err(fmt.Sprintln(": getting bulk port config"+
+			debug.Logger.Err(fmt.Sprintln(": getting bulk port config"+
 				" from asicd failed with reason", err))
 			return
 		}
@@ -158,7 +159,7 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(
 	}
 	switch updateInfo.IfState {
 	case asicdCommonDefs.INTF_STATE_UP:
-		svr.logger.Info("State UP notification for " + gblInfo.Name)
+		debug.Logger.Info("State UP notification for " + gblInfo.Name)
 		gblInfo.OperStateLock.Lock()
 		gblInfo.OperState = LLDP_PORT_STATE_UP
 		svr.lldpGblInfo[updateInfo.IfIndex] = gblInfo
@@ -166,7 +167,7 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(
 		// Create Pcap Handler and start rx/tx packets
 		svr.StartRxTx(updateInfo.IfIndex)
 	case asicdCommonDefs.INTF_STATE_DOWN:
-		svr.logger.Info("State DOWN notification for " + gblInfo.Name)
+		debug.Logger.Info("State DOWN notification for " + gblInfo.Name)
 		gblInfo.OperStateLock.Lock()
 		gblInfo.OperState = LLDP_PORT_STATE_DOWN
 		gblInfo.OperStateLock.Unlock()
