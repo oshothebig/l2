@@ -42,7 +42,6 @@ func (svr *LLDPServer) TransmitFrames(pHandle *pcap.Handle, ifIndex int32) {
  *		2) if there is config object update
  */
 func (gblInfo *LLDPGlobalInfo) SendFrame() {
-	//gblInfo.logger.Info("Sending frame for " + gblInfo.Name)
 	// if cached then directly send the packet
 	if gblInfo.useCacheFrame {
 		if cache := gblInfo.WritePacket(gblInfo.cacheFrame); cache == false {
@@ -55,7 +54,6 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 		// Chassis ID: Mac Address of Port
 		// Port ID: Port Name
 		// TTL: calculated during port init default is 30 * 4 = 120
-		gblInfo.logger.Info("Creating Payload")
 		payload := gblInfo.CreatePayload(srcmac)
 		if payload == nil {
 			gblInfo.logger.Err("Creating payload failed for port " +
@@ -63,7 +61,6 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 			gblInfo.useCacheFrame = false
 			return
 		}
-		gblInfo.logger.Info("Payload Created Successfully")
 		// Additional TLV's... @TODO: get it done later on
 		// System information... like "show version" command at Cisco
 		// System Capabilites...
@@ -117,26 +114,25 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload(srcmac []byte) []byte {
 			tlv.Type = layers.LLDPTLVChassisID
 			tlv.Value = EncodeMandatoryTLV(byte(
 				layers.LLDPChassisIDSubTypeMACAddr), srcmac)
-			gblInfo.logger.Info(fmt.Sprintln("Chassis id tlv", tlv))
+			gblInfo.logger.Debug(fmt.Sprintln("Chassis id tlv", tlv))
 
 		case 2: // Port ID
 			tlv.Type = layers.LLDPTLVPortID
 			tlv.Value = EncodeMandatoryTLV(byte(
 				layers.LLDPPortIDSubtypeIfaceName),
 				[]byte(gblInfo.Name))
-			gblInfo.logger.Info(fmt.Sprintln("Port id tlv", tlv))
+			gblInfo.logger.Debug(fmt.Sprintln("Port id tlv", tlv))
 
 		case 3: // TTL
 			tlv.Type = layers.LLDPTLVTTL
 			tb := []byte{0, 0}
 			binary.BigEndian.PutUint16(tb, uint16(gblInfo.ttl))
 			tlv.Value = append(tlv.Value, tb...)
-			gblInfo.logger.Info(fmt.Sprintln("TTL tlv", tlv))
+			gblInfo.logger.Debug(fmt.Sprintln("TTL tlv", tlv))
 
 			// @TODO: add other cases for optional tlv
 		}
 		tlv.Length = uint16(len(tlv.Value))
-		gblInfo.logger.Info(fmt.Sprintln("len of value is", tlv.Length))
 		payload = append(payload, EncodeTLV(tlv)...)
 		tlvType++
 	}
