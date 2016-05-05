@@ -53,28 +53,9 @@ type LLDPGlobalInfo struct {
 	PcapHandle *pcap.Handle
 	// Pcap Handler lock to write data one routine at a time
 	PcapHdlLock *sync.RWMutex
-
-	/*
-		tx Packet.TX
-	*/
-	RxInfo *packet.RX
-	/*
-		// ethernet frame Info (used for rx/tx)
-		SrcMAC net.HardwareAddr // NOTE: Please be informed this is Peer Mac Addr
-		DstMAC net.HardwareAddr
-
-		// lldp rx information
-		rxFrame         *layers.LinkLayerDiscovery
-		rxLinkInfo      *layers.LinkLayerDiscoveryInfo
-		clearCacheTimer *time.Timer
-	*/
+	RxInfo      *packet.RX
 	// tx information
-	ttl                         int
-	lldpMessageTxInterval       int
-	lldpMessageTxHoldMultiplier int
-	useCacheFrame               bool
-	cacheFrame                  []byte
-	txTimer                     *time.Timer
+	TxInfo *packet.TX
 }
 
 type LLDPServer struct {

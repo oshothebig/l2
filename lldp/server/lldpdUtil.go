@@ -35,12 +35,9 @@ func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(portConf *asicdServices.PortState
 	gblInfo.PortNum = portConf.PortNum
 	gblInfo.OperStateLock = &sync.RWMutex{}
 	gblInfo.PcapHdlLock = &sync.RWMutex{}
-	gblInfo.useCacheFrame = false
-	gblInfo.SetTxInterval(LLDP_DEFAULT_TX_INTERVAL)
-	gblInfo.SetTxHoldMultiplier(LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
-	gblInfo.SetTTL()
-	gblInfo.SetDstMac()
 	gblInfo.RxInfo = packet.RxInit()
+	gblInfo.TxInfo = packet.TxInit(LLDP_DEFAULT_TX_INTERVAL,
+		LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
 }
 
 /*  updating l2 port information with mac address. If needed update other
@@ -58,41 +55,6 @@ func (gblInfo *LLDPGlobalInfo) DeInitRuntimeInfo() {
 	gblInfo.FreeDynamicMemory()
 }
 
-/*  Set TTL Value at the time of init or update of lldp config
- *  default value comes out to be 120
- */
-func (gblInfo *LLDPGlobalInfo) SetTTL() {
-	gblInfo.ttl = Min(LLDP_MAX_TTL, (gblInfo.lldpMessageTxInterval *
-		gblInfo.lldpMessageTxHoldMultiplier))
-}
-
-/*  Set tx interval during init or update
- *  default value is 30
- */
-func (gblInfo *LLDPGlobalInfo) SetTxInterval(interval int) {
-	gblInfo.lldpMessageTxInterval = interval
-}
-
-/*  Set tx hold multiplier during init or update
- *  default value is 4
- */
-func (gblInfo *LLDPGlobalInfo) SetTxHoldMultiplier(hold int) {
-	gblInfo.lldpMessageTxHoldMultiplier = hold
-}
-
-/*  Set DstMac as lldp protocol mac address
- */
-func (gblInfo *LLDPGlobalInfo) SetDstMac() {
-	/*
-		var err error
-		gblInfo.DstMAC, err = net.ParseMAC(LLDP_PROTO_DST_MAC)
-		if err != nil {
-			debug.Logger.Err(fmt.Sprintln("parsing lldp protocol mac failed",
-				err))
-		}
-	*/
-}
-
 /*  Delete l2 port pcap handler
  */
 func (gblInfo *LLDPGlobalInfo) DeletePcapHandler() {
@@ -105,14 +67,6 @@ func (gblInfo *LLDPGlobalInfo) DeletePcapHandler() {
 	gblInfo.PcapHdlLock.Unlock()
 }
 
-/*  Stop Tx timer... as we have already delete the pcap handle
- */
-func (gblInfo *LLDPGlobalInfo) StopTxTimer() {
-	if gblInfo.txTimer != nil {
-		gblInfo.txTimer.Stop()
-	}
-}
-
 /*  Stop RX cache timer
  */
 func (gblInfo *LLDPGlobalInfo) StopCacheTimer() {
@@ -120,26 +74,13 @@ func (gblInfo *LLDPGlobalInfo) StopCacheTimer() {
 		return
 	}
 	gblInfo.RxInfo.ClearCacheTimer.Stop()
-	/*
-		if gblInfo.ClearCacheTimer == nil {
-			return
-		}
-		gblInfo.ClearCacheTimer.Stop()
-	*/
-}
-
-/*  We have deleted the pcap handler and hence we will invalid the cache buffer
- */
-func (gblInfo *LLDPGlobalInfo) DeleteCacheFrame() {
-	gblInfo.useCacheFrame = false
-	gblInfo.cacheFrame = nil
 }
 
 /*  Return back all the memory which was allocated using new
  */
 func (gblInfo *LLDPGlobalInfo) FreeDynamicMemory() {
-	//gblInfo.rxFrame = nil
-	//gblInfo.rxLinkInfo = nil
+	gblInfo.RxInfo.RxFrame = nil
+	gblInfo.RxInfo.RxLinkInfo = nil
 	gblInfo.OperStateLock = nil
 	gblInfo.PcapHdlLock = nil
 }
@@ -202,31 +143,6 @@ func (gblInfo *LLDPGlobalInfo) GetChassisIdInfo() string {
 		return retVal
 
 	}
-	/*
-		switch gblInfo.rxFrame.ChassisID.Subtype {
-		case layers.LLDPChassisIDSubTypeReserved:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPChassisIDSubTypeChassisComp:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPChassisIDSubtypeIfaceAlias:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPChassisIDSubTypePortComp:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPChassisIDSubTypeMACAddr:
-			var mac net.HardwareAddr
-			mac = gblInfo.rxFrame.ChassisID.ID
-			return mac.String()
-		case layers.LLDPChassisIDSubTypeNetworkAddr:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPChassisIDSubtypeIfaceName:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPChassisIDSubTypeLocal:
-			debug.Logger.Debug("Need to handle this case")
-		default:
-			return retVal
-
-		}
-	*/
 	return retVal
 }
 
@@ -260,31 +176,6 @@ func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
 		return retVal
 
 	}
-	/*
-		switch gblInfo.rxFrame.PortID.Subtype {
-		case layers.LLDPPortIDSubtypeReserved:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPPortIDSubtypeIfaceAlias:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPPortIDSubtypePortComp:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPPortIDSubtypeMACAddr:
-			var mac net.HardwareAddr
-			mac = gblInfo.rxFrame.ChassisID.ID
-			return mac.String()
-		case layers.LLDPPortIDSubtypeNetworkAddr:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPPortIDSubtypeIfaceName:
-			return string(gblInfo.rxFrame.PortID.ID)
-		case layers.LLDPPortIDSubtypeAgentCircuitID:
-			debug.Logger.Debug("Need to handle this case")
-		case layers.LLDPPortIDSubtypeLocal:
-			debug.Logger.Debug("Need to handle this case")
-		default:
-			return retVal
-
-		}
-	*/
 	return retVal
 }
 
@@ -302,17 +193,4 @@ func (gblInfo LLDPGlobalInfo) DumpFrame() {
 	debug.Logger.Info(fmt.Sprintln("TTL info is", gblInfo.RxInfo.RxFrame.TTL))
 	debug.Logger.Info(fmt.Sprintln("Optional Values is",
 		gblInfo.RxInfo.RxLinkInfo))
-	/*
-		debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
-			gblInfo.PortNum))
-		debug.Logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.SrcMAC.String(),
-			"DstMAC:", gblInfo.DstMAC.String()))
-		debug.Logger.Info(fmt.Sprintln("ChassisID info is",
-			gblInfo.rxFrame.ChassisID))
-		debug.Logger.Info(fmt.Sprintln("PortID info is",
-			gblInfo.rxFrame.PortID))
-		debug.Logger.Info(fmt.Sprintln("TTL info is", gblInfo.rxFrame.TTL))
-		debug.Logger.Info(fmt.Sprintln("Optional Values is",
-			gblInfo.rxLinkInfo))
-	*/
 }

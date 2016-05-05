@@ -245,21 +245,6 @@ func (svr *LLDPServer) ChannelHanlder() {
 				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
 				// dump the frame
 				//gblInfo.DumpFrame()
-				/*
-					// Cache the received incoming frame
-					err := gblInfo.ProcessRxPkt(rcvdInfo.pkt)
-					if err != nil {
-						debug.Logger.Err(fmt.Sprintln("err", err,
-							" while processing rx frame on port",
-							gblInfo.Name))
-						continue
-					}
-					// reset/start timer for recipient information
-					gblInfo.CheckPeerEntry()
-					svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
-				*/
-				// dump the frame
-				//gblInfo.DumpFrame()
 			}
 		case exit := <-svr.lldpExit:
 			if exit {
@@ -275,7 +260,11 @@ func (svr *LLDPServer) ChannelHanlder() {
 			gblInfo, exists := svr.lldpGblInfo[info.ifIndex]
 			// extra check for pcap handle
 			if exists && gblInfo.PcapHandle != nil {
-				gblInfo.SendFrame()
+				rv := gblInfo.WritePacket(
+					gblInfo.TxInfo.SendFrame(gblInfo.MacAddr, gblInfo.Name))
+				if rv == false {
+					gblInfo.TxInfo.SetCache(rv)
+				}
 				svr.lldpGblInfo[info.ifIndex] = gblInfo
 			}
 		}
@@ -346,11 +335,11 @@ func (svr *LLDPServer) StopRxTx(ifIndex int32) {
 		return
 	}
 	// stop the timer
-	gblInfo.StopTxTimer()
+	gblInfo.TxInfo.StopTxTimer()
 	// delete pcap handler
 	gblInfo.DeletePcapHandler()
 	// invalid the cache information
-	gblInfo.DeleteCacheFrame()
+	gblInfo.TxInfo.DeleteCacheFrame()
 	debug.Logger.Info("Stop lldp frames rx/tx for port:" + gblInfo.Name)
 	svr.lldpGblInfo[ifIndex] = gblInfo
 	svr.DeletePortFromUpState(ifIndex)
