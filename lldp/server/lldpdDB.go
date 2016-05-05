@@ -9,7 +9,7 @@ import (
 
 func (svr *LLDPServer) InitDB() error {
 	var err error
-	svr.logger.Info("Initializing DB")
+	debug.Logger.Info("Initializing DB")
 	svr.lldpDbHdl = dbutils.NewDBUtil(svr.logger)
 	err = svr.lldpDbHdl.Connect()
 	if err != nil {
