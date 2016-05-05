@@ -2,6 +2,7 @@ package lldpServer
 
 import (
 	"fmt"
+	"l2/lldp/utils"
 	_ "lldpd"
 	"utils/dbutils"
 )
@@ -12,10 +13,10 @@ func (svr *LLDPServer) InitDB() error {
 	svr.lldpDbHdl = dbutils.NewDBUtil(svr.logger)
 	err = svr.lldpDbHdl.Connect()
 	if err != nil {
-		svr.logger.Err(fmt.Sprintln("Failed to Create DB Handle", err))
+		debug.Logger.Err(fmt.Sprintln("Failed to Create DB Handle", err))
 		return err
 	}
-	svr.logger.Info("DB connection is established")
+	debug.Logger.Info("DB connection is established")
 	return err
 }
 
@@ -25,7 +26,7 @@ func (svr *LLDPServer) CloseDB() {
 }
 
 func (svr *LLDPServer) ReadDB() error {
-	svr.logger.Info("Reading from Database")
-	svr.logger.Info("Done reading from DB")
+	debug.Logger.Info("Reading from Database")
+	debug.Logger.Info("Done reading from DB")
 	return nil
 }

@@ -2,6 +2,7 @@ package lldpServer
 
 import (
 	"fmt"
+	"l2/lldp/utils"
 	"lldpd"
 	"strconv"
 )
@@ -13,7 +14,7 @@ func (svr *LLDPServer) PopulateMandatoryTLV(ifIndex int32,
 	entry *lldpd.LLDPIntfState) bool {
 	gblInfo, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
-		svr.logger.Err(fmt.Sprintln("Entry not found for", ifIndex))
+		debug.Logger.Err(fmt.Sprintln("Entry not found for", ifIndex))
 		return exists
 	}
 	entry.LocalPort = gblInfo.Name
@@ -35,7 +36,7 @@ func (svr *LLDPServer) GetBulkLLDPIntfState(idx int, cnt int) (int, int,
 	var count int
 
 	if svr.lldpIntfStateSlice == nil {
-		svr.logger.Info("No neighbor learned")
+		debug.Logger.Info("No neighbor learned")
 		return 0, 0, nil
 	}
 

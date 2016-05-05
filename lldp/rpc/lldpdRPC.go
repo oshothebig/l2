@@ -7,9 +7,9 @@ import (
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"io/ioutil"
 	"l2/lldp/server"
+	"l2/lldp/utils"
 	"lldpd"
 	"strconv"
-	"utils/logging"
 )
 
 const (
@@ -18,22 +18,19 @@ const (
 
 type LLDPHandler struct {
 	server *lldpServer.LLDPServer
-	logger *logging.Writer
 }
 type LLDPClientJson struct {
 	Name string `json:Name`
 	Port int    `json:Port`
 }
 
-func LLDPNewHandler(lldpSvr *lldpServer.LLDPServer, logger *logging.Writer) *LLDPHandler {
+func LLDPNewHandler(lldpSvr *lldpServer.LLDPServer) *LLDPHandler {
 	hdl := new(LLDPHandler)
 	hdl.server = lldpSvr
-	hdl.logger = logger
 	return hdl
 }
 
-func LLDPRPCStartServer(log *logging.Writer, handler *LLDPHandler, paramsDir string) error {
-	logger := log
+func LLDPRPCStartServer(handler *LLDPHandler, paramsDir string) error {
 	fileName := paramsDir
 
 	if fileName[len(fileName)-1] != '/' {
@@ -41,11 +38,11 @@ func LLDPRPCStartServer(log *logging.Writer, handler *LLDPHandler, paramsDir str
 	}
 	fileName = fileName + "clients.json"
 
-	clientJson, err := LLDPRPCGetClient(logger, fileName, "lldpd")
+	clientJson, err := LLDPRPCGetClient(fileName, "lldpd")
 	if err != nil || clientJson == nil {
 		return err
 	}
-	logger.Info(fmt.Sprintln("Got Client Info for", clientJson.Name, " port",
+	debug.Logger.Info(fmt.Sprintln("Got Client Info for", clientJson.Name, " port",
 		clientJson.Port))
 	// create processor, transport and protocol for server
 	processor := lldpd.NewLLDPDServicesProcessor(handler)
@@ -53,7 +50,7 @@ func LLDPRPCStartServer(log *logging.Writer, handler *LLDPHandler, paramsDir str
 	protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 	transport, err := thrift.NewTServerSocket("localhost:" + strconv.Itoa(clientJson.Port))
 	if err != nil {
-		logger.Info(fmt.Sprintln("StartServer: NewTServerSocket "+
+		debug.Logger.Info(fmt.Sprintln("StartServer: NewTServerSocket "+
 			"failed with error:", err))
 		return err
 	}
@@ -61,19 +58,18 @@ func LLDPRPCStartServer(log *logging.Writer, handler *LLDPHandler, paramsDir str
 		transportFactory, protocolFactory)
 	err = server.Serve()
 	if err != nil {
-		logger.Err(fmt.Sprintln("Failed to start the listener, err:", err))
+		debug.Logger.Err(fmt.Sprintln("Failed to start the listener, err:", err))
 		return err
 	}
 	return nil
 }
 
-func LLDPRPCGetClient(logger *logging.Writer, fileName string,
-	process string) (*LLDPClientJson, error) {
+func LLDPRPCGetClient(fileName string, process string) (*LLDPClientJson, error) {
 	var allClients []LLDPClientJson
 
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		logger.Err(fmt.Sprintf("Failed to open LLDPd config file:%s, err:%s",
+		debug.Logger.Err(fmt.Sprintf("Failed to open LLDPd config file:%s, err:%s",
 			fileName, err))
 		return nil, err
 	}
@@ -85,7 +81,7 @@ func LLDPRPCGetClient(logger *logging.Writer, fileName string,
 		}
 	}
 
-	logger.Err(fmt.Sprintf("Did not find port for %s in config file:%s",
+	debug.Logger.Err(fmt.Sprintf("Did not find port for %s in config file:%s",
 		process, fileName))
 	return nil, errors.New(LLDP_RPC_NO_PORT)
 
