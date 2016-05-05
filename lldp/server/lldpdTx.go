@@ -7,6 +7,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"l2/lldp/utils"
 	"net"
 	"time"
 )
@@ -56,7 +57,7 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 		// TTL: calculated during port init default is 30 * 4 = 120
 		payload := gblInfo.CreatePayload(srcmac)
 		if payload == nil {
-			gblInfo.logger.Err("Creating payload failed for port " +
+			debug.Logger.Err("Creating payload failed for port " +
 				gblInfo.Name)
 			gblInfo.useCacheFrame = false
 			return
@@ -86,7 +87,7 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 			gblInfo.cacheFrame = make([]byte, len(pkt))
 			copied := copy(gblInfo.cacheFrame, pkt)
 			if copied < len(pkt) {
-				gblInfo.logger.Err("Cache cannot be created")
+				debug.Logger.Err("Cache cannot be created")
 				gblInfo.cacheFrame = nil
 				gblInfo.useCacheFrame = false
 				return
@@ -114,21 +115,21 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload(srcmac []byte) []byte {
 			tlv.Type = layers.LLDPTLVChassisID
 			tlv.Value = EncodeMandatoryTLV(byte(
 				layers.LLDPChassisIDSubTypeMACAddr), srcmac)
-			gblInfo.logger.Debug(fmt.Sprintln("Chassis id tlv", tlv))
+			debug.Logger.Debug(fmt.Sprintln("Chassis id tlv", tlv))
 
 		case 2: // Port ID
 			tlv.Type = layers.LLDPTLVPortID
 			tlv.Value = EncodeMandatoryTLV(byte(
 				layers.LLDPPortIDSubtypeIfaceName),
 				[]byte(gblInfo.Name))
-			gblInfo.logger.Debug(fmt.Sprintln("Port id tlv", tlv))
+			debug.Logger.Debug(fmt.Sprintln("Port id tlv", tlv))
 
 		case 3: // TTL
 			tlv.Type = layers.LLDPTLVTTL
 			tb := []byte{0, 0}
 			binary.BigEndian.PutUint16(tb, uint16(gblInfo.ttl))
 			tlv.Value = append(tlv.Value, tb...)
-			gblInfo.logger.Debug(fmt.Sprintln("TTL tlv", tlv))
+			debug.Logger.Debug(fmt.Sprintln("TTL tlv", tlv))
 
 			// @TODO: add other cases for optional tlv
 		}
@@ -160,7 +161,7 @@ func (gblInfo *LLDPGlobalInfo) WritePacket(pkt []byte) bool {
 	}
 	gblInfo.PcapHdlLock.Unlock()
 	if err != nil {
-		gblInfo.logger.Err(fmt.Sprintln("Sending packet failed Error:",
+		debug.Logger.Err(fmt.Sprintln("Sending packet failed Error:",
 			err, "for Port:", gblInfo.Name))
 		return false
 	}

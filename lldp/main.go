@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"l2/lldp/rpc"
 	"l2/lldp/server"
+	"l2/lldp/utils"
 	"utils/keepalive"
 	"utils/logging"
 )
@@ -23,11 +24,12 @@ func main() {
 	if err != nil {
 		fmt.Println("Failed to start the logger. Nothing will be logged...")
 	}
-	logger.Info("Started the logger successfully.")
+	debug.SetLogger(logger)
+	debug.Logger.Info("Started the logger successfully.")
 
-	logger.Info("Starting LLDP server....")
+	debug.Logger.Info("Starting LLDP server....")
 	// Create lldp server handler
-	lldpSvr := lldpServer.LLDPNewServer(logger)
+	lldpSvr := lldpServer.LLDPNewServer()
 	// Until Server is connected to clients do not start with RPC
 	lldpSvr.LLDPStartServer(*paramsDir)
 
@@ -35,11 +37,11 @@ func main() {
 	go keepalive.InitKeepAlive("lldpd", fileName)
 
 	// Create lldp rpc handler
-	lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr, logger)
-	logger.Info("Starting LLDP RPC listener....")
-	err = lldpRpc.LLDPRPCStartServer(logger, lldpHdl, *paramsDir)
+	lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr)
+	debug.Logger.Info("Starting LLDP RPC listener....")
+	err = lldpRpc.LLDPRPCStartServer(lldpHdl, *paramsDir)
 	if err != nil {
-		logger.Err(fmt.Sprintln("Cannot start lldp server", err))
+		debug.Logger.Err(fmt.Sprintln("Cannot start lldp server", err))
 		return
 	}
 }

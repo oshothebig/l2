@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"l2/lldp/utils"
 	"os"
 	"os/signal"
 	_ "runtime/pprof"
@@ -14,14 +15,12 @@ import (
 	"syscall"
 	"time"
 	"utils/ipcutils"
-	"utils/logging"
 )
 
 /* Create lldp server object for the main handler..
  */
-func LLDPNewServer(log *logging.Writer) *LLDPServer {
+func LLDPNewServer() *LLDPServer {
 	lldpServerInfo := &LLDPServer{}
-	lldpServerInfo.logger = log
 	// Allocate memory to all the Data Structures
 	lldpServerInfo.InitGlobalDS()
 	/*
@@ -37,12 +36,11 @@ func LLDPNewServer(log *logging.Writer) *LLDPServer {
 /* Allocate memory to all the object which are being used by LLDP server
  */
 func (svr *LLDPServer) InitGlobalDS() {
-	svr.lldpGblInfo = make(map[int32]LLDPGlobalInfo,
-		LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
-	svr.lldpPortNumIfIndexMap = make(map[int32]int32,
-		LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
+	svr.lldpGblInfo = make(map[int32]LLDPGlobalInfo, LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
+	svr.lldpPortNumIfIndexMap = make(map[int32]int32, LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
 	svr.lldpRxPktCh = make(chan InPktChannel, LLDP_RX_PKT_CHANNEL_SIZE)
 	svr.lldpTxPktCh = make(chan SendPktChannel, LLDP_TX_PKT_CHANNEL_SIZE)
+	//svr.packet = packet.NewPacketInfo()
 	svr.lldpExit = make(chan bool)
 	svr.lldpSnapshotLen = 1024
 	svr.lldpPromiscuous = false
@@ -80,7 +78,7 @@ func (svr *LLDPServer) CloseAllPktHandlers() {
 		gblInfo.DeInitRuntimeInfo()
 		svr.lldpGblInfo[key] = gblInfo
 	}
-	svr.logger.Info("closed everything")
+	debug.Logger.Info("closed everything")
 }
 
 /*  lldp server: 1) Connect to all the clients
@@ -96,7 +94,7 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 	// Initialize DB
 	err := svr.InitDB()
 	if err != nil {
-		svr.logger.Err("DB init failed")
+		debug.Logger.Err("DB init failed")
 	} else {
 		// Populate Gbl Configs
 		svr.ReadDB()
@@ -112,14 +110,14 @@ func (svr *LLDPServer) ConnectAndInitPortVlan() error {
 	configFile := svr.paramsDir + "/clients.json"
 	bytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		svr.logger.Err(fmt.Sprintln("Error while reading ",
+		debug.Logger.Err(fmt.Sprintln("Error while reading ",
 			"configuration file", configFile))
 		return err
 	}
 	var unConnectedClients []LLDPClientJson
 	err = json.Unmarshal(bytes, &unConnectedClients)
 	if err != nil {
-		svr.logger.Err("Error in Unmarshalling Json")
+		debug.Logger.Err("Error in Unmarshalling Json")
 		return err
 	}
 	re_connect := 15
@@ -131,7 +129,7 @@ func (svr *LLDPServer) ConnectAndInitPortVlan() error {
 			err := svr.ConnectToUnConnectedClient(
 				unConnectedClients[i])
 			if err == nil {
-				svr.logger.Info("Connected to " +
+				debug.Logger.Info("Connected to " +
 					unConnectedClients[i].Name)
 				unConnectedClients = append(unConnectedClients[:i],
 					unConnectedClients[i+1:]...)
@@ -143,7 +141,7 @@ func (svr *LLDPServer) ConnectAndInitPortVlan() error {
 			} else {
 				count++
 				if count == re_connect {
-					svr.logger.Err(fmt.Sprintln("Connecting to",
+					debug.Logger.Err(fmt.Sprintln("Connecting to",
 						unConnectedClients[i].Name,
 						"failed ERROR:", err))
 					count = 0
@@ -211,14 +209,14 @@ func (svr *LLDPServer) SignalHandler(sigChannel <-chan os.Signal) {
 	switch signal {
 	case syscall.SIGHUP:
 		svr.lldpExit <- true
-		svr.logger.Alert("Received SIGHUP Signal")
+		debug.Logger.Alert("Received SIGHUP Signal")
 		svr.CloseAllPktHandlers()
 		svr.DeInitGlobalDS()
 		//pprof.StopCPUProfile()
-		svr.logger.Alert("Exiting!!!!!")
+		debug.Logger.Alert("Exiting!!!!!")
 		os.Exit(0)
 	default:
-		svr.logger.Info(fmt.Sprintln("Unhandled Signal:", signal))
+		debug.Logger.Info(fmt.Sprintln("Unhandled Signal:", signal))
 	}
 }
 
@@ -230,15 +228,29 @@ func (svr *LLDPServer) ChannelHanlder() {
 		select {
 		case rcvdInfo, ok := <-svr.lldpRxPktCh:
 			if !ok {
-				svr.logger.Alert("RX Channel is closed, exit")
+				debug.Logger.Alert("RX Channel is closed, exit")
 				return // rx channel should be closed only on exit
 			}
 			gblInfo, exists := svr.lldpGblInfo[rcvdInfo.ifIndex]
 			if exists {
+				/*
+					err := svr.Packet.Process(&gblInfo, rcvdInfo.pkt)
+					if err != nil {
+						debug.Logger.Err(fmt.Sprintln("err", err,
+							" while processing rx frame on port",
+							gblInfo.Name))
+						continue
+					}
+					// reset/start timer for recipient information
+					svr.Packet.HoldTimer(&gblInfo)
+					svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
+					// dump the frame
+					//gblInfo.DumpFrame()
+				*/
 				// Cache the received incoming frame
 				err := gblInfo.ProcessRxPkt(rcvdInfo.pkt)
 				if err != nil {
-					gblInfo.logger.Err(fmt.Sprintln("err", err,
+					debug.Logger.Err(fmt.Sprintln("err", err,
 						" while processing rx frame on port",
 						gblInfo.Name))
 					continue
@@ -251,13 +263,13 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 		case exit := <-svr.lldpExit:
 			if exit {
-				svr.logger.Alert("lldp exiting stopping all" +
+				debug.Logger.Alert("lldp exiting stopping all" +
 					" channel handlers")
 				return
 			}
 		case info, ok := <-svr.lldpTxPktCh:
 			if !ok {
-				svr.logger.Alert("TX Channel is closed, exit")
+				debug.Logger.Alert("TX Channel is closed, exit")
 				return
 			}
 			gblInfo, exists := svr.lldpGblInfo[info.ifIndex]
@@ -275,7 +287,7 @@ func (svr *LLDPServer) ChannelHanlder() {
  */
 func (svr *LLDPServer) InitL2PortInfo(portConf *asicdServices.PortState) {
 	gblInfo, _ := svr.lldpGblInfo[portConf.IfIndex]
-	gblInfo.InitRuntimeInfo(svr.logger, portConf)
+	gblInfo.InitRuntimeInfo(portConf)
 	svr.lldpGblInfo[portConf.IfIndex] = gblInfo
 	svr.lldpPortNumIfIndexMap[portConf.PortNum] = gblInfo.IfIndex
 	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.IfIndex)
@@ -287,7 +299,7 @@ func (svr *LLDPServer) InitL2PortInfo(portConf *asicdServices.PortState) {
 func (svr *LLDPServer) UpdateL2PortInfo(portConf *asicdServices.Port) {
 	gblInfo, exists := svr.lldpGblInfo[svr.lldpPortNumIfIndexMap[portConf.PortNum]]
 	if !exists {
-		svr.logger.Err(fmt.Sprintln("no mapping found for Port Num",
+		debug.Logger.Err(fmt.Sprintln("no mapping found for Port Num",
 			portConf.PortNum, "and hence we do not have any MacAddr"))
 		return
 	}
@@ -310,14 +322,14 @@ func (svr *LLDPServer) UpdateL2PortInfo(portConf *asicdServices.Port) {
 func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 	gblInfo, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
-		svr.logger.Err(fmt.Sprintln("No entry for ifindex", ifIndex))
+		debug.Logger.Err(fmt.Sprintln("No entry for ifindex", ifIndex))
 		return
 	}
 	gblInfo.CreatePcapHandler(svr.lldpSnapshotLen, svr.lldpPromiscuous,
 		svr.lldpTimeout)
 
 	svr.lldpGblInfo[ifIndex] = gblInfo
-	svr.logger.Info("Start lldp frames rx/tx for port:" + gblInfo.Name)
+	debug.Logger.Info("Start lldp frames rx/tx for port:" + gblInfo.Name)
 	go svr.ReceiveFrames(gblInfo.PcapHandle, ifIndex)
 	go svr.TransmitFrames(gblInfo.PcapHandle, ifIndex)
 	svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice,
@@ -330,7 +342,7 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 func (svr *LLDPServer) StopRxTx(ifIndex int32) {
 	gblInfo, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
-		svr.logger.Err(fmt.Sprintln("No entry for ifIndex", ifIndex))
+		debug.Logger.Err(fmt.Sprintln("No entry for ifIndex", ifIndex))
 		return
 	}
 	// stop the timer
@@ -339,7 +351,7 @@ func (svr *LLDPServer) StopRxTx(ifIndex int32) {
 	gblInfo.DeletePcapHandler()
 	// invalid the cache information
 	gblInfo.DeleteCacheFrame()
-	svr.logger.Info("Stop lldp frames rx/tx for port:" + gblInfo.Name)
+	debug.Logger.Info("Stop lldp frames rx/tx for port:" + gblInfo.Name)
 	svr.lldpGblInfo[ifIndex] = gblInfo
 	svr.DeletePortFromUpState(ifIndex)
 }

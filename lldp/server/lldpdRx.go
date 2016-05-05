@@ -6,6 +6,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"l2/lldp/utils"
 	"time"
 )
 
@@ -23,7 +24,7 @@ func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 		// check if we receive exit call
 		case exit := <-svr.lldpExit:
 			if exit {
-				svr.logger.Info(fmt.Sprintln("ifIndex:",
+				debug.Logger.Info(fmt.Sprintln("ifIndex:",
 					ifIndex, "received lldp exit"))
 			}
 		default:
@@ -31,7 +32,7 @@ func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 			// process packets
 			gblInfo, exists := svr.lldpGblInfo[ifIndex]
 			if !exists {
-				svr.logger.Info(fmt.Sprintln("No Entry for",
+				debug.Logger.Info(fmt.Sprintln("No Entry for",
 					ifIndex, "terminate go routine"))
 				return
 			}
@@ -41,7 +42,7 @@ func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 			// Because this is read we do not need to worry about
 			// doing any locks...
 			if gblInfo.PcapHandle == nil {
-				svr.logger.Info("Pcap closed terminate go " +
+				debug.Logger.Info("Pcap closed terminate go " +
 					"routine for " + gblInfo.Name)
 				return
 			}
@@ -52,22 +53,6 @@ func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 
 		}
 	}
-}
-
-/*  dump received lldp frame and other TX information
- */
-func (gblInfo LLDPGlobalInfo) DumpFrame() {
-	gblInfo.logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
-		gblInfo.PortNum))
-	gblInfo.logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.SrcMAC.String(),
-		"DstMAC:", gblInfo.DstMAC.String()))
-	gblInfo.logger.Info(fmt.Sprintln("ChassisID info is",
-		gblInfo.rxFrame.ChassisID))
-	gblInfo.logger.Info(fmt.Sprintln("PortID info is",
-		gblInfo.rxFrame.PortID))
-	gblInfo.logger.Info(fmt.Sprintln("TTL info is", gblInfo.rxFrame.TTL))
-	gblInfo.logger.Info(fmt.Sprintln("Optional Values is",
-		gblInfo.rxLinkInfo))
 }
 
 /* process incoming pkt from peer
@@ -165,7 +150,7 @@ func (gblInfo *LLDPGlobalInfo) CheckPeerEntry() {
 		var clearPeerInfo_func func()
 		// On timer expiration we will delete peer info and set it to nil
 		clearPeerInfo_func = func() {
-			gblInfo.logger.Info("Recipient info delete timer expired for " +
+			debug.Logger.Info("Recipient info delete timer expired for " +
 				"peer connected to port " + gblInfo.Name +
 				" and hence deleting peer information from runtime")
 			gblInfo.rxFrame = nil

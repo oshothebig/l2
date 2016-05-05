@@ -12,7 +12,6 @@ import (
 	"net"
 	"sync"
 	"time"
-	"utils/logging"
 )
 
 type LLDPClientJson struct {
@@ -42,8 +41,6 @@ type SendPktChannel struct {
 }
 
 type LLDPGlobalInfo struct {
-	logger *logging.Writer
-
 	// Port information
 	PortNum       int32
 	IfIndex       int32
@@ -56,6 +53,10 @@ type LLDPGlobalInfo struct {
 	// Pcap Handler lock to write data one routine at a time
 	PcapHdlLock *sync.RWMutex
 
+	/*
+		rx Packet.RX
+		tx Packet.TX
+	*/
 	// ethernet frame Info (used for rx/tx)
 	SrcMAC net.HardwareAddr // NOTE: Please be informed this is Peer Mac Addr
 	DstMAC net.HardwareAddr
@@ -64,7 +65,6 @@ type LLDPGlobalInfo struct {
 	rxFrame         *layers.LinkLayerDiscovery
 	rxLinkInfo      *layers.LinkLayerDiscoveryInfo
 	clearCacheTimer *time.Timer
-
 	// tx information
 	ttl                         int
 	lldpMessageTxInterval       int
@@ -76,7 +76,6 @@ type LLDPGlobalInfo struct {
 
 type LLDPServer struct {
 	// Basic server start fields
-	logger         *logging.Writer
 	lldpDbHdl      redis.Conn
 	paramsDir      string
 	asicdClient    LLDPAsicdClient
@@ -87,6 +86,7 @@ type LLDPServer struct {
 	lldpIntfStateSlice    []int32
 	lldpUpIntfStateSlice  []int32
 	lldpPortNumIfIndexMap map[int32]int32
+	//packet                packet.Packet
 
 	// lldp pcap handler default config values
 	lldpSnapshotLen int32
