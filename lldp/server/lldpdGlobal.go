@@ -4,7 +4,6 @@ import (
 	"asicdServices"
 	"errors"
 	"git.apache.org/thrift.git/lib/go/thrift"
-	"github.com/garyburd/redigo/redis"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -12,6 +11,8 @@ import (
 	"net"
 	"sync"
 	"time"
+	"utils/dbutils"
+	"utils/logging"
 )
 
 type LLDPClientJson struct {
@@ -76,7 +77,8 @@ type LLDPGlobalInfo struct {
 
 type LLDPServer struct {
 	// Basic server start fields
-	lldpDbHdl      redis.Conn
+	logger         *logging.Writer
+	lldpDbHdl      *dbutils.DBUtil
 	paramsDir      string
 	asicdClient    LLDPAsicdClient
 	asicdSubSocket *nanomsg.SubSocket

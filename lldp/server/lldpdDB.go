@@ -2,15 +2,16 @@ package lldpServer
 
 import (
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	"l2/lldp/utils"
 	_ "lldpd"
+	"utils/dbutils"
 )
 
 func (svr *LLDPServer) InitDB() error {
 	var err error
-	debug.Logger.Info("Initializing DB")
-	svr.lldpDbHdl, err = redis.Dial("tcp", ":6379")
+	svr.logger.Info("Initializing DB")
+	svr.lldpDbHdl = dbutils.NewDBUtil(svr.logger)
+	err = svr.lldpDbHdl.Connect()
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Failed to Create DB Handle", err))
 		return err
@@ -20,8 +21,8 @@ func (svr *LLDPServer) InitDB() error {
 }
 
 func (svr *LLDPServer) CloseDB() {
-	debug.Logger.Info("Closed lldp db")
-	svr.lldpDbHdl.Close()
+	svr.logger.Info("Closed lldp db")
+	svr.lldpDbHdl.Disconnect()
 }
 
 func (svr *LLDPServer) ReadDB() error {

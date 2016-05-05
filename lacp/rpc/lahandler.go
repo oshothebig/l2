@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	lacp "l2/lacp/protocol"
 	"lacpd"
 	"models"
@@ -14,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"utils/dbutils"
 )
 
 const DBName string = "UsrConfDb.db"
@@ -264,7 +264,7 @@ func GetIdByName(AggName string) int {
 	return i
 }
 
-func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl redis.Conn) error {
+func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
 		var dbObj models.LaPortChannel
 		objList, err := dbObj.GetAllObjFromDb(dbHdl)
@@ -286,12 +286,13 @@ func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl redis.Conn) error
 }
 
 func (la *LACPDServiceHandler) ReadConfigFromDB() error {
-	dbHdl, err := redis.Dial("tcp", ":6379")
+	dbHdl := dbutils.NewDBUtil(nil)
+	err := dbHdl.Connect()
 	if err != nil {
 		fmt.Printf("Failed to open connection to the DB with error %s", err)
 		return err
 	}
-	defer dbHdl.Close()
+	defer dbHdl.Disconnect()
 
 	if err := la.HandleDbReadLaPortChannel(dbHdl); err != nil {
 		fmt.Println("Error getting All AggregationLacpConfig objects")

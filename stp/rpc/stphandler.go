@@ -3,11 +3,11 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	stp "l2/stp/protocol"
 	"models"
 	"reflect"
 	"stpd"
+	"utils/dbutils"
 	//"time"
 	"errors"
 )
@@ -156,10 +156,10 @@ func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInsta
 	return false, err
 }
 
-func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl redis.Conn) error {
+func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
 		var dbObj models.StpBridgeInstance
-		objList, err := dbObj.GetAllObjFromDb(dbHdl)
+		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			stp.StpLogger("ERROR", "DB Query failed when retrieving StpBridgeInstance objects")
 			return err
@@ -177,10 +177,10 @@ func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl redis.Conn) err
 	return nil
 }
 
-func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl redis.Conn) error {
+func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
 		var dbObj models.StpPort
-		objList, err := dbObj.GetAllObjFromDb(dbHdl)
+		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			stp.StpLogger("ERROR", "DB Query failed when retrieving StpPort objects")
 			return err
@@ -200,12 +200,13 @@ func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl redis.Conn) error {
 
 func (s *STPDServiceHandler) ReadConfigFromDB() error {
 
-	dbHdl, err := redis.Dial("tcp", ":6379")
+	dbHdl := dbutils.NewDBUtil(nil)
+	err := dbHdl.Connect()
 	if err != nil {
 		stp.StpLogger("ERROR", fmt.Sprintf("Failed to open connection to DB with error %s", err))
 		return err
 	}
-	defer dbHdl.Close()
+	defer dbHdl.Disconnect()
 
 	if err := s.HandleDbReadStpBridgeInstance(dbHdl); err != nil {
 		stp.StpLogger("ERROR", "Error getting All StpBridgeInstance objects")
