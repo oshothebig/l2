@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"l2/lldp/flexswitch"
-	"l2/lldp/rpc"
 	"l2/lldp/server"
 	"l2/lldp/utils"
 	"utils/keepalive"
@@ -40,18 +39,22 @@ func main() {
 		if err != nil {
 			return
 		}
+		// Create lldp rpc handler
+		//lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr)
+		lldpHdl := flexswitch.NewConfigHandler()
+		lPlugin := flexswitch.NewListenerPlugin(lldpHdl, fileName)
+
 		// Create lldp server handler
-		lldpSvr := server.LLDPNewServer(aPlugin)
+		lldpSvr := server.LLDPNewServer(aPlugin, lPlugin)
+
 		// Until Server is connected to clients do not start with RPC
 		lldpSvr.LLDPStartServer(*paramsDir)
 
 		// Start keepalive routine
 		go keepalive.InitKeepAlive("lldpd", fileName)
-
-		// Create lldp rpc handler
-		lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr)
 		debug.Logger.Info("Starting LLDP RPC listener....")
-		err = lldpRpc.LLDPRPCStartServer(lldpHdl, *paramsDir)
+		err = lldpSvr.CfgPlugin.Start()
+		//err = lldpRpc.LLDPRPCStartServer(lldpHdl, *paramsDir)
 		if err != nil {
 			debug.Logger.Err(fmt.Sprintln("Cannot start lldp server", err))
 			return

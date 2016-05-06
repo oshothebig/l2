@@ -24,13 +24,7 @@ type SendPktChannel struct {
 type LLDPGlobalInfo struct {
 	// Port information
 	Port config.PortInfo
-	/*
-		PortNum       int32
-		IfIndex       int32
-		Name          string
-		MacAddr       string // This is our Port MAC ADDR
-		OperState     string
-	*/
+	// Lock to check operation state of the port
 	OperStateLock *sync.RWMutex
 	// Pcap Handler for Each Port
 	PcapHandle *pcap.Handle
@@ -48,6 +42,7 @@ type LLDPServer struct {
 	paramsDir string
 
 	asicPlugin plugin.AsicIntf
+	CfgPlugin  plugin.ConfigIntf
 
 	// lldp per port global info
 	lldpGblInfo          map[int32]LLDPGlobalInfo

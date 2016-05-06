@@ -10,4 +10,5 @@ type AsicIntf interface {
 }
 
 type ConfigIntf interface {
+	Start() error
 }

@@ -119,52 +119,8 @@ func (p *AsicPlugin) getPortStates() []*config.PortInfo {
 	return portStates
 }
 
-/*  Helper function to get bulk port state information from asicd
- */
-/*
-func (p *AsicPlugin) getPorts(portInfo map[int32]*config.PortInfo,
-	portMap map[int32]int32) { //[]string {
-	debug.Logger.Info("Get Port List")
-	currMarker := int64(asicdCommonDefs.MIN_SYS_PORTS)
-	more := false
-	objCount := 0
-	count := 10
-	//ports := make([]string, 0)
-	for {
-		bulkInfo, err := p.asicdClient.GetBulkPort(
-			asicdServices.Int(currMarker), asicdServices.Int(count))
-		if err != nil {
-			debug.Logger.Err(fmt.Sprintln(": getting bulk port config"+
-				" from asicd failed with reason", err))
-			break
-		}
-		objCount = int(bulkInfo.Count)
-		more = bool(bulkInfo.More)
-		currMarker = int64(bulkInfo.EndIdx)
-		for i := 0; i < objCount; i++ {
-			ifIndex, exists := portMap[bulkInfo.PortList[i].PortNum]
-			if !exists {
-				continue
-			}
-			entry, exists := portInfo[ifIndex]
-			if !exists {
-				continue
-			}
-			entry.MacAddr = bulkInfo.PortList[i].MacAddr
-			portInfo[ifIndex] = entry
-		}
-		if more == false {
-			break
-		}
-	}
-	debug.Logger.Info("Done with Port list")
-	return //ports
-}
-*/
-
 func (p *AsicPlugin) GetPortsInfo() []*config.PortInfo {
-	portStates /*, portMap*/ := p.getPortStates()
-	//p.getPorts(portStates, portMap)
+	portStates := p.getPortStates()
 	return portStates
 }
 
@@ -229,13 +185,11 @@ func (p *AsicPlugin) listenAsicdUpdates() {
 			} else {
 				api.SendPortStateChange(l2IntfStateNotifyMsg.IfIndex, "DOWN")
 			}
-			//@TODO: Send API Channel
 		}
 	}
 
 }
 func (p *AsicPlugin) Start() {
-
 	err := p.connectSubSocket()
 	if err != nil {
 		return

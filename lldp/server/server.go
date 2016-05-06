@@ -15,9 +15,10 @@ import (
 
 /* Create lldp server object for the main handler..
  */
-func LLDPNewServer(aPlugin plugin.AsicIntf) *LLDPServer {
+func LLDPNewServer(aPlugin plugin.AsicIntf, lPlugin plugin.ConfigIntf) *LLDPServer {
 	lldpServerInfo := &LLDPServer{
 		asicPlugin: aPlugin,
+		CfgPlugin:  lPlugin,
 	}
 	// Allocate memory to all the Data Structures
 	lldpServerInfo.InitGlobalDS()
