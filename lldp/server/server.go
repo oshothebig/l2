@@ -227,8 +227,13 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 		debug.Logger.Err(fmt.Sprintln("No entry for ifindex", ifIndex))
 		return
 	}
-	gblInfo.CreatePcapHandler(svr.lldpSnapshotLen, svr.lldpPromiscuous,
+	err := gblInfo.CreatePcapHandler(svr.lldpSnapshotLen, svr.lldpPromiscuous,
 		svr.lldpTimeout)
+	if err != nil {
+		debug.Logger.Alert("Creating Pcap Handler for " + gblInfo.Port.Name +
+			" failed and hence we will not start LLDP on the port")
+		return
+	}
 
 	svr.lldpGblInfo[ifIndex] = gblInfo
 	debug.Logger.Info("Start lldp frames rx/tx for port:" + gblInfo.Port.Name)

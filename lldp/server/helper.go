@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -78,13 +79,14 @@ func (gblInfo *LLDPGlobalInfo) FreeDynamicMemory() {
 /*  Create Pcap Handler
  */
 func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
-	lldpPromiscuous bool, lldpTimeout time.Duration) {
+	lldpPromiscuous bool, lldpTimeout time.Duration) error {
 	gblInfo.PcapHdlLock.RLock()
+	defer gblInfo.PcapHdlLock.RUnlock()
 	if gblInfo.PcapHandle != nil {
-		gblInfo.PcapHdlLock.RUnlock()
+		//gblInfo.PcapHdlLock.RUnlock()
 		debug.Logger.Alert("Pcap already exists and create pcap called for " +
 			gblInfo.Port.Name)
-		return
+		return nil
 	}
 	gblInfo.PcapHdlLock.RUnlock()
 	pcapHdl, err := pcap.OpenLive(gblInfo.Port.Name, lldpSnapshotLen,
@@ -92,15 +94,18 @@ func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Creating Pcap Handler failed for",
 			gblInfo.Port.Name, "Error:", err))
+		return errors.New("Creating Pcap Failed")
 	}
 	err = pcapHdl.SetBPFFilter(LLDP_BPF_FILTER)
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
 			"for", gblInfo.Port.Name, "failed with error:", err))
+		return errors.New("Setting BPF Filter Failed")
 	}
 	gblInfo.PcapHdlLock.Lock()
 	gblInfo.PcapHandle = pcapHdl
 	gblInfo.PcapHdlLock.Unlock()
+	return nil
 }
 
 /*  Get Chassis Id info
