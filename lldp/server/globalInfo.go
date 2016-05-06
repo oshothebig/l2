@@ -59,9 +59,9 @@ type LLDPServer struct {
 	// lldp send packet channel
 	lldpTxPktCh chan SendPktChannel
 	// lldp global config channel
-	gblCfgCh chan *config.Global
+	GblCfgCh chan *config.Global
 	// lldp asic notification channel
-	ifStateCh chan *config.PortState
+	IfStateCh chan *config.PortState
 
 	// lldp exit
 	lldpExit chan bool

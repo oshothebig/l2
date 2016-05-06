@@ -2,12 +2,12 @@ package api
 
 import (
 	"l2/lldp/config"
+	"l2/lldp/server"
 	"sync"
 )
 
 type ApiLayer struct {
-	gblCfgCh  chan *config.Global
-	ifstateCh chan *config.PortState
+	server *server.LLDPServer
 }
 
 var lldpapi *ApiLayer = nil
@@ -22,16 +22,20 @@ func getInstance() *ApiLayer {
 	return lldpapi
 }
 
-func Init(gCh chan *config.Global, ifCh chan *config.PortState) {
+func Init(svr *server.LLDPServer) {
 	lldpapi = getInstance()
-	lldpapi.gblCfgCh = gCh
-	lldpapi.ifstateCh = ifCh
+	lldpapi.server = svr
 }
 
 func SendGlobalConfig(ifIndex int32, enable bool) {
-	lldpapi.gblCfgCh <- &config.Global{ifIndex, enable}
+	lldpapi.server.GblCfgCh <- &config.Global{ifIndex, enable}
 }
 
 func SendPortStateChange(ifIndex int32, state string) {
-	lldpapi.ifstateCh <- &config.PortState{ifIndex, state}
+	lldpapi.server.IfStateCh <- &config.PortState{ifIndex, state}
+}
+
+func GetIntfStates(idx int, cnt int) (int, int, []config.IntfState) {
+	n, c, result := lldpapi.server.GetIntfStates(idx, cnt)
+	return n, c, result
 }

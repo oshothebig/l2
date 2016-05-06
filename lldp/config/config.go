@@ -17,3 +17,13 @@ type PortState struct {
 	IfIndex int32
 	IfState string
 }
+
+type IntfState struct {
+	IfIndex      int32
+	Enable       bool
+	LocalPort    string
+	PeerMac      string
+	Port         string
+	HoldTime     string
+	Capabilities string
+}
