@@ -27,7 +27,7 @@ func NewListenerPlugin(handler *ConfigHandler, fileName string) *ListenerPlugin 
 	return l
 }
 
-func (p *ListenerPlugin) Start() error { //(handler *ConfigHandler, paramsDir string) error {
+func (p *ListenerPlugin) Start() error {
 	fileName := p.fileName + CLIENTS_FILE_NAME
 
 	clientJson, err := getClient(fileName, "lldpd")
