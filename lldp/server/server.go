@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"l2/lldp/api"
 	"l2/lldp/config"
 	"l2/lldp/plugin"
 	"l2/lldp/utils"
@@ -45,8 +44,8 @@ func (svr *LLDPServer) InitGlobalDS() {
 	// 30 seconds. So, we can have the leavrage the pcap timeout (read from
 	// buffer) to be 1 second.
 	svr.lldpTimeout = 1 * time.Second
-	svr.gblCfgCh = make(chan *config.Global)
-	svr.ifStateCh = make(chan *config.PortState)
+	svr.GblCfgCh = make(chan *config.Global)
+	svr.IfStateCh = make(chan *config.PortState)
 
 	// All Plugin Info
 }
@@ -109,7 +108,7 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 
 	svr.paramsDir = paramsDir
 	// Start Api Layer
-	api.Init(svr.gblCfgCh, svr.ifStateCh)
+	//api.Init(svr.GblCfgCh, svr.IfStateCh)
 	// Get Port Information from Asic
 	portsInfo := svr.asicPlugin.GetPortsInfo()
 	for _, port := range portsInfo {
@@ -205,12 +204,12 @@ func (svr *LLDPServer) ChannelHanlder() {
 				}
 				svr.lldpGblInfo[info.ifIndex] = gblInfo
 			}
-		case gbl, ok := <-svr.gblCfgCh:
+		case gbl, ok := <-svr.GblCfgCh:
 			if !ok {
 				continue
 			}
 			debug.Logger.Info(fmt.Sprintln("Received Global Config", gbl))
-		case ifState, ok := <-svr.ifStateCh:
+		case ifState, ok := <-svr.IfStateCh:
 			if !ok {
 				continue
 			}

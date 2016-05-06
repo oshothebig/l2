@@ -2,23 +2,21 @@ package server
 
 import (
 	"fmt"
+	"l2/lldp/config"
 	"l2/lldp/utils"
-	"lldpd"
 	"strconv"
 )
 
 /*  helper function to convert Mandatory TLV's (chassisID, portID, TTL) from byte
  *  format to string
  */
-func (svr *LLDPServer) PopulateMandatoryTLV(ifIndex int32,
-	entry *lldpd.LLDPIntfState) bool {
+func (svr *LLDPServer) PopulateMandatoryTLV(ifIndex int32, entry *config.IntfState) bool {
 	gblInfo, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
 		debug.Logger.Err(fmt.Sprintln("Entry not found for", ifIndex))
 		return exists
 	}
 	entry.LocalPort = gblInfo.Port.Name
-	//if gblInfo.rxFrame != nil {
 	if gblInfo.RxInfo.RxFrame != nil {
 		entry.PeerMac = gblInfo.GetChassisIdInfo()
 		entry.Port = gblInfo.GetPortIdInfo()
@@ -31,8 +29,7 @@ func (svr *LLDPServer) PopulateMandatoryTLV(ifIndex int32,
 
 /*  Server get bulk for lldp up intf state's
  */
-func (svr *LLDPServer) GetBulkLLDPIntfState(idx int, cnt int) (int, int,
-	[]lldpd.LLDPIntfState) {
+func (svr *LLDPServer) GetIntfStates(idx, cnt int) (int, int, []config.IntfState) {
 	var nextIdx int
 	var count int
 
@@ -42,7 +39,7 @@ func (svr *LLDPServer) GetBulkLLDPIntfState(idx int, cnt int) (int, int,
 	}
 
 	length := len(svr.lldpUpIntfStateSlice)
-	result := make([]lldpd.LLDPIntfState, cnt)
+	result := make([]config.IntfState, cnt)
 
 	var i, j int
 

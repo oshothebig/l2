@@ -1,10 +1,11 @@
 package flexswitch
 
 import (
-	_ "errors"
+	"errors"
 	"fmt"
 	"git.apache.org/thrift.git/lib/go/thrift"
-	_ "l2/lldp/api"
+	"l2/lldp/api"
+	"l2/lldp/config"
 	"l2/lldp/utils"
 	"lldpd"
 	"strconv"
@@ -13,7 +14,7 @@ import (
 type ConfigHandler struct {
 }
 
-type ListenerPlugin struct {
+type NBPlugin struct {
 	handler  *ConfigHandler
 	fileName string
 }
@@ -22,12 +23,12 @@ func NewConfigHandler() *ConfigHandler {
 	return &ConfigHandler{}
 }
 
-func NewListenerPlugin(handler *ConfigHandler, fileName string) *ListenerPlugin {
-	l := &ListenerPlugin{handler, fileName}
+func NewNBPlugin(handler *ConfigHandler, fileName string) *NBPlugin {
+	l := &NBPlugin{handler, fileName}
 	return l
 }
 
-func (p *ListenerPlugin) Start() error {
+func (p *NBPlugin) Start() error {
 	fileName := p.fileName + CLIENTS_FILE_NAME
 
 	clientJson, err := getClient(fileName, "lldpd")
@@ -71,7 +72,7 @@ func (h *ConfigHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
 }
 
 func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(
-	state lldpd.LLDPIntfState) *lldpd.LLDPIntfState {
+	state config.IntfState) *lldpd.LLDPIntfState {
 	entry := lldpd.NewLLDPIntfState()
 	entry.LocalPort = state.LocalPort
 	entry.PeerMac = state.PeerMac
@@ -84,29 +85,27 @@ func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(
 
 func (h *ConfigHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int,
 	count lldpd.Int) (*lldpd.LLDPIntfStateGetInfo, error) {
-	/*
-		nextIdx, currCount, lldpIntfStateEntries := h.server.GetBulkLLDPIntfState(
-			int(fromIndex), int(count))
-		if lldpIntfStateEntries == nil {
-			return nil, errors.New("No neighbor found")
-		}
 
-		lldpEntryResp := make([]*lldpd.LLDPIntfState, len(lldpIntfStateEntries))
+	nextIdx, currCount, lldpIntfStateEntries := api.GetIntfStates(
+		int(fromIndex), int(count))
+	if lldpIntfStateEntries == nil {
+		return nil, errors.New("No neighbor found")
+	}
 
-		for idx, item := range lldpIntfStateEntries {
-			lldpEntryResp[idx] = h.convertLLDPIntfStateEntryToThriftEntry(item)
-		}
+	lldpEntryResp := make([]*lldpd.LLDPIntfState, len(lldpIntfStateEntries))
 
-		lldpEntryBulk := lldpd.NewLLDPIntfStateGetInfo()
-		lldpEntryBulk.StartIdx = fromIndex
-		lldpEntryBulk.EndIdx = lldpd.Int(nextIdx)
-		lldpEntryBulk.Count = lldpd.Int(currCount)
-		lldpEntryBulk.More = (nextIdx != 0)
-		lldpEntryBulk.LLDPIntfStateList = lldpEntryResp
+	for idx, item := range lldpIntfStateEntries {
+		lldpEntryResp[idx] = h.convertLLDPIntfStateEntryToThriftEntry(item)
+	}
 
-		return lldpEntryBulk, nil
-	*/
-	return nil, nil
+	lldpEntryBulk := lldpd.NewLLDPIntfStateGetInfo()
+	lldpEntryBulk.StartIdx = fromIndex
+	lldpEntryBulk.EndIdx = lldpd.Int(nextIdx)
+	lldpEntryBulk.Count = lldpd.Int(currCount)
+	lldpEntryBulk.More = (nextIdx != 0)
+	lldpEntryBulk.LLDPIntfStateList = lldpEntryResp
+
+	return lldpEntryBulk, nil
 }
 
 func (h *ConfigHandler) GetLLDPIntfState(ifIndex int32) (*lldpd.LLDPIntfState, error) {

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"l2/lldp/api"
 	"l2/lldp/flexswitch"
 	"l2/lldp/server"
 	"l2/lldp/utils"
@@ -28,8 +29,6 @@ func main() {
 	debug.Logger.Info("Started the logger successfully.")
 
 	debug.Logger.Info("Starting LLDP server....")
-	//@FUTURE: read plugin name from json file and do init for that plugin
-	//plugin.Init("flexswitch", fileName, *paramsDir)
 	name := ""
 	switch name {
 	case "ovsdb":
@@ -42,10 +41,12 @@ func main() {
 		// Create lldp rpc handler
 		//lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr)
 		lldpHdl := flexswitch.NewConfigHandler()
-		lPlugin := flexswitch.NewListenerPlugin(lldpHdl, fileName)
+		lPlugin := flexswitch.NewNBPlugin(lldpHdl, fileName)
 
 		// Create lldp server handler
 		lldpSvr := server.LLDPNewServer(aPlugin, lPlugin)
+		// Start Api Layer
+		api.Init(lldpSvr)
 
 		// Until Server is connected to clients do not start with RPC
 		lldpSvr.LLDPStartServer(*paramsDir)
@@ -54,7 +55,6 @@ func main() {
 		go keepalive.InitKeepAlive("lldpd", fileName)
 		debug.Logger.Info("Starting LLDP RPC listener....")
 		err = lldpSvr.CfgPlugin.Start()
-		//err = lldpRpc.LLDPRPCStartServer(lldpHdl, *paramsDir)
 		if err != nil {
 			debug.Logger.Err(fmt.Sprintln("Cannot start lldp server", err))
 			return
