@@ -1,9 +1,8 @@
-package lldpServer
+package server
 
 import (
 	"fmt"
 	"l2/lldp/utils"
-	_ "lldpd"
 	"utils/dbutils"
 )
 

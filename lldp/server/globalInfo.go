@@ -1,35 +1,16 @@
-package lldpServer
+package server
 
 import (
-	"asicdServices"
 	"errors"
-	"git.apache.org/thrift.git/lib/go/thrift"
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	nanomsg "github.com/op/go-nanomsg"
-	"net"
+	"l2/lldp/config"
+	"l2/lldp/packet"
+	"l2/lldp/plugin"
 	"sync"
 	"time"
 	"utils/dbutils"
 )
-
-type LLDPClientJson struct {
-	Name string `json:Name`
-	Port int    `json:Port`
-}
-
-type LLDPClientBase struct {
-	Address            string
-	Transport          thrift.TTransport
-	PtrProtocolFactory *thrift.TBinaryProtocolFactory
-	IsConnected        bool
-}
-
-type LLDPAsicdClient struct {
-	LLDPClientBase
-	ClientHdl *asicdServices.ASICDServicesClient
-}
 
 type InPktChannel struct {
 	pkt     gopacket.Packet
@@ -42,51 +23,31 @@ type SendPktChannel struct {
 
 type LLDPGlobalInfo struct {
 	// Port information
-	PortNum       int32
-	IfIndex       int32
-	Name          string
-	MacAddr       string // This is our Port MAC ADDR
-	OperState     string
+	Port config.PortInfo
+	// Lock to check operation state of the port
 	OperStateLock *sync.RWMutex
 	// Pcap Handler for Each Port
 	PcapHandle *pcap.Handle
 	// Pcap Handler lock to write data one routine at a time
 	PcapHdlLock *sync.RWMutex
-
-	/*
-		rx Packet.RX
-		tx Packet.TX
-	*/
-	// ethernet frame Info (used for rx/tx)
-	SrcMAC net.HardwareAddr // NOTE: Please be informed this is Peer Mac Addr
-	DstMAC net.HardwareAddr
-
-	// lldp rx information
-	rxFrame         *layers.LinkLayerDiscovery
-	rxLinkInfo      *layers.LinkLayerDiscoveryInfo
-	clearCacheTimer *time.Timer
+	// rx information
+	RxInfo *packet.RX
 	// tx information
-	ttl                         int
-	lldpMessageTxInterval       int
-	lldpMessageTxHoldMultiplier int
-	useCacheFrame               bool
-	cacheFrame                  []byte
-	txTimer                     *time.Timer
+	TxInfo *packet.TX
 }
 
 type LLDPServer struct {
 	// Basic server start fields
-	lldpDbHdl      *dbutils.DBUtil
-	paramsDir      string
-	asicdClient    LLDPAsicdClient
-	asicdSubSocket *nanomsg.SubSocket
+	lldpDbHdl *dbutils.DBUtil
+	paramsDir string
+
+	asicPlugin plugin.AsicIntf
+	CfgPlugin  plugin.ConfigIntf
 
 	// lldp per port global info
-	lldpGblInfo           map[int32]LLDPGlobalInfo
-	lldpIntfStateSlice    []int32
-	lldpUpIntfStateSlice  []int32
-	lldpPortNumIfIndexMap map[int32]int32
-	//packet                packet.Packet
+	lldpGblInfo          map[int32]LLDPGlobalInfo
+	lldpIntfStateSlice   []int32
+	lldpUpIntfStateSlice []int32
 
 	// lldp pcap handler default config values
 	lldpSnapshotLen int32
@@ -95,9 +56,12 @@ type LLDPServer struct {
 
 	// lldp packet rx channel
 	lldpRxPktCh chan InPktChannel
-
 	// lldp send packet channel
 	lldpTxPktCh chan SendPktChannel
+	// lldp global config channel
+	gblCfgCh chan *config.Global
+	// lldp asic notification channel
+	ifStateCh chan *config.PortState
 
 	// lldp exit
 	lldpExit chan bool

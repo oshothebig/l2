@@ -1,26 +1,25 @@
-package lldpServer
+package server
 
 import (
-	"asicdServices"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
+	"l2/lldp/api"
+	"l2/lldp/config"
+	"l2/lldp/plugin"
 	"l2/lldp/utils"
 	"os"
 	"os/signal"
 	_ "runtime/pprof"
-	"strconv"
-	_ "sync"
 	"syscall"
 	"time"
-	"utils/ipcutils"
 )
 
 /* Create lldp server object for the main handler..
  */
-func LLDPNewServer() *LLDPServer {
-	lldpServerInfo := &LLDPServer{}
+func LLDPNewServer(aPlugin plugin.AsicIntf, lPlugin plugin.ConfigIntf) *LLDPServer {
+	lldpServerInfo := &LLDPServer{
+		asicPlugin: aPlugin,
+		CfgPlugin:  lPlugin,
+	}
 	// Allocate memory to all the Data Structures
 	lldpServerInfo.InitGlobalDS()
 	/*
@@ -37,10 +36,8 @@ func LLDPNewServer() *LLDPServer {
  */
 func (svr *LLDPServer) InitGlobalDS() {
 	svr.lldpGblInfo = make(map[int32]LLDPGlobalInfo, LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
-	svr.lldpPortNumIfIndexMap = make(map[int32]int32, LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
 	svr.lldpRxPktCh = make(chan InPktChannel, LLDP_RX_PKT_CHANNEL_SIZE)
 	svr.lldpTxPktCh = make(chan SendPktChannel, LLDP_TX_PKT_CHANNEL_SIZE)
-	//svr.packet = packet.NewPacketInfo()
 	svr.lldpExit = make(chan bool)
 	svr.lldpSnapshotLen = 1024
 	svr.lldpPromiscuous = false
@@ -48,6 +45,10 @@ func (svr *LLDPServer) InitGlobalDS() {
 	// 30 seconds. So, we can have the leavrage the pcap timeout (read from
 	// buffer) to be 1 second.
 	svr.lldpTimeout = 1 * time.Second
+	svr.gblCfgCh = make(chan *config.Global)
+	svr.ifStateCh = make(chan *config.PortState)
+
+	// All Plugin Info
 }
 
 /* De-Allocate memory to all the object which are being used by LLDP server
@@ -56,7 +57,6 @@ func (svr *LLDPServer) DeInitGlobalDS() {
 	svr.lldpRxPktCh = nil
 	svr.lldpTxPktCh = nil
 	svr.lldpGblInfo = nil
-	svr.lldpPortNumIfIndexMap = nil
 }
 
 /* On de-init we will be closing all the pcap handlers that are opened up
@@ -81,15 +81,40 @@ func (svr *LLDPServer) CloseAllPktHandlers() {
 	debug.Logger.Info("closed everything")
 }
 
+/* Create global run time information for l2 port and then start rx/tx for that port if state is up
+ */
+func (svr *LLDPServer) InitL2PortInfo(portInfo *config.PortInfo) {
+	gblInfo, _ := svr.lldpGblInfo[portInfo.IfIndex]
+	gblInfo.InitRuntimeInfo(portInfo)
+	svr.lldpGblInfo[portInfo.IfIndex] = gblInfo
+
+	// Only start rx/tx once we have got the mac address from the get bulk port
+	gblInfo.OperStateLock.RLock()
+	if gblInfo.Port.OperState == LLDP_PORT_STATE_UP {
+		gblInfo.OperStateLock.RUnlock()
+		svr.StartRxTx(gblInfo.Port.IfIndex)
+	} else {
+		gblInfo.OperStateLock.RUnlock()
+	}
+}
+
 /*  lldp server: 1) Connect to all the clients
  *		 2) Initialize DB
  *		 3) Read from DB and close DB
  *		 5) go routine to handle all the channels within lldp server
  */
 func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
+	// OS Signal channel listener thread
+	svr.OSSignalHandle()
+
 	svr.paramsDir = paramsDir
-	// First connect to client to avoid any issues with start/re-start
-	svr.ConnectAndInitPortVlan()
+	// Start Api Layer
+	api.Init(svr.gblCfgCh, svr.ifStateCh)
+	// Get Port Information from Asic
+	portsInfo := svr.asicPlugin.GetPortsInfo()
+	for _, port := range portsInfo {
+		svr.InitL2PortInfo(port) // is it a bug for starting rx/tx before channel handler??
+	}
 
 	// Initialize DB
 	err := svr.InitDB()
@@ -100,95 +125,8 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 		svr.ReadDB()
 		svr.CloseDB()
 	}
+	svr.asicPlugin.Start()
 	go svr.ChannelHanlder()
-}
-
-/* lldp server go ahead and connect to asicd.. Support is there if lldp needs to
- * connect any other client like, lacp, stp, etc...
- */
-func (svr *LLDPServer) ConnectAndInitPortVlan() error {
-	configFile := svr.paramsDir + "/clients.json"
-	bytes, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("Error while reading ",
-			"configuration file", configFile))
-		return err
-	}
-	var unConnectedClients []LLDPClientJson
-	err = json.Unmarshal(bytes, &unConnectedClients)
-	if err != nil {
-		debug.Logger.Err("Error in Unmarshalling Json")
-		return err
-	}
-	re_connect := 15
-	count := 0
-	// connect to client
-	for {
-		time.Sleep(time.Millisecond * 500)
-		for i := 0; i < len(unConnectedClients); i++ {
-			err := svr.ConnectToUnConnectedClient(
-				unConnectedClients[i])
-			if err == nil {
-				debug.Logger.Info("Connected to " +
-					unConnectedClients[i].Name)
-				unConnectedClients = append(unConnectedClients[:i],
-					unConnectedClients[i+1:]...)
-
-			} else if err.Error() ==
-				LLDP_CLIENT_CONNECTION_NOT_REQUIRED {
-				unConnectedClients = append(unConnectedClients[:i],
-					unConnectedClients[i+1:]...)
-			} else {
-				count++
-				if count == re_connect {
-					debug.Logger.Err(fmt.Sprintln("Connecting to",
-						unConnectedClients[i].Name,
-						"failed ERROR:", err))
-					count = 0
-				}
-			}
-		}
-		if len(unConnectedClients) == 0 {
-			break
-		}
-	}
-	// This will do bulk get
-	svr.GetInfoFromAsicd()
-	// OS Signal channel listener thread
-	svr.OSSignalHandle()
-	return err
-}
-
-/*  Helper function specifying which clients lldp needs to connect
- *  if needed to connect to other client add case for it
- */
-func (svr *LLDPServer) ConnectToUnConnectedClient(client LLDPClientJson) error {
-	switch client.Name {
-	case "asicd":
-		return svr.ConnectToAsicd(client)
-	default:
-		return errors.New(LLDP_CLIENT_CONNECTION_NOT_REQUIRED)
-	}
-}
-
-/*  Helper function to connect asicd
- */
-func (svr *LLDPServer) ConnectToAsicd(client LLDPClientJson) error {
-	var err error
-	svr.asicdClient.Address = "localhost:" + strconv.Itoa(client.Port)
-	svr.asicdClient.Transport, svr.asicdClient.PtrProtocolFactory, err =
-		ipcutils.CreateIPCHandles(svr.asicdClient.Address)
-	if svr.asicdClient.Transport == nil ||
-		svr.asicdClient.PtrProtocolFactory == nil ||
-		err != nil {
-		return err
-	}
-	svr.asicdClient.ClientHdl =
-		asicdServices.NewASICDServicesClientFactory(
-			svr.asicdClient.Transport,
-			svr.asicdClient.PtrProtocolFactory)
-	svr.asicdClient.IsConnected = true
-	return nil
 }
 
 /*  Create os signal handler channel and initiate go routine for that
@@ -233,30 +171,15 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 			gblInfo, exists := svr.lldpGblInfo[rcvdInfo.ifIndex]
 			if exists {
-				/*
-					err := svr.Packet.Process(&gblInfo, rcvdInfo.pkt)
-					if err != nil {
-						debug.Logger.Err(fmt.Sprintln("err", err,
-							" while processing rx frame on port",
-							gblInfo.Name))
-						continue
-					}
-					// reset/start timer for recipient information
-					svr.Packet.HoldTimer(&gblInfo)
-					svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
-					// dump the frame
-					//gblInfo.DumpFrame()
-				*/
-				// Cache the received incoming frame
-				err := gblInfo.ProcessRxPkt(rcvdInfo.pkt)
+				err := gblInfo.RxInfo.Process(gblInfo.RxInfo, rcvdInfo.pkt)
 				if err != nil {
 					debug.Logger.Err(fmt.Sprintln("err", err,
 						" while processing rx frame on port",
-						gblInfo.Name))
+						gblInfo.Port.Name))
 					continue
 				}
 				// reset/start timer for recipient information
-				gblInfo.CheckPeerEntry()
+				gblInfo.RxInfo.CheckPeerEntry(gblInfo.Port.Name)
 				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
 				// dump the frame
 				//gblInfo.DumpFrame()
@@ -275,45 +198,25 @@ func (svr *LLDPServer) ChannelHanlder() {
 			gblInfo, exists := svr.lldpGblInfo[info.ifIndex]
 			// extra check for pcap handle
 			if exists && gblInfo.PcapHandle != nil {
-				gblInfo.SendFrame()
+				rv := gblInfo.WritePacket(
+					gblInfo.TxInfo.SendFrame(gblInfo.Port.MacAddr, gblInfo.Port.Name))
+				if rv == false {
+					gblInfo.TxInfo.SetCache(rv)
+				}
 				svr.lldpGblInfo[info.ifIndex] = gblInfo
 			}
+		case gbl, ok := <-svr.gblCfgCh:
+			if !ok {
+				continue
+			}
+			debug.Logger.Info(fmt.Sprintln("Received Global Config", gbl))
+		case ifState, ok := <-svr.ifStateCh:
+			if !ok {
+				continue
+			}
+			svr.UpdateL2IntfStateChange(ifState.IfIndex, ifState.IfState)
 		}
 	}
-}
-
-/* Create l2 port global map..
- *	lldpGlbInfo will contain all the runtime information for lldp server
- */
-func (svr *LLDPServer) InitL2PortInfo(portConf *asicdServices.PortState) {
-	gblInfo, _ := svr.lldpGblInfo[portConf.IfIndex]
-	gblInfo.InitRuntimeInfo(portConf)
-	svr.lldpGblInfo[portConf.IfIndex] = gblInfo
-	svr.lldpPortNumIfIndexMap[portConf.PortNum] = gblInfo.IfIndex
-	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.IfIndex)
-}
-
-/*  Update l2 port info done via GetBulkPort() which will return port config
- *  information.. We will update each fpPort/ifindex with mac address of its own
- */
-func (svr *LLDPServer) UpdateL2PortInfo(portConf *asicdServices.Port) {
-	gblInfo, exists := svr.lldpGblInfo[svr.lldpPortNumIfIndexMap[portConf.PortNum]]
-	if !exists {
-		debug.Logger.Err(fmt.Sprintln("no mapping found for Port Num",
-			portConf.PortNum, "and hence we do not have any MacAddr"))
-		return
-	}
-	gblInfo.UpdatePortInfo(portConf)
-	svr.lldpGblInfo[gblInfo.IfIndex] = gblInfo
-	// Only start rx/tx once we have got the mac address from the get bulk port
-	gblInfo.OperStateLock.RLock()
-	if gblInfo.OperState == LLDP_PORT_STATE_UP {
-		gblInfo.OperStateLock.RUnlock()
-		svr.StartRxTx(gblInfo.IfIndex)
-	} else {
-		gblInfo.OperStateLock.RUnlock()
-	}
-
 }
 
 /* Create l2 port pcap handler and then start rx and tx on that pcap
@@ -329,11 +232,11 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 		svr.lldpTimeout)
 
 	svr.lldpGblInfo[ifIndex] = gblInfo
-	debug.Logger.Info("Start lldp frames rx/tx for port:" + gblInfo.Name)
+	debug.Logger.Info("Start lldp frames rx/tx for port:" + gblInfo.Port.Name)
 	go svr.ReceiveFrames(gblInfo.PcapHandle, ifIndex)
 	go svr.TransmitFrames(gblInfo.PcapHandle, ifIndex)
 	svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice,
-		gblInfo.IfIndex)
+		gblInfo.Port.IfIndex)
 }
 
 /*  Send Signal for stopping rx/tx go routine and timers as the pcap handler for
@@ -346,12 +249,12 @@ func (svr *LLDPServer) StopRxTx(ifIndex int32) {
 		return
 	}
 	// stop the timer
-	gblInfo.StopTxTimer()
+	gblInfo.TxInfo.StopTxTimer()
 	// delete pcap handler
 	gblInfo.DeletePcapHandler()
 	// invalid the cache information
-	gblInfo.DeleteCacheFrame()
-	debug.Logger.Info("Stop lldp frames rx/tx for port:" + gblInfo.Name)
+	gblInfo.TxInfo.DeleteCacheFrame()
+	debug.Logger.Info("Stop lldp frames rx/tx for port:" + gblInfo.Port.Name)
 	svr.lldpGblInfo[ifIndex] = gblInfo
 	svr.DeletePortFromUpState(ifIndex)
 }
@@ -376,5 +279,32 @@ func (svr *LLDPServer) DeletePortFromUpState(ifIndex int32) {
 				svr.lldpUpIntfStateSlice[idx+1:]...)
 			break
 		}
+	}
+}
+
+/*  handle l2 state up/down notifications..
+ */
+func (svr *LLDPServer) UpdateL2IntfStateChange(ifIndex int32, state string) {
+	gblInfo, found := svr.lldpGblInfo[ifIndex]
+	if !found {
+		return
+	}
+	switch state {
+	case "UP":
+		debug.Logger.Info("State UP notification for " + gblInfo.Port.Name)
+		gblInfo.OperStateLock.Lock()
+		gblInfo.Port.OperState = LLDP_PORT_STATE_UP
+		svr.lldpGblInfo[ifIndex] = gblInfo
+		gblInfo.OperStateLock.Unlock()
+		// Create Pcap Handler and start rx/tx packets
+		svr.StartRxTx(ifIndex)
+	case "DOWN":
+		debug.Logger.Info("State DOWN notification for " + gblInfo.Port.Name)
+		gblInfo.OperStateLock.Lock()
+		gblInfo.Port.OperState = LLDP_PORT_STATE_DOWN
+		gblInfo.OperStateLock.Unlock()
+		svr.lldpGblInfo[ifIndex] = gblInfo
+		// Delete Pcap Handler and stop rx/tx packets
+		svr.StopRxTx(ifIndex)
 	}
 }

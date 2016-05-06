@@ -1,39 +1,45 @@
-package lldpServer
+package packet
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"l2/lldp/utils"
 	"net"
-	"time"
 )
 
-/*  lldp server go routine to handle tx timer... once the timer fires we will
- *  send the ifindex on the channel to handle send info
- */
-func (svr *LLDPServer) TransmitFrames(pHandle *pcap.Handle, ifIndex int32) {
-	for {
-		gblInfo, exists := svr.lldpGblInfo[ifIndex]
-		if !exists {
-			return
-		}
-
-		gblInfo.txTimer = time.NewTimer(time.Duration(gblInfo.lldpMessageTxInterval) *
-			time.Second)
-		svr.lldpGblInfo[ifIndex] = gblInfo
-		// Start lldpMessage Tx interval
-		<-gblInfo.txTimer.C
-
-		//	<-time.After(time.Duration(gblInfo.lldpMessageTxInterval) *
-		//		time.Second)
-		svr.lldpTxPktCh <- SendPktChannel{
-			ifIndex: ifIndex,
-		}
+func Min(x, y int) int {
+	if x < y {
+		return x
 	}
+	return y
+}
+
+func TxInit(interval, hold int) *TX {
+	var err error
+	/*  Set tx interval during init or update
+	 *  default value is 30
+	 *  Set tx hold multiplier during init or update
+	 *  default value is 4
+	 */
+	txInfo := &TX{
+		MessageTxInterval:       interval,
+		MessageTxHoldMultiplier: hold,
+		useCacheFrame:           false,
+	}
+	/*  Set TTL Value at the time of init or update of lldp config
+	 *  default value comes out to be 120
+	 */
+	txInfo.ttl = Min(LLDP_MAX_TTL, txInfo.MessageTxInterval*
+		txInfo.MessageTxHoldMultiplier)
+	txInfo.DstMAC, err = net.ParseMAC(LLDP_PROTO_DST_MAC)
+	if err != nil {
+		debug.Logger.Err(fmt.Sprintln("parsing lldp protocol Mac failed",
+			err))
+	}
+
+	return txInfo
 }
 
 /*  Function to send out lldp frame to peer on timer expiry.
@@ -42,25 +48,24 @@ func (svr *LLDPServer) TransmitFrames(pHandle *pcap.Handle, ifIndex int32) {
  *		1) if it is first time send
  *		2) if there is config object update
  */
-func (gblInfo *LLDPGlobalInfo) SendFrame() {
+func (gblInfo *TX) SendFrame(macaddr string, port string) []byte {
+	temp := make([]byte, 0)
 	// if cached then directly send the packet
 	if gblInfo.useCacheFrame {
-		if cache := gblInfo.WritePacket(gblInfo.cacheFrame); cache == false {
-			gblInfo.useCacheFrame = false
-		}
+		return gblInfo.cacheFrame
 	} else {
-		srcmac, _ := net.ParseMAC(gblInfo.MacAddr)
+		srcmac, _ := net.ParseMAC(macaddr)
 		// we need to construct new lldp frame based of the information that we
 		// have collected locally
 		// Chassis ID: Mac Address of Port
 		// Port ID: Port Name
 		// TTL: calculated during port init default is 30 * 4 = 120
-		payload := gblInfo.CreatePayload(srcmac)
+		payload := gblInfo.createPayload(srcmac, port)
 		if payload == nil {
 			debug.Logger.Err("Creating payload failed for port " +
-				gblInfo.Name)
+				port)
 			gblInfo.useCacheFrame = false
-			return
+			return temp
 		}
 		// Additional TLV's... @TODO: get it done later on
 		// System information... like "show version" command at Cisco
@@ -82,27 +87,24 @@ func (gblInfo *LLDPGlobalInfo) SendFrame() {
 		gopacket.SerializeLayers(buffer, options, eth,
 			gopacket.Payload(payload))
 		pkt := buffer.Bytes()
-		cache := gblInfo.WritePacket(pkt)
-		if cache {
-			gblInfo.cacheFrame = make([]byte, len(pkt))
-			copied := copy(gblInfo.cacheFrame, pkt)
-			if copied < len(pkt) {
-				debug.Logger.Err("Cache cannot be created")
-				gblInfo.cacheFrame = nil
-				gblInfo.useCacheFrame = false
-				return
-			}
-			gblInfo.useCacheFrame = true
-		} else {
+		gblInfo.cacheFrame = make([]byte, len(pkt))
+		copied := copy(gblInfo.cacheFrame, pkt)
+		if copied < len(pkt) {
+			debug.Logger.Err("Cache cannot be created")
+			gblInfo.cacheFrame = nil
 			gblInfo.useCacheFrame = false
+			// return should never happen
+			return temp
 		}
+		debug.Logger.Info("Send Frame is cached")
+		gblInfo.useCacheFrame = true
+		return pkt
 	}
 }
 
 /*  helper function to create payload from lldp frame struct
  */
-func (gblInfo *LLDPGlobalInfo) CreatePayload(srcmac []byte) []byte {
-	//payload := make([]byte, 0, LLDP_MIN_FRAME_LENGTH)
+func (gblInfo *TX) createPayload(srcmac []byte, port string) []byte {
 	var payload []byte
 	tlvType := 1
 	for {
@@ -115,21 +117,21 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload(srcmac []byte) []byte {
 			tlv.Type = layers.LLDPTLVChassisID
 			tlv.Value = EncodeMandatoryTLV(byte(
 				layers.LLDPChassisIDSubTypeMACAddr), srcmac)
-			debug.Logger.Debug(fmt.Sprintln("Chassis id tlv", tlv))
+			debug.Logger.Info(fmt.Sprintln("Chassis id tlv", tlv))
 
 		case 2: // Port ID
 			tlv.Type = layers.LLDPTLVPortID
 			tlv.Value = EncodeMandatoryTLV(byte(
 				layers.LLDPPortIDSubtypeIfaceName),
-				[]byte(gblInfo.Name))
-			debug.Logger.Debug(fmt.Sprintln("Port id tlv", tlv))
+				[]byte(port))
+			debug.Logger.Info(fmt.Sprintln("Port id tlv", tlv))
 
 		case 3: // TTL
 			tlv.Type = layers.LLDPTLVTTL
 			tb := []byte{0, 0}
 			binary.BigEndian.PutUint16(tb, uint16(gblInfo.ttl))
 			tlv.Value = append(tlv.Value, tb...)
-			debug.Logger.Debug(fmt.Sprintln("TTL tlv", tlv))
+			debug.Logger.Info(fmt.Sprintln("TTL tlv", tlv))
 
 			// @TODO: add other cases for optional tlv
 		}
@@ -144,28 +146,6 @@ func (gblInfo *LLDPGlobalInfo) CreatePayload(srcmac []byte) []byte {
 	tlv.Length = 0
 	payload = append(payload, EncodeTLV(tlv)...)
 	return payload
-}
-
-/*  Write packet is helper function to send packet on wire.
- *  It will inform caller that packet was send successfully and you can go ahead
- *  and cache the pkt or else do not cache the packet as it is corrupted or there
- *  was some error
- */
-func (gblInfo *LLDPGlobalInfo) WritePacket(pkt []byte) bool {
-	var err error
-	gblInfo.PcapHdlLock.Lock()
-	if gblInfo.PcapHandle != nil {
-		err = gblInfo.PcapHandle.WritePacketData(pkt)
-	} else {
-		err = errors.New("Pcap Handle is invalid for " + gblInfo.Name)
-	}
-	gblInfo.PcapHdlLock.Unlock()
-	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("Sending packet failed Error:",
-			err, "for Port:", gblInfo.Name))
-		return false
-	}
-	return true
 }
 
 /*  Encode Mandatory tlv, chassis id and port id
@@ -183,19 +163,34 @@ func EncodeMandatoryTLV(Subtype byte, ID []byte) []byte {
 // Marshall tlv information into binary form
 // 1) Check type value
 // 2) Check Length
-func EncodeTLV(tlv *layers.LinkLayerDiscoveryValue) []byte { //, b []byte) error {
+func EncodeTLV(tlv *layers.LinkLayerDiscoveryValue) []byte {
 
 	// copy value into b
 	// type : 7 bits
 	// leng : 9 bits
 	// value: N bytes
 	typeLen := uint16(tlv.Type)<<9 | tlv.Length
-	//temp := []byte{0, 0}
 	temp := make([]byte, 2+len(tlv.Value))
-	//b = append(b, temp...)
-	//binary.BigEndian.PutUint16(b[len(b)-2:], typeLen)
 	binary.BigEndian.PutUint16(temp[0:2], typeLen)
 	copy(temp[2:], tlv.Value)
-	//b = append(b, tlv.Value...)
 	return temp
+}
+
+func (t *TX) SetCache(use bool) {
+	t.useCacheFrame = use
+}
+
+/*  We have deleted the pcap handler and hence we will invalid the cache buffer
+ */
+func (gblInfo *TX) DeleteCacheFrame() {
+	gblInfo.useCacheFrame = false
+	gblInfo.cacheFrame = nil
+}
+
+/*  Stop Send Tx timer... as we have already delete the pcap handle
+ */
+func (gblInfo *TX) StopTxTimer() {
+	if gblInfo.TxTimer != nil {
+		gblInfo.TxTimer.Stop()
+	}
 }

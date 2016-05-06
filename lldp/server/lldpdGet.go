@@ -1,4 +1,4 @@
-package lldpServer
+package server
 
 import (
 	"fmt"
@@ -17,13 +17,14 @@ func (svr *LLDPServer) PopulateMandatoryTLV(ifIndex int32,
 		debug.Logger.Err(fmt.Sprintln("Entry not found for", ifIndex))
 		return exists
 	}
-	entry.LocalPort = gblInfo.Name
-	if gblInfo.rxFrame != nil {
+	entry.LocalPort = gblInfo.Port.Name
+	//if gblInfo.rxFrame != nil {
+	if gblInfo.RxInfo.RxFrame != nil {
 		entry.PeerMac = gblInfo.GetChassisIdInfo()
 		entry.Port = gblInfo.GetPortIdInfo()
-		entry.HoldTime = strconv.Itoa(int(gblInfo.rxFrame.TTL))
+		entry.HoldTime = strconv.Itoa(int(gblInfo.RxInfo.RxFrame.TTL))
 	}
-	entry.IfIndex = gblInfo.IfIndex
+	entry.IfIndex = gblInfo.Port.IfIndex
 	entry.Enable = true
 	return exists
 }
