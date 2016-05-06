@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"l2/lldp/flexswitch"
 	"l2/lldp/rpc"
 	"l2/lldp/server"
 	"l2/lldp/utils"
@@ -28,20 +29,32 @@ func main() {
 	debug.Logger.Info("Started the logger successfully.")
 
 	debug.Logger.Info("Starting LLDP server....")
-	// Create lldp server handler
-	lldpSvr := server.LLDPNewServer()
-	// Until Server is connected to clients do not start with RPC
-	lldpSvr.LLDPStartServer(*paramsDir)
+	//@FUTURE: read plugin name from json file and do init for that plugin
+	//plugin.Init("flexswitch", fileName, *paramsDir)
+	name := ""
+	switch name {
+	case "ovsdb":
 
-	// Start keepalive routine
-	go keepalive.InitKeepAlive("lldpd", fileName)
+	default:
+		aPlugin, err := flexswitch.NewAsicPlugin(fileName)
+		if err != nil {
+			return
+		}
+		// Create lldp server handler
+		lldpSvr := server.LLDPNewServer(aPlugin)
+		// Until Server is connected to clients do not start with RPC
+		lldpSvr.LLDPStartServer(*paramsDir)
 
-	// Create lldp rpc handler
-	lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr)
-	debug.Logger.Info("Starting LLDP RPC listener....")
-	err = lldpRpc.LLDPRPCStartServer(lldpHdl, *paramsDir)
-	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("Cannot start lldp server", err))
-		return
+		// Start keepalive routine
+		go keepalive.InitKeepAlive("lldpd", fileName)
+
+		// Create lldp rpc handler
+		lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr)
+		debug.Logger.Info("Starting LLDP RPC listener....")
+		err = lldpRpc.LLDPRPCStartServer(lldpHdl, *paramsDir)
+		if err != nil {
+			debug.Logger.Err(fmt.Sprintln("Cannot start lldp server", err))
+			return
+		}
 	}
 }

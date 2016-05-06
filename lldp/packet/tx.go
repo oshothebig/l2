@@ -96,6 +96,7 @@ func (gblInfo *TX) SendFrame(macaddr string, port string) []byte {
 			// return should never happen
 			return temp
 		}
+		debug.Logger.Info("Send Frame is cached")
 		gblInfo.useCacheFrame = true
 		return pkt
 	}

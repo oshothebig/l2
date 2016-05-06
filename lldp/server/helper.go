@@ -1,10 +1,10 @@
 package server
 
 import (
-	"asicdServices"
 	"fmt"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/utils"
 	"net"
@@ -28,23 +28,13 @@ func Max(x, y int) int {
 
 /*  Init l2 port information for global runtime information
  */
-func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(portConf *asicdServices.PortState) {
-	gblInfo.IfIndex = portConf.IfIndex
-	gblInfo.Name = portConf.Name
-	gblInfo.OperState = portConf.OperState
-	gblInfo.PortNum = portConf.PortNum
+func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(portConf *config.PortInfo) {
+	gblInfo.Port = *portConf
 	gblInfo.OperStateLock = &sync.RWMutex{}
 	gblInfo.PcapHdlLock = &sync.RWMutex{}
 	gblInfo.RxInfo = packet.RxInit()
 	gblInfo.TxInfo = packet.TxInit(LLDP_DEFAULT_TX_INTERVAL,
 		LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
-}
-
-/*  updating l2 port information with mac address. If needed update other
- *  information also in future
- */
-func (gblInfo *LLDPGlobalInfo) UpdatePortInfo(portConf *asicdServices.Port) {
-	gblInfo.MacAddr = portConf.MacAddr
 }
 
 /*  De-Init l2 port information
@@ -93,20 +83,20 @@ func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
 	if gblInfo.PcapHandle != nil {
 		gblInfo.PcapHdlLock.RUnlock()
 		debug.Logger.Alert("Pcap already exists and create pcap called for " +
-			gblInfo.Name)
+			gblInfo.Port.Name)
 		return
 	}
 	gblInfo.PcapHdlLock.RUnlock()
-	pcapHdl, err := pcap.OpenLive(gblInfo.Name, lldpSnapshotLen,
+	pcapHdl, err := pcap.OpenLive(gblInfo.Port.Name, lldpSnapshotLen,
 		lldpPromiscuous, lldpTimeout)
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Creating Pcap Handler failed for",
-			gblInfo.Name, "Error:", err))
+			gblInfo.Port.Name, "Error:", err))
 	}
 	err = pcapHdl.SetBPFFilter(LLDP_BPF_FILTER)
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
-			"for", gblInfo.Name, "failed with error:", err))
+			"for", gblInfo.Port.Name, "failed with error:", err))
 	}
 	gblInfo.PcapHdlLock.Lock()
 	gblInfo.PcapHandle = pcapHdl
@@ -182,8 +172,8 @@ func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
 /*  dump received lldp frame and other TX information
  */
 func (gblInfo LLDPGlobalInfo) DumpFrame() {
-	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Name, "Port Num:",
-		gblInfo.PortNum))
+	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Port.Name, "Port Num:",
+		gblInfo.Port.PortNum))
 	debug.Logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.RxInfo.SrcMAC.String(),
 		"DstMAC:", gblInfo.RxInfo.DstMAC.String()))
 	debug.Logger.Info(fmt.Sprintln("ChassisID info is",
