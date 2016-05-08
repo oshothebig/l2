@@ -106,27 +106,27 @@ func (gblInfo *TX) SendFrame(macaddr string, port string) []byte {
  */
 func (gblInfo *TX) createPayload(srcmac []byte, port string) []byte {
 	var payload []byte
-	tlvType := 1
+	tlvType := layers.LLDPTLVChassisID // start with chassis id always
 	for {
 		if tlvType > 3 { // right now only minimal lldp tlv
 			break
 		}
 		tlv := &layers.LinkLayerDiscoveryValue{}
 		switch tlvType {
-		case 1: // Chassis ID
+		case layers.LLDPTLVChassisID: // Chassis ID
 			tlv.Type = layers.LLDPTLVChassisID
 			tlv.Value = EncodeMandatoryTLV(byte(
 				layers.LLDPChassisIDSubTypeMACAddr), srcmac)
 			debug.Logger.Info(fmt.Sprintln("Chassis id tlv", tlv))
 
-		case 2: // Port ID
+		case layers.LLDPTLVPortID: // Port ID
 			tlv.Type = layers.LLDPTLVPortID
 			tlv.Value = EncodeMandatoryTLV(byte(
 				layers.LLDPPortIDSubtypeIfaceName),
 				[]byte(port))
 			debug.Logger.Info(fmt.Sprintln("Port id tlv", tlv))
 
-		case 3: // TTL
+		case layers.LLDPTLVTTL: // TTL
 			tlv.Type = layers.LLDPTLVTTL
 			tb := []byte{0, 0}
 			binary.BigEndian.PutUint16(tb, uint16(gblInfo.ttl))

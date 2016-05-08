@@ -88,12 +88,8 @@ func (svr *LLDPServer) InitL2PortInfo(portInfo *config.PortInfo) {
 	svr.lldpGblInfo[portInfo.IfIndex] = gblInfo
 
 	// Only start rx/tx once we have got the mac address from the get bulk port
-	gblInfo.OperStateLock.RLock()
 	if gblInfo.Port.OperState == LLDP_PORT_STATE_UP {
-		gblInfo.OperStateLock.RUnlock()
 		svr.StartRxTx(gblInfo.Port.IfIndex)
-	} else {
-		gblInfo.OperStateLock.RUnlock()
 	}
 }
 
@@ -204,12 +200,12 @@ func (svr *LLDPServer) ChannelHanlder() {
 				}
 				svr.lldpGblInfo[info.ifIndex] = gblInfo
 			}
-		case gbl, ok := <-svr.GblCfgCh:
+		case gbl, ok := <-svr.GblCfgCh: // Change in global config of the port
 			if !ok {
 				continue
 			}
 			debug.Logger.Info(fmt.Sprintln("Received Global Config", gbl))
-		case ifState, ok := <-svr.IfStateCh:
+		case ifState, ok := <-svr.IfStateCh: // Change in Port State..
 			if !ok {
 				continue
 			}
@@ -226,6 +222,13 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 	if !exists {
 		debug.Logger.Err(fmt.Sprintln("No entry for ifindex", ifIndex))
 		return
+	}
+	if gblInfo.PcapHandle != nil {
+		debug.Logger.Info("Pcap already exist means the port changed it states")
+		// Move the port to up state and continue
+		svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice,
+			gblInfo.Port.IfIndex)
+		return // returning because the go routine is already up and running for the port
 	}
 	err := gblInfo.CreatePcapHandler(svr.lldpSnapshotLen, svr.lldpPromiscuous,
 		svr.lldpTimeout)
@@ -254,8 +257,6 @@ func (svr *LLDPServer) StopRxTx(ifIndex int32) {
 	}
 	// stop the timer
 	gblInfo.TxInfo.StopTxTimer()
-	// delete pcap handler
-	gblInfo.DeletePcapHandler()
 	// invalid the cache information
 	gblInfo.TxInfo.DeleteCacheFrame()
 	debug.Logger.Info("Stop lldp frames rx/tx for port:" + gblInfo.Port.Name)
@@ -296,17 +297,13 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(ifIndex int32, state string) {
 	switch state {
 	case "UP":
 		debug.Logger.Info("State UP notification for " + gblInfo.Port.Name)
-		gblInfo.OperStateLock.Lock()
 		gblInfo.Port.OperState = LLDP_PORT_STATE_UP
 		svr.lldpGblInfo[ifIndex] = gblInfo
-		gblInfo.OperStateLock.Unlock()
 		// Create Pcap Handler and start rx/tx packets
 		svr.StartRxTx(ifIndex)
 	case "DOWN":
 		debug.Logger.Info("State DOWN notification for " + gblInfo.Port.Name)
-		gblInfo.OperStateLock.Lock()
 		gblInfo.Port.OperState = LLDP_PORT_STATE_DOWN
-		gblInfo.OperStateLock.Unlock()
 		svr.lldpGblInfo[ifIndex] = gblInfo
 		// Delete Pcap Handler and stop rx/tx packets
 		svr.StopRxTx(ifIndex)

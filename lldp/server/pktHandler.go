@@ -63,6 +63,16 @@ func (svr *LLDPServer) TransmitFrames(pHandle *pcap.Handle, ifIndex int32) {
 		if !exists {
 			return
 		}
+		/*  Go Routine to send frames is already spawned. But after some time the port is
+		 *  in down state. If that is the case then we do not delete this go routine.
+		 *  We stop the timer and clear the cache from the global runtime information..
+		 *  This for loop is gonna keep on running, so to avoid any un-necessary timer
+		 *  trigger we added an extra check for starting the timer only when the port is
+		 *  in LLDP_PORT_STATE_UP
+		 */
+		if gblInfo.Port.OperState == LLDP_PORT_STATE_DOWN {
+			continue
+		}
 		gblInfo.TxInfo.TxTimer =
 			time.NewTimer(time.Duration(gblInfo.TxInfo.MessageTxInterval) *
 				time.Second)
@@ -86,13 +96,11 @@ func (gblInfo *LLDPGlobalInfo) WritePacket(pkt []byte) bool {
 	if len(pkt) == 0 {
 		return false
 	}
-	gblInfo.PcapHdlLock.Lock()
 	if gblInfo.PcapHandle != nil {
 		err = gblInfo.PcapHandle.WritePacketData(pkt)
 	} else {
 		err = errors.New("Pcap Handle is invalid for " + gblInfo.Port.Name)
 	}
-	gblInfo.PcapHdlLock.Unlock()
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Sending packet failed Error:",
 			err, "for Port:", gblInfo.Port.Name))
