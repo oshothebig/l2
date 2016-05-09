@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -8,7 +9,6 @@ import (
 	"l2/lldp/packet"
 	"l2/lldp/utils"
 	"net"
-	"sync"
 	"time"
 )
 
@@ -30,8 +30,6 @@ func Max(x, y int) int {
  */
 func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(portConf *config.PortInfo) {
 	gblInfo.Port = *portConf
-	gblInfo.OperStateLock = &sync.RWMutex{}
-	gblInfo.PcapHdlLock = &sync.RWMutex{}
 	gblInfo.RxInfo = packet.RxInit()
 	gblInfo.TxInfo = packet.TxInit(LLDP_DEFAULT_TX_INTERVAL,
 		LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
@@ -48,13 +46,11 @@ func (gblInfo *LLDPGlobalInfo) DeInitRuntimeInfo() {
 /*  Delete l2 port pcap handler
  */
 func (gblInfo *LLDPGlobalInfo) DeletePcapHandler() {
-	gblInfo.PcapHdlLock.Lock()
 	if gblInfo.PcapHandle != nil {
 		// @FIXME: some bug in close handling that causes 5 mins delay
 		//gblInfo.PcapHandle.Close()
 		gblInfo.PcapHandle = nil
 	}
-	gblInfo.PcapHdlLock.Unlock()
 }
 
 /*  Stop RX cache timer
@@ -71,36 +67,27 @@ func (gblInfo *LLDPGlobalInfo) StopCacheTimer() {
 func (gblInfo *LLDPGlobalInfo) FreeDynamicMemory() {
 	gblInfo.RxInfo.RxFrame = nil
 	gblInfo.RxInfo.RxLinkInfo = nil
-	gblInfo.OperStateLock = nil
-	gblInfo.PcapHdlLock = nil
 }
 
 /*  Create Pcap Handler
  */
 func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
-	lldpPromiscuous bool, lldpTimeout time.Duration) {
-	gblInfo.PcapHdlLock.RLock()
-	if gblInfo.PcapHandle != nil {
-		gblInfo.PcapHdlLock.RUnlock()
-		debug.Logger.Alert("Pcap already exists and create pcap called for " +
-			gblInfo.Port.Name)
-		return
-	}
-	gblInfo.PcapHdlLock.RUnlock()
+	lldpPromiscuous bool, lldpTimeout time.Duration) error {
 	pcapHdl, err := pcap.OpenLive(gblInfo.Port.Name, lldpSnapshotLen,
 		lldpPromiscuous, lldpTimeout)
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Creating Pcap Handler failed for",
 			gblInfo.Port.Name, "Error:", err))
+		return errors.New("Creating Pcap Failed")
 	}
 	err = pcapHdl.SetBPFFilter(LLDP_BPF_FILTER)
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
 			"for", gblInfo.Port.Name, "failed with error:", err))
+		return errors.New("Setting BPF Filter Failed")
 	}
-	gblInfo.PcapHdlLock.Lock()
 	gblInfo.PcapHandle = pcapHdl
-	gblInfo.PcapHdlLock.Unlock()
+	return nil
 }
 
 /*  Get Chassis Id info
