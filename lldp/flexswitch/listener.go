@@ -67,7 +67,7 @@ func (h *ConfigHandler) DeleteLLDPIntf(config *lldpd.LLDPIntf) (r bool, err erro
 }
 
 func (h *ConfigHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
-	newconfig *lldpd.LLDPIntf, attrset []bool) (r bool, err error) {
+	newconfig *lldpd.LLDPIntf, attrset []bool, op string) (r bool, err error) {
 	return true, nil
 }
 
