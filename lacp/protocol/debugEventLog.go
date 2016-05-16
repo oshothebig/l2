@@ -3,19 +3,19 @@ package lacp
 
 import (
 	//"fmt"
-	"log/syslog"
 	"strings"
 	"time"
+	"utils/logging"
 )
 
 type LacpDebug struct {
 	LacpLogChan chan string
-	logger      *syslog.Writer
+	logger      *logging.Writer
 }
 
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpDebug() *LacpDebug {
-	logger, _ := syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "LACP")
+	logger, _ := logging.NewLogger("lacpd", "LACP", true)
 	lacpdebug := &LacpDebug{
 		LacpLogChan: make(chan string, 100),
 		logger:      logger,

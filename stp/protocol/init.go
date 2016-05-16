@@ -2,11 +2,11 @@
 package stp
 
 import (
-	"log/syslog"
 	"sync"
+	"utils/logging"
 )
 
-var gLogger *syslog.Writer
+var gLogger *logging.Writer
 
 func init() {
 	PortConfigMap = make(map[int32]portConfig)
@@ -31,5 +31,6 @@ func init() {
 	PstMachineStrStateMapInit()
 
 	// create the logger used by this module
-	gLogger, _ = syslog.New(syslog.LOG_NOTICE|syslog.LOG_INFO|syslog.LOG_DAEMON, "STP")
+	gLogger, _ = logging.NewLogger("stpd", "STP", true)
+
 }
