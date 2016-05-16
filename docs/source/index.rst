@@ -9,14 +9,9 @@ Welcome to FlexSwitchL2's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
+    Introduction <l2introduction>
+    LLDP <lldp>
+    LACP <lacp>
+    STP  <stp>

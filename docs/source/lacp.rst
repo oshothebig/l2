@@ -32,7 +32,7 @@ Configuration and State objects are generated from the following [yang model](ht
 
 Using SnapRoute's yang to go [object generator](https://github.com/SnapRoute/reltools/tree/master/codegentools/structs) the following objects are generated for use by the LACPD.
 
-```go
+Go Object:
 
 type LaPortChannel struct {
 	BaseObj
@@ -113,71 +113,3 @@ type LaPortChannelMemberState struct {
 }
 ```
 Lacp Module is not dependent on the generated model and only uses it as a means to the data to retreive.  The general data store within the lacp module mainly follows the standards object representations.
-
-
-
-
-## Build
-Building lacp module requires you to run the [setup](https://github.com/SnapRoute/reltools/blob/master/setupDev.py) in order to have the SnapRoute src as well as external repo dependencies.
-
-**Build lacp only**
-
-From top level make SnapRoute/src/:
-```
-   make codegen
-   make ipc
-```
-From lacp SnapRoute/src/l2/lacp/:
-```
-   make
-```
-**Build lacp as part of all**
-
-From top level make SnapRoute/src/:
-```
-  make
-```
-
-## Test
-There are multiple test supported for LACP
-
-###### Unit Test
-Go test framework is used for unit testing.   The tests are meant to test the various state machines within LACP.  For these tests for some cases two lacp instances are running and packets are sent over go channels.
-
-For running the test I like to use '-v' option to let me know what test are running.
-```
-   cd protocol
-   go test -v
-```
-
-###### Integration Test
-Integration tests can be found in the in the test repo under [lacp](https://github.com/SnapRoute/test/blob/master/tests/lacp/lacp.py)
-Integration tests are written in python.   Within the file there is a python dictionary describing the setup.  The setup is assuming two switches and 2 ports each.  
-
-
-The test is dependent on using the auto-generated [Sdk](https://github.com/SnapRoute/flexSdk/blob/master/py/flexswitchV2.py).
-
-```
-   // go to reltools (your path may differ)
-   cd ~/git/reltools/
-   make codegen
-   // go to test repo (your path may differ)
-   cd ~/git/snaproute/src/test/
-   source env.sh
-   cd tests/lacp/
-   python lacp.py
-```
-
-
-## REST API
-The rest api's example are taken from an auto generated python [SDK](https://github.com/SnapRoute/flexSdk/tree/master/py)
-SDK is generated as part of 'make codegen' or 'make'
-
-###### Example API using python
-Api parameter description can be found in SDK
-```
-    createLaPortChannel
-    deleteLaPortChannel
-    updateLaPortChannel
-```
-
