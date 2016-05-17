@@ -98,11 +98,10 @@ func (p *AsicPlugin) getPortStates() []*config.PortInfo {
 			obj := bulkInfo.PortStateList[i]
 			port := &config.PortInfo{
 				IfIndex:   obj.IfIndex,
-				PortNum:   obj.PortNum,
 				OperState: obj.OperState,
 				Name:      obj.Name,
 			}
-			pObj, err := p.asicdClient.GetPort(obj.IfIndex)
+			pObj, err := p.asicdClient.GetPort(obj.Name)
 			if err != nil {
 				debug.Logger.Err(fmt.Sprintln("Getting mac address for",
 					obj.Name, "failed, error:", err))

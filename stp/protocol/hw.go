@@ -114,12 +114,11 @@ func ConstructPortConfigMap() {
 			for i := 0; i < objCount; i++ {
 				ifindex := bulkInfo.PortStateList[i].IfIndex
 				ent := PortConfigMap[ifindex]
-				ent.PortNum = bulkInfo.PortStateList[i].PortNum
 				ent.IfIndex = ifindex
 				ent.Name = bulkInfo.PortStateList[i].Name
 				ent.HardwareAddr, _ = net.ParseMAC(bulkCfgInfo.PortList[i].MacAddr)
 				PortConfigMap[ifindex] = ent
-				StpLogger("INIT", fmt.Sprintf("Found Port %d IfIndex %d Name %s\n", ent.PortNum, ent.IfIndex, ent.Name))
+				StpLogger("INIT", fmt.Sprintf("Found Port IfIndex %d Name %s\n", ent.IfIndex, ent.Name))
 			}
 			if more == false {
 				return
@@ -249,7 +248,7 @@ func asicdSetStgPortState(stgid int32, ifindex int32, state int) error {
 		for _, pc := range PortConfigMap {
 			if pc.IfIndex == ifindex {
 				asicdmutex.Lock()
-				_, err := asicdclnt.ClientHdl.SetPortStpState(stgid, pc.PortNum, int32(state))
+				_, err := asicdclnt.ClientHdl.SetPortStpState(stgid, pc.IfIndex, int32(state))
 				asicdmutex.Unlock()
 				return err
 			}
