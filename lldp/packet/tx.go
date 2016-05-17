@@ -29,6 +29,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"l2/lldp/utils"
+	"models"
 	"net"
 )
 
@@ -71,7 +72,7 @@ func TxInit(interval, hold int) *TX {
  *		1) if it is first time send
  *		2) if there is config object update
  */
-func (gblInfo *TX) SendFrame(macaddr string, port string) []byte {
+func (gblInfo *TX) SendFrame(macaddr string, port string, portnum int32, sysInfo *models.SystemParams) []byte { //switchMac, mgmtIp, desc string) []byte {
 	temp := make([]byte, 0)
 	// if cached then directly send the packet
 	if gblInfo.useCacheFrame {
@@ -83,7 +84,7 @@ func (gblInfo *TX) SendFrame(macaddr string, port string) []byte {
 		// Chassis ID: Mac Address of Port
 		// Port ID: Port Name
 		// TTL: calculated during port init default is 30 * 4 = 120
-		payload := gblInfo.createPayload(srcmac, port)
+		payload := gblInfo.createPayload(srcmac, port, portnum, sysInfo) // switchMac, mgmtIp, desc)
 		if payload == nil {
 			debug.Logger.Err("Creating payload failed for port " +
 				port)
@@ -127,26 +128,27 @@ func (gblInfo *TX) SendFrame(macaddr string, port string) []byte {
 
 /*  helper function to create payload from lldp frame struct
  */
-func (gblInfo *TX) createPayload(srcmac []byte, port string) []byte {
+func (gblInfo *TX) createPayload(srcmac []byte, port string, portnum int32, sysInfo *models.SystemParams) []byte { // switchMac, mgmtIp, desc string) []byte {
 	var payload []byte
 	tlvType := layers.LLDPTLVChassisID // start with chassis id always
 	for {
-		if tlvType > 3 { // right now only minimal lldp tlv
+		if tlvType > LLDP_TOTAL_TLV_SUPPORTED { // right now only minimal lldp tlv
+			break
+		} else if tlvType > layers.LLDPTLVTTL && sysInfo == nil {
+			debug.Logger.Info("Reading System Information from DB failed and hence sending out only " +
+				"Mandatory TLV's")
 			break
 		}
 		tlv := &layers.LinkLayerDiscoveryValue{}
 		switch tlvType {
 		case layers.LLDPTLVChassisID: // Chassis ID
 			tlv.Type = layers.LLDPTLVChassisID
-			tlv.Value = EncodeMandatoryTLV(byte(
-				layers.LLDPChassisIDSubTypeMACAddr), srcmac)
+			tlv.Value = EncodeMandatoryTLV(byte(layers.LLDPChassisIDSubTypeMACAddr), srcmac)
 			debug.Logger.Info(fmt.Sprintln("Chassis id tlv", tlv))
 
 		case layers.LLDPTLVPortID: // Port ID
 			tlv.Type = layers.LLDPTLVPortID
-			tlv.Value = EncodeMandatoryTLV(byte(
-				layers.LLDPPortIDSubtypeIfaceName),
-				[]byte(port))
+			tlv.Value = EncodeMandatoryTLV(byte(layers.LLDPPortIDSubtypeIfaceName), []byte(port))
 			debug.Logger.Info(fmt.Sprintln("Port id tlv", tlv))
 
 		case layers.LLDPTLVTTL: // TTL
@@ -156,8 +158,42 @@ func (gblInfo *TX) createPayload(srcmac []byte, port string) []byte {
 			tlv.Value = append(tlv.Value, tb...)
 			debug.Logger.Info(fmt.Sprintln("TTL tlv", tlv))
 
-			// @TODO: add other cases for optional tlv
+		case layers.LLDPTLVPortDescription:
+			tlv.Type = layers.LLDPTLVPortDescription
+			tlv.Value = []byte("Dummy Port")
+			debug.Logger.Info(fmt.Sprintln("Port Description", tlv))
+
+		case layers.LLDPTLVSysDescription:
+			tlv.Type = layers.LLDPTLVSysDescription
+			tlv.Value = []byte(sysInfo.Description)
+			debug.Logger.Info(fmt.Sprintln("System Description", tlv))
+
+		case layers.LLDPTLVSysName:
+			tlv.Type = layers.LLDPTLVSysName
+			tlv.Value = []byte(sysInfo.Hostname)
+			debug.Logger.Info(fmt.Sprintln("System Name", tlv))
+
+		case layers.LLDPTLVMgmtAddress:
+			/*
+			 *  Value: N bytes
+			 *     Subtype is 1 byte
+			 *     Address is []byte
+			 *     IntefaceSubtype is 1 byte
+			 *     IntefaceNumber uint32 <<< this is system interface number which is IfIndex in out case
+			 *     OID string
+			 */
+			mgmtInfo := &layers.LLDPMgmtAddress{
+				Subtype:          layers.IANAAddressFamily802,
+				Address:          []byte(sysInfo.MgmtIp),
+				InterfaceSubtype: layers.LLDPInterfaceSubtypeifIndex,
+				InterfaceNumber:  uint32(portnum),
+			}
+			debug.Logger.Info(fmt.Sprintln("Mgmt Info", mgmtInfo))
+			tlv.Type = layers.LLDPTLVMgmtAddress
+			tlv.Value = EncodeMgmtTLV(mgmtInfo)
+			debug.Logger.Info(fmt.Sprintln("Mgmt Description", tlv))
 		}
+
 		tlv.Length = uint16(len(tlv.Value))
 		payload = append(payload, EncodeTLV(tlv)...)
 		tlvType++
@@ -197,6 +233,31 @@ func EncodeTLV(tlv *layers.LinkLayerDiscoveryValue) []byte {
 	binary.BigEndian.PutUint16(temp[0:2], typeLen)
 	copy(temp[2:], tlv.Value)
 	return temp
+}
+
+/*  TLV Type = 8, 7 bits             ----
+					|--> 2 bytes
+ *  TLV Length = 9 bits....	     ----
+ *  Value: N bytes
+ *     Subtype is 1 byte
+ *     Address is []byte
+ *     IntefaceSubtype is 1 byte
+ *     IntefaceNumber uint32 <<< this is system interface number which is IfIndex in out case
+ *     OID string
+*/
+func EncodeMgmtTLV(tlv *layers.LLDPMgmtAddress) []byte {
+	var b []byte
+	b = append(b, byte(len(tlv.Address)))
+	b = append(b, byte(tlv.Subtype))
+	b = append(b, tlv.Address...)
+	b = append(b, byte(tlv.InterfaceSubtype))
+	b = append(b, byte(tlv.InterfaceNumber))
+	b = append(b, byte(0)) // OID STRING LENGTH is 0
+	return b
+}
+
+func (t *TX) UseCache() bool {
+	return t.useCacheFrame
 }
 
 func (t *TX) SetCache(use bool) {

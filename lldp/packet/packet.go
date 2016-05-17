@@ -30,8 +30,9 @@ import (
 )
 
 const (
-	LLDP_PROTO_DST_MAC = "01:80:c2:00:00:0e"
-	LLDP_MAX_TTL       = 65535
+	LLDP_MAX_TTL             = 65535
+	LLDP_PROTO_DST_MAC       = "01:80:c2:00:00:0e"
+	LLDP_TOTAL_TLV_SUPPORTED = 8
 )
 
 type RX struct {
