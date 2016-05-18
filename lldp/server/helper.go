@@ -207,6 +207,10 @@ func (svr *LLDPServer) EntryExist(ifIndex int32) bool {
 /*  Api to get System information used for TX Frame
  */
 func (svr *LLDPServer) GetSystemInfo() {
+	if svr.SysInfo != nil {
+		return
+	}
+	svr.SysInfo = &models.SystemParams{}
 	debug.Logger.Info("Reading System Information From Db")
 	dbHdl := svr.lldpDbHdl
 	if dbHdl != nil {
@@ -214,9 +218,8 @@ func (svr *LLDPServer) GetSystemInfo() {
 		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			debug.Logger.Err("DB query failed for System Info")
-			return //err
+			return
 		}
-		debug.Logger.Info(fmt.Sprintln("Total System Entries are", len(objList)))
 		for idx := 0; idx < len(objList); idx++ {
 			dbObject := objList[idx].(models.SystemParams)
 			svr.SysInfo.SwitchMac = dbObject.SwitchMac
@@ -230,12 +233,13 @@ func (svr *LLDPServer) GetSystemInfo() {
 		}
 	}
 	debug.Logger.Info(fmt.Sprintln("reading system info from db done", svr.SysInfo))
-	return //nil
+	return
 }
 
 /*  Api to update system cache on next send frame
  */
 func (svr *LLDPServer) UpdateSystemCache() {
+	svr.SysInfo = nil
 	for _, ifIndex := range svr.lldpUpIntfStateSlice {
 		gblInfo, exists := svr.lldpGblInfo[ifIndex]
 		if !exists {

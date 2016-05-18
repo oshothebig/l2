@@ -28,7 +28,7 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/plugin"
 	"l2/lldp/utils"
-	"models"
+	_ "models"
 	"os"
 	"os/signal"
 	_ "runtime/pprof"
@@ -73,7 +73,6 @@ func (svr *LLDPServer) InitGlobalDS() {
 	svr.GblCfgCh = make(chan *config.Global)
 	svr.IfStateCh = make(chan *config.PortState)
 	svr.UpdateCache = make(chan bool)
-	svr.SysInfo = &models.SystemParams{}
 
 	// All Plugin Info
 }
@@ -329,8 +328,7 @@ func (svr *LLDPServer) ChannelHanlder() {
 					svr.GetSystemInfo()
 				}
 				rv := gblInfo.WritePacket(
-					gblInfo.TxInfo.SendFrame(gblInfo.Port.MacAddr, gblInfo.Port.Name,
-						gblInfo.Port.PortNum, svr.SysInfo))
+					gblInfo.TxInfo.SendFrame(gblInfo.Port, svr.SysInfo))
 				if rv == false {
 					gblInfo.TxInfo.SetCache(rv)
 				}

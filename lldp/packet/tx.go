@@ -13,21 +13,23 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 package packet
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"l2/lldp/config"
 	"l2/lldp/utils"
 	"models"
 	"net"
@@ -72,22 +74,21 @@ func TxInit(interval, hold int) *TX {
  *		1) if it is first time send
  *		2) if there is config object update
  */
-func (gblInfo *TX) SendFrame(macaddr string, port string, portnum int32, sysInfo *models.SystemParams) []byte { //switchMac, mgmtIp, desc string) []byte {
+func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *models.SystemParams) []byte {
 	temp := make([]byte, 0)
 	// if cached then directly send the packet
 	if gblInfo.useCacheFrame {
 		return gblInfo.cacheFrame
 	} else {
-		srcmac, _ := net.ParseMAC(macaddr)
+		srcmac, _ := net.ParseMAC(port.MacAddr)
 		// we need to construct new lldp frame based of the information that we
 		// have collected locally
 		// Chassis ID: Mac Address of Port
 		// Port ID: Port Name
 		// TTL: calculated during port init default is 30 * 4 = 120
-		payload := gblInfo.createPayload(srcmac, port, portnum, sysInfo) // switchMac, mgmtIp, desc)
+		payload := gblInfo.createPayload(srcmac, port, sysInfo)
 		if payload == nil {
-			debug.Logger.Err("Creating payload failed for port " +
-				port)
+			debug.Logger.Err(fmt.Sprintln("Creating payload failed for port", port))
 			gblInfo.useCacheFrame = false
 			return temp
 		}
@@ -108,8 +109,7 @@ func (gblInfo *TX) SendFrame(macaddr string, port string, portnum int32, sysInfo
 			FixLengths:       true,
 			ComputeChecksums: true,
 		}
-		gopacket.SerializeLayers(buffer, options, eth,
-			gopacket.Payload(payload))
+		gopacket.SerializeLayers(buffer, options, eth, gopacket.Payload(payload))
 		pkt := buffer.Bytes()
 		gblInfo.cacheFrame = make([]byte, len(pkt))
 		copied := copy(gblInfo.cacheFrame, pkt)
@@ -128,9 +128,11 @@ func (gblInfo *TX) SendFrame(macaddr string, port string, portnum int32, sysInfo
 
 /*  helper function to create payload from lldp frame struct
  */
-func (gblInfo *TX) createPayload(srcmac []byte, port string, portnum int32, sysInfo *models.SystemParams) []byte { // switchMac, mgmtIp, desc string) []byte {
+func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *models.SystemParams) []byte {
 	var payload []byte
+	var err error
 	tlvType := layers.LLDPTLVChassisID // start with chassis id always
+	debug.Logger.Info(fmt.Sprintln("Using provided system info", sysInfo))
 	for {
 		if tlvType > LLDP_TOTAL_TLV_SUPPORTED { // right now only minimal lldp tlv
 			break
@@ -148,7 +150,7 @@ func (gblInfo *TX) createPayload(srcmac []byte, port string, portnum int32, sysI
 
 		case layers.LLDPTLVPortID: // Port ID
 			tlv.Type = layers.LLDPTLVPortID
-			tlv.Value = EncodeMandatoryTLV(byte(layers.LLDPPortIDSubtypeIfaceName), []byte(port))
+			tlv.Value = EncodeMandatoryTLV(byte(layers.LLDPPortIDSubtypeIfaceName), []byte(port.Name))
 			debug.Logger.Info(fmt.Sprintln("Port id tlv", tlv))
 
 		case layers.LLDPTLVTTL: // TTL
@@ -160,7 +162,7 @@ func (gblInfo *TX) createPayload(srcmac []byte, port string, portnum int32, sysI
 
 		case layers.LLDPTLVPortDescription:
 			tlv.Type = layers.LLDPTLVPortDescription
-			tlv.Value = []byte("Dummy Port")
+			tlv.Value = []byte(port.Description)
 			debug.Logger.Info(fmt.Sprintln("Port Description", tlv))
 
 		case layers.LLDPTLVSysDescription:
@@ -182,20 +184,23 @@ func (gblInfo *TX) createPayload(srcmac []byte, port string, portnum int32, sysI
 			 *     IntefaceNumber uint32 <<< this is system interface number which is IfIndex in out case
 			 *     OID string
 			 */
+			tlv.Type = layers.LLDPTLVMgmtAddress
 			mgmtInfo := &layers.LLDPMgmtAddress{
 				Subtype:          layers.IANAAddressFamily802,
 				Address:          []byte(sysInfo.MgmtIp),
 				InterfaceSubtype: layers.LLDPInterfaceSubtypeifIndex,
-				InterfaceNumber:  uint32(portnum),
+				InterfaceNumber:  uint32(port.PortNum),
 			}
-			debug.Logger.Info(fmt.Sprintln("Mgmt Info", mgmtInfo))
-			tlv.Type = layers.LLDPTLVMgmtAddress
-			tlv.Value = EncodeMgmtTLV(mgmtInfo)
-			debug.Logger.Info(fmt.Sprintln("Mgmt Description", tlv))
+			tlv.Value, err = json.Marshal(mgmtInfo)
+			if err != nil {
+				debug.Logger.Err(fmt.Sprintln("Marshalling mgmtInfo failed, error:", err))
+			}
 		}
-
-		tlv.Length = uint16(len(tlv.Value))
-		payload = append(payload, EncodeTLV(tlv)...)
+		if err == nil {
+			tlv.Length = uint16(len(tlv.Value))
+			payload = append(payload, EncodeTLV(tlv)...)
+		}
+		err = nil
 		tlvType++
 	}
 
