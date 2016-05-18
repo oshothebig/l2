@@ -25,7 +25,8 @@ package packet
 
 import (
 	"encoding/binary"
-	"encoding/json"
+	_ "encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -132,7 +133,6 @@ func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *m
 	var payload []byte
 	var err error
 	tlvType := layers.LLDPTLVChassisID // start with chassis id always
-	debug.Logger.Info(fmt.Sprintln("Using provided system info", sysInfo))
 	for {
 		if tlvType > LLDP_TOTAL_TLV_SUPPORTED { // right now only minimal lldp tlv
 			break
@@ -175,6 +175,9 @@ func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *m
 			tlv.Value = []byte(sysInfo.Hostname)
 			debug.Logger.Info(fmt.Sprintln("System Name", tlv))
 
+		case layers.LLDPTLVSysCapabilities:
+			err = errors.New("Tlv not supported")
+
 		case layers.LLDPTLVMgmtAddress:
 			/*
 			 *  Value: N bytes
@@ -183,18 +186,17 @@ func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *m
 			 *     IntefaceSubtype is 1 byte
 			 *     IntefaceNumber uint32 <<< this is system interface number which is IfIndex in out case
 			 *     OID string
+
 			 */
 			tlv.Type = layers.LLDPTLVMgmtAddress
 			mgmtInfo := &layers.LLDPMgmtAddress{
-				Subtype:          layers.IANAAddressFamily802,
+				Subtype:          layers.IANAAddressFamilyIPV4,
 				Address:          []byte(sysInfo.MgmtIp),
 				InterfaceSubtype: layers.LLDPInterfaceSubtypeifIndex,
 				InterfaceNumber:  uint32(port.PortNum),
 			}
-			tlv.Value, err = json.Marshal(mgmtInfo)
-			if err != nil {
-				debug.Logger.Err(fmt.Sprintln("Marshalling mgmtInfo failed, error:", err))
-			}
+			tlv.Value = EncodeMgmtTLV(mgmtInfo)
+			debug.Logger.Info(fmt.Sprintln("MGMT Info is", mgmtInfo, "for mgmt ip", sysInfo.MgmtIp))
 		}
 		if err == nil {
 			tlv.Length = uint16(len(tlv.Value))
@@ -247,7 +249,7 @@ func EncodeTLV(tlv *layers.LinkLayerDiscoveryValue) []byte {
  *     Subtype is 1 byte
  *     Address is []byte
  *     IntefaceSubtype is 1 byte
- *     IntefaceNumber uint32 <<< this is system interface number which is IfIndex in out case
+ *     IntefaceNumber uint32 <<< this is system interface number which is IfIndex in our case
  *     OID string
 */
 func EncodeMgmtTLV(tlv *layers.LLDPMgmtAddress) []byte {
@@ -256,8 +258,10 @@ func EncodeMgmtTLV(tlv *layers.LLDPMgmtAddress) []byte {
 	b = append(b, byte(tlv.Subtype))
 	b = append(b, tlv.Address...)
 	b = append(b, byte(tlv.InterfaceSubtype))
-	b = append(b, byte(tlv.InterfaceNumber))
-	b = append(b, byte(0)) // OID STRING LENGTH is 0
+	temp := make([]byte, 4 /*uint32*/ +1 /*Length of OID String*/)
+	binary.BigEndian.PutUint32(temp[0:4], tlv.InterfaceNumber)
+	temp[4] = 0
+	b = append(b, temp...)
 	return b
 }
 
