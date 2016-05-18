@@ -61,13 +61,17 @@ func main() {
 		if err != nil {
 			return
 		}
+		sPlugin, err := flexswitch.NewSystemPlugin(fileName)
+		if err != nil {
+			return
+		}
 		// Create lldp rpc handler
 		//lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr)
 		lldpHdl := flexswitch.NewConfigHandler()
 		lPlugin := flexswitch.NewNBPlugin(lldpHdl, fileName)
 
 		// Create lldp server handler
-		lldpSvr := server.LLDPNewServer(aPlugin, lPlugin)
+		lldpSvr := server.LLDPNewServer(aPlugin, lPlugin, sPlugin)
 		// Start Api Layer
 		api.Init(lldpSvr)
 
