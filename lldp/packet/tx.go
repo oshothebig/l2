@@ -191,12 +191,11 @@ func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *m
 			tlv.Type = layers.LLDPTLVMgmtAddress
 			mgmtInfo := &layers.LLDPMgmtAddress{
 				Subtype:          layers.IANAAddressFamilyIPV4,
-				Address:          []byte(sysInfo.MgmtIp),
+				Address:          net.ParseIP(sysInfo.MgmtIp).To4(),
 				InterfaceSubtype: layers.LLDPInterfaceSubtypeifIndex,
 				InterfaceNumber:  uint32(port.PortNum),
 			}
 			tlv.Value = EncodeMgmtTLV(mgmtInfo)
-			debug.Logger.Info(fmt.Sprintln("MGMT Info is", mgmtInfo, "for mgmt ip", sysInfo.MgmtIp))
 		}
 		if err == nil {
 			tlv.Length = uint16(len(tlv.Value))
@@ -254,7 +253,7 @@ func EncodeTLV(tlv *layers.LinkLayerDiscoveryValue) []byte {
 */
 func EncodeMgmtTLV(tlv *layers.LLDPMgmtAddress) []byte {
 	var b []byte
-	b = append(b, byte(len(tlv.Address)))
+	b = append(b, byte(len(tlv.Address)+1 /*IEEE Guys why you want redundant information?*/))
 	b = append(b, byte(tlv.Subtype))
 	b = append(b, tlv.Address...)
 	b = append(b, byte(tlv.InterfaceSubtype))
@@ -262,6 +261,7 @@ func EncodeMgmtTLV(tlv *layers.LLDPMgmtAddress) []byte {
 	binary.BigEndian.PutUint32(temp[0:4], tlv.InterfaceNumber)
 	temp[4] = 0
 	b = append(b, temp...)
+	debug.Logger.Info(fmt.Sprintln("byte returned", b))
 	return b
 }
 
