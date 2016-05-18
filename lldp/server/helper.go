@@ -229,7 +229,7 @@ func (svr *LLDPServer) GetSystemInfo() {
 			break
 		}
 	}
-	debug.Logger.Info("reading system info from db done")
+	debug.Logger.Info(fmt.Sprintln("reading system info from db done", svr.SysInfo))
 	return //nil
 }
 
