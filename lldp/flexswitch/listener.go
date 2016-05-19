@@ -82,7 +82,7 @@ func (p *NBPlugin) Start() error {
 }
 
 func (h *ConfigHandler) CreateLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {
-	return true, nil
+	return api.SendGlobalConfig(config.IfIndex, config.Enable)
 }
 
 func (h *ConfigHandler) DeleteLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {

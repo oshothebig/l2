@@ -35,3 +35,13 @@ type AsicIntf interface {
 type ConfigIntf interface {
 	Start() error
 }
+
+type SystemIntf interface {
+	Start()
+	/*
+		GetSwitchMac() string
+		GetDescription() string
+		GetMgmtIp() string
+		GetHostName() string
+	*/
+}

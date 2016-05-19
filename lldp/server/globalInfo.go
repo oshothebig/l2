@@ -29,6 +29,7 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/plugin"
+	"models"
 	"time"
 	"utils/dbutils"
 )
@@ -60,6 +61,10 @@ type LLDPServer struct {
 
 	asicPlugin plugin.AsicIntf
 	CfgPlugin  plugin.ConfigIntf
+	SysPlugin  plugin.SystemIntf
+
+	//System Information
+	SysInfo *models.SystemParams
 
 	// lldp per port global info
 	lldpGblInfo          map[int32]LLDPGlobalInfo
@@ -79,6 +84,8 @@ type LLDPServer struct {
 	GblCfgCh chan *config.Global
 	// lldp asic notification channel
 	IfStateCh chan *config.PortState
+	// Update Cache notification channel
+	UpdateCache chan bool
 
 	// lldp exit
 	lldpExit chan bool

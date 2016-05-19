@@ -24,8 +24,10 @@
 package api
 
 import (
+	"errors"
 	"l2/lldp/config"
 	"l2/lldp/server"
+	"strconv"
 	"sync"
 )
 
@@ -50,8 +52,23 @@ func Init(svr *server.LLDPServer) {
 	lldpapi.server = svr
 }
 
-func SendGlobalConfig(ifIndex int32, enable bool) {
+func validateConfig(ifIndex int32) (bool, error) {
+	exists := lldpapi.server.EntryExist(ifIndex)
+	if !exists {
+		return exists, errors.New("No entry found for ifIndex " +
+			strconv.Itoa(int(ifIndex)))
+	}
+	return exists, nil
+}
+
+func SendGlobalConfig(ifIndex int32, enable bool) (bool, error) {
+	// Validate ifIndex before sending the config to server
+	proceed, err := validateConfig(ifIndex)
+	if !proceed {
+		return proceed, err
+	}
 	lldpapi.server.GblCfgCh <- &config.Global{ifIndex, enable}
+	return proceed, err
 }
 
 func SendPortStateChange(ifIndex int32, state string) {
@@ -61,4 +78,8 @@ func SendPortStateChange(ifIndex int32, state string) {
 func GetIntfStates(idx int, cnt int) (int, int, []config.IntfState) {
 	n, c, result := lldpapi.server.GetIntfStates(idx, cnt)
 	return n, c, result
+}
+
+func UpdateCache() {
+	lldpapi.server.UpdateCache <- true
 }
