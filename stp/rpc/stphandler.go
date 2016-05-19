@@ -1,13 +1,36 @@
+//
+//Copyright [2016] [SnapRoute Inc]
+//
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+//	 Unless required by applicable law or agreed to in writing, software
+//	 distributed under the License is distributed on an "AS IS" BASIS,
+//	 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//	 See the License for the specific language governing permissions and
+//	 limitations under the License.
+//
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
+//                                                                                                           
+
 // lahandler
 package rpc
 
 import (
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	stp "l2/stp/protocol"
 	"models"
 	"reflect"
 	"stpd"
+	"utils/dbutils"
 	//"time"
 	"errors"
 )
@@ -156,10 +179,10 @@ func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInsta
 	return false, err
 }
 
-func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl redis.Conn) error {
+func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
 		var dbObj models.StpBridgeInstance
-		objList, err := dbObj.GetAllObjFromDb(dbHdl)
+		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			stp.StpLogger("ERROR", "DB Query failed when retrieving StpBridgeInstance objects")
 			return err
@@ -177,10 +200,10 @@ func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl redis.Conn) err
 	return nil
 }
 
-func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl redis.Conn) error {
+func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
 		var dbObj models.StpPort
-		objList, err := dbObj.GetAllObjFromDb(dbHdl)
+		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			stp.StpLogger("ERROR", "DB Query failed when retrieving StpPort objects")
 			return err
@@ -200,12 +223,13 @@ func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl redis.Conn) error {
 
 func (s *STPDServiceHandler) ReadConfigFromDB() error {
 
-	dbHdl, err := redis.Dial("tcp", ":6379")
+	dbHdl := dbutils.NewDBUtil(nil)
+	err := dbHdl.Connect()
 	if err != nil {
 		stp.StpLogger("ERROR", fmt.Sprintf("Failed to open connection to DB with error %s", err))
 		return err
 	}
-	defer dbHdl.Close()
+	defer dbHdl.Disconnect()
 
 	if err := s.HandleDbReadStpBridgeInstance(dbHdl); err != nil {
 		stp.StpLogger("ERROR", "Error getting All StpBridgeInstance objects")
@@ -234,7 +258,7 @@ func (s *STPDServiceHandler) DeleteStpBridgeInstance(config *stpd.StpBridgeInsta
 	return false, err
 }
 
-func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool) (bool, error) {
+func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op string) (bool, error) {
 	var b *stp.Bridge
 	brgconfig := &stp.StpBridgeConfig{}
 	objTyp := reflect.TypeOf(*origconfig)
@@ -317,7 +341,7 @@ func (s *STPDServiceHandler) DeleteStpPort(config *stpd.StpPort) (bool, error) {
 	return false, err
 }
 
-func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool) (bool, error) {
+func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool, op string) (bool, error) {
 	var p *stp.StpPort
 	portconfig := &stp.StpPortConfig{}
 	objTyp := reflect.TypeOf(*origconfig)

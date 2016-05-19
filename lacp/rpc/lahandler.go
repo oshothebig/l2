@@ -1,3 +1,26 @@
+//
+//Copyright [2016] [SnapRoute Inc]
+//
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+//	 Unless required by applicable law or agreed to in writing, software
+//	 distributed under the License is distributed on an "AS IS" BASIS,
+//	 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//	 See the License for the specific language governing permissions and
+//	 limitations under the License.
+//
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
+//                                                                                                           
+
 // lahandler
 package rpc
 
@@ -5,7 +28,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	lacp "l2/lacp/protocol"
 	"lacpd"
 	"models"
@@ -14,6 +36,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"utils/dbutils"
 )
 
 const DBName string = "UsrConfDb.db"
@@ -264,7 +287,7 @@ func GetIdByName(AggName string) int {
 	return i
 }
 
-func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl redis.Conn) error {
+func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
 		var dbObj models.LaPortChannel
 		objList, err := dbObj.GetAllObjFromDb(dbHdl)
@@ -286,12 +309,13 @@ func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl redis.Conn) error
 }
 
 func (la *LACPDServiceHandler) ReadConfigFromDB() error {
-	dbHdl, err := redis.Dial("tcp", ":6379")
+	dbHdl := dbutils.NewDBUtil(nil)
+	err := dbHdl.Connect()
 	if err != nil {
 		fmt.Printf("Failed to open connection to the DB with error %s", err)
 		return err
 	}
-	defer dbHdl.Close()
+	defer dbHdl.Disconnect()
 
 	if err := la.HandleDbReadLaPortChannel(dbHdl); err != nil {
 		fmt.Println("Error getting All AggregationLacpConfig objects")
@@ -435,7 +459,7 @@ func GetAddDelMembers(orig []uint16, update []int32) (add, del []int32) {
 	return
 }
 
-func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChannel, updateconfig *lacpd.LaPortChannel, attrset []bool) (bool, error) {
+func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChannel, updateconfig *lacpd.LaPortChannel, attrset []bool, op string) (bool, error) {
 
 	aggModeMap := map[uint32]string{
 		//LacpActivityTypeACTIVE:  "ACTIVE",
