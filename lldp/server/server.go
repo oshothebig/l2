@@ -1,3 +1,26 @@
+//
+//Copyright [2016] [SnapRoute Inc]
+//
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+//	 Unless required by applicable law or agreed to in writing, software
+//	 distributed under the License is distributed on an "AS IS" BASIS,
+//	 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//	 See the License for the specific language governing permissions and
+//	 limitations under the License.
+//
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
+
 package server
 
 import (
@@ -5,6 +28,7 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/plugin"
 	"l2/lldp/utils"
+	_ "models"
 	"os"
 	"os/signal"
 	_ "runtime/pprof"
@@ -14,10 +38,12 @@ import (
 
 /* Create lldp server object for the main handler..
  */
-func LLDPNewServer(aPlugin plugin.AsicIntf, lPlugin plugin.ConfigIntf) *LLDPServer {
+func LLDPNewServer(aPlugin plugin.AsicIntf, lPlugin plugin.ConfigIntf,
+	sPlugin plugin.SystemIntf) *LLDPServer {
 	lldpServerInfo := &LLDPServer{
 		asicPlugin: aPlugin,
 		CfgPlugin:  lPlugin,
+		SysPlugin:  sPlugin,
 	}
 	// Allocate memory to all the Data Structures
 	lldpServerInfo.InitGlobalDS()
@@ -46,6 +72,7 @@ func (svr *LLDPServer) InitGlobalDS() {
 	svr.lldpTimeout = 1 * time.Second
 	svr.GblCfgCh = make(chan *config.Global)
 	svr.IfStateCh = make(chan *config.PortState)
+	svr.UpdateCache = make(chan bool)
 
 	// All Plugin Info
 }
@@ -103,8 +130,6 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 	svr.OSSignalHandle()
 
 	svr.paramsDir = paramsDir
-	// Start Api Layer
-	//api.Init(svr.GblCfgCh, svr.IfStateCh)
 	// Get Port Information from Asic
 	portsInfo := svr.asicPlugin.GetPortsInfo()
 	for _, port := range portsInfo {
@@ -118,9 +143,10 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 	} else {
 		// Populate Gbl Configs
 		svr.ReadDB()
-		svr.CloseDB()
+		//svr.CloseDB()
 	}
 	svr.asicPlugin.Start()
+	svr.SysPlugin.Start()
 	go svr.ChannelHanlder()
 }
 
@@ -145,72 +171,12 @@ func (svr *LLDPServer) SignalHandler(sigChannel <-chan os.Signal) {
 		debug.Logger.Alert("Received SIGHUP Signal")
 		svr.CloseAllPktHandlers()
 		svr.DeInitGlobalDS()
+		svr.CloseDB()
 		//pprof.StopCPUProfile()
 		debug.Logger.Alert("Exiting!!!!!")
 		os.Exit(0)
 	default:
 		debug.Logger.Info(fmt.Sprintln("Unhandled Signal:", signal))
-	}
-}
-
-/* To handle all the channels in lldp server... For detail look at the
- * LLDPInitGlobalDS api to see which all channels are getting initialized
- */
-func (svr *LLDPServer) ChannelHanlder() {
-	for {
-		select {
-		case rcvdInfo, ok := <-svr.lldpRxPktCh:
-			if !ok {
-				debug.Logger.Alert("RX Channel is closed, exit")
-				return // rx channel should be closed only on exit
-			}
-			gblInfo, exists := svr.lldpGblInfo[rcvdInfo.ifIndex]
-			if exists {
-				err := gblInfo.RxInfo.Process(gblInfo.RxInfo, rcvdInfo.pkt)
-				if err != nil {
-					debug.Logger.Err(fmt.Sprintln("err", err,
-						" while processing rx frame on port",
-						gblInfo.Port.Name))
-					continue
-				}
-				// reset/start timer for recipient information
-				gblInfo.RxInfo.CheckPeerEntry(gblInfo.Port.Name)
-				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
-				// dump the frame
-				//gblInfo.DumpFrame()
-			}
-		case exit := <-svr.lldpExit:
-			if exit {
-				debug.Logger.Alert("lldp exiting stopping all" +
-					" channel handlers")
-				return
-			}
-		case info, ok := <-svr.lldpTxPktCh:
-			if !ok {
-				debug.Logger.Alert("TX Channel is closed, exit")
-				return
-			}
-			gblInfo, exists := svr.lldpGblInfo[info.ifIndex]
-			// extra check for pcap handle
-			if exists && gblInfo.PcapHandle != nil {
-				rv := gblInfo.WritePacket(
-					gblInfo.TxInfo.SendFrame(gblInfo.Port.MacAddr, gblInfo.Port.Name))
-				if rv == false {
-					gblInfo.TxInfo.SetCache(rv)
-				}
-				svr.lldpGblInfo[info.ifIndex] = gblInfo
-			}
-		case gbl, ok := <-svr.GblCfgCh: // Change in global config of the port
-			if !ok {
-				continue
-			}
-			debug.Logger.Info(fmt.Sprintln("Received Global Config", gbl))
-		case ifState, ok := <-svr.IfStateCh: // Change in Port State..
-			if !ok {
-				continue
-			}
-			svr.UpdateL2IntfStateChange(ifState.IfIndex, ifState.IfState)
-		}
 	}
 }
 
@@ -307,5 +273,83 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(ifIndex int32, state string) {
 		svr.lldpGblInfo[ifIndex] = gblInfo
 		// Delete Pcap Handler and stop rx/tx packets
 		svr.StopRxTx(ifIndex)
+	}
+}
+
+/*  handle configuration coming from user, which will enable/disable lldp per port
+ */
+func (svr *LLDPServer) handleGlobalConfig(ifIndex int32, enable bool) {
+	if !enable {
+		svr.StopRxTx(ifIndex)
+	}
+}
+
+/* To handle all the channels in lldp server... For detail look at the
+ * LLDPInitGlobalDS api to see which all channels are getting initialized
+ */
+func (svr *LLDPServer) ChannelHanlder() {
+	for {
+		select {
+		case rcvdInfo, ok := <-svr.lldpRxPktCh:
+			if !ok {
+				debug.Logger.Alert("RX Channel is closed, exit")
+				return // rx channel should be closed only on exit
+			}
+			gblInfo, exists := svr.lldpGblInfo[rcvdInfo.ifIndex]
+			if exists {
+				err := gblInfo.RxInfo.Process(gblInfo.RxInfo, rcvdInfo.pkt)
+				if err != nil {
+					debug.Logger.Err(fmt.Sprintln("err", err,
+						" while processing rx frame on port",
+						gblInfo.Port.Name))
+					continue
+				}
+				// reset/start timer for recipient information
+				gblInfo.RxInfo.CheckPeerEntry(gblInfo.Port.Name)
+				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
+				// dump the frame
+				//gblInfo.DumpFrame()
+			}
+		case exit := <-svr.lldpExit:
+			if exit {
+				debug.Logger.Alert("lldp exiting stopping all" +
+					" channel handlers")
+				return
+			}
+		case info, ok := <-svr.lldpTxPktCh:
+			if !ok {
+				debug.Logger.Alert("TX Channel is closed, exit")
+				return
+			}
+			gblInfo, exists := svr.lldpGblInfo[info.ifIndex]
+			// extra check for pcap handle
+			if exists && gblInfo.PcapHandle != nil {
+				if gblInfo.TxInfo.UseCache() == false {
+					svr.GetSystemInfo()
+				}
+				rv := gblInfo.WritePacket(
+					gblInfo.TxInfo.SendFrame(gblInfo.Port, svr.SysInfo))
+				if rv == false {
+					gblInfo.TxInfo.SetCache(rv)
+				}
+				svr.lldpGblInfo[info.ifIndex] = gblInfo
+			}
+		case gbl, ok := <-svr.GblCfgCh: // Change in global config of the port
+			if !ok {
+				continue
+			}
+			debug.Logger.Info(fmt.Sprintln("Received Global Config", gbl))
+			svr.handleGlobalConfig(gbl.IfIndex, gbl.Enable)
+		case ifState, ok := <-svr.IfStateCh: // Change in Port State..
+			if !ok {
+				continue
+			}
+			svr.UpdateL2IntfStateChange(ifState.IfIndex, ifState.IfState)
+		case _, ok := <-svr.UpdateCache:
+			if !ok {
+				continue
+			}
+			svr.UpdateSystemCache()
+		}
 	}
 }
