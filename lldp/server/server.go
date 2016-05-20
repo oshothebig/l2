@@ -308,7 +308,7 @@ func (svr *LLDPServer) ChannelHanlder() {
 				gblInfo.RxInfo.CheckPeerEntry(gblInfo.Port.Name)
 				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
 				// dump the frame
-				gblInfo.DumpFrame()
+				//gblInfo.DumpFrame()
 			}
 		case exit := <-svr.lldpExit:
 			if exit {

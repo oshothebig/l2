@@ -210,18 +210,18 @@ func (svr *LLDPServer) GetSystemInfo() {
 	if svr.SysInfo != nil {
 		return
 	}
-	svr.SysInfo = &models.SystemParams{}
+	svr.SysInfo = &models.SystemParam{}
 	debug.Logger.Info("Reading System Information From Db")
 	dbHdl := svr.lldpDbHdl
 	if dbHdl != nil {
-		var dbObj models.SystemParams
+		var dbObj models.SystemParam
 		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			debug.Logger.Err("DB query failed for System Info")
 			return
 		}
 		for idx := 0; idx < len(objList); idx++ {
-			dbObject := objList[idx].(models.SystemParams)
+			dbObject := objList[idx].(models.SystemParam)
 			svr.SysInfo.SwitchMac = dbObject.SwitchMac
 			svr.SysInfo.RouterId = dbObject.RouterId
 			svr.SysInfo.MgmtIp = dbObject.MgmtIp
