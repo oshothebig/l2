@@ -193,7 +193,7 @@ func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *m
 				Subtype:          layers.IANAAddressFamilyIPV4,
 				Address:          net.ParseIP(sysInfo.MgmtIp).To4(),
 				InterfaceSubtype: layers.LLDPInterfaceSubtypeifIndex,
-				InterfaceNumber:  uint32(port.PortNum),
+				InterfaceNumber:  uint32(port.IfIndex),
 			}
 			tlv.Value = EncodeMgmtTLV(mgmtInfo)
 		}

@@ -53,7 +53,6 @@ type portConfig struct {
 	Name         string
 	HardwareAddr net.HardwareAddr
 	Speed        int32
-	PortNum      int32
 	IfIndex      int32
 }
 

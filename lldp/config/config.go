@@ -30,7 +30,6 @@ type Global struct {
 
 type PortInfo struct {
 	IfIndex     int32
-	PortNum     int32
 	Name        string
 	OperState   string
 	MacAddr     string

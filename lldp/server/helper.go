@@ -183,8 +183,8 @@ func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
 /*  dump received lldp frame and other TX information
  */
 func (gblInfo LLDPGlobalInfo) DumpFrame() {
-	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Port.Name, "Port Num:",
-		gblInfo.Port.PortNum))
+	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Port.IfIndex, "Port IfIndex:",
+		gblInfo.Port.IfIndex))
 	debug.Logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.RxInfo.SrcMAC.String(),
 		"DstMAC:", gblInfo.RxInfo.DstMAC.String()))
 	debug.Logger.Info(fmt.Sprintln("ChassisID info is",
