@@ -75,7 +75,7 @@ func TxInit(interval, hold int) *TX {
  *		1) if it is first time send
  *		2) if there is config object update
  */
-func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *models.SystemParams) []byte {
+func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *models.SystemParam) []byte {
 	temp := make([]byte, 0)
 	// if cached then directly send the packet
 	if gblInfo.useCacheFrame {
@@ -129,7 +129,7 @@ func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *models.SystemParams)
 
 /*  helper function to create payload from lldp frame struct
  */
-func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *models.SystemParams) []byte {
+func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *models.SystemParam) []byte {
 	var payload []byte
 	var err error
 	tlvType := layers.LLDPTLVChassisID // start with chassis id always
@@ -193,7 +193,7 @@ func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *m
 				Subtype:          layers.IANAAddressFamilyIPV4,
 				Address:          net.ParseIP(sysInfo.MgmtIp).To4(),
 				InterfaceSubtype: layers.LLDPInterfaceSubtypeifIndex,
-				InterfaceNumber:  uint32(port.PortNum),
+				InterfaceNumber:  uint32(port.IfIndex),
 			}
 			tlv.Value = EncodeMgmtTLV(mgmtInfo)
 		}

@@ -183,8 +183,8 @@ func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
 /*  dump received lldp frame and other TX information
  */
 func (gblInfo LLDPGlobalInfo) DumpFrame() {
-	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Port.Name, "Port Num:",
-		gblInfo.Port.PortNum))
+	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Port.IfIndex, "Port IfIndex:",
+		gblInfo.Port.IfIndex))
 	debug.Logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.RxInfo.SrcMAC.String(),
 		"DstMAC:", gblInfo.RxInfo.DstMAC.String()))
 	debug.Logger.Info(fmt.Sprintln("ChassisID info is",
@@ -210,18 +210,18 @@ func (svr *LLDPServer) GetSystemInfo() {
 	if svr.SysInfo != nil {
 		return
 	}
-	svr.SysInfo = &models.SystemParams{}
+	svr.SysInfo = &models.SystemParam{}
 	debug.Logger.Info("Reading System Information From Db")
 	dbHdl := svr.lldpDbHdl
 	if dbHdl != nil {
-		var dbObj models.SystemParams
+		var dbObj models.SystemParam
 		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			debug.Logger.Err("DB query failed for System Info")
 			return
 		}
 		for idx := 0; idx < len(objList); idx++ {
-			dbObject := objList[idx].(models.SystemParams)
+			dbObject := objList[idx].(models.SystemParam)
 			svr.SysInfo.SwitchMac = dbObject.SwitchMac
 			svr.SysInfo.RouterId = dbObject.RouterId
 			svr.SysInfo.MgmtIp = dbObject.MgmtIp
