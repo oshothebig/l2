@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 package server
 
@@ -29,6 +29,7 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/plugin"
+	"models"
 	"time"
 	"utils/dbutils"
 )
@@ -60,6 +61,10 @@ type LLDPServer struct {
 
 	asicPlugin plugin.AsicIntf
 	CfgPlugin  plugin.ConfigIntf
+	SysPlugin  plugin.SystemIntf
+
+	//System Information
+	SysInfo *models.SystemParam
 
 	// lldp per port global info
 	lldpGblInfo          map[int32]LLDPGlobalInfo
@@ -79,6 +84,8 @@ type LLDPServer struct {
 	GblCfgCh chan *config.Global
 	// lldp asic notification channel
 	IfStateCh chan *config.PortState
+	// Update Cache notification channel
+	UpdateCache chan bool
 
 	// lldp exit
 	lldpExit chan bool

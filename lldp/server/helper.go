@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 package server
 
@@ -31,6 +31,7 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/utils"
+	"models"
 	"net"
 	"time"
 )
@@ -182,8 +183,8 @@ func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
 /*  dump received lldp frame and other TX information
  */
 func (gblInfo LLDPGlobalInfo) DumpFrame() {
-	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Port.Name, "Port Num:",
-		gblInfo.Port.PortNum))
+	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Port.IfIndex, "Port IfIndex:",
+		gblInfo.Port.IfIndex))
 	debug.Logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.RxInfo.SrcMAC.String(),
 		"DstMAC:", gblInfo.RxInfo.DstMAC.String()))
 	debug.Logger.Info(fmt.Sprintln("ChassisID info is",
@@ -193,4 +194,57 @@ func (gblInfo LLDPGlobalInfo) DumpFrame() {
 	debug.Logger.Info(fmt.Sprintln("TTL info is", gblInfo.RxInfo.RxFrame.TTL))
 	debug.Logger.Info(fmt.Sprintln("Optional Values is",
 		gblInfo.RxInfo.RxLinkInfo))
+}
+
+/*  Api used to get entry.. This is mainly used by LLDP Server API Layer when it get config from
+ *  North Bound Plugin...
+ */
+func (svr *LLDPServer) EntryExist(ifIndex int32) bool {
+	_, exists := svr.lldpGblInfo[ifIndex]
+	return exists
+}
+
+/*  Api to get System information used for TX Frame
+ */
+func (svr *LLDPServer) GetSystemInfo() {
+	if svr.SysInfo != nil {
+		return
+	}
+	svr.SysInfo = &models.SystemParam{}
+	debug.Logger.Info("Reading System Information From Db")
+	dbHdl := svr.lldpDbHdl
+	if dbHdl != nil {
+		var dbObj models.SystemParam
+		objList, err := dbHdl.GetAllObjFromDb(dbObj)
+		if err != nil {
+			debug.Logger.Err("DB query failed for System Info")
+			return
+		}
+		for idx := 0; idx < len(objList); idx++ {
+			dbObject := objList[idx].(models.SystemParam)
+			svr.SysInfo.SwitchMac = dbObject.SwitchMac
+			svr.SysInfo.RouterId = dbObject.RouterId
+			svr.SysInfo.MgmtIp = dbObject.MgmtIp
+			svr.SysInfo.Version = dbObject.Version
+			svr.SysInfo.Description = dbObject.Description
+			svr.SysInfo.Hostname = dbObject.Hostname
+			svr.SysInfo.Vrf = dbObject.Vrf
+			break
+		}
+	}
+	debug.Logger.Info(fmt.Sprintln("reading system info from db done", svr.SysInfo))
+	return
+}
+
+/*  Api to update system cache on next send frame
+ */
+func (svr *LLDPServer) UpdateSystemCache() {
+	svr.SysInfo = nil
+	for _, ifIndex := range svr.lldpUpIntfStateSlice {
+		gblInfo, exists := svr.lldpGblInfo[ifIndex]
+		if !exists {
+			continue
+		}
+		gblInfo.TxInfo.SetCache(false)
+	}
 }

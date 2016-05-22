@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 package flexswitch
 
@@ -121,16 +121,16 @@ func (p *AsicPlugin) getPortStates() []*config.PortInfo {
 			obj := bulkInfo.PortStateList[i]
 			port := &config.PortInfo{
 				IfIndex:   obj.IfIndex,
-				PortNum:   obj.PortNum,
 				OperState: obj.OperState,
 				Name:      obj.Name,
 			}
-			pObj, err := p.asicdClient.GetPort(obj.IfIndex)
+			pObj, err := p.asicdClient.GetPort(obj.Name)
 			if err != nil {
 				debug.Logger.Err(fmt.Sprintln("Getting mac address for",
 					obj.Name, "failed, error:", err))
 			} else {
 				port.MacAddr = pObj.MacAddr
+				port.Description = pObj.Description
 			}
 			portStates = append(portStates, port)
 		}
