@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 package flexswitch
 
@@ -86,12 +86,14 @@ func (h *ConfigHandler) CreateLLDPIntf(config *lldpd.LLDPIntf) (r bool, err erro
 }
 
 func (h *ConfigHandler) DeleteLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {
-	return true, nil
+	return false, errors.New("Delete operation is not supported.. Only Create/Update is")
 }
 
 func (h *ConfigHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
 	newconfig *lldpd.LLDPIntf, attrset []bool, op string) (r bool, err error) {
-	return true, nil
+	// On update we do not care for old config... just push the new config to api layer
+	// and let the api layer handle the information
+	return api.SendGlobalConfig(newconfig.IfIndex, newconfig.Enable)
 }
 
 func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(

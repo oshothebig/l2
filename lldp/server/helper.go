@@ -77,6 +77,24 @@ func (gblInfo *LLDPGlobalInfo) DeletePcapHandler() {
 	}
 }
 
+/*  Based on configuration we will enable disable lldp per port
+ */
+func (gblInfo *LLDPGlobalInfo) Enable() {
+	gblInfo.enable = true
+}
+
+/*  Based on configuration we will enable disable lldp per port
+ */
+func (gblInfo *LLDPGlobalInfo) Disable() {
+	gblInfo.enable = false
+}
+
+/*  Check LLDP is disabled or not
+ */
+func (gblInfo *LLDPGlobalInfo) isDisabled() bool {
+	return !gblInfo.enable
+}
+
 /*  Stop RX cache timer
  */
 func (gblInfo *LLDPGlobalInfo) StopCacheTimer() {
@@ -183,16 +201,16 @@ func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
 /*  dump received lldp frame and other TX information
  */
 func (gblInfo LLDPGlobalInfo) DumpFrame() {
-	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Port.IfIndex, "Port IfIndex:",
+	debug.Logger.Debug(fmt.Sprintln("L2 Port:", gblInfo.Port.IfIndex, "Port IfIndex:",
 		gblInfo.Port.IfIndex))
-	debug.Logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.RxInfo.SrcMAC.String(),
+	debug.Logger.Debug(fmt.Sprintln("SrcMAC:", gblInfo.RxInfo.SrcMAC.String(),
 		"DstMAC:", gblInfo.RxInfo.DstMAC.String()))
-	debug.Logger.Info(fmt.Sprintln("ChassisID info is",
+	debug.Logger.Debug(fmt.Sprintln("ChassisID info is",
 		gblInfo.RxInfo.RxFrame.ChassisID))
-	debug.Logger.Info(fmt.Sprintln("PortID info is",
+	debug.Logger.Debug(fmt.Sprintln("PortID info is",
 		gblInfo.RxInfo.RxFrame.PortID))
-	debug.Logger.Info(fmt.Sprintln("TTL info is", gblInfo.RxInfo.RxFrame.TTL))
-	debug.Logger.Info(fmt.Sprintln("Optional Values is",
+	debug.Logger.Debug(fmt.Sprintln("TTL info is", gblInfo.RxInfo.RxFrame.TTL))
+	debug.Logger.Debug(fmt.Sprintln("Optional Values is",
 		gblInfo.RxInfo.RxLinkInfo))
 }
 
@@ -238,7 +256,8 @@ func (svr *LLDPServer) GetSystemInfo() {
 
 /*  Api to update system cache on next send frame
  */
-func (svr *LLDPServer) UpdateSystemCache() {
+func (svr *LLDPServer) UpdateCache() {
+	// set sysInfo to nil
 	svr.SysInfo = nil
 	for _, ifIndex := range svr.lldpUpIntfStateSlice {
 		gblInfo, exists := svr.lldpGblInfo[ifIndex]
