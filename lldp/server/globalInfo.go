@@ -52,6 +52,8 @@ type LLDPGlobalInfo struct {
 	RxInfo *packet.RX
 	// tx information
 	TxInfo *packet.TX
+	// State info
+	enable bool
 }
 
 type LLDPServer struct {
@@ -85,7 +87,7 @@ type LLDPServer struct {
 	// lldp asic notification channel
 	IfStateCh chan *config.PortState
 	// Update Cache notification channel
-	UpdateCache chan bool
+	UpdateCacheCh chan bool
 
 	// lldp exit
 	lldpExit chan bool

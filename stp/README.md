@@ -2,7 +2,7 @@
 This module supports the following spanning tree versions:
   1. RSTP
   2. PVST
-  3. STP (loosely supported)
+  3. STP
   
   
   

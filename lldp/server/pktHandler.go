@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 package server
 
@@ -58,6 +58,14 @@ func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 					ifIndex, "terminate go routine"))
 				return
 			}
+			// Port is in UP state, but lldp is disabled then in that case we
+			// will just continue this loop and wait for the port to be in up state
+			// @TODO: is this brute force approach... do we need to terminate the go
+			// routine and then re-spawn the go routine??? Something to think about in future
+			if gblInfo.isDisabled() {
+				debug.Logger.Debug("rx frame port " + gblInfo.Port.Name + "disabled continue")
+				continue
+			}
 			// pcap will be closed only in two places
 			// 1) during interface state down
 			// 2) during os exit
@@ -93,7 +101,8 @@ func (svr *LLDPServer) TransmitFrames(pHandle *pcap.Handle, ifIndex int32) {
 		 *  trigger we added an extra check for starting the timer only when the port is
 		 *  in LLDP_PORT_STATE_UP
 		 */
-		if gblInfo.Port.OperState == LLDP_PORT_STATE_DOWN {
+		if gblInfo.Port.OperState == LLDP_PORT_STATE_DOWN || gblInfo.isDisabled() {
+			debug.Logger.Debug(" tx frame port " + gblInfo.Port.Name + "disabled continue")
 			continue
 		}
 		gblInfo.TxInfo.TxTimer =
