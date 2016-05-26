@@ -1,19 +1,42 @@
+//
+//Copyright [2016] [SnapRoute Inc]
+//
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+//	 Unless required by applicable law or agreed to in writing, software
+//	 distributed under the License is distributed on an "AS IS" BASIS,
+//	 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//	 See the License for the specific language governing permissions and
+//	 limitations under the License.
+//
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
+//                                                                                                           
+
 // lahandler
 package rpc
 
 import (
-	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
 	lacp "l2/lacp/protocol"
 	"lacpd"
+	"models"
 	//"net"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+	"utils/dbutils"
 )
 
 const DBName string = "UsrConfDb.db"
@@ -264,42 +287,35 @@ func GetIdByName(AggName string) int {
 	return i
 }
 
-func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *sql.DB) error {
-	dbCmd := "select * from LaPortChannel"
-	rows, err := dbHdl.Query(dbCmd)
-	if err != nil {
-		fmt.Println(fmt.Sprintf("DB method Query failed for 'AggregationLacpConfig' with error AggregationLacpConfig", dbCmd, err))
-		return err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-
-		object := new(lacpd.LaPortChannel)
-		if err = rows.Scan(&object.LagId, &object.LagType, &object.MinLinks, &object.Interval, &object.LacpMode, &object.SystemIdMac, &object.SystemPriority, &object.LagHash, &object.AdminState, &object.Members); err != nil {
-
-			fmt.Println("Db method Scan failed when interating over AggregationLacpConfig")
-		}
-		_, err = la.CreateLaPortChannel(object)
+func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) error {
+	if dbHdl != nil {
+		var dbObj models.LaPortChannel
+		objList, err := dbObj.GetAllObjFromDb(dbHdl)
 		if err != nil {
+			fmt.Println("DB Query failed when retrieving LaPortChannel objects")
 			return err
+		}
+		for idx := 0; idx < len(objList); idx++ {
+			obj := lacpd.NewLaPortChannel()
+			dbObject := objList[idx].(models.LaPortChannel)
+			models.ConvertlacpdLaPortChannelObjToThrift(&dbObject, obj)
+			_, err = la.CreateLaPortChannel(obj)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (la *LACPDServiceHandler) ReadConfigFromDB(filePath string) error {
-	var dbPath string = filePath + DBName
-
-	dbHdl, err := sql.Open("sqlite3", dbPath)
+func (la *LACPDServiceHandler) ReadConfigFromDB() error {
+	dbHdl := dbutils.NewDBUtil(nil)
+	err := dbHdl.Connect()
 	if err != nil {
-		//h.logger.Err(fmt.Sprintf("Failed to open the DB at %s with error %s", dbPath, err))
-		fmt.Printf("Failed to open the DB at %s with error %s", dbPath, err)
+		fmt.Printf("Failed to open connection to the DB with error %s", err)
 		return err
 	}
-
-	defer dbHdl.Close()
+	defer dbHdl.Disconnect()
 
 	if err := la.HandleDbReadLaPortChannel(dbHdl); err != nil {
 		fmt.Println("Error getting All AggregationLacpConfig objects")
@@ -443,7 +459,7 @@ func GetAddDelMembers(orig []uint16, update []int32) (add, del []int32) {
 	return
 }
 
-func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChannel, updateconfig *lacpd.LaPortChannel, attrset []bool) (bool, error) {
+func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChannel, updateconfig *lacpd.LaPortChannel, attrset []bool, op string) (bool, error) {
 
 	aggModeMap := map[uint32]string{
 		//LacpActivityTypeACTIVE:  "ACTIVE",
