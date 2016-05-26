@@ -24,6 +24,11 @@
 package config
 
 type Global struct {
+	Vrf    string
+	Enable bool
+}
+
+type Intf struct {
 	IfIndex int32
 	Enable  bool
 }
