@@ -246,7 +246,6 @@ func (svr *LLDPServer) GetSystemInfo() {
 		for idx := 0; idx < len(objList); idx++ {
 			dbObject := objList[idx].(models.SystemParam)
 			svr.SysInfo.SwitchMac = dbObject.SwitchMac
-			svr.SysInfo.RouterId = dbObject.RouterId
 			svr.SysInfo.MgmtIp = dbObject.MgmtIp
 			svr.SysInfo.Version = dbObject.Version
 			svr.SysInfo.Description = dbObject.Description
