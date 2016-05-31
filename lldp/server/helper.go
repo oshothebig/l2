@@ -55,8 +55,9 @@ func Max(x, y int) int {
 func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(portConf *config.PortInfo) {
 	gblInfo.Port = *portConf
 	gblInfo.RxInfo = packet.RxInit()
-	gblInfo.TxInfo = packet.TxInit(LLDP_DEFAULT_TX_INTERVAL,
-		LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
+	gblInfo.TxInfo = packet.TxInit(LLDP_DEFAULT_TX_INTERVAL, LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
+	gblInfo.RxKill = make(chan bool)
+	gblInfo.TxDone = make(chan bool)
 }
 
 /*  De-Init l2 port information
@@ -72,9 +73,33 @@ func (gblInfo *LLDPGlobalInfo) DeInitRuntimeInfo() {
 func (gblInfo *LLDPGlobalInfo) DeletePcapHandler() {
 	if gblInfo.PcapHandle != nil {
 		// @FIXME: some bug in close handling that causes 5 mins delay
-		//gblInfo.PcapHandle.Close()
+		gblInfo.PcapHandle.Close()
 		gblInfo.PcapHandle = nil
 	}
+}
+
+/*  Based on configuration we will enable disable lldp per port
+ */
+func (gblInfo *LLDPGlobalInfo) Enable() {
+	gblInfo.enable = true
+}
+
+/*  Based on configuration we will enable disable lldp per port
+ */
+func (gblInfo *LLDPGlobalInfo) Disable() {
+	gblInfo.enable = false
+}
+
+/*  Check LLDP is disabled or not
+ */
+func (gblInfo *LLDPGlobalInfo) isDisabled() bool {
+	return !gblInfo.enable
+}
+
+/*  Check LLDP is enabled or not
+ */
+func (gblInfo *LLDPGlobalInfo) isEnabled() bool {
+	return gblInfo.enable
 }
 
 /*  Stop RX cache timer
@@ -97,17 +122,15 @@ func (gblInfo *LLDPGlobalInfo) FreeDynamicMemory() {
  */
 func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
 	lldpPromiscuous bool, lldpTimeout time.Duration) error {
-	pcapHdl, err := pcap.OpenLive(gblInfo.Port.Name, lldpSnapshotLen,
-		lldpPromiscuous, lldpTimeout)
+	pcapHdl, err := pcap.OpenLive(gblInfo.Port.Name, lldpSnapshotLen, lldpPromiscuous, lldpTimeout)
 	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("Creating Pcap Handler failed for",
-			gblInfo.Port.Name, "Error:", err))
+		debug.Logger.Err(fmt.Sprintln("Creating Pcap Handler failed for", gblInfo.Port.Name, "Error:", err))
 		return errors.New("Creating Pcap Failed")
 	}
 	err = pcapHdl.SetBPFFilter(LLDP_BPF_FILTER)
 	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
-			"for", gblInfo.Port.Name, "failed with error:", err))
+		debug.Logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER, "for", gblInfo.Port.Name,
+			"failed with error:", err))
 		return errors.New("Setting BPF Filter Failed")
 	}
 	gblInfo.PcapHandle = pcapHdl
@@ -183,16 +206,16 @@ func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
 /*  dump received lldp frame and other TX information
  */
 func (gblInfo LLDPGlobalInfo) DumpFrame() {
-	debug.Logger.Info(fmt.Sprintln("L2 Port:", gblInfo.Port.IfIndex, "Port IfIndex:",
+	debug.Logger.Debug(fmt.Sprintln("L2 Port:", gblInfo.Port.IfIndex, "Port IfIndex:",
 		gblInfo.Port.IfIndex))
-	debug.Logger.Info(fmt.Sprintln("SrcMAC:", gblInfo.RxInfo.SrcMAC.String(),
+	debug.Logger.Debug(fmt.Sprintln("SrcMAC:", gblInfo.RxInfo.SrcMAC.String(),
 		"DstMAC:", gblInfo.RxInfo.DstMAC.String()))
-	debug.Logger.Info(fmt.Sprintln("ChassisID info is",
+	debug.Logger.Debug(fmt.Sprintln("ChassisID info is",
 		gblInfo.RxInfo.RxFrame.ChassisID))
-	debug.Logger.Info(fmt.Sprintln("PortID info is",
+	debug.Logger.Debug(fmt.Sprintln("PortID info is",
 		gblInfo.RxInfo.RxFrame.PortID))
-	debug.Logger.Info(fmt.Sprintln("TTL info is", gblInfo.RxInfo.RxFrame.TTL))
-	debug.Logger.Info(fmt.Sprintln("Optional Values is",
+	debug.Logger.Debug(fmt.Sprintln("TTL info is", gblInfo.RxInfo.RxFrame.TTL))
+	debug.Logger.Debug(fmt.Sprintln("Optional Values is",
 		gblInfo.RxInfo.RxLinkInfo))
 }
 
@@ -223,7 +246,6 @@ func (svr *LLDPServer) GetSystemInfo() {
 		for idx := 0; idx < len(objList); idx++ {
 			dbObject := objList[idx].(models.SystemParam)
 			svr.SysInfo.SwitchMac = dbObject.SwitchMac
-			svr.SysInfo.RouterId = dbObject.RouterId
 			svr.SysInfo.MgmtIp = dbObject.MgmtIp
 			svr.SysInfo.Version = dbObject.Version
 			svr.SysInfo.Description = dbObject.Description
@@ -238,7 +260,8 @@ func (svr *LLDPServer) GetSystemInfo() {
 
 /*  Api to update system cache on next send frame
  */
-func (svr *LLDPServer) UpdateSystemCache() {
+func (svr *LLDPServer) UpdateCache() {
+	// set sysInfo to nil
 	svr.SysInfo = nil
 	for _, ifIndex := range svr.lldpUpIntfStateSlice {
 		gblInfo, exists := svr.lldpGblInfo[ifIndex]

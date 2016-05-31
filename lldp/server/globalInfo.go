@@ -52,6 +52,12 @@ type LLDPGlobalInfo struct {
 	RxInfo *packet.RX
 	// tx information
 	TxInfo *packet.TX
+	// State info
+	enable bool
+
+	// Go Routine Killer Channels
+	RxKill chan bool
+	TxDone chan bool
 }
 
 type LLDPServer struct {
@@ -65,6 +71,9 @@ type LLDPServer struct {
 
 	//System Information
 	SysInfo *models.SystemParam
+
+	// Global LLDP Information
+	Global *config.Global
 
 	// lldp per port global info
 	lldpGblInfo          map[int32]LLDPGlobalInfo
@@ -82,10 +91,12 @@ type LLDPServer struct {
 	lldpTxPktCh chan SendPktChannel
 	// lldp global config channel
 	GblCfgCh chan *config.Global
+	// lldp per port config
+	IntfCfgCh chan *config.Intf
 	// lldp asic notification channel
 	IfStateCh chan *config.PortState
 	// Update Cache notification channel
-	UpdateCache chan bool
+	UpdateCacheCh chan bool
 
 	// lldp exit
 	lldpExit chan bool

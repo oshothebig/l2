@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 package api
 
@@ -52,23 +52,51 @@ func Init(svr *server.LLDPServer) {
 	lldpapi.server = svr
 }
 
-func validateConfig(ifIndex int32) (bool, error) {
+//@TODO: Create for LLDP Interface will only be called during auto-create if an entry is not present in the DB
+// If it is present then we will read it during restart
+// During update we need to check whether there is any entry in the runtime information or not
+func validateExistingIntfConfig(ifIndex int32) (bool, error) {
 	exists := lldpapi.server.EntryExist(ifIndex)
 	if !exists {
-		return exists, errors.New("No entry found for ifIndex " +
-			strconv.Itoa(int(ifIndex)))
+		return exists, errors.New("Update cannot be performed for " +
+			strconv.Itoa(int(ifIndex)) + " as LLDP Server doesn't have any info for the ifIndex")
 	}
 	return exists, nil
 }
 
-func SendGlobalConfig(ifIndex int32, enable bool) (bool, error) {
+func SendIntfConfig(ifIndex int32, enable bool) (bool, error) {
 	// Validate ifIndex before sending the config to server
-	proceed, err := validateConfig(ifIndex)
+	proceed, err := validateExistingIntfConfig(ifIndex)
 	if !proceed {
 		return proceed, err
 	}
-	lldpapi.server.GblCfgCh <- &config.Global{ifIndex, enable}
+	lldpapi.server.IntfCfgCh <- &config.Intf{ifIndex, enable}
 	return proceed, err
+}
+
+func UpdateIntfConfig(ifIndex int32, enable bool) (bool, error) {
+	proceed, err := validateExistingIntfConfig(ifIndex)
+	if !proceed {
+		return proceed, err
+	}
+	lldpapi.server.IntfCfgCh <- &config.Intf{ifIndex, enable}
+	return proceed, err
+}
+
+func SendGlobalConfig(vrf string, enable bool) (bool, error) {
+	if lldpapi.server.Global != nil {
+		return false, errors.New("Create/Delete on Global Object is not allowed, please do Update")
+	}
+	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable}
+	return true, nil
+}
+
+func UpdateGlobalConfig(vrf string, enable bool) (bool, error) {
+	if lldpapi.server.Global == nil {
+		return false, errors.New("Update can only be performed if the global object for LLDP is created")
+	}
+	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable}
+	return true, nil
 }
 
 func SendPortStateChange(ifIndex int32, state string) {
@@ -81,5 +109,5 @@ func GetIntfStates(idx int, cnt int) (int, int, []config.IntfState) {
 }
 
 func UpdateCache() {
-	lldpapi.server.UpdateCache <- true
+	lldpapi.server.UpdateCacheCh <- true
 }
