@@ -258,7 +258,7 @@ func (s *STPDServiceHandler) DeleteStpBridgeInstance(config *stpd.StpBridgeInsta
 	return false, err
 }
 
-func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op string) (bool, error) {
+func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op []*stpd.PatchOpInfo) (bool, error) {
 	var b *stp.Bridge
 	brgconfig := &stp.StpBridgeConfig{}
 	objTyp := reflect.TypeOf(*origconfig)
@@ -341,7 +341,7 @@ func (s *STPDServiceHandler) DeleteStpPort(config *stpd.StpPort) (bool, error) {
 	return false, err
 }
 
-func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool, op string) (bool, error) {
+func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool, op []*stpd.PatchOpInfo) (bool, error) {
 	var p *stp.StpPort
 	portconfig := &stp.StpPortConfig{}
 	objTyp := reflect.TypeOf(*origconfig)
