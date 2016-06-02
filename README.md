@@ -4,6 +4,12 @@ This code base is to handle all layer 2 protocols implementation.  Layer 2 Proto
 For a list of common protocols for each layer refer to the link below:
 [OSI MODEL](https://en.wikipedia.org/wiki/List_of_network_protocols_(OSI_model)
 
+Complete product documentation is available at 
+[Product Overview] (http://opensnaproute.github.io/docs/)
+
+Complete system architecture can be found 
+[Here](http://opensnaproute.github.io/docs/architecture.html) 
+
 # Architecture
 ![alt text](./docs/SoftwareOverviewL2.png "Architecture")
 
