@@ -344,7 +344,9 @@ func (svr *LLDPServer) handleIntfConfig(ifIndex int32, enable bool) {
 			strconv.Itoa(int(gblInfo.Port.IfIndex)))
 		gblInfo.Enable()
 		svr.lldpGblInfo[ifIndex] = gblInfo
-		svr.StartRxTx(ifIndex)
+		if svr.Global != nil { // corner case for check interface config before global config...
+			svr.StartRxTx(ifIndex)
+		}
 	case false:
 		debug.Logger.Debug("Config Disable for " + gblInfo.Port.Name + " ifIndex: " +
 			strconv.Itoa(int(gblInfo.Port.IfIndex)))
