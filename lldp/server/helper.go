@@ -31,7 +31,7 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/utils"
-	"models"
+	"models/objects"
 	"net"
 	"time"
 )
@@ -233,18 +233,18 @@ func (svr *LLDPServer) GetSystemInfo() {
 	if svr.SysInfo != nil {
 		return
 	}
-	svr.SysInfo = &models.SystemParam{}
+	svr.SysInfo = &objects.SystemParam{}
 	debug.Logger.Info("Reading System Information From Db")
 	dbHdl := svr.lldpDbHdl
 	if dbHdl != nil {
-		var dbObj models.SystemParam
+		var dbObj objects.SystemParam
 		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			debug.Logger.Err("DB query failed for System Info")
 			return
 		}
 		for idx := 0; idx < len(objList); idx++ {
-			dbObject := objList[idx].(models.SystemParam)
+			dbObject := objList[idx].(objects.SystemParam)
 			svr.SysInfo.SwitchMac = dbObject.SwitchMac
 			svr.SysInfo.MgmtIp = dbObject.MgmtIp
 			svr.SysInfo.Version = dbObject.Version

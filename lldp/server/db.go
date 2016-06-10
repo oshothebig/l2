@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"l2/lldp/config"
 	"l2/lldp/utils"
-	"models"
+	"models/objects"
 	"utils/dbutils"
 )
 
@@ -51,7 +51,7 @@ func (svr *LLDPServer) CloseDB() {
 
 func (svr *LLDPServer) readLLDPIntfConfig() {
 	debug.Logger.Info("Reading LLDPIntf from db")
-	var dbObj models.LLDPIntf
+	var dbObj objects.LLDPIntf
 	objList, err := svr.lldpDbHdl.GetAllObjFromDb(dbObj)
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("DB querry faile for LLDPIntf Config", err))
@@ -60,7 +60,7 @@ func (svr *LLDPServer) readLLDPIntfConfig() {
 	// READ DB is always called before calling asicd get ports..
 	debug.Logger.Info(fmt.Sprintln("Objects from db are", objList))
 	for _, obj := range objList {
-		dbEntry := obj.(models.LLDPIntf)
+		dbEntry := obj.(objects.LLDPIntf)
 		gblInfo, _ := svr.lldpGblInfo[dbEntry.IfIndex]
 		debug.Logger.Info(fmt.Sprintln("IfIndex", dbEntry.IfIndex, "is set to", dbEntry.Enable))
 		switch dbEntry.Enable {
@@ -76,7 +76,7 @@ func (svr *LLDPServer) readLLDPIntfConfig() {
 
 func (svr *LLDPServer) readLLDPGlobalConfig() {
 	debug.Logger.Info("Reading LLDPGlobal from db")
-	var dbObj models.LLDPGlobal
+	var dbObj objects.LLDPGlobal
 	objList, err := svr.lldpDbHdl.GetAllObjFromDb(dbObj)
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("DB querry faile for LLDPGlobal Config", err))
@@ -85,7 +85,7 @@ func (svr *LLDPServer) readLLDPGlobalConfig() {
 	// READ DB is always called before calling asicd get ports..
 	debug.Logger.Info(fmt.Sprintln("Objects from db are", objList))
 	for _, obj := range objList {
-		dbEntry := obj.(models.LLDPGlobal)
+		dbEntry := obj.(objects.LLDPGlobal)
 		if svr.Global == nil {
 			svr.Global = &config.Global{}
 		}
