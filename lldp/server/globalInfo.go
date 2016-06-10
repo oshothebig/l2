@@ -29,7 +29,7 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/plugin"
-	"models"
+	"models/objects"
 	"time"
 	"utils/dbutils"
 )
@@ -70,7 +70,7 @@ type LLDPServer struct {
 	SysPlugin  plugin.SystemIntf
 
 	//System Information
-	SysInfo *models.SystemParam
+	SysInfo *objects.SystemParam
 
 	// Global LLDP Information
 	Global *config.Global
