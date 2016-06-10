@@ -28,7 +28,7 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/plugin"
 	"l2/lldp/utils"
-	_ "models"
+	_ "models/objects"
 	"os"
 	"os/signal"
 	_ "runtime/pprof"

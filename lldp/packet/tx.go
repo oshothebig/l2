@@ -32,7 +32,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"l2/lldp/config"
 	"l2/lldp/utils"
-	"models"
+	"models/objects"
 	"net"
 )
 
@@ -75,7 +75,7 @@ func TxInit(interval, hold int) *TX {
  *		1) if it is first time send
  *		2) if there is config object update
  */
-func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *models.SystemParam) []byte {
+func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *objects.SystemParam) []byte {
 	temp := make([]byte, 0)
 	// if cached then directly send the packet
 	if gblInfo.useCacheFrame {
@@ -129,7 +129,7 @@ func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *models.SystemParam) 
 
 /*  helper function to create payload from lldp frame struct
  */
-func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *models.SystemParam) []byte {
+func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *objects.SystemParam) []byte {
 	var payload []byte
 	var err error
 	tlvType := layers.LLDPTLVChassisID // start with chassis id always
