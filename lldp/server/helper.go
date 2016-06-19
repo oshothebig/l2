@@ -31,7 +31,7 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/utils"
-	"models"
+	"models/objects"
 	"net"
 	"time"
 )
@@ -55,8 +55,9 @@ func Max(x, y int) int {
 func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(portConf *config.PortInfo) {
 	gblInfo.Port = *portConf
 	gblInfo.RxInfo = packet.RxInit()
-	gblInfo.TxInfo = packet.TxInit(LLDP_DEFAULT_TX_INTERVAL,
-		LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
+	gblInfo.TxInfo = packet.TxInit(LLDP_DEFAULT_TX_INTERVAL, LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
+	gblInfo.RxKill = make(chan bool)
+	gblInfo.TxDone = make(chan bool)
 }
 
 /*  De-Init l2 port information
@@ -72,7 +73,7 @@ func (gblInfo *LLDPGlobalInfo) DeInitRuntimeInfo() {
 func (gblInfo *LLDPGlobalInfo) DeletePcapHandler() {
 	if gblInfo.PcapHandle != nil {
 		// @FIXME: some bug in close handling that causes 5 mins delay
-		//gblInfo.PcapHandle.Close()
+		gblInfo.PcapHandle.Close()
 		gblInfo.PcapHandle = nil
 	}
 }
@@ -95,6 +96,12 @@ func (gblInfo *LLDPGlobalInfo) isDisabled() bool {
 	return !gblInfo.enable
 }
 
+/*  Check LLDP is enabled or not
+ */
+func (gblInfo *LLDPGlobalInfo) isEnabled() bool {
+	return gblInfo.enable
+}
+
 /*  Stop RX cache timer
  */
 func (gblInfo *LLDPGlobalInfo) StopCacheTimer() {
@@ -115,17 +122,15 @@ func (gblInfo *LLDPGlobalInfo) FreeDynamicMemory() {
  */
 func (gblInfo *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
 	lldpPromiscuous bool, lldpTimeout time.Duration) error {
-	pcapHdl, err := pcap.OpenLive(gblInfo.Port.Name, lldpSnapshotLen,
-		lldpPromiscuous, lldpTimeout)
+	pcapHdl, err := pcap.OpenLive(gblInfo.Port.Name, lldpSnapshotLen, lldpPromiscuous, lldpTimeout)
 	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("Creating Pcap Handler failed for",
-			gblInfo.Port.Name, "Error:", err))
+		debug.Logger.Err(fmt.Sprintln("Creating Pcap Handler failed for", gblInfo.Port.Name, "Error:", err))
 		return errors.New("Creating Pcap Failed")
 	}
 	err = pcapHdl.SetBPFFilter(LLDP_BPF_FILTER)
 	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER,
-			"for", gblInfo.Port.Name, "failed with error:", err))
+		debug.Logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER, "for", gblInfo.Port.Name,
+			"failed with error:", err))
 		return errors.New("Setting BPF Filter Failed")
 	}
 	gblInfo.PcapHandle = pcapHdl
@@ -228,20 +233,19 @@ func (svr *LLDPServer) GetSystemInfo() {
 	if svr.SysInfo != nil {
 		return
 	}
-	svr.SysInfo = &models.SystemParam{}
+	svr.SysInfo = &objects.SystemParam{}
 	debug.Logger.Info("Reading System Information From Db")
 	dbHdl := svr.lldpDbHdl
 	if dbHdl != nil {
-		var dbObj models.SystemParam
+		var dbObj objects.SystemParam
 		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			debug.Logger.Err("DB query failed for System Info")
 			return
 		}
 		for idx := 0; idx < len(objList); idx++ {
-			dbObject := objList[idx].(models.SystemParam)
+			dbObject := objList[idx].(objects.SystemParam)
 			svr.SysInfo.SwitchMac = dbObject.SwitchMac
-			svr.SysInfo.RouterId = dbObject.RouterId
 			svr.SysInfo.MgmtIp = dbObject.MgmtIp
 			svr.SysInfo.Version = dbObject.Version
 			svr.SysInfo.Description = dbObject.Description

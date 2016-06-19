@@ -29,7 +29,7 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/plugin"
-	"models"
+	"models/objects"
 	"time"
 	"utils/dbutils"
 )
@@ -54,6 +54,10 @@ type LLDPGlobalInfo struct {
 	TxInfo *packet.TX
 	// State info
 	enable bool
+
+	// Go Routine Killer Channels
+	RxKill chan bool
+	TxDone chan bool
 }
 
 type LLDPServer struct {
@@ -66,7 +70,10 @@ type LLDPServer struct {
 	SysPlugin  plugin.SystemIntf
 
 	//System Information
-	SysInfo *models.SystemParam
+	SysInfo *objects.SystemParam
+
+	// Global LLDP Information
+	Global *config.Global
 
 	// lldp per port global info
 	lldpGblInfo          map[int32]LLDPGlobalInfo
@@ -84,6 +91,8 @@ type LLDPServer struct {
 	lldpTxPktCh chan SendPktChannel
 	// lldp global config channel
 	GblCfgCh chan *config.Global
+	// lldp per port config
+	IntfCfgCh chan *config.Intf
 	// lldp asic notification channel
 	IfStateCh chan *config.PortState
 	// Update Cache notification channel

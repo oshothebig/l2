@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // lahandler
 package rpc
@@ -27,7 +27,7 @@ package rpc
 import (
 	"fmt"
 	stp "l2/stp/protocol"
-	"models"
+	"models/objects"
 	"reflect"
 	"stpd"
 	"utils/dbutils"
@@ -181,7 +181,7 @@ func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInsta
 
 func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
-		var dbObj models.StpBridgeInstance
+		var dbObj objects.StpBridgeInstance
 		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			stp.StpLogger("ERROR", "DB Query failed when retrieving StpBridgeInstance objects")
@@ -189,8 +189,8 @@ func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil
 		}
 		for idx := 0; idx < len(objList); idx++ {
 			obj := stpd.NewStpBridgeInstance()
-			dbObject := objList[idx].(models.StpBridgeInstance)
-			models.ConvertstpdStpBridgeInstanceObjToThrift(&dbObject, obj)
+			dbObject := objList[idx].(objects.StpBridgeInstance)
+			objects.ConvertstpdStpBridgeInstanceObjToThrift(&dbObject, obj)
 			_, err = s.CreateStpBridgeInstance(obj)
 			if err != nil {
 				return err
@@ -202,7 +202,7 @@ func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil
 
 func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
-		var dbObj models.StpPort
+		var dbObj objects.StpPort
 		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			stp.StpLogger("ERROR", "DB Query failed when retrieving StpPort objects")
@@ -210,8 +210,8 @@ func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *dbutils.DBUtil) error {
 		}
 		for idx := 0; idx < len(objList); idx++ {
 			obj := stpd.NewStpPort()
-			dbObject := objList[idx].(models.StpPort)
-			models.ConvertstpdStpPortObjToThrift(&dbObject, obj)
+			dbObject := objList[idx].(objects.StpPort)
+			objects.ConvertstpdStpPortObjToThrift(&dbObject, obj)
 			_, err = s.CreateStpPort(obj)
 			if err != nil {
 				return err
@@ -258,7 +258,7 @@ func (s *STPDServiceHandler) DeleteStpBridgeInstance(config *stpd.StpBridgeInsta
 	return false, err
 }
 
-func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op string) (bool, error) {
+func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op []*stpd.PatchOpInfo) (bool, error) {
 	var b *stp.Bridge
 	brgconfig := &stp.StpBridgeConfig{}
 	objTyp := reflect.TypeOf(*origconfig)
@@ -341,7 +341,7 @@ func (s *STPDServiceHandler) DeleteStpPort(config *stpd.StpPort) (bool, error) {
 	return false, err
 }
 
-func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool, op string) (bool, error) {
+func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool, op []*stpd.PatchOpInfo) (bool, error) {
 	var p *stp.StpPort
 	portconfig := &stp.StpPortConfig{}
 	objTyp := reflect.TypeOf(*origconfig)

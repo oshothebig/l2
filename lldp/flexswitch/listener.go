@@ -58,8 +58,7 @@ func (p *NBPlugin) Start() error {
 	if err != nil || clientJson == nil {
 		return err
 	}
-	debug.Logger.Info(fmt.Sprintln("Got Client Info for", clientJson.Name, " port",
-		clientJson.Port))
+	debug.Logger.Info(fmt.Sprintln("Got Client Info for", clientJson.Name, " port", clientJson.Port))
 	// create processor, transport and protocol for server
 	processor := lldpd.NewLLDPDServicesProcessor(p.handler)
 	transportFactory := thrift.NewTBufferedTransportFactory(8192)
@@ -67,8 +66,7 @@ func (p *NBPlugin) Start() error {
 	transport, err := thrift.NewTServerSocket("localhost:" +
 		strconv.Itoa(clientJson.Port))
 	if err != nil {
-		debug.Logger.Info(fmt.Sprintln("StartServer: NewTServerSocket "+
-			"failed with error:", err))
+		debug.Logger.Info(fmt.Sprintln("StartServer: NewTServerSocket failed with error:", err))
 		return err
 	}
 	server := thrift.NewTSimpleServer4(processor, transport,
@@ -82,18 +80,33 @@ func (p *NBPlugin) Start() error {
 }
 
 func (h *ConfigHandler) CreateLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {
-	return api.SendGlobalConfig(config.IfIndex, config.Enable)
+	return api.SendIntfConfig(config.IfIndex, config.Enable)
 }
 
 func (h *ConfigHandler) DeleteLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {
-	return false, errors.New("Delete operation is not supported.. Only Create/Update is")
+	return false, errors.New("LLDP Enable/Disable is only supported via Update")
 }
 
 func (h *ConfigHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
-	newconfig *lldpd.LLDPIntf, attrset []bool, op string) (r bool, err error) {
+	newconfig *lldpd.LLDPIntf, attrset []bool, op []*lldpd.PatchOpInfo) (r bool, err error) {
 	// On update we do not care for old config... just push the new config to api layer
 	// and let the api layer handle the information
-	return api.SendGlobalConfig(newconfig.IfIndex, newconfig.Enable)
+	return api.UpdateIntfConfig(newconfig.IfIndex, newconfig.Enable)
+}
+
+func (h *ConfigHandler) CreateLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err error) {
+	return api.SendGlobalConfig(config.Vrf, config.Enable)
+}
+
+func (h *ConfigHandler) DeleteLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err error) {
+	return false, errors.New("LLDP Enable/Disable Globally is only supported via Update")
+}
+
+func (h *ConfigHandler) UpdateLLDPGlobal(origconfig *lldpd.LLDPGlobal,
+	newconfig *lldpd.LLDPGlobal, attrset []bool, op []*lldpd.PatchOpInfo) (r bool, err error) {
+	// On update we do not care for old config... just push the new config to api layer
+	// and let the api layer handle the information
+	return api.UpdateGlobalConfig(newconfig.Vrf, newconfig.Enable)
 }
 
 func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(
