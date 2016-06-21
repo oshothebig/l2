@@ -98,4 +98,5 @@ before_script:
 
 script:
   - cd $HOME/gopath/src/snaproute/src/l2
-  - sudo -E go test -v ./...
+  - gobin=$(which go)
+  - sudo -E $gobin test -v ./...
