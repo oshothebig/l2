@@ -427,7 +427,7 @@ func UsedForTestOnlySendInvalidRStpFrame(txifindex int32, rstp *layers.RSTP, t *
 	handle = nil
 }
 
-func _TestRxValidStpPacket(t *testing.T) {
+func TestRxValidStpPacket(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -509,7 +509,7 @@ func _TestRxValidStpPacket(t *testing.T) {
 
 }
 
-func _TestRxValidRStpPacket(t *testing.T) {
+func TestRxValidRStpPacket(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
 		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
@@ -588,7 +588,7 @@ func _TestRxValidRStpPacket(t *testing.T) {
 	UsedForTestOnlyPrxTestTeardown(p, t)
 }
 
-func _TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
+func TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
 		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
@@ -666,7 +666,7 @@ func _TestRxInvalidRStpPacketBPDUTypeInvalid(t *testing.T) {
 	UsedForTestOnlyPrxTestTeardown(p, t)
 }
 
-func _TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
+func TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
 		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
@@ -745,7 +745,7 @@ func _TestRxInvalidRStpPacketProtocolVersionInvalid(t *testing.T) {
 	UsedForTestOnlyPrxTestTeardown(p, t)
 }
 
-func _TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
+func TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 	// configure a port
 	stpconfig := &StpPortConfig{
 		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
@@ -823,7 +823,7 @@ func _TestRxInvalidStpPacketMsgAgeGreaterMaxAge(t *testing.T) {
 	UsedForTestOnlyPrxTestTeardown(p, t)
 }
 
-func _TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
+func TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
@@ -892,7 +892,7 @@ func _TestRxSendValidRstpPacketOnDisabledPort(t *testing.T) {
 	UsedForTestOnlyPrxTestTeardown(p, t)
 }
 
-func _TestRxValidTopoChange(t *testing.T) {
+func TestRxValidTopoChange(t *testing.T) {
 	UsedForTestOnlyRxInitPortConfigTest()
 
 	// configure a port

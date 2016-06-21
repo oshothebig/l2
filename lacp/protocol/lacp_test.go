@@ -273,7 +273,7 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 	}
 }
 
-func _TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
+func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 
 	var p *LaAggPort
 	// must be called to initialize the global

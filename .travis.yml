@@ -41,6 +41,7 @@ install:
   - sudo apt-get update
   - echo $PYTHONPATH
   - echo $PATH
+  - which go
   - sudo apt-get install -y build-essential gccgo-4.8 git
   - sudo apt-get install -y libpcap0.8 libpcap0.8-dev libpcap-dev
   - sudo apt-get install -y python-dev python-bitarray python-paramiko python-netaddr
@@ -97,4 +98,4 @@ before_script:
 
 script:
   - cd $HOME/gopath/src/snaproute/src/l2
-  - go test -v ./...
+  - sudo -E go test -v ./...
