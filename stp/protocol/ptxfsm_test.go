@@ -173,7 +173,7 @@ func UsedForTestOnlyPtxTestTeardown(p *StpPort, t *testing.T) {
 	DelStpBridge(b, true)
 }
 
-func _TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
+func TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
 
 	UsedForTestOnlyTxInitPortConfigTest()
 
@@ -262,7 +262,7 @@ func _TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
 	close(testChan)
 }
 
-func _TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
+func TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
 
 	UsedForTestOnlyTxInitPortConfigTest()
 
@@ -351,7 +351,7 @@ func _TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
 	close(testChan)
 }
 
-func _TestTxHelloWhenEqualZeroTransmitTCN(t *testing.T) {
+func TestTxHelloWhenEqualZeroTransmitTCN(t *testing.T) {
 
 	UsedForTestOnlyTxInitPortConfigTest()
 
