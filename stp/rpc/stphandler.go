@@ -223,7 +223,7 @@ func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *dbutils.DBUtil) error {
 
 func (s *STPDServiceHandler) ReadConfigFromDB() error {
 
-	dbHdl := dbutils.NewDBUtil(nil)
+	dbHdl := dbutils.NewDBUtil(stp.GetStpLogger())
 	err := dbHdl.Connect()
 	if err != nil {
 		stp.StpLogger("ERROR", fmt.Sprintf("Failed to open connection to DB with error %s", err))

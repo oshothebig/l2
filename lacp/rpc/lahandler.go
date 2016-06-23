@@ -309,7 +309,7 @@ func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) 
 }
 
 func (la *LACPDServiceHandler) ReadConfigFromDB() error {
-	dbHdl := dbutils.NewDBUtil(nil)
+	dbHdl := dbutils.NewDBUtil(lacp.GetLacpLogger())
 	err := dbHdl.Connect()
 	if err != nil {
 		fmt.Printf("Failed to open connection to the DB with error %s", err)
