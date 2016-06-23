@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // debugEventLog this code is meant to serialize the logging States
 package lacp
@@ -31,6 +31,8 @@ import (
 	"utils/logging"
 )
 
+var gLogger *logging.Writer
+
 type LacpDebug struct {
 	LacpLogChan chan string
 	logger      *logging.Writer
@@ -38,13 +40,19 @@ type LacpDebug struct {
 
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpDebug() *LacpDebug {
-	logger, _ := logging.NewLogger("lacpd", "LACP", true)
+	if gLogger == nil {
+		gLogger, _ = logging.NewLogger("lacpd", "LACP", true)
+	}
 	lacpdebug := &LacpDebug{
 		LacpLogChan: make(chan string, 100),
-		logger:      logger,
+		logger:      gLogger,
 	}
 
 	return lacpdebug
+}
+
+func GetLacpLogger() *logging.Writer {
+	return gLogger
 }
 
 func (l *LacpDebug) Stop() {
