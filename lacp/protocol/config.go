@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // config
 package lacp
@@ -167,6 +167,7 @@ type LaAggPortConfig struct {
 	IntfId   string
 }
 
+// SaveLaAggConfig save off the current configuration data as supplied by the user
 func SaveLaAggConfig(ac *LaAggConfig) {
 	var a *LaAggregator
 	if LaFindAggByName(ac.Name, &a) {
@@ -191,44 +192,46 @@ func CreateLaAgg(agg *LaAggConfig) {
 	//var wg sync.WaitGroup
 
 	a := NewLaAggregator(agg)
-	a.LacpDebug.logger.Info(fmt.Sprintf("%#v\n", a))
+	if a != nil {
+		a.LacpDebug.logger.Info(fmt.Sprintf("%#v\n", a))
 
-	/*
-		// two methods for creating ports after CreateLaAgg is created
-		// 1) PortNumList is populated
-		// 2) find Key's that match
-		for _, pId := range a.PortNumList {
-			wg.Add(1)
-			go func(pId uint16) {
-				var p *LaAggPort
-				defer wg.Done()
-				if LaFindPortById(pId, &p) && p.aggSelected == LacpAggUnSelected {
-					// if aggregation has been provided then lets kick off the process
-					p.checkConfigForSelection()
-				}
-			}(pId)
-		}
-
-		wg.Wait()
-	*/
-	index := 0
-	var p *LaAggPort
-	a.LacpDebug.logger.Info(fmt.Sprintf("looking for ports with actorAdminKey\n", a.actorAdminKey))
-	if mac, err := net.ParseMAC(a.Config.SystemIdMac); err == nil {
-		if sgi := LacpSysGlobalInfoByIdGet(LacpSystem{actor_System: convertNetHwAddressToSysIdKey(mac),
-			Actor_System_priority: a.Config.SystemPriority}); sgi != nil {
-			for index != -1 {
-				if LaFindPortByKey(a.actorAdminKey, &index, &p) {
-					if p.aggSelected == LacpAggUnSelected {
-						AddLaAggPortToAgg(a.actorAdminKey, p.PortNum)
-
-						if p.PortEnabled {
-							p.checkConfigForSelection()
-						}
-
+		/*
+			// two methods for creating ports after CreateLaAgg is created
+			// 1) PortNumList is populated
+			// 2) find Key's that match
+			for _, pId := range a.PortNumList {
+				wg.Add(1)
+				go func(pId uint16) {
+					var p *LaAggPort
+					defer wg.Done()
+					if LaFindPortById(pId, &p) && p.aggSelected == LacpAggUnSelected {
+						// if aggregation has been provided then lets kick off the process
+						p.checkConfigForSelection()
 					}
-				} else {
-					break
+				}(pId)
+			}
+
+			wg.Wait()
+		*/
+		index := 0
+		var p *LaAggPort
+		a.LacpDebug.logger.Info(fmt.Sprintln("looking for ports with actorAdminKey", a.actorAdminKey))
+		if mac, err := net.ParseMAC(a.Config.SystemIdMac); err == nil {
+			if sgi := LacpSysGlobalInfoByIdGet(LacpSystem{actor_System: convertNetHwAddressToSysIdKey(mac),
+				Actor_System_priority: a.Config.SystemPriority}); sgi != nil {
+				for index != -1 {
+					if LaFindPortByKey(a.actorAdminKey, &index, &p) {
+						if p.aggSelected == LacpAggUnSelected {
+							AddLaAggPortToAgg(a.actorAdminKey, p.PortNum)
+
+							if p.PortEnabled {
+								p.checkConfigForSelection()
+							}
+
+						}
+					} else {
+						break
+					}
 				}
 			}
 		}
@@ -273,7 +276,7 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 	if !LaFindPortById(port.Id, &pTmp) {
 		p := NewLaAggPort(port)
 
-		p.LacpDebug.logger.Info(fmt.Sprintf("Port mode", port.Mode))
+		p.LacpDebug.logger.Info(fmt.Sprint("Port mode", port.Mode))
 		// Is lacp enabled or not
 		if port.Mode != LacpModeOn {
 			p.lacpEnabled = true
@@ -294,8 +297,14 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 
 		if port.Timeout == LacpShortTimeoutTime {
 			LacpStateSet(&p.actorAdmin.State, LacpStateTimeoutBit)
+			// set the oper state to be that of the admin until
+			// the fist packet has been received
+			LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
 		} else {
 			LacpStateClear(&p.actorAdmin.State, LacpStateTimeoutBit)
+			// set the oper state to be that of the admin until
+			// the fist packet has been received
+			LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
 		}
 
 		// lets start all the State machines
@@ -381,21 +390,28 @@ func SetLaAggPortLacpMode(pId uint16, mode int) {
 	// agg exists
 	if LaFindPortById(pId, &p) {
 		prevMode := LacpModeGet(p.ActorOper.State, p.lacpEnabled)
-		p.LaPortLog(fmt.Sprintf("PrevMode", prevMode, "NewMode", mode))
+		p.LaPortLog(fmt.Sprintln("Set LACP Mode: PrevMode", prevMode, "NewMode", mode))
 
 		// Update the transmission mode
 		if mode != prevMode &&
 			mode == LacpModeOn {
 			p.LaAggPortLacpDisable()
 
+			// lets re-initialize the state machines
+			p.BEGIN(true)
+
+			// force check for selection as we should not receive a packet to
+			// force the selection processes
+			p.checkConfigForSelection()
+
 			// Actor/Partner Aggregation == true
 			// agg individual
 			// partner admin Key, port == actor admin Key, port
-			if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
-				p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
-				// lets check for selection
-				p.checkConfigForSelection()
-			}
+			//if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
+			//	p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
+			//	//lets check for selection
+			//	p.checkConfigForSelection()
+			//}
 
 		} else if mode != prevMode &&
 			prevMode == LacpModeOn {
@@ -424,6 +440,8 @@ func SetLaAggPortLacpMode(pId uint16, mode int) {
 			p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
 				src: PortConfigModuleStr}
 		}
+	} else {
+		p.LaPortLog(fmt.Sprintln("SetLaAggPortLacpMode: unabled to find port", pId))
 	}
 }
 
@@ -463,35 +481,6 @@ func SetLaAggPortLacpPeriod(pId uint16, period time.Duration) {
 	}
 }
 
-// SetLaAggPortLacpTimeout will set the timeout at which a packet should
-// declare a link down.
-// SHORT and LONG are the periods, the lacp state timeout is encoded such
-// that SHORT is 3 * FAST PERIODIC TIME and LONG is 3 * SLOW PERIODIC TIME
-func SetLaAggPortLacpTimeout(pId uint16, timeout time.Duration) {
-
-	var p *LaAggPort
-
-	// port exists
-	// port is unselected
-	// agg exists
-	if LaFindPortById(pId, &p) {
-		rxm := p.RxMachineFsm
-		// lets set the period
-		if timeout == LacpShortTimeoutTime {
-			LacpStateSet(&p.actorAdmin.State, LacpStateTimeoutBit)
-			// must also set the operational State
-			LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
-		} else {
-			LacpStateClear(&p.actorAdmin.State, LacpStateTimeoutBit)
-			// must also set the operational State
-			LacpStateClear(&p.ActorOper.State, LacpStateTimeoutBit)
-		}
-		if timeoutTime, ok := rxm.CurrentWhileTimerValid(); !ok {
-			rxm.CurrentWhileTimerTimeoutSet(timeoutTime)
-		}
-	}
-}
-
 func SetLaAggPortSystemInfo(pId uint16, sysIdMac string, sysPrio uint16) {
 	var p *LaAggPort
 
@@ -499,13 +488,15 @@ func SetLaAggPortSystemInfo(pId uint16, sysIdMac string, sysPrio uint16) {
 	// port is unselected
 	// agg exists
 	if LaFindPortById(pId, &p) {
-		mac, _ := net.ParseMAC(sysIdMac)
-		macArr := convertNetHwAddressToSysIdKey(mac)
-		p.LaAggPortActorAdminInfoSet(macArr, sysPrio)
+		mac, ok := net.ParseMAC(sysIdMac)
+		if ok == nil {
+			macArr := convertNetHwAddressToSysIdKey(mac)
+			p.LaAggPortActorAdminInfoSet(macArr, sysPrio)
 
-		if p.IsPortOperStatusUp() &&
-			p.aggSelected == LacpAggUnSelected {
-			p.checkConfigForSelection()
+			if p.IsPortOperStatusUp() &&
+				p.aggSelected == LacpAggUnSelected {
+				p.checkConfigForSelection()
+			}
 		}
 	}
 }
@@ -560,7 +551,7 @@ func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 	if LaFindAggByKey(Key, &a) && LaFindPortById(pId, &p) &&
 		//p.aggSelected == LacpAggSelected &&
 		LaAggPortNumListPortIdExist(Key, pId) {
-		p.LaPortLog(fmt.Sprintf("deleting port from agg portList", pId, a.PortNumList))
+		p.LaPortLog(fmt.Sprintln("deleting port from agg portList", pId, a.PortNumList))
 
 		LacpStateClear(&p.actorAdmin.State, LacpStateAggregationBit)
 
