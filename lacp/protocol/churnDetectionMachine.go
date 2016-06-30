@@ -13,18 +13,19 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // CHURN DETECTION MACHINE 802.1ax-2014 Section 6.4.17
 package lacp
 
 import (
+	//"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -53,9 +54,9 @@ func CdMachineStrStateMapCreate() {
 		CdmStateStrMap[LacpCdmStateNoActorChurn] = "NoActorChurn"
 		CdmStateStrMap[LacpCdmStateActorChurnMonitor] = "ActorChurnMonitor"
 		CdmStateStrMap[LacpCdmStateActorChurn] = "ActorChurn"
-		CdmStateStrMap[LacpCdmStateNoActorChurn] = "NoPartnerChurn"
-		CdmStateStrMap[LacpCdmStateActorChurnMonitor] = "PartnerChurnMonitor"
-		CdmStateStrMap[LacpCdmStateActorChurn] = "PartnerChurn"
+		CdmStateStrMap[LacpCdmStateNoPartnerChurn] = "NoPartnerChurn"
+		CdmStateStrMap[LacpCdmStatePartnerChurnMonitor] = "PartnerChurnMonitor"
+		CdmStateStrMap[LacpCdmStatePartnerChurn] = "PartnerChurn"
 	}
 }
 
@@ -166,7 +167,7 @@ func (cdm *LacpCdMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	cdm.Machine.Rules = r
 	cdm.Machine.Curr = &LacpStateEvent{
 		strStateMap: CdmStateStrMap,
-		logEna:      cdm.p.logEna,
+		logEna:      true, //cdm.p.logEna,
 		logger:      cdm.LacpCdmLog,
 		owner:       CdMachineModuleStr,
 	}
@@ -184,15 +185,26 @@ func (cdm *LacpActorCdMachine) LacpCdMachineNoActorChurn(m fsm.Machine, data int
 
 // LacpCdMachineActorChurn will set the churn State to true
 func (cdm *LacpActorCdMachine) LacpCdMachineActorChurn(m fsm.Machine, data interface{}) fsm.State {
+	const ONE_SECOND = 1
 	p := cdm.p
 	p.actorChurn = true
-	if p.AggPortDebug.AggPortDebugActorChurnCount == 0 {
-		cdm.churnCountTimestamp = time.Now()
-		p.AggPortDebug.AggPortDebugActorChurnCount++
-	} else if time.Now().Second()-cdm.churnCountTimestamp.Second() > 5 {
-		p.AggPortDebug.AggPortDebugActorChurnCount++
+	if cdm.churnCountTimestamp.Nanosecond() == 0 {
 		cdm.churnCountTimestamp = time.Now()
 	}
+
+	// 802.1ax 7.3.4.1.8 aAggPortDebugActorChurnCount
+	// maximum 5 counts per second
+	timeDiff := time.Now().Second() - cdm.churnCountTimestamp.Second()
+	if timeDiff < ONE_SECOND &&
+		(p.AggPortDebug.AggPortDebugActorChurnCount-p.AggPortDebug.AggPortDebugActorChurnPrevCnt) < 5 {
+		p.AggPortDebug.AggPortDebugActorChurnCount++
+	} else if timeDiff > ONE_SECOND {
+		// reset the timestamp
+		cdm.churnCountTimestamp = time.Now()
+		p.AggPortDebug.AggPortDebugActorChurnPrevCnt = p.AggPortDebug.AggPortDebugActorChurnCount
+		p.AggPortDebug.AggPortDebugActorChurnCount++
+	}
+
 	cdm.ChurnDetectionTimerStop()
 	return LacpCdmStateActorChurn
 }
@@ -201,7 +213,7 @@ func (cdm *LacpActorCdMachine) LacpCdMachineActorChurn(m fsm.Machine, data inter
 // and kick off the churn detection timer
 func (cdm *LacpActorCdMachine) LacpCdMachineActorChurnMonitor(m fsm.Machine, data interface{}) fsm.State {
 	p := cdm.p
-	p.partnerChurn = true
+	p.actorChurn = false
 	cdm.ChurnDetectionTimerStart()
 	return LacpCdmStateActorChurnMonitor
 }
@@ -216,14 +228,24 @@ func (cdm *LacpPartnerCdMachine) LacpCdMachineNoPartnerChurn(m fsm.Machine, data
 
 // LacpCdMachineActorChurn will set the churn State to true
 func (cdm *LacpPartnerCdMachine) LacpCdMachinePartnerChurn(m fsm.Machine, data interface{}) fsm.State {
+	const ONE_SECOND = 1
 	p := cdm.p
 	p.partnerChurn = true
-	if p.AggPortDebug.AggPortDebugPartnerChurnCount == 0 {
+	if cdm.churnCountTimestamp.Nanosecond() == 0 {
 		cdm.churnCountTimestamp = time.Now()
+	}
+
+	// 802.1ax 7.3.4.1.9 aAggPortDebugActorChurnCount
+	// maximum 5 counts per second
+	timeDiff := time.Now().Second() - cdm.churnCountTimestamp.Second()
+	if timeDiff < ONE_SECOND &&
+		(p.AggPortDebug.AggPortDebugPartnerChurnCount-p.AggPortDebug.AggPortDebugPartnerChurnPrevCount) < 5 {
 		p.AggPortDebug.AggPortDebugPartnerChurnCount++
-	} else if time.Now().Second()-cdm.churnCountTimestamp.Second() > 5 {
-		p.AggPortDebug.AggPortDebugPartnerChurnCount++
+	} else if timeDiff >= ONE_SECOND {
+		// reset the timestamp
 		cdm.churnCountTimestamp = time.Now()
+		p.AggPortDebug.AggPortDebugPartnerChurnPrevCount = p.AggPortDebug.AggPortDebugPartnerChurnCount
+		p.AggPortDebug.AggPortDebugPartnerChurnCount++
 	}
 
 	cdm.ChurnDetectionTimerStop()
@@ -234,7 +256,7 @@ func (cdm *LacpPartnerCdMachine) LacpCdMachinePartnerChurn(m fsm.Machine, data i
 // and kick off the churn detection timer
 func (cdm *LacpPartnerCdMachine) LacpCdMachinePartnerChurnMonitor(m fsm.Machine, data interface{}) fsm.State {
 	p := cdm.p
-	p.partnerChurn = true
+	p.partnerChurn = false
 	cdm.ChurnDetectionTimerStart()
 	return LacpCdmStatePartnerChurnMonitor
 }
@@ -266,7 +288,7 @@ func LacpActorCdMachineFSMBuild(p *LaAggPort) *LacpActorCdMachine {
 	rules.AddRule(LacpCdmStateActorChurn, LacpCdmEventActorOperPortStateSyncOn, cdm.LacpCdMachineNoActorChurn)
 
 	// SYNC OFF -> ACTOR CHURN MONITOR
-	rules.AddRule(LacpCdmStateNoActorChurn, LacpCdmEventPartnerOperPortStateSyncOff, cdm.LacpCdMachineActorChurnMonitor)
+	rules.AddRule(LacpCdmStateNoActorChurn, LacpCdmEventActorOperPortStateSyncOff, cdm.LacpCdMachineActorChurnMonitor)
 
 	// TIMEOUT -> CHURN
 	rules.AddRule(LacpCdmStateActorChurnMonitor, LacpCdmEventActorChurnTimerExpired, cdm.LacpCdMachineActorChurn)
@@ -303,7 +325,7 @@ func LacpPartnerCdMachineFSMBuild(p *LaAggPort) *LacpPartnerCdMachine {
 	rules.AddRule(LacpCdmStatePartnerChurn, LacpCdmEventPartnerOperPortStateSyncOn, cdm.LacpCdMachineNoPartnerChurn)
 
 	// SYNC OFF -> ACTOR CHURN MONITOR
-	rules.AddRule(LacpCdmStateNoPartnerChurn, LacpCdmEventActorOperPortStateSyncOff, cdm.LacpCdMachinePartnerChurnMonitor)
+	rules.AddRule(LacpCdmStateNoPartnerChurn, LacpCdmEventPartnerOperPortStateSyncOff, cdm.LacpCdMachinePartnerChurnMonitor)
 
 	// TIMEOUT -> CHURN
 	rules.AddRule(LacpCdmStatePartnerChurnMonitor, LacpCdmEventPartnerChurnTimerExpired, cdm.LacpCdMachinePartnerChurn)
@@ -320,7 +342,7 @@ func LacpPartnerCdMachineFSMBuild(p *LaAggPort) *LacpPartnerCdMachine {
 func (p *LaAggPort) LacpActorCdMachineMain() {
 
 	// Build the State machine for Lacp Receive Machine according to
-	// 802.1ax Section 6.4.13 Periodic Transmission Machine
+	// 802.1ax Section 6.4.17 Churn Detection machine
 	cdm := LacpActorCdMachineFSMBuild(p)
 
 	// set the inital State
@@ -347,6 +369,18 @@ func (p *LaAggPort) LacpActorCdMachineMain() {
 
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 
+				if rv == nil &&
+					m.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn &&
+					!LacpStateIsSet(m.p.ActorOper.State, LacpStateSyncBit) {
+					rv = m.Machine.ProcessEvent(CdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOff, nil)
+				}
+				if rv == nil &&
+					(m.Machine.Curr.CurrentState() == LacpCdmStateActorChurnMonitor ||
+						m.Machine.Curr.CurrentState() == LacpCdmStateActorChurn) &&
+					LacpStateIsSet(m.p.ActorOper.State, LacpStateSyncBit) {
+					rv = m.Machine.ProcessEvent(CdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOn, nil)
+				}
+
 				if rv != nil {
 					m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
 				}
@@ -367,7 +401,7 @@ func (p *LaAggPort) LacpActorCdMachineMain() {
 func (p *LaAggPort) LacpPartnerCdMachineMain() {
 
 	// Build the State machine for Lacp Receive Machine according to
-	// 802.1ax Section 6.4.13 Periodic Transmission Machine
+	// 802.1ax Section 6.4.17 Churn Detection machine
 	cdm := LacpPartnerCdMachineFSMBuild(p)
 
 	// set the inital State
@@ -393,6 +427,18 @@ func (p *LaAggPort) LacpPartnerCdMachineMain() {
 			case event := <-m.CdmEvents:
 
 				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+
+				if rv == nil &&
+					m.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn &&
+					!LacpStateIsSet(m.p.PartnerOper.State, LacpStateSyncBit) {
+					rv = m.Machine.ProcessEvent(PCdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOff, nil)
+				}
+				if rv == nil &&
+					(m.Machine.Curr.CurrentState() == LacpCdmStateActorChurnMonitor ||
+						m.Machine.Curr.CurrentState() == LacpCdmStateActorChurn) &&
+					LacpStateIsSet(m.p.PartnerOper.State, LacpStateSyncBit) {
+					rv = m.Machine.ProcessEvent(PCdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOn, nil)
+				}
 
 				if rv != nil {
 					m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))

@@ -29,8 +29,12 @@ import (
 )
 
 var LaSystemIdDefault LacpSystem
+var MuxStateStrMap map[uint8]string
+var ModeStrMap map[uint8]string
 
 func init() {
+
+	DefsStrMapsCreate()
 
 	// Default System Id is all zero's
 	// this will be used by all static lags, as well as initial
