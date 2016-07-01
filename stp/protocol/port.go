@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // port.go
 package stp
@@ -172,6 +172,9 @@ type StpPort struct {
 	wg sync.WaitGroup
 	// chanel to send response messages
 	portChan chan string
+
+	// used to poll linux interface status.  Useful for SIM/TEST
+	PollingTimer *time.Timer
 }
 
 type PortTimer struct {
@@ -304,9 +307,10 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	StpLogger("INFO", fmt.Sprintf("Creating STP Listener for intf %d %s\n", p.IfIndex, ifName.Name))
 	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
 	p.handle = handle
-	StpLogger("INFO", fmt.Sprintf("NEW PORT: %#v\n", p))
+	StpLogger("INFO", fmt.Sprintf("NEW PORT: ifname %s %#v\n", ifName.Name, p))
 
-	if strings.Contains(ifName.Name, "eth") {
+	if strings.Contains(ifName.Name, "eth") ||
+		strings.Contains(ifName.Name, "lo") {
 		p.PollLinuxLinkStatus()
 	}
 
@@ -316,14 +320,13 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 
 func (p *StpPort) PollLinuxLinkStatus() {
 
-	var PollingTimer *time.Timer = time.NewTimer(time.Second * 1)
+	p.PollingTimer = time.NewTimer(time.Second * 1)
 
-	go func(p *StpPort, t *time.Timer) {
+	go func(p *StpPort) {
 		StpMachineLogger("INFO", "LINUX POLLING", p.IfIndex, p.BrgIfIndex, "Start")
 		for {
 			select {
-			case <-t.C:
-				// TODO get link status from asicd
+			case <-p.PollingTimer.C:
 				netif, _ := netlink.LinkByName(PortConfigMap[p.IfIndex].Name)
 				netifattr := netif.Attrs()
 				//StpLogger("INFO", fmt.Sprintf("Polling link flags%#v, running=0x%x up=0x%x check1 %t check2 %t", netifattr.Flags, syscall.IFF_RUNNING, syscall.IFF_UP, ((netifattr.Flags>>6)&0x1) == 1, (netifattr.Flags&1) == 1))
@@ -341,10 +344,10 @@ func (p *StpPort) PollLinuxLinkStatus() {
 					p.NotifyPortEnabled("LINUX LINK STATUS", prevPortEnabled, false)
 
 				}
-				t.Reset(time.Second * 1)
+				p.PollingTimer.Reset(time.Second * 1)
 			}
 		}
-	}(p, PollingTimer)
+	}(p)
 }
 func DelStpPort(p *StpPort) {
 	p.Stop()
@@ -380,6 +383,10 @@ func StpFindPortByIfIndex(pId int32, brgId int32, p **StpPort) bool {
 }
 
 func (p *StpPort) Stop() {
+
+	if p.PollingTimer != nil {
+		p.PollingTimer.Stop()
+	}
 
 	// close rx/tx processing
 	if p.handle != nil {
@@ -728,7 +735,7 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 	// 3) Port Information
 	// 4) Bridge Detection
 	if oldportenabled != newportenabled {
-		StpMachineLogger("INFO", PortConfigModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
+		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
 		mEvtChan := make([]chan MachineEvent, 0)
 		evt := make([]MachineEvent, 0)
 
