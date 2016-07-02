@@ -86,7 +86,7 @@ func LaRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 						}
 					} else {
 						// discard packet
-						fmt.Println("Discarding Packet not lacp or marker")
+						fmt.Println("Discarding Packet not lacp or marker", packet)
 					}
 				} else {
 					return
