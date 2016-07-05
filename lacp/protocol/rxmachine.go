@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // rxmachine
 package lacp
@@ -179,10 +179,13 @@ func (rxm *LacpRxMachine) LacpRxMachineInitialize(m fsm.Machine, data interface{
 	LacpStateSet(&p.PartnerOper.State, p.partnerAdmin.State)
 
 	// set the agg as being unselected
-	//p.aggSelected = LacpAggUnSelected
+	p.aggSelected = LacpAggUnSelected
 	if p.MuxMachineFsm != nil {
-		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
-			src: RxMachineModuleStr}
+		if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
+			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCDetached {
+			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
+				src: RxMachineModuleStr}
+		}
 	}
 
 	// Record default params
@@ -207,13 +210,18 @@ func (rxm *LacpRxMachine) LacpRxMachinePortDisabled(m fsm.Machine, data interfac
 	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
 
 	// inform partner cdm
-	if p.PCdMachineFsm != nil {
-		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+	if p.PCdMachineFsm != nil &&
+		p.PCdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateNoPartnerChurn {
+		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOff,
 			src: RxMachineModuleStr}
 	}
 	if p.MuxMachineFsm != nil {
-		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
-			src: RxMachineModuleStr}
+		if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDistributing ||
+			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting ||
+			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxStateCCollectingDistributing {
+			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
+				src: RxMachineModuleStr}
+		}
 	}
 
 	return LacpRxmStatePortDisabled
@@ -228,8 +236,9 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	//rxm.LacpRxmLog("Clearing Partner Sync Bit")
 	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
 	// inform partner cdm
-	if p.PCdMachineFsm != nil {
-		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+	if p.PCdMachineFsm != nil &&
+		p.PCdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateNoPartnerChurn {
+		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOff,
 			src: RxMachineModuleStr}
 	}
 
@@ -264,10 +273,13 @@ func (rxm *LacpRxMachine) LacpRxMachineLacpDisabled(m fsm.Machine, data interfac
 	rxm.CurrentWhileTimerStop()
 
 	// Unselect the aggregator
-	//p.aggSelected = LacpAggUnSelected
+	p.aggSelected = LacpAggUnSelected
 	if p.MuxMachineFsm != nil {
-		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
-			src: RxMachineModuleStr}
+		if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
+			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCDetached {
+			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
+				src: RxMachineModuleStr}
+		}
 	}
 
 	// setup the default params
@@ -506,7 +518,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 				// by the time this expires we want to ensure the packet
 				// gets processed first as this will clear/restart the timer
 				if len(m.RxmPktRxEvent) == 0 {
-					m.LacpRxmLog("RXM: Current While Timer Expired")
+					m.LacpRxmLog("Current While Timer Expired")
 					m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventCurrentWhileTimerExpired, nil)
 				}
 
@@ -518,19 +530,18 @@ func (p *LaAggPort) LacpRxMachineMain() {
 					if m.Machine.Curr.CurrentState() == LacpRxmStateInitialize {
 						rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventUnconditionalFallthrough, nil)
 					}
-					if rv == nil &&
-						p.aggSelected == LacpAggSelected {
-						if rv == nil &&
-							m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled &&
-							p.lacpEnabled == true &&
-							p.PortEnabled == true {
-							rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpEnabled, nil)
-						}
-						if rv == nil &&
-							m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled &&
-							p.lacpEnabled == false &&
-							p.PortEnabled == true {
-							rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpDisabled, nil)
+					if rv == nil {
+						m.LacpRxmLog(fmt.Sprintln("Port Enabled, LacpEnabled, State", p.PortEnabled, p.lacpEnabled, m.Machine.Curr.CurrentState()))
+						if m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled {
+							if p.lacpEnabled == true &&
+								p.PortEnabled == true {
+								rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpEnabled, nil)
+							} else if p.lacpEnabled == false &&
+								p.PortEnabled == true {
+								rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpDisabled, nil)
+							} else if p.portMoved {
+								rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortMoved, nil)
+							}
 						}
 					}
 				}

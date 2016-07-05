@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // rx_test.go
 // This is a test file to test the rx/portrcvfsm
@@ -190,7 +190,7 @@ func TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -198,7 +198,7 @@ func TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     true,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)
@@ -279,7 +279,7 @@ func TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -287,7 +287,7 @@ func TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     true,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)
@@ -368,7 +368,7 @@ func TestTxHelloWhenEqualZeroTransmitTCN(t *testing.T) {
 
 	// configure a port
 	stpconfig := &StpPortConfig{
-		IfIndex:                  TEST_RX_PORT_CONFIG_IFINDEX,
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
 		Priority:          0x80,
 		Enable:            true,
 		PathCost:          1,
@@ -376,7 +376,7 @@ func TestTxHelloWhenEqualZeroTransmitTCN(t *testing.T) {
 		AdminPointToPoint: StpPointToPointForceFalse,
 		AdminEdgePort:     true,
 		AdminPathCost:     0,
-		BrgIfIndex:         DEFAULT_STP_BRIDGE_VLAN,
+		BrgIfIndex:        DEFAULT_STP_BRIDGE_VLAN,
 	}
 
 	p := UsedForTestOnlyPtxTestSetup(stpconfig, t)

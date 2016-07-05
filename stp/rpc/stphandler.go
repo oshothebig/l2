@@ -223,7 +223,7 @@ func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *dbutils.DBUtil) error {
 
 func (s *STPDServiceHandler) ReadConfigFromDB() error {
 
-	dbHdl := dbutils.NewDBUtil(nil)
+	dbHdl := dbutils.NewDBUtil(stp.GetStpLogger())
 	err := dbHdl.Connect()
 	if err != nil {
 		stp.StpLogger("ERROR", fmt.Sprintf("Failed to open connection to DB with error %s", err))
@@ -319,7 +319,7 @@ func (s *STPDServiceHandler) CreateStpPort(config *stpd.StpPort) (bool, error) {
 	stp.StpLogger("INFO", fmt.Sprintf("CreateStpPort (server): created %#v", config))
 	portconfig := &stp.StpPortConfig{}
 	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
-	err := stp.StpPortConfigParamCheck(portconfig)
+	err := stp.StpPortConfigParamCheck(portconfig, false)
 	if err == nil {
 		err = stp.StpPortCreate(portconfig)
 		if err == nil {
@@ -357,7 +357,7 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 	}
 
 	ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
-	err := stp.StpPortConfigParamCheck(portconfig)
+	err := stp.StpPortConfigParamCheck(portconfig, true)
 	if err != nil {
 		return false, err
 	}
