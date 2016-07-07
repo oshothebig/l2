@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // pi_test.go
 package stp
@@ -619,29 +619,69 @@ func UsedForTestOnlyPimStartInCurrentState(t *testing.T) *StpPort {
 }
 
 func UsedForTestOnlyPimCheckSuperiorDesignatedState(p *StpPort, t *testing.T) {
-	if p.RcvdInfo != SuperiorDesignatedInfo {
-		t.Error("Failed RcvdInfo is not Superior")
+	if p.PimMachineFsm.Machine.Curr.PreviousState() != PimStateSuperiorDesignated {
+		t.Error(fmt.Sprintf("Failed Previous state not correct %s\n", PimStateStrMap[p.PimMachineFsm.Machine.Curr.PreviousState()]))
 	}
+	if p.PimMachineFsm.Machine.Curr.CurrentState() != PimStateCurrent {
+		t.Error("Failed Designated Port should have produced Current state")
+	}
+	if p.RcvdInfo != SuperiorDesignatedInfo {
+		t.Error("Failed RcvdInfo is not Superior", p.RcvdInfo)
+	}
+
 	if p.Agreed != false {
 		t.Error("Failed agreed is set")
 	}
 	if p.Proposing != false {
-		t.Error("Failed proposing is set")
+		t.Error("Failed proposiing is set")
+	}
+	if p.Agree != false {
+		t.Error("Failed agree is set")
 	}
 	if p.InfoIs != PortInfoStateReceived {
-		t.Error("Failed InfoIs is not Received")
+		t.Error("Failed infoIs is not set to Received")
 	}
 	if p.Reselect != true {
 		t.Error("Failed reselect is not set")
 	}
 	if p.Selected != false {
-		t.Error("Failed selected is set")
+		t.Error("Failed selectd is set")
 	}
 	if p.RcvdMsg != false {
 		t.Error("Failed rcvdMsg is set")
 	}
+}
 
-	// TODO check for events that should be sent
+func UsedForTestOnlyPimCheckRepeatedDesignatedState(p *StpPort, t *testing.T) {
+	if p.PimMachineFsm.Machine.Curr.PreviousState() != PimStateRepeatedDesignated {
+		t.Error(fmt.Sprintf("Failed Previous state not correct %s\n", PimStateStrMap[p.PimMachineFsm.Machine.Curr.PreviousState()]))
+	}
+	if p.PimMachineFsm.Machine.Curr.CurrentState() != PimStateCurrent {
+		t.Error("Failed Designated Port should have produced Current state")
+	}
+	if p.RcvdInfo != RepeatedDesignatedInfo {
+		t.Error("Failed RcvdInfo is not Superior", p.RcvdInfo)
+	}
+
+	if p.RcvdMsg != false {
+		t.Error("Failed rcvdMsg is set")
+	}
+}
+
+func UsedForTestOnlyPimCheckInferiorDesignatedState(p *StpPort, t *testing.T) {
+	if p.PimMachineFsm.Machine.Curr.PreviousState() != PimStateInferiorDesignated {
+		t.Error(fmt.Sprintf("Failed Previous state not correct %s\n", PimStateStrMap[p.PimMachineFsm.Machine.Curr.PreviousState()]))
+	}
+	if p.PimMachineFsm.Machine.Curr.CurrentState() != PimStateCurrent {
+		t.Error("Failed Designated Port should have produced Current state")
+	}
+	if p.RcvdInfo != InferiorDesignatedInfo {
+		t.Error("Failed RcvdInfo is not Superior", p.RcvdInfo)
+	}
+
+	if p.RcvdMsg != false {
+		t.Error("Failed rcvdMsg is set")
+	}
 }
 
 func TestPimBEGIN(t *testing.T) {
@@ -1005,6 +1045,7 @@ func xTestPimCurrentStateRcvdMsgAndNotUpdtInfo(t *testing.T) {
 			if r == PortRoleDesignatedPort {
 				switch i {
 				case 0: // superior
+
 					if p.PimMachineFsm.Machine.Curr.PreviousState() != PimStateSuperiorDesignated {
 						t.Error(fmt.Sprintf("Failed Previous state not correct %s\n", PimStateStrMap[p.PimMachineFsm.Machine.Curr.PreviousState()]))
 						t.FailNow()
@@ -1014,27 +1055,8 @@ func xTestPimCurrentStateRcvdMsgAndNotUpdtInfo(t *testing.T) {
 						t.FailNow()
 					}
 
-					if p.Agreed != false {
-						t.Error("Failed agreed is set")
-					}
-					if p.Proposing != false {
-						t.Error("Failed proposiing is set")
-					}
-					if p.Agree != false {
-						t.Error("Failed agree is set")
-					}
-					if p.InfoIs != PortInfoStateReceived {
-						t.Error("Failed infoIs is not set to Received")
-					}
-					if p.Reselect != true {
-						t.Error("Failed reselect is not set")
-					}
-					if p.Selected != false {
-						t.Error("Failed selectd is set")
-					}
-					if p.RcvdMsg != false {
-						t.Error("Failed rcvdMsg is set")
-					}
+					UsedForTestOnlyPimCheckSuperiorDesignatedState(p, t)
+
 				case 1: // repeated
 					if p.PimMachineFsm.Machine.Curr.PreviousState() != PimStateRepeatedDesignated {
 						t.Error(fmt.Sprintf("Failed Previous state not correct %s\n", PimStateStrMap[p.PimMachineFsm.Machine.Curr.PreviousState()]))
@@ -1123,5 +1145,371 @@ func TestPimCurrentStateInfoIsEqualReceivedAndrcvdInfoWhileEqualZeroAndNotUpdtIn
 	UsedForTestOnlyPimTestTeardown(p, t)
 }
 
-// TODO test Superior Designated
-//func TestPimCurrentStateRcvdMsgAndNotUpdtInfo()
+// 17.21.8 rcvInfo Superior Designated (a)(1)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualSuperiorMsgBridgeSuperior(t *testing.T) {
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       200000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       0}
+
+	// root bridge < port priority
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		RootPathCost:      200000,
+		BridgeId:          [8]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleDesignatedPort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckSuperiorDesignatedState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 rcvInfo Superior Designated (a)(1)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualSuperiorMsgPathCostSuperior(t *testing.T) {
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       200000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       0}
+
+	// root bridge < port priority
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:      2000,
+		BridgeId:          [8]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleDesignatedPort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckSuperiorDesignatedState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 rcvInfo Superior Designated (a)(2)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualSuperiorMsgTimeSuperior(t *testing.T) {
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       200000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       40}
+
+	p.PortTimes = Times{
+		ForwardingDelay: 15,
+		HelloTime:       1,
+		MaxAge:          10,
+		MessageAge:      4,
+	}
+
+	// msg times < port times
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:      200000,
+		BridgeId:          [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(8 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleDesignatedPort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckSuperiorDesignatedState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 RepeatedDesignated Info (b)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualRepeatedDisignated(t *testing.T) {
+
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       200000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       40}
+
+	p.PortTimes = Times{
+		ForwardingDelay: 15,
+		HelloTime:       1,
+		MaxAge:          10,
+		MessageAge:      4,
+	}
+
+	// msg times < port times
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:      200000,
+		BridgeId:          [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleDesignatedPort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckRepeatedDesignatedState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 InferiorDesignated Info (c)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualInferiorDesignatedBridgeInferior(t *testing.T) {
+
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       200000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       40}
+
+	p.PortTimes = Times{
+		ForwardingDelay: 15,
+		HelloTime:       1,
+		MaxAge:          10,
+		MessageAge:      4,
+	}
+
+	// msg times < port times
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x55, 0x55, 0x55, 0x55, 0x55},
+		RootPathCost:      200000,
+		BridgeId:          [8]uint8{0x00, 0x55, 0x55, 0x55, 0x55, 0x55},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleDesignatedPort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckInferiorDesignatedState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 InferiorDesignated Info (c)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualInferiorDesignatedPathCostInferior(t *testing.T) {
+
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       20000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       40}
+
+	p.PortTimes = Times{
+		ForwardingDelay: 15,
+		HelloTime:       1,
+		MaxAge:          10,
+		MessageAge:      4,
+	}
+
+	// msg times < port times
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:      2000000,
+		BridgeId:          [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleDesignatedPort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckInferiorDesignatedState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
