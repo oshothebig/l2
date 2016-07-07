@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // defs
 package lacp
@@ -177,4 +177,51 @@ func LacpModeGet(currState uint8, lacpEnabled bool) int {
 		}
 	}
 	return mode
+}
+
+func DefsStrMapsCreate() {
+	MuxStateStrMap = make(map[uint8]string)
+	MuxStateStrMap[LacpStateActivityBit] = "Activity"
+	MuxStateStrMap[LacpStateTimeoutBit] = "Timeout"
+	MuxStateStrMap[LacpStateAggregationBit] = "Aggregation"
+	MuxStateStrMap[LacpStateSyncBit] = "Sync"
+	MuxStateStrMap[LacpStateCollectingBit] = "Collecting"
+	MuxStateStrMap[LacpStateDistributingBit] = "Distributing"
+	MuxStateStrMap[LacpStateDefaultedBit] = "Defaulted"
+	MuxStateStrMap[LacpStateExpiredBit] = "Expired"
+
+	ModeStrMap = make(map[uint8]string)
+	ModeStrMap[LacpModeActive] = "Active"
+	ModeStrMap[LacpModePassive] = "Passive"
+	ModeStrMap[LacpModeOn] = "On"
+}
+
+func LacpStateToStr(state uint8) string {
+
+	var statestr = ""
+	if LacpStateIsSet(state, LacpStateActivityBit) {
+		statestr += MuxStateStrMap[LacpStateActivityBit] + ","
+	}
+	if LacpStateIsSet(state, LacpStateTimeoutBit) {
+		statestr += MuxStateStrMap[LacpStateTimeoutBit] + ","
+	}
+	if LacpStateIsSet(state, LacpStateAggregationBit) {
+		statestr += MuxStateStrMap[LacpStateAggregationBit] + ","
+	}
+	if LacpStateIsSet(state, LacpStateSyncBit) {
+		statestr += MuxStateStrMap[LacpStateSyncBit] + ","
+	}
+	if LacpStateIsSet(state, LacpStateCollectingBit) {
+		statestr += MuxStateStrMap[LacpStateCollectingBit] + ","
+	}
+	if LacpStateIsSet(state, LacpStateDistributingBit) {
+		statestr += MuxStateStrMap[LacpStateDistributingBit] + ","
+	}
+	if LacpStateIsSet(state, LacpStateDefaultedBit) {
+		statestr += MuxStateStrMap[LacpStateDefaultedBit] + ","
+	}
+	if LacpStateIsSet(state, LacpStateExpiredBit) {
+		statestr += MuxStateStrMap[LacpStateExpiredBit] + ","
+	}
+	return statestr
 }

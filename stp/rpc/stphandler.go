@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // lahandler
 package rpc
@@ -27,7 +27,7 @@ package rpc
 import (
 	"fmt"
 	stp "l2/stp/protocol"
-	"models"
+	"models/objects"
 	"reflect"
 	"stpd"
 	"utils/dbutils"
@@ -181,7 +181,7 @@ func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInsta
 
 func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
-		var dbObj models.StpBridgeInstance
+		var dbObj objects.StpBridgeInstance
 		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			stp.StpLogger("ERROR", "DB Query failed when retrieving StpBridgeInstance objects")
@@ -189,8 +189,8 @@ func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil
 		}
 		for idx := 0; idx < len(objList); idx++ {
 			obj := stpd.NewStpBridgeInstance()
-			dbObject := objList[idx].(models.StpBridgeInstance)
-			models.ConvertstpdStpBridgeInstanceObjToThrift(&dbObject, obj)
+			dbObject := objList[idx].(objects.StpBridgeInstance)
+			objects.ConvertstpdStpBridgeInstanceObjToThrift(&dbObject, obj)
 			_, err = s.CreateStpBridgeInstance(obj)
 			if err != nil {
 				return err
@@ -202,7 +202,7 @@ func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil
 
 func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
-		var dbObj models.StpPort
+		var dbObj objects.StpPort
 		objList, err := dbHdl.GetAllObjFromDb(dbObj)
 		if err != nil {
 			stp.StpLogger("ERROR", "DB Query failed when retrieving StpPort objects")
@@ -210,8 +210,8 @@ func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *dbutils.DBUtil) error {
 		}
 		for idx := 0; idx < len(objList); idx++ {
 			obj := stpd.NewStpPort()
-			dbObject := objList[idx].(models.StpPort)
-			models.ConvertstpdStpPortObjToThrift(&dbObject, obj)
+			dbObject := objList[idx].(objects.StpPort)
+			objects.ConvertstpdStpPortObjToThrift(&dbObject, obj)
 			_, err = s.CreateStpPort(obj)
 			if err != nil {
 				return err
@@ -223,7 +223,7 @@ func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *dbutils.DBUtil) error {
 
 func (s *STPDServiceHandler) ReadConfigFromDB() error {
 
-	dbHdl := dbutils.NewDBUtil(nil)
+	dbHdl := dbutils.NewDBUtil(stp.GetStpLogger())
 	err := dbHdl.Connect()
 	if err != nil {
 		stp.StpLogger("ERROR", fmt.Sprintf("Failed to open connection to DB with error %s", err))
@@ -319,7 +319,7 @@ func (s *STPDServiceHandler) CreateStpPort(config *stpd.StpPort) (bool, error) {
 	stp.StpLogger("INFO", fmt.Sprintf("CreateStpPort (server): created %#v", config))
 	portconfig := &stp.StpPortConfig{}
 	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
-	err := stp.StpPortConfigParamCheck(portconfig)
+	err := stp.StpPortConfigParamCheck(portconfig, false)
 	if err == nil {
 		err = stp.StpPortCreate(portconfig)
 		if err == nil {
@@ -357,7 +357,7 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 	}
 
 	ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
-	err := stp.StpPortConfigParamCheck(portconfig)
+	err := stp.StpPortConfigParamCheck(portconfig, true)
 	if err != nil {
 		return false, err
 	}
