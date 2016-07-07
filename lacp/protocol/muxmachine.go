@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // MUX MACHINE 802.1ax-2014 Section 6.4.15
 // This implementation will assume that bot State machines in Section 6.4.15 are
@@ -183,8 +183,10 @@ func (muxm *LacpMuxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 func (muxm *LacpMuxMachine) SendTxMachineNtt() {
 
-	muxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
-		src: MuxMachineModuleStr}
+	if muxm.p.TxMachineFsm.Machine.Curr.CurrentState() != LacpTxmStateOff {
+		muxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
+			src: MuxMachineModuleStr}
+	}
 }
 
 // LacpMuxmDetached
@@ -197,8 +199,10 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 	// Actor Oper State Sync = FALSE
 	LacpStateClear(&p.ActorOper.State, LacpStateSyncBit)
 	// inform cdm
-	p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
-		src: MuxMachineModuleStr}
+	if p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn {
+		p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+			src: MuxMachineModuleStr}
+	}
 
 	// Disable Distributing
 	muxm.DisableDistributing()
@@ -265,9 +269,13 @@ func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fs
 	// Actor Oper State Sync = TRUE
 	//muxm.LacpMuxmLog("Setting Actor Sync Bit")
 	LacpStateSet(&p.ActorOper.State, LacpStateSyncBit)
+
 	// inform cdm
-	p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
-		src: MuxMachineModuleStr}
+	if p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateActorChurnMonitor ||
+		p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateActorChurn {
+		p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
+			src: MuxMachineModuleStr}
+	}
 
 	// debug
 	if p.AggPortDebug.AggPortDebugActorSyncTransitionCount == 0 {
@@ -342,9 +350,12 @@ func (muxm *LacpMuxMachine) LacpMuxmCDetached(m fsm.Machine, data interface{}) f
 	// Actor Oper State Sync = FALSE
 	// Actor Oper State Collecting = FALSE
 	LacpStateClear(&p.ActorOper.State, LacpStateSyncBit|LacpStateCollectingBit)
-	// inform cdm
-	p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
-		src: MuxMachineModuleStr}
+
+	if p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn {
+		// inform cdm
+		p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
+			src: MuxMachineModuleStr}
+	}
 
 	// Disable Collecting && Distributing
 	muxm.DisableCollectingDistributing()
@@ -376,9 +387,13 @@ func (muxm *LacpMuxMachine) LacpMuxmCAttached(m fsm.Machine, data interface{}) f
 
 	// Actor Oper State Sync = TRUE
 	LacpStateSet(&p.ActorOper.State, LacpStateSyncBit)
+
 	// inform cdm
-	p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
-		src: MuxMachineModuleStr}
+	if p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateActorChurnMonitor ||
+		p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateActorChurn {
+		p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
+			src: MuxMachineModuleStr}
+	}
 
 	// Actor Oper State Collecting = FALSE
 	LacpStateClear(&p.ActorOper.State, LacpStateCollectingBit)
@@ -427,9 +442,14 @@ func (p *LaAggPort) LacpMuxMachineFSMBuild() *LacpMuxMachine {
 	muxm := NewLacpMuxMachine(p)
 
 	// MUX
-
 	//BEGIN -> DETACHED
 	rules.AddRule(LacpMuxmStateNone, LacpMuxmEventBegin, muxm.LacpMuxmDetached)
+	rules.AddRule(LacpMuxmStateDetached, LacpMuxmEventBegin, muxm.LacpMuxmDetached)
+	rules.AddRule(LacpMuxmStateWaiting, LacpMuxmEventBegin, muxm.LacpMuxmDetached)
+	rules.AddRule(LacpMuxmStateAttached, LacpMuxmEventBegin, muxm.LacpMuxmDetached)
+	rules.AddRule(LacpMuxmStateCollecting, LacpMuxmEventBegin, muxm.LacpMuxmDetached)
+	rules.AddRule(LacpMuxmStateDistributing, LacpMuxmEventBegin, muxm.LacpMuxmDetached)
+
 	// SELECTED or STANDBY -> WAITING
 	rules.AddRule(LacpMuxmStateDetached, LacpMuxmEventSelectedEqualSelected, muxm.LacpMuxmWaiting)
 	rules.AddRule(LacpMuxmStateDetached, LacpMuxmEventSelectedEqualStandby, muxm.LacpMuxmWaiting)
@@ -457,6 +477,11 @@ func (p *LaAggPort) LacpMuxMachineFSMBuild() *LacpMuxMachine {
 	// MUX Coupled
 	//BEGIN -> DETACHED
 	rules.AddRule(LacpMuxmStateNone, LacpMuxmEventBegin, muxm.LacpMuxmCDetached)
+	rules.AddRule(LacpMuxmStateCDetached, LacpMuxmEventBegin, muxm.LacpMuxmCDetached)
+	rules.AddRule(LacpMuxmStateCWaiting, LacpMuxmEventBegin, muxm.LacpMuxmCDetached)
+	rules.AddRule(LacpMuxmStateCAttached, LacpMuxmEventBegin, muxm.LacpMuxmCDetached)
+	rules.AddRule(LacpMuxStateCCollectingDistributing, LacpMuxmEventBegin, muxm.LacpMuxmCDetached)
+
 	// SELECTED or STANDBY -> WAITING
 	rules.AddRule(LacpMuxmStateCDetached, LacpMuxmEventSelectedEqualSelected, muxm.LacpMuxmCWaiting)
 	rules.AddRule(LacpMuxmStateCDetached, LacpMuxmEventSelectedEqualStandby, muxm.LacpMuxmCWaiting)
@@ -521,15 +546,6 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 			case event := <-m.MuxmEvents:
 
 				p := m.p
-				/*
-					if event.e == LacpMuxmEventSelectedEqualSelected {
-						muxm.LacpMuxmLog("Setting Actor Aggregation Bit")
-						LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
-					} else {
-						muxm.LacpMuxmLog("Clearing Actor Aggregation Bit")
-						LacpStateClear(&p.ActorOper.State, LacpStateAggregationBit)
-					}
-				*/
 				//m.LacpMuxmLog(fmt.Sprintf("Event received %d src %s", event.e, event.src))
 				eventStr := strings.Join([]string{"from", event.src, MuxmEventStrMap[int(event.e)]}, " ")
 
@@ -546,7 +562,8 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 						// if port is attached then we know that provisioning found
 						// a valid agg thus port should be attached.
 						if p.AggAttached != nil &&
-							p.PortEnabled {
+							p.PortEnabled &&
+							p.lacpEnabled {
 							// change the selection to be Selected
 							p.aggSelected = LacpAggSelected
 							//muxm.LacpMuxmLog("Setting Actor Aggregation Bit")
@@ -606,7 +623,8 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 				}
 
 				if len(eventStr) > 255 {
-					fmt.Println("WARNING string to long for MuxReason", eventStr)
+					fmt.Println("WARNING string to long for MuxReason:", eventStr)
+					fmt.Println(eventStr)
 				}
 				p.AggPortDebug.AggPortDebugMuxReason = eventStr
 

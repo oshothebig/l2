@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // lahandler
 package rpc
@@ -30,7 +30,7 @@ import (
 	"fmt"
 	lacp "l2/lacp/protocol"
 	"lacpd"
-	"models"
+	"models/objects"
 	//"net"
 	"reflect"
 	"strconv"
@@ -289,7 +289,7 @@ func GetIdByName(AggName string) int {
 
 func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
-		var dbObj models.LaPortChannel
+		var dbObj objects.LaPortChannel
 		objList, err := dbObj.GetAllObjFromDb(dbHdl)
 		if err != nil {
 			fmt.Println("DB Query failed when retrieving LaPortChannel objects")
@@ -297,8 +297,8 @@ func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) 
 		}
 		for idx := 0; idx < len(objList); idx++ {
 			obj := lacpd.NewLaPortChannel()
-			dbObject := objList[idx].(models.LaPortChannel)
-			models.ConvertlacpdLaPortChannelObjToThrift(&dbObject, obj)
+			dbObject := objList[idx].(objects.LaPortChannel)
+			objects.ConvertlacpdLaPortChannelObjToThrift(&dbObject, obj)
 			_, err = la.CreateLaPortChannel(obj)
 			if err != nil {
 				return err
@@ -309,7 +309,7 @@ func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) 
 }
 
 func (la *LACPDServiceHandler) ReadConfigFromDB() error {
-	dbHdl := dbutils.NewDBUtil(nil)
+	dbHdl := dbutils.NewDBUtil(lacp.GetLacpLogger())
 	err := dbHdl.Connect()
 	if err != nil {
 		fmt.Printf("Failed to open connection to the DB with error %s", err)
@@ -459,7 +459,7 @@ func GetAddDelMembers(orig []uint16, update []int32) (add, del []int32) {
 	return
 }
 
-func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChannel, updateconfig *lacpd.LaPortChannel, attrset []bool, op string) (bool, error) {
+func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChannel, updateconfig *lacpd.LaPortChannel, attrset []bool, op []*lacpd.PatchOpInfo) (bool, error) {
 
 	aggModeMap := map[uint32]string{
 		//LacpActivityTypeACTIVE:  "ACTIVE",

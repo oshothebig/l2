@@ -88,7 +88,7 @@ func (h *ConfigHandler) DeleteLLDPIntf(config *lldpd.LLDPIntf) (r bool, err erro
 }
 
 func (h *ConfigHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
-	newconfig *lldpd.LLDPIntf, attrset []bool, op string) (r bool, err error) {
+	newconfig *lldpd.LLDPIntf, attrset []bool, op []*lldpd.PatchOpInfo) (r bool, err error) {
 	// On update we do not care for old config... just push the new config to api layer
 	// and let the api layer handle the information
 	return api.UpdateIntfConfig(newconfig.IfIndex, newconfig.Enable)
@@ -103,7 +103,7 @@ func (h *ConfigHandler) DeleteLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err 
 }
 
 func (h *ConfigHandler) UpdateLLDPGlobal(origconfig *lldpd.LLDPGlobal,
-	newconfig *lldpd.LLDPGlobal, attrset []bool, op string) (r bool, err error) {
+	newconfig *lldpd.LLDPGlobal, attrset []bool, op []*lldpd.PatchOpInfo) (r bool, err error) {
 	// On update we do not care for old config... just push the new config to api layer
 	// and let the api layer handle the information
 	return api.UpdateGlobalConfig(newconfig.Vrf, newconfig.Enable)

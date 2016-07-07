@@ -13,22 +13,28 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // init
 package lacp
 
-import ()
+import (
+	"utils/logging"
+)
 
 var LaSystemIdDefault LacpSystem
+var MuxStateStrMap map[uint8]string
+var ModeStrMap map[uint8]string
 
 func init() {
+
+	DefsStrMapsCreate()
 
 	// Default System Id is all zero's
 	// this will be used by all static lags, as well as initial
@@ -38,4 +44,9 @@ func init() {
 		actor_System:          [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 	}
 	LacpSysGlobalInfoInit(LaSystemIdDefault)
+
+	if gLogger == nil {
+		gLogger, _ = logging.NewLogger("lacpd", "LACP", true)
+	}
+
 }
