@@ -262,6 +262,30 @@ func TestStpBridgeParamCheckPriority(t *testing.T) {
 			t.Error("ERROR valid priority was set should not have errored", brgcfg.Priority)
 		}
 	}
+
+	// lets create the bridge
+	StpBridgeCreate(brgcfg)
+
+	var b *Bridge
+
+	key := BridgeKey{
+		Vlan: brgcfg.Vlan,
+	}
+	if !StpFindBridgeById(key, &b) {
+		t.Error("ERROR: unable to find bridge")
+	}
+
+	// lets update the bridge priority attribute
+	err = StpBrgPrioritySet(b.BrgIfIndex, 4096)
+	if err != nil {
+		t.Error("ERRROR Setting bridge priority to a valid value", err)
+	}
+
+	// lets update the bridge priority attribute to an invalid value
+	err = StpBrgPrioritySet(b.BrgIfIndex, 400)
+	if err == nil {
+		t.Error("ERRROR Setting bridge priority to an invalid value", err)
+	}
 }
 
 func TestStpBridgeParamCheckMaxAge(t *testing.T) {
@@ -289,6 +313,30 @@ func TestStpBridgeParamCheckMaxAge(t *testing.T) {
 		if err != nil {
 			t.Error("ERROR valid max age was set should not have errored", brgcfg.MaxAge)
 		}
+	}
+
+	// create the bridge
+	StpBridgeCreate(brgcfg)
+	defer StpBridgeDelete(brgcfg)
+
+	var b *Bridge
+	key := BridgeKey{
+		Vlan: brgcfg.Vlan,
+	}
+	if !StpFindBridgeById(key, &b) {
+		t.Error("ERROR: unable to find bridge")
+	}
+
+	// let change the max age
+	err = StpBrgMaxAgeSet(b.BrgIfIndex, 15)
+	if err != nil {
+		t.Error("ERROR: Valid hello time set failed", err)
+	}
+
+	// let change the Max age to an invalid value
+	err = StpBrgMaxAgeSet(b.BrgIfIndex, 100)
+	if err == nil {
+		t.Error("ERROR: invalid hello time passed", err)
 	}
 }
 
@@ -318,6 +366,30 @@ func TestStpBridgeParamCheckHelloTime(t *testing.T) {
 			t.Error("ERROR valid hello time was set should not have errored", brgcfg.HelloTime)
 		}
 	}
+
+	// create the bridge
+	StpBridgeCreate(brgcfg)
+	defer StpBridgeDelete(brgcfg)
+
+	var b *Bridge
+	key := BridgeKey{
+		Vlan: brgcfg.Vlan,
+	}
+	if !StpFindBridgeById(key, &b) {
+		t.Error("ERROR: unable to find bridge")
+	}
+
+	// let change the forwarding delay
+	err = StpBrgHelloTimeSet(b.BrgIfIndex, 1)
+	if err != nil {
+		t.Error("ERROR: Valid hello time set failed", err)
+	}
+
+	// let change the forwarding delay to an invalid value
+	err = StpBrgHelloTimeSet(b.BrgIfIndex, 5)
+	if err == nil {
+		t.Error("ERROR: invalid hello time passed", err)
+	}
 }
 
 func TestStpBridgeParamCheckFowardingDelay(t *testing.T) {
@@ -345,6 +417,30 @@ func TestStpBridgeParamCheckFowardingDelay(t *testing.T) {
 		if err != nil {
 			t.Error("ERROR valid forwarding delay was set should not have errored", brgcfg.ForwardDelay)
 		}
+	}
+
+	// create the bridge
+	StpBridgeCreate(brgcfg)
+	defer StpBridgeDelete(brgcfg)
+
+	var b *Bridge
+	key := BridgeKey{
+		Vlan: brgcfg.Vlan,
+	}
+	if !StpFindBridgeById(key, &b) {
+		t.Error("ERROR: unable to find bridge")
+	}
+
+	// let change the forwarding delay
+	err = StpBrgForwardDelaySet(b.BrgIfIndex, 6)
+	if err != nil {
+		t.Error("ERROR: Valid version set failed", err)
+	}
+
+	// let change the forwarding delay to an invalid value
+	err = StpBrgForwardDelaySet(b.BrgIfIndex, 50)
+	if err == nil {
+		t.Error("ERROR: invalid version set passed", err)
 	}
 }
 
@@ -374,6 +470,31 @@ func TestStpBridgeParamCheckTxHoldCount(t *testing.T) {
 			t.Error("ERROR valid tx hold count was set should not have errored", brgcfg.TxHoldCount)
 		}
 	}
+
+	// create the bridge
+	StpBridgeCreate(brgcfg)
+	defer StpBridgeDelete(brgcfg)
+
+	var b *Bridge
+	key := BridgeKey{
+		Vlan: brgcfg.Vlan,
+	}
+	if !StpFindBridgeById(key, &b) {
+		t.Error("ERROR: unable to find bridge")
+	}
+
+	// let change the tx hold count
+	err = StpBrgTxHoldCountSet(b.BrgIfIndex, 4)
+	if err != nil {
+		t.Error("ERROR: Valid tx hold count set failed", err)
+	}
+
+	// let change the tx hold count to an invalid value
+	err = StpBrgTxHoldCountSet(b.BrgIfIndex, 100)
+	if err == nil {
+		t.Error("ERROR: invalid tx hold count passed", err)
+	}
+
 }
 
 func TestStpBridgeParamCheckVlan(t *testing.T) {
@@ -423,6 +544,36 @@ func TestStpBridgeParamCheckForceVersion(t *testing.T) {
 		if err != nil {
 			t.Error("ERROR valid force version was set should not have errored", brgcfg.ForceVersion)
 		}
+	}
+
+	// create the bridge
+	StpBridgeCreate(brgcfg)
+	defer StpBridgeDelete(brgcfg)
+
+	var b *Bridge
+	key := BridgeKey{
+		Vlan: brgcfg.Vlan,
+	}
+	if !StpFindBridgeById(key, &b) {
+		t.Error("ERROR: unable to find bridge")
+	}
+
+	// let change the version
+	err = StpBrgForceVersion(b.BrgIfIndex, 1)
+	if err != nil {
+		t.Error("ERROR: Valid version set failed", err)
+	}
+
+	// let change the version
+	err = StpBrgForceVersion(b.BrgIfIndex, 2)
+	if err != nil {
+		t.Error("ERROR: Valid version set failed", err)
+	}
+
+	// let change the version
+	err = StpBrgForceVersion(b.BrgIfIndex, 10)
+	if err == nil {
+		t.Error("ERROR: invalid version set passed", err)
 	}
 }
 
@@ -482,7 +633,7 @@ func TestStpPortParamBrgIfIndex(t *testing.T) {
 	p, b = StpPortConfigSetup(true, false)
 	err = StpPortConfigParamCheck(p, true)
 	if err != nil {
-		t.Error("ERROR: an invalid brgIfndex was not set should have errored", p.BrgIfIndex, err)
+		t.Error("ERROR: an valid brgIfndex was set should not have errored", p.BrgIfIndex, err)
 	}
 }
 
@@ -514,13 +665,34 @@ func TestStpPortParamPriority(t *testing.T) {
 			t.Error("ERROR: valid priority was set should not have errored", p.Priority, err)
 		}
 	}
+	// lets create the bridge port so that we can try and update it later
+	StpPortCreate(p)
+	defer StpPortDelete(p)
 
+	brgifindex := p.BrgIfIndex
 	// lets pretend another bridge port is being created and Priority is different
+	brg := StpBridgeConfigSetup()
+	brg.Vlan = 100
+	// bridge must exist
+	StpBridgeCreate(brg)
+	defer StpBridgeDelete(brg)
 	p.BrgIfIndex = 100
 	p.Priority = 16
 	err = StpPortConfigParamCheck(p, false)
 	if err == nil {
 		t.Error("ERROR: an invalid port config change priority was set should have errored", p.Priority, err)
+	}
+	p.BrgIfIndex = brgifindex
+	// lets change the port priority on the fly
+	err = StpPortPrioritySet(p.IfIndex, p.BrgIfIndex, 32)
+	if err != nil {
+		t.Error("ERROR: set a valid port priority 32 should not have failed ", err)
+	}
+
+	// set an invalid port priority
+	err = StpPortPrioritySet(p.IfIndex, p.BrgIfIndex, 50)
+	if err == nil {
+		t.Error("ERROR: set an ivalid port priority 50 should have failed", err)
 	}
 }
 
@@ -553,8 +725,15 @@ func TestStpPortParamAdminPathCost(t *testing.T) {
 			t.Error("ERROR: valid admin path cost was set should not have errored", p.AdminPathCost, err)
 		}
 	}
+	StpPortConfigSave(p, false)
 
-	// lets pretend another bridge port is being created and admin path cost is different
+	// lets pretend another bridge port is being created and Priority is different
+	brg := StpBridgeConfigSetup()
+	brg.Vlan = 100
+	// bridge must exist
+	StpBridgeCreate(brg)
+	defer StpBridgeDelete(brg)
+
 	p.BrgIfIndex = 100
 	p.AdminPathCost = 200
 	err = StpPortConfigParamCheck(p, false)
@@ -588,6 +767,10 @@ func TestStpPortParamBridgeAssurance(t *testing.T) {
 
 	// lets save the config
 	StpPortConfigSave(p, false)
+	// lets create the bridge port so that we can try and update it later
+	StpPortCreate(p)
+	defer StpPortDelete(p)
+
 	ifIndex := p.IfIndex
 	brgIfIndex := p.BrgIfIndex
 	// lets update Admin Edge when Bridge Assurance is already enabled
@@ -602,5 +785,288 @@ func TestStpPortParamBridgeAssurance(t *testing.T) {
 	if err == nil {
 		t.Error("ERROR: invalid port config Bridge Assurance set should have errored", p.AdminEdgePort, p.BridgeAssurance, err)
 	}
+
+	// set admin edge to false so that we can set bridge assurance
+	err = StpPortAdminEdgeSet(p.IfIndex, p.BrgIfIndex, false)
+	if err != nil {
+		t.Error("ERROR: failed to set port as an admin edge port", err)
+	}
+
+	// lets set hte bridge assurance on a non-admin edge port
+	err = StpPortBridgeAssuranceSet(p.IfIndex, p.BrgIfIndex, false)
+	if err != nil {
+		t.Error("ERROR: failed to set Bridge Assurance on port", err)
+	}
+
+	// lets set hte bridge assurance on a non-admin edge port
+	err = StpPortBridgeAssuranceSet(p.IfIndex, p.BrgIfIndex, true)
+	if err != nil {
+		t.Error("ERROR: failed to set Bridge Assurance on port", err)
+	}
+
+	// lets set hte bridge assurance on a non-admin edge port again to ensure that
+	// nothing changed
+	err = StpPortBridgeAssuranceSet(p.IfIndex, p.BrgIfIndex, true)
+	if err != nil {
+		t.Error("ERROR: failed to set Bridge Assurance on port", err)
+	}
+
+	var port *StpPort
+	if !StpFindPortByIfIndex(p.IfIndex, p.BrgIfIndex, &port) {
+		t.Error("ERROR: did not find bridge port")
+	}
+
+	if !port.BridgeAssurance {
+		t.Error("ERROR: Why was bridge assurance not set in db record")
+	}
+
+	// set admin edge to true while bridge assurance is enabled, should fail
+	err = StpPortAdminEdgeSet(p.IfIndex, p.BrgIfIndex, true)
+	if err == nil {
+		t.Error("ERROR: failed to set port as an admin edge port because Bridge Assurance is enabled", err)
+	}
+
+	// lets disable bridge assurance
+	err = StpPortBridgeAssuranceSet(p.IfIndex, p.BrgIfIndex, false)
+	if err != nil {
+		t.Error("ERROR: failed to clear Bridge Assurance on port", err)
+	}
+
+	if !StpFindPortByIfIndex(p.IfIndex, p.BrgIfIndex, &port) {
+		t.Error("ERROR: did not find bridge port")
+	}
+
+	if port.BridgeAssurance {
+		t.Error("ERROR: Why was bridge assurance set in db record")
+	}
+
+	// set admin edge to true while bridge assurance is disabled
+	err = StpPortAdminEdgeSet(p.IfIndex, p.BrgIfIndex, true)
+	if err != nil {
+		t.Error("ERROR: failed to set port as an admin edge port because Bridge Assurance is enabled", err)
+	}
+
+}
+
+func TestStpPortParamBpduGuard(t *testing.T) {
+	p, b := StpPortConfigSetup(true, false)
+	defer StpPortConfigDelete(p.IfIndex)
+	if b != nil {
+		defer StpBridgeDelete(b)
+	}
+
+	// bpdu guard is only valid on an edge port
+	p.AdminEdgePort = false
+	p.BpduGuard = true
+	err := StpPortConfigParamCheck(p, true)
+	if err == nil {
+		t.Error("ERROR: an invalid port config NOT Admin Edge and Bpdu Guard set should have errored", p.AdminEdgePort, p.BpduGuard, err)
+	}
+
+	// bpdu guard only valid on edge port
+	p.AdminEdgePort = true
+	p.BpduGuard = true
+	err = StpPortConfigParamCheck(p, true)
+	if err != nil {
+		t.Error("ERROR: valid port config bpdu guard and admin state set should not have errored", p.AdminEdgePort, p.BpduGuard, err)
+	}
+
+	// lets save the config and create the port so we can play around with update
+	StpPortConfigSave(p, false)
+	StpPortCreate(p)
+	defer StpPortDelete(p)
+
+	brgIfIndex := p.BrgIfIndex
+	// lets update Admin Edge when bpdu guard is already enabled
+	p = StpPortConfigGet(p.IfIndex)
+	if p == nil {
+		t.Error("ERROR: could not find port config")
+	}
+	p.BrgIfIndex = brgIfIndex
+	// disable admin edge, which should fail
+	p.AdminEdgePort = false
+	err = StpPortAdminEdgeSet(p.IfIndex, p.BrgIfIndex, p.AdminEdgePort)
+	if err == nil {
+		t.Error("ERROR: invalid port config bpdu Guard is enabled set should have errored", p.AdminEdgePort, p.BpduGuard, err)
+	}
+	// reset to good state
+	p.AdminEdgePort = true
+	p.BpduGuard = false
+	// lets disable bpdu guard
+	err = StpPortBpduGuardSet(p.IfIndex, p.BrgIfIndex, p.BpduGuard)
+	if err != nil {
+		t.Error("ERROR: valid port config bdpu guard being unset set should not have errored", p.AdminEdgePort, p.BpduGuard, err)
+	}
+	// reset to good state
+	p.BpduGuard = true
+	// re-enabled bpdu guard
+	err = StpPortBpduGuardSet(p.IfIndex, p.BrgIfIndex, p.BpduGuard)
+	if err != nil {
+		t.Error("ERROR: valid port config bdpu guard being set set should not have errored", p.AdminEdgePort, p.BpduGuard, err)
+	}
+
+	// set again to ensure that nothing changed (code coverage call)
+	p.BpduGuard = true
+	// re-enabled bpdu guard
+	err = StpPortBpduGuardSet(p.IfIndex, p.BrgIfIndex, p.BpduGuard)
+	if err != nil {
+		t.Error("ERROR: valid port config bdpu guard being set set should not have errored", p.AdminEdgePort, p.BpduGuard, err)
+	}
+
+	// disable bpdu guard
+	p.BpduGuard = false
+	err = StpPortBpduGuardSet(p.IfIndex, p.BrgIfIndex, p.BpduGuard)
+	if err != nil {
+		t.Error("ERROR: valid port config bdpu guard being unset set should not have errored", p.AdminEdgePort, p.BpduGuard, err)
+	}
+
+	// disable admin edge
+	p.AdminEdgePort = false
+	err = StpPortAdminEdgeSet(p.IfIndex, p.BrgIfIndex, p.AdminEdgePort)
+	if err != nil {
+		t.Error("ERROR: valid port config bpdu Guard is no longer enabled set should not have errored", p.AdminEdgePort, p.BpduGuard, err)
+	}
+}
+
+func TestStpPortParamProtocolMigration(t *testing.T) {
+	p, b := StpPortConfigSetup(true, false)
+	defer StpPortConfigDelete(p.IfIndex)
+	if b != nil {
+		defer StpBridgeDelete(b)
+	}
+
+	// protocol migration is a state machine check attribute
+	p.ProtocolMigration = 1
+	err := StpPortConfigParamCheck(p, true)
+	if err != nil {
+		t.Error("ERROR: invalid port config protocol migration not set", err)
+	}
+
+	// protocol migration is a state machine check attribute
+	p.ProtocolMigration = 0
+	err = StpPortConfigParamCheck(p, true)
+	if err != nil {
+		t.Error("ERROR: invalid port config protocol migration not set", err)
+	}
+
+	// lets save the config and create the port so we can play around with update
+	StpPortConfigSave(p, false)
+	StpPortCreate(p)
+	defer StpPortDelete(p)
+
+	brgIfIndex := p.BrgIfIndex
+	// lets update Admin Edge when bpdu guard is already enabled
+	p = StpPortConfigGet(p.IfIndex)
+	if p == nil {
+		t.Error("ERROR: could not find port config")
+	}
+	p.BrgIfIndex = brgIfIndex
+	// enable protocol migration
+	p.ProtocolMigration = 1
+	err = StpPortProtocolMigrationSet(p.IfIndex, p.BrgIfIndex, true)
+	if err != nil {
+		t.Error("ERROR: invalid port config protocol migration not set", err)
+	}
+	// set again to ensure that nothing changed (code coverage call)
+	p.ProtocolMigration = 0
+	// re-enabled bpdu guard
+	err = StpPortProtocolMigrationSet(p.IfIndex, p.BrgIfIndex, false)
+	if err != nil {
+		t.Error("ERROR: invalid port config protocol migration not set", err)
+	}
+
+	// disable protocol migration
+	p.ProtocolMigration = 0
+	// lets disable bpdu guard
+	err = StpPortProtocolMigrationSet(p.IfIndex, p.BrgIfIndex, false)
+	if err != nil {
+		t.Error("ERROR: invalid port config protocol migration not set", err)
+	}
+}
+
+func TestStpPortPortEnable(t *testing.T) {
+	p, b := StpPortConfigSetup(true, false)
+	defer StpPortConfigDelete(p.IfIndex)
+	if b != nil {
+		defer StpBridgeDelete(b)
+	}
+
+	// port enable
+	p.Enable = true
+	err := StpPortConfigParamCheck(p, true)
+	if err != nil {
+		t.Error("ERROR: invalid port config protocol migration not set", err)
+	}
+
+	// port disable
+	p.Enable = false
+	err = StpPortConfigParamCheck(p, true)
+	if err != nil {
+		t.Error("ERROR: invalid port config protocol migration not set", err)
+	}
+
+	p.Enable = true
+	// lets save the config and create the port so we can play around with update
+	StpPortConfigSave(p, false)
+	err = StpPortCreate(p)
+	if err != nil {
+		t.Error("ERROR: port creation failed")
+	}
+	defer StpPortDelete(p)
+
+	brgIfIndex := p.BrgIfIndex
+	// lets update Admin Edge when bpdu guard is already enabled
+	p = StpPortConfigGet(p.IfIndex)
+	if p == nil {
+		t.Error("ERROR: could not find port config")
+	}
+	p.BrgIfIndex = brgIfIndex
+	// port disable
+	p.Enable = false
+	err = StpPortEnable(p.IfIndex, p.BrgIfIndex, p.Enable)
+	if err != nil {
+		t.Error("ERROR: invalid port config port enable not disabled", err)
+	}
+
+	// port enable
+	p.Enable = true
+	err = StpPortEnable(p.IfIndex, p.BrgIfIndex, false)
+	if err != nil {
+		t.Error("ERROR: invalid port config port enable not enabled", err)
+	}
+
+	// enable again (code coverage)
+	p.Enable = true
+	err = StpPortEnable(p.IfIndex, p.BrgIfIndex, false)
+	if err != nil {
+		t.Error("ERROR: invalid port config port enable not enabled", err)
+	}
+}
+
+func TestStpPortLinkUpDown(t *testing.T) {
+	p, b := StpPortConfigSetup(true, false)
+	defer StpPortConfigDelete(p.IfIndex)
+	if b != nil {
+		defer StpBridgeDelete(b)
+	}
+
+	StpPortCreate(p)
+	defer StpPortDelete(p)
+
+	// Calls below made for purposes of code coverage
+	// Could verify the state machines states but this
+	// should be done as part of state machine testing
+
+	// link up
+	StpPortLinkUp(p.IfIndex)
+
+	// link down
+	StpPortLinkDown(p.IfIndex)
+
+	// link up
+	StpPortLinkUp(p.IfIndex)
+
+	// link down
+	StpPortLinkDown(p.IfIndex)
 
 }
