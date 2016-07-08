@@ -96,9 +96,18 @@ func StpPortConfigSave(c *StpPortConfig, update bool) error {
 			// this physical port
 			return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
 				c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
+		} else if update {
+			StpPortConfigMap[c.IfIndex] = *c
 		}
 	}
 	c.BrgIfIndex = brgIfIndex
+	return nil
+}
+
+// StpPortConfigSave Save the last config given by user this is a validation
+// check as well so that all port contain the same config
+func StpBrgConfigSave(c *StpBridgeConfig) error {
+	StpBridgeConfigMap[int32(c.Vlan)] = *c
 	return nil
 }
 
@@ -164,7 +173,7 @@ func StpPortConfigParamCheck(c *StpPortConfig, update bool) error {
 
 	// bridge must be valid for a bridge port to be created
 	if !StpFindBridgeByIfIndex(c.BrgIfIndex, &b) {
-		return errors.New(fmt.Sprintf("Invalid BrgIfIndex %d, port must be associated with valid bridge", c.IfIndex))
+		return errors.New(fmt.Sprintf("Invalid BrgIfIndex %d, port %d must be associated with valid bridge", c.BrgIfIndex, c.IfIndex))
 	}
 
 	// Table 17-2
@@ -220,12 +229,8 @@ func StpBridgeCreate(c *StpBridgeConfig) error {
 		b.BEGIN(false)
 
 		// lets store the configuration
-		if _, ok := StpBridgeConfigMap[b.BrgIfIndex]; !ok {
-			StpBridgeConfigMap[b.BrgIfIndex] = *c
-		} else {
-			// lets update all other bridge ports in case any of the parameters changed
+		StpBrgConfigSave(c)
 
-		}
 	} else {
 		return errors.New(fmt.Sprintf("Invalid config, bridge vlan %d already exists", c.Vlan))
 	}
@@ -362,6 +367,7 @@ func StpPortEnable(pId int32, bId int32, enable bool) error {
 			}
 			p.AdminPortEnabled = enable
 		}
+		return nil
 	}
 	return errors.New(fmt.Sprintf("Invalid port %d or bridge %d supplied for setting Port Enable", pId, bId))
 }
@@ -394,10 +400,10 @@ func StpBrgPrioritySet(bId int32, priority uint16) error {
 		prio := GetBridgePriorityFromBridgeId(b.BridgeIdentifier)
 		if prio != priority {
 			c := StpBrgConfigGet(bId)
-			prevval := c.Priority
 			c.Priority = priority
 			err := StpBrgConfigParamCheck(c)
 			if err == nil {
+				StpBrgConfigSave(c)
 				addr := GetBridgeAddrFromBridgeId(b.BridgeIdentifier)
 				vlan := GetBridgeVlanFromBridgeId(b.BridgeIdentifier)
 				b.BridgeIdentifier = CreateBridgeId(addr, priority, vlan)
@@ -413,8 +419,6 @@ func StpBrgPrioritySet(bId int32, priority uint16) error {
 					e:   PrsEventReselect,
 					src: "CONFIG: BrgPrioritySet",
 				}
-			} else {
-				c.Priority = prevval
 			}
 			return err
 		} else {
@@ -433,10 +437,10 @@ func StpBrgForceVersion(bId int32, version int32) error {
 		// version 2 RSTP
 		if b.ForceVersion != version {
 			c := StpBrgConfigGet(bId)
-			prevval := c.ForceVersion
 			c.ForceVersion = version
 			err := StpBrgConfigParamCheck(c)
 			if err == nil {
+				StpBrgConfigSave(c)
 				b.ForceVersion = version
 				for _, pId := range b.StpPorts {
 					if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
@@ -448,8 +452,6 @@ func StpBrgForceVersion(bId int32, version int32) error {
 						p.BEGIN(true)
 					}
 				}
-			} else {
-				c.ForceVersion = prevval
 			}
 			return err
 		} else {
@@ -466,8 +468,10 @@ func StpPortPrioritySet(pId int32, bId int32, priority uint16) error {
 		if p.Priority != priority {
 			c := StpPortConfigGet(pId)
 			c.Priority = priority
+			c.BrgIfIndex = bId
 			err := StpPortConfigParamCheck(c, true)
 			if err == nil {
+				StpPortConfigSave(c, true)
 				// apply to all bridge ports
 				for _, port := range p.GetPortListToApplyConfigTo() {
 
@@ -502,10 +506,11 @@ func StpPortAdminEdgeSet(pId int32, bId int32, adminedge bool) error {
 		p.AdminEdge = adminedge
 		if p.OperEdge != adminedge {
 			c := StpPortConfigGet(pId)
-			prevval := c.AdminEdgePort
 			c.AdminEdgePort = adminedge
+			c.BrgIfIndex = bId
 			err := StpPortConfigParamCheck(c, true)
 			if err == nil {
+				StpPortConfigSave(c, true)
 				p.AdminEdge = adminedge
 				isOtherBrgPortOperEdge := p.IsAdminEdgePort()
 				// if we transition from Admin Edge to non-Admin edge
@@ -540,8 +545,6 @@ func StpPortAdminEdgeSet(pId int32, bId int32, adminedge bool) error {
 						}
 					}
 				}
-			} else {
-				c.AdminEdgePort = prevval
 			}
 			return err
 		} else {
@@ -556,13 +559,11 @@ func StpBrgForwardDelaySet(bId int32, fwddelay uint16) error {
 	var p *StpPort
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
-		prevval := c.ForwardDelay
 		c.ForwardDelay = fwddelay
 		err := StpBrgConfigParamCheck(c)
 		if err == nil {
-
+			StpBrgConfigSave(c)
 			b.BridgeTimes.ForwardingDelay = fwddelay
-
 			// if we are root lets update the port times
 			if b.RootPortId == 0 {
 				b.RootTimes.ForwardingDelay = fwddelay
@@ -572,8 +573,6 @@ func StpBrgForwardDelaySet(bId int32, fwddelay uint16) error {
 					}
 				}
 			}
-		} else {
-			c.ForwardDelay = prevval
 		}
 		return err
 	}
@@ -585,12 +584,11 @@ func StpBrgHelloTimeSet(bId int32, hellotime uint16) error {
 	var p *StpPort
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
-		prevval := c.HelloTime
 		c.HelloTime = hellotime
 		err := StpBrgConfigParamCheck(c)
 		if err == nil {
+			StpBrgConfigSave(c)
 			b.BridgeTimes.HelloTime = hellotime
-
 			// if we are root lets update the port times
 			if b.RootPortId == 0 {
 				b.RootTimes.HelloTime = hellotime
@@ -600,9 +598,8 @@ func StpBrgHelloTimeSet(bId int32, hellotime uint16) error {
 					}
 				}
 			}
-		} else {
-			c.HelloTime = prevval
 		}
+		return err
 	}
 	return errors.New(fmt.Sprintf("Invalid bridge %d supplied for setting Hello Time", bId))
 }
@@ -612,13 +609,11 @@ func StpBrgMaxAgeSet(bId int32, maxage uint16) error {
 	var p *StpPort
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
-		prevval := c.MaxAge
 		c.MaxAge = maxage
 		err := StpBrgConfigParamCheck(c)
 		if err == nil {
-
+			StpBrgConfigSave(c)
 			b.BridgeTimes.MaxAge = maxage
-
 			// if we are root lets update the port times
 			if b.RootPortId == 0 {
 				b.RootTimes.MaxAge = maxage
@@ -628,8 +623,6 @@ func StpBrgMaxAgeSet(bId int32, maxage uint16) error {
 					}
 				}
 			}
-		} else {
-			c.MaxAge = prevval
 		}
 		return err
 	}
@@ -640,13 +633,11 @@ func StpBrgTxHoldCountSet(bId int32, txholdcount uint16) error {
 	var b *Bridge
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
-		prevval := c.TxHoldCount
 		c.TxHoldCount = int32(txholdcount)
 		err := StpBrgConfigParamCheck(c)
 		if err == nil {
+			StpBrgConfigSave(c)
 			b.TxHoldCount = uint64(txholdcount)
-		} else {
-			c.TxHoldCount = prevval
 		}
 		return err
 	}
@@ -656,26 +647,28 @@ func StpBrgTxHoldCountSet(bId int32, txholdcount uint16) error {
 func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) error {
 	var p *StpPort
 	if StpFindPortByIfIndex(pId, bId, &p) {
-		if p.Mcheck != protocolmigration && protocolmigration {
+		if p.Mcheck != protocolmigration {
 			c := StpPortConfigGet(pId)
-			prevval := c.ProtocolMigration
 			if protocolmigration {
 				c.ProtocolMigration = int32(1)
 			} else {
 				c.ProtocolMigration = int32(0)
 			}
+			c.BrgIfIndex = bId
 			err := StpPortConfigParamCheck(c, true)
 			if err == nil {
+				StpPortConfigSave(c, true)
+
 				// apply to all bridge ports
 				for _, port := range p.GetPortListToApplyConfigTo() {
 
-					port.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventMcheck,
-						src: "CONFIG: ProtocolMigrationSet",
+					if protocolmigration {
+						port.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventMcheck,
+							src: "CONFIG: ProtocolMigrationSet",
+						}
 					}
-					port.Mcheck = true
+					port.Mcheck = protocolmigration
 				}
-			} else {
-				c.ProtocolMigration = prevval
 			}
 			return err
 		} else {
@@ -690,10 +683,12 @@ func StpPortBpduGuardSet(pId int32, bId int32, bpduguard bool) error {
 	if StpFindPortByIfIndex(pId, bId, &p) {
 		if p.BpduGuard != bpduguard {
 			c := StpPortConfigGet(pId)
-			prevval := c.BpduGuard
 			c.BpduGuard = bpduguard
+			c.BrgIfIndex = bId
 			err := StpPortConfigParamCheck(c, true)
 			if err == nil {
+				StpPortConfigSave(c, true)
+
 				// apply to all bridge ports
 				for _, port := range p.GetPortListToApplyConfigTo() {
 					if bpduguard {
@@ -703,8 +698,6 @@ func StpPortBpduGuardSet(pId int32, bId int32, bpduguard bool) error {
 					}
 					port.BpduGuard = bpduguard
 				}
-			} else {
-				c.BpduGuard = prevval
 			}
 			return err
 		} else {
@@ -720,10 +713,11 @@ func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) error
 		if p.BridgeAssurance != bridgeassurance &&
 			!p.OperEdge {
 			c := StpPortConfigGet(pId)
-			prevval := c.BridgeAssurance
 			c.BridgeAssurance = bridgeassurance
+			c.BrgIfIndex = bId
 			err := StpPortConfigParamCheck(c, true)
 			if err == nil {
+				StpPortConfigSave(c, true)
 				// apply to all bridge ports
 				for _, port := range p.GetPortListToApplyConfigTo() {
 					if bridgeassurance {
@@ -735,8 +729,6 @@ func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) error
 					port.BridgeAssuranceInconsistant = false
 					port.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
 				}
-			} else {
-				c.BridgeAssurance = prevval
 			}
 			return err
 		} else {
