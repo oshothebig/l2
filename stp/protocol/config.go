@@ -40,6 +40,7 @@ type StpBridgeConfig struct {
 	ForceVersion int32
 	TxHoldCount  int32
 	Vlan         uint16
+	DebugLevel   int
 }
 
 // StpPortConfig config data
