@@ -684,6 +684,22 @@ func UsedForTestOnlyPimCheckInferiorDesignatedState(p *StpPort, t *testing.T) {
 	}
 }
 
+func UsedForTestOnlyPimCheckInferiorRootAlternateState(p *StpPort, t *testing.T) {
+	if p.PimMachineFsm.Machine.Curr.PreviousState() != PimStateNotDesignated {
+		t.Error(fmt.Sprintf("Failed Previous state not correct %s\n", PimStateStrMap[p.PimMachineFsm.Machine.Curr.PreviousState()]))
+	}
+	if p.PimMachineFsm.Machine.Curr.CurrentState() != PimStateCurrent {
+		t.Error("Failed Designated Port should have produced Current state")
+	}
+	if p.RcvdInfo != InferiorRootAlternateInfo {
+		t.Error("Failed RcvdInfo is not Superior", p.RcvdInfo)
+	}
+
+	if p.RcvdMsg != false {
+		t.Error("Failed rcvdMsg is set")
+	}
+}
+
 func TestPimBEGIN(t *testing.T) {
 	// NOTE setup starts with BEGIN
 	p := UsedForTestOnlyPimTestSetup(t, false)
@@ -1511,5 +1527,389 @@ func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualInferiorDesignatedPath
 	<-testChan
 
 	UsedForTestOnlyPimCheckInferiorDesignatedState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 InferiorRootAlternate Info (d)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualInferiorRootAlternateRootPortAndSameVector(t *testing.T) {
+
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       2000000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       40}
+
+	p.PortTimes = Times{
+		ForwardingDelay: 15,
+		HelloTime:       1,
+		MaxAge:          10,
+		MessageAge:      4,
+	}
+
+	// msg times < port times
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:      2000000,
+		BridgeId:          [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleRootPort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckInferiorRootAlternateState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 InferiorRootAlternate Info (d)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualInferiorRootAlternateRootPortAndMsgWorseVector(t *testing.T) {
+
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       2000000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       40}
+
+	p.PortTimes = Times{
+		ForwardingDelay: 15,
+		HelloTime:       1,
+		MaxAge:          10,
+		MessageAge:      4,
+	}
+
+	// msg times < port times
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x33, 0x44, 0x55, 0x66, 0x77},
+		RootPathCost:      2000000,
+		BridgeId:          [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleRootPort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckInferiorRootAlternateState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 InferiorRootAlternate Info (d)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualInferiorRootAlternateAlternatePortAndSameVector(t *testing.T) {
+
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       2000000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       40}
+
+	p.PortTimes = Times{
+		ForwardingDelay: 15,
+		HelloTime:       1,
+		MaxAge:          10,
+		MessageAge:      4,
+	}
+
+	// msg times < port times
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:      2000000,
+		BridgeId:          [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleAlternatePort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckInferiorRootAlternateState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 InferiorRootAlternate Info (d)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualInferiorRootAlternateAlternatePortAndMsgWorseVector(t *testing.T) {
+
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       2000000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       40}
+
+	p.PortTimes = Times{
+		ForwardingDelay: 15,
+		HelloTime:       1,
+		MaxAge:          10,
+		MessageAge:      4,
+	}
+
+	// msg times < port times
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x66, 0x66, 0x66, 0x66, 0x66},
+		RootPathCost:      2000000,
+		BridgeId:          [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleAlternatePort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckInferiorRootAlternateState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 InferiorRootAlternate Info (d)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualInferiorRootAlternateBackupPortAndSameVector(t *testing.T) {
+
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       2000000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       40}
+
+	p.PortTimes = Times{
+		ForwardingDelay: 15,
+		HelloTime:       1,
+		MaxAge:          10,
+		MessageAge:      4,
+	}
+
+	// msg times < port times
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:      2000000,
+		BridgeId:          [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleBackupPort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckInferiorRootAlternateState(p, t)
+	UsedForTestOnlyPimTestTeardown(p, t)
+}
+
+// 17.21.8 InferiorRootAlternate Info (d)
+func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualInferiorRootAlternateBackupPortAndMsgWorseVector(t *testing.T) {
+
+	testChan := make(chan string)
+	p := UsedForTestOnlyPimStartInCurrentState(t)
+
+	// likely rcvdInfoWhile == 0 triggers this event
+	p.UpdtInfo = false
+	p.RcvdMsg = true
+
+	// the Root BridgeId must be greater than the packet in order for
+	// the PIM to transition to Superior Designated state
+	p.PortPriority = PriorityVector{RootBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		RootPathCost:       2000000,
+		DesignatedBridgeId: [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DesignatedPortId:   40,
+		BridgePortId:       40}
+
+	p.PortTimes = Times{
+		ForwardingDelay: 15,
+		HelloTime:       1,
+		MaxAge:          10,
+		MessageAge:      4,
+	}
+
+	// msg times < port times
+	rstp := &layers.RSTP{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: p.BridgeProtocolVersionGet(),
+		BPDUType:          layers.BPDUTypeRSTP,
+		Flags:             0,
+		RootId:            [8]uint8{0x00, 0x66, 0x66, 0x66, 0x66, 0x66},
+		RootPathCost:      2000000,
+		BridgeId:          [8]uint8{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		PortId:            40,
+		MsgAge:            uint16(4 << 8),
+		MaxAge:            uint16(10 << 8),
+		HelloTime:         uint16(1 << 8),
+		FwdDelay:          uint16(15 << 8),
+		Version1Length:    0,
+	}
+	var flags uint8
+	StpSetBpduFlags(ConvertBoolToUint8(false),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		ConvertRoleToPktRole(PortRoleBackupPort), // this must be set
+		ConvertBoolToUint8(true),
+		ConvertBoolToUint8(true),
+		&flags)
+
+	rstp.Flags = layers.StpFlags(flags)
+
+	p.PimMachineFsm.PimEvents <- MachineEvent{e: PimEventRcvdMsgAndNotUpdtInfo,
+		src:          "TEST",
+		responseChan: testChan,
+		data:         rstp,
+	}
+	<-testChan
+
+	UsedForTestOnlyPimCheckInferiorRootAlternateState(p, t)
 	UsedForTestOnlyPimTestTeardown(p, t)
 }
