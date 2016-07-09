@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // port.go
 package stp
@@ -172,6 +172,9 @@ type StpPort struct {
 	wg sync.WaitGroup
 	// chanel to send response messages
 	portChan chan string
+
+	// used to poll linux interface status.  Useful for SIM/TEST
+	PollingTimer *time.Timer
 }
 
 type PortTimer struct {
@@ -304,9 +307,10 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	StpLogger("INFO", fmt.Sprintf("Creating STP Listener for intf %d %s\n", p.IfIndex, ifName.Name))
 	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
 	p.handle = handle
-	StpLogger("INFO", fmt.Sprintf("NEW PORT: %#v\n", p))
+	StpLogger("INFO", fmt.Sprintf("NEW PORT: ifname %s %#v\n", ifName.Name, p))
 
-	if strings.Contains(ifName.Name, "eth") {
+	if strings.Contains(ifName.Name, "eth") ||
+		strings.Contains(ifName.Name, "lo") {
 		p.PollLinuxLinkStatus()
 	}
 
@@ -316,14 +320,13 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 
 func (p *StpPort) PollLinuxLinkStatus() {
 
-	var PollingTimer *time.Timer = time.NewTimer(time.Second * 1)
+	p.PollingTimer = time.NewTimer(time.Second * 1)
 
-	go func(p *StpPort, t *time.Timer) {
+	go func(p *StpPort) {
 		StpMachineLogger("INFO", "LINUX POLLING", p.IfIndex, p.BrgIfIndex, "Start")
 		for {
 			select {
-			case <-t.C:
-				// TODO get link status from asicd
+			case <-p.PollingTimer.C:
 				netif, _ := netlink.LinkByName(PortConfigMap[p.IfIndex].Name)
 				netifattr := netif.Attrs()
 				//StpLogger("INFO", fmt.Sprintf("Polling link flags%#v, running=0x%x up=0x%x check1 %t check2 %t", netifattr.Flags, syscall.IFF_RUNNING, syscall.IFF_UP, ((netifattr.Flags>>6)&0x1) == 1, (netifattr.Flags&1) == 1))
@@ -341,10 +344,10 @@ func (p *StpPort) PollLinuxLinkStatus() {
 					p.NotifyPortEnabled("LINUX LINK STATUS", prevPortEnabled, false)
 
 				}
-				t.Reset(time.Second * 1)
+				p.PollingTimer.Reset(time.Second * 1)
 			}
 		}
-	}(p, PollingTimer)
+	}(p)
 }
 func DelStpPort(p *StpPort) {
 	p.Stop()
@@ -380,6 +383,10 @@ func StpFindPortByIfIndex(pId int32, brgId int32, p **StpPort) bool {
 }
 
 func (p *StpPort) Stop() {
+
+	if p.PollingTimer != nil {
+		p.PollingTimer.Stop()
+	}
 
 	// close rx/tx processing
 	if p.handle != nil {
@@ -574,7 +581,7 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 		}(p, waitForResponse, j, mec, e)
 	}
 
-	if waitForResponse {
+	if waitForResponse && length > 0 {
 		i := 0
 		// lets wait for all the machines to respond
 		for {
@@ -728,7 +735,7 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 	// 3) Port Information
 	// 4) Bridge Detection
 	if oldportenabled != newportenabled {
-		StpMachineLogger("INFO", PortConfigModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
+		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifyPortEnabled: %t", newportenabled))
 		mEvtChan := make([]chan MachineEvent, 0)
 		evt := make([]MachineEvent, 0)
 
@@ -885,6 +892,7 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 		// PI
 		if p.UpdtInfo {
 			if src != PimMachineModuleStr &&
+				p.PimMachineFsm != nil &&
 				(p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateAged ||
 					p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent) {
 				if p.Selected {
@@ -895,19 +903,21 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 				}
 			}
 		} else {
-			if src != PimMachineModuleStr &&
-				p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent {
-				if p.RcvdMsg {
-					p.PimMachineFsm.PimEvents <- MachineEvent{
-						e:   PimEventRcvdMsgAndNotUpdtInfo,
-						src: src,
-					}
-				} else if p.InfoIs == PortInfoStateReceived &&
-					p.RcvdInfoWhiletimer.count == 0 &&
-					!p.RcvdMsg {
-					p.PimMachineFsm.PimEvents <- MachineEvent{
-						e:   PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg,
-						src: src,
+			if p.PimMachineFsm != nil {
+				if src != PimMachineModuleStr &&
+					p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent {
+					if p.RcvdMsg {
+						p.PimMachineFsm.PimEvents <- MachineEvent{
+							e:   PimEventRcvdMsgAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.InfoIs == PortInfoStateReceived &&
+						p.RcvdInfoWhiletimer.count == 0 &&
+						!p.RcvdMsg {
+						p.PimMachineFsm.PimEvents <- MachineEvent{
+							e:   PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg,
+							src: src,
+						}
 					}
 				}
 			}
@@ -1510,7 +1520,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 
 				}
 			*/
-			if src == PrsMachineModuleStr {
+			if src == PrsMachineModuleStr && p.PrtMachineFsm != nil {
 				if !p.UpdtInfo {
 					// PRSM -> PRTM
 					if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisablePort &&
@@ -1915,12 +1925,14 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 					}
 				} else {
 					// PRSM -> PIM
-					if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateAged ||
-						p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent {
-						if p.UpdtInfo {
-							p.PimMachineFsm.PimEvents <- MachineEvent{
-								e:   PimEventSelectedAndUpdtInfo,
-								src: src,
+					if p.PimMachineFsm != nil {
+						if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateAged ||
+							p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent {
+							if p.UpdtInfo {
+								p.PimMachineFsm.PimEvents <- MachineEvent{
+									e:   PimEventSelectedAndUpdtInfo,
+									src: src,
+								}
 							}
 						}
 					}
@@ -1935,7 +1947,8 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 	// changes in OperEdge State
 	// 1) Port Role Transitions
 	// 2) Bridge Detection
-	if oldoperedge != newoperedge {
+	if oldoperedge != newoperedge &&
+		p.PrtMachineFsm != nil {
 		// Prt update 17.29.3
 		if p.PrtMachineFsm != nil &&
 			p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort &&
@@ -2061,22 +2074,24 @@ func (p *StpPort) NotifyOperEdgeChanged(src string, oldoperedge bool, newoperedg
 			}
 		}
 		// Bdm
-		if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateEdge &&
-			src != BdmMachineModuleStr {
-			if !p.OperEdge {
-				p.BdmMachineFsm.BdmEvents <- MachineEvent{
-					e:   BdmEventNotOperEdge,
-					src: src,
+		if p.BdmMachineFsm != nil {
+			if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateEdge &&
+				src != BdmMachineModuleStr {
+				if !p.OperEdge {
+					p.BdmMachineFsm.BdmEvents <- MachineEvent{
+						e:   BdmEventNotOperEdge,
+						src: src,
+					}
 				}
 			}
 		}
-
 	}
 }
 
 func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole, newselectedrole PortRole) {
 
-	if oldselectedrole != newselectedrole {
+	if oldselectedrole != newselectedrole &&
+		p.PrtMachineFsm != nil {
 		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
 		/*if p.Role != p.SelectedRole {*/
 		if newselectedrole == PortRoleDisabledPort {
@@ -2111,7 +2126,7 @@ func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole
 
 func (p *StpPort) NotifyProposingChanged(src string, oldproposing bool, newproposing bool) {
 	if oldproposing != newproposing {
-		if src != BdmMachineModuleStr {
+		if src != BdmMachineModuleStr && p.BdmMachineFsm != nil {
 			if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateNotEdge {
 				if p.EdgeDelayWhileTimer.count == 0 &&
 					p.AutoEdgePort &&
@@ -2124,7 +2139,7 @@ func (p *StpPort) NotifyProposingChanged(src string, oldproposing bool, newpropo
 				}
 			}
 		}
-		if src != PrsMachineModuleStr {
+		if src != PrsMachineModuleStr && p.PrtMachineFsm != nil {
 			if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
 				if !p.Forward &&
 					!p.Agreed &&
@@ -2150,44 +2165,45 @@ func (p *StpPort) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn bool, 
 	//	oldrcvdtcack != newrcvdtcack {
 	//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("TC state[%s] tcn[%t] tcack[%t] tcn[%t]",
 	//	TcStateStrMap[p.TcMachineFsm.Machine.Curr.CurrentState()], p.RcvdTc, p.RcvdTcAck, p.RcvdTcn))
-	if p.RcvdTc &&
-		(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
-			p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
-		p.TcMachineFsm.TcEvents <- MachineEvent{
-			e:   TcEventRcvdTc,
-			src: RxModuleStr,
+	if p.TcMachineFsm != nil {
+		if p.RcvdTc &&
+			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
+				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
+			p.TcMachineFsm.TcEvents <- MachineEvent{
+				e:   TcEventRcvdTc,
+				src: RxModuleStr,
+			}
 		}
-	}
-	if p.RcvdTcn &&
-		(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
-			p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
+		if p.RcvdTcn &&
+			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
+				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
 
-		p.TcMachineFsm.TcEvents <- MachineEvent{
-			e:   TcEventRcvdTcn,
-			src: RxModuleStr,
+			p.TcMachineFsm.TcEvents <- MachineEvent{
+				e:   TcEventRcvdTcn,
+				src: RxModuleStr,
+			}
 		}
-	}
-	if p.RcvdTcAck &&
-		(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
-			p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
+		if p.RcvdTcAck &&
+			(p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning ||
+				p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive) {
 
-		p.TcMachineFsm.TcEvents <- MachineEvent{
-			e:   TcEventRcvdTcAck,
-			src: RxModuleStr,
+			p.TcMachineFsm.TcEvents <- MachineEvent{
+				e:   TcEventRcvdTcAck,
+				src: RxModuleStr,
+			}
 		}
-	}
-	if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning &&
-		p.Role != PortRoleRootPort &&
-		p.Role != PortRoleDesignatedPort &&
-		!(p.Learn || p.Learning) &&
-		!(p.RcvdTc || p.RcvdTcn || p.RcvdTcAck || p.TcProp) {
+		if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning &&
+			p.Role != PortRoleRootPort &&
+			p.Role != PortRoleDesignatedPort &&
+			!(p.Learn || p.Learning) &&
+			!(p.RcvdTc || p.RcvdTcn || p.RcvdTcAck || p.TcProp) {
 
-		p.TcMachineFsm.TcEvents <- MachineEvent{
-			e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
-			src: RxModuleStr,
+			p.TcMachineFsm.TcEvents <- MachineEvent{
+				e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
+				src: RxModuleStr,
+			}
 		}
 	}
-	//}
 }
 
 func (p *StpPort) EdgeDelay() uint16 {

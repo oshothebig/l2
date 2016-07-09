@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // 802.1D-2004 17.24 Port Protocol Migration state machine
 // The Port Protocol Migration state machine shall implement the function specified by the state diagram in
@@ -132,13 +132,18 @@ func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (ppmm *PpmmMachine) Stop() {
 
-	wait := make(chan string, 1)
-	// stop the go routine
-	ppmm.PpmmKillSignalEvent <- MachineEvent{
-		e:            PpmmEventBegin,
-		responseChan: wait,
+	// special case found during unit testing that if
+	// we don't init the go routine then this event will hang
+	// will not happen under normal conditions
+	if ppmm.Machine.Curr.CurrentState() != PpmmStateNone {
+		wait := make(chan string, 1)
+		// stop the go routine
+		ppmm.PpmmKillSignalEvent <- MachineEvent{
+			e:            PpmmEventBegin,
+			responseChan: wait,
+		}
+		<-wait
 	}
-	<-wait
 
 	close(ppmm.PpmmEvents)
 	close(ppmm.PpmmLogEnableEvent)

@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // tx
 package lacp
@@ -52,21 +52,29 @@ func (bridge *SimulationBridge) TxViaGoChannel(port uint16, pdu interface{}) {
 			DstMAC:       layers.SlowProtocolDMAC,
 			EthernetType: layers.EthernetTypeSlowProtocol,
 		}
-
-		slow := layers.SlowProtocol{
-			SubType: layers.SlowProtocolTypeLACP,
-		}
-
-		lacp := pdu.(*layers.LACP)
-
-		// Set up buffer and options for serialization.
 		buf := gopacket.NewSerializeBuffer()
 		opts := gopacket.SerializeOptions{
 			FixLengths:       true,
 			ComputeChecksums: true,
 		}
 
-		gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
+		switch pdu.(type) {
+		case *layers.LACP:
+			slow := layers.SlowProtocol{
+				SubType: layers.SlowProtocolTypeLACP,
+			}
+			lacp := pdu.(*layers.LACP)
+
+			gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
+
+		case *layers.LAMP:
+			slow := layers.SlowProtocol{
+				SubType: layers.SlowProtocolTypeLAMP,
+			}
+			lamp := pdu.(*layers.LAMP)
+			gopacket.SerializeLayers(buf, opts, &eth, &slow, lamp)
+		}
+
 		pkt := gopacket.NewPacket(buf.Bytes(), layers.LinkTypeEthernet, gopacket.Default)
 
 		if port != bridge.port1 && bridge.rxLacpPort1 != nil {
@@ -97,20 +105,30 @@ func TxViaLinuxIf(port uint16, pdu interface{}) {
 				EthernetType: layers.EthernetTypeSlowProtocol,
 			}
 
-			slow := layers.SlowProtocol{
-				SubType: layers.SlowProtocolTypeLACP,
-			}
-
-			lacp := pdu.(*layers.LACP)
-
 			// Set up buffer and options for serialization.
 			buf := gopacket.NewSerializeBuffer()
 			opts := gopacket.SerializeOptions{
 				FixLengths:       true,
 				ComputeChecksums: true,
 			}
+
+			switch pdu.(type) {
+			case *layers.LACP:
+				slow := layers.SlowProtocol{
+					SubType: layers.SlowProtocolTypeLACP,
+				}
+				lacp := pdu.(*layers.LACP)
+				gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
+
+			case *layers.LAMP:
+				slow := layers.SlowProtocol{
+					SubType: layers.SlowProtocolTypeLAMP,
+				}
+				lamp := pdu.(*layers.LAMP)
+				gopacket.SerializeLayers(buf, opts, &eth, &slow, lamp)
+			}
+
 			// Send one packet for every address.
-			gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
 			if err := p.handle.WritePacketData(buf.Bytes()); err != nil {
 				p.LacpDebug.logger.Info(fmt.Sprintf("%s\n", err))
 			}

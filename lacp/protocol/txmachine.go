@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // TX MACHINE, this is not really a State machine but going to create a sort of
 // State machine to processes events
@@ -307,6 +307,11 @@ func LacpTxMachineFSMBuild(p *LaAggPort) *LacpTxMachine {
 
 	//BEGIN -> TX OFF
 	rules.AddRule(LacpTxmStateNone, LacpTxmEventBegin, txm.LacpTxMachineOff)
+	rules.AddRule(LacpTxmStateOn, LacpTxmEventBegin, txm.LacpTxMachineOff)
+	rules.AddRule(LacpTxmStateOff, LacpTxmEventBegin, txm.LacpTxMachineOff)
+	rules.AddRule(LacpTxmStateDelayed, LacpTxmEventBegin, txm.LacpTxMachineOff)
+	rules.AddRule(LacpTxmStateGuardTimerExpire, LacpTxmEventBegin, txm.LacpTxMachineOff)
+
 	// NTT -> TX ON
 	rules.AddRule(LacpTxmStateOn, LacpTxmEventNtt, txm.LacpTxMachineOn)
 	rules.AddRule(LacpTxmStateGuardTimerExpire, LacpTxmEventNtt, txm.LacpTxMachineOn)

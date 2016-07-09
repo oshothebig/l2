@@ -13,20 +13,20 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // aggregator.go - holds the information related to the datastore of Aggregator Object as described
 // in 802.1AX-2014 7.3.1.1.
 package lacp
 
 import (
-	//"fmt"
+	"fmt"
 	//"log/syslog"
 	"net"
 	"time"
@@ -226,17 +226,22 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 
 	a.LacpDebugAggEventLogMain()
 
-	// want to ensure that the application can use a string name or id
+	// want to ensure that the application can use a string name id
 	// to uniquely identify a lag
 	Key := AggIdKey{Id: ac.Id,
 		Name: ac.Name}
 
-	// add agg to map
-	sgi.AggMap[Key] = a
-	sgi.AggList = append(sgi.AggList, a)
+	if _, ok := sgi.AggMap[Key]; !ok {
+		// add agg to map
+		sgi.AggMap[Key] = a
+		sgi.AggList = append(sgi.AggList, a)
 
-	for _, pId := range ac.LagMembers {
-		a.PortNumList = append(a.PortNumList, pId)
+		for _, pId := range ac.LagMembers {
+			a.PortNumList = append(a.PortNumList, pId)
+		}
+	} else {
+		gLogger.Err(fmt.Sprintf("Error trying to create aggregator duplicate id or key or name\n", ac.Id, ac.Key, ac.Name))
+		a = nil
 	}
 
 	return a

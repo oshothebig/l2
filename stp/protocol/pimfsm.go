@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // 802.1D-2004 17.27 Port Information State Machine
 //The Port Information state machine shall implement the function specified by the state diagram in Figure 17-
@@ -158,14 +158,19 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (pim *PimMachine) Stop() {
 
-	wait := make(chan string, 1)
-	// stop the go routine
-	pim.PimKillSignalEvent <- MachineEvent{
-		e:            PimEventBegin,
-		responseChan: wait,
-	}
+	// special case found during unit testing that if
+	// we don't init the go routine then this event will hang
+	// will not happen under normal conditions
+	if pim.Machine.Curr.CurrentState() != PimStateNone {
+		wait := make(chan string, 1)
+		// stop the go routine
+		pim.PimKillSignalEvent <- MachineEvent{
+			e:            PimEventBegin,
+			responseChan: wait,
+		}
 
-	<-wait
+		<-wait
+	}
 
 	close(pim.PimEvents)
 	close(pim.PimLogEnableEvent)
@@ -452,7 +457,7 @@ func (p *StpPort) PimMachineMain() {
 					break
 				}
 
-				//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
+				//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
 				rv := m.Machine.ProcessEvent(event.src, event.e, event.data)
 				if rv != nil {
 					StpMachineLogger("ERROR", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
@@ -980,9 +985,18 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 	msgRole := StpGetBpduRole(pim.getRcvdMsgFlags(data))
 	msgpriority := pim.getRcvdMsgPriority(data)
 	msgtimes := pim.getRcvdMsgTimes(data)
-
-	//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, fmt.Sprintf("role[%d] msgVector[%#v] portVector[%#v] msgTimes[%#v] designatedTimes[%#v]", msgRole, msgpriority, p.PortPriority, msgtimes, p.PortTimes))
-
+	/*
+		StpMachineLogger("INFO",
+			PimMachineModuleStr,
+			p.IfIndex,
+			p.BrgIfIndex,
+			fmt.Sprintf("role[%d] msgVector[%#v] portVector[%#v] msgTimes[%#v] designatedTimes[%#v]",
+				msgRole,
+				msgpriority,
+				p.PortPriority,
+				msgtimes,
+				p.PortTimes))
+	*/
 	if pim.isTcnBPDU(data) {
 		return OtherInfo
 	}
@@ -992,31 +1006,41 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 		msgRole = PortRoleDesignatedPort
 	}
 
-	// TODO find where this is in spec
 	if CompareBridgeAddr(GetBridgeAddrFromBridgeId(msgpriority.RootBridgeId), GetBridgeAddrFromBridgeId(p.b.BridgeIdentifier)) == 0 {
 		if GetBridgePriorityFromBridgeId(msgpriority.RootBridgeId) != GetBridgePriorityFromBridgeId(p.b.BridgeIdentifier) {
+			//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: Root bridge addr == bridge addr and root priority != bridge priority")
 			return OtherInfo
 		}
 	}
 
+	//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("rcvInfo: vector superior %t equal %t port times diff %t",
+	//	IsMsgPriorityVectorSuperiorThanPortPriorityVector(msgpriority, &p.PortPriority), *msgpriority == p.PortPriority, *msgtimes != p.PortTimes))
 	if msgRole == PortRoleDesignatedPort &&
-		(IsMsgPriorityVectorSuperiorThanPortPriorityVector(msgpriority, &p.PortPriority) ||
-			(*msgpriority == p.PortPriority &&
-				*msgtimes != p.PortTimes)) {
+		(*msgpriority == p.PortPriority &&
+			*msgtimes != p.PortTimes) {
+		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg times != port times")
 		return SuperiorDesignatedInfo
 	} else if msgRole == PortRoleDesignatedPort &&
 		*msgpriority == p.PortPriority &&
 		*msgtimes == p.PortTimes {
+		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg and port vector and times equal")
 		return RepeatedDesignatedInfo
 	} else if msgRole == PortRoleDesignatedPort &&
 		IsMsgPriorityVectorWorseThanPortPriorityVector(msgpriority, &p.PortPriority) {
+		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg priority vector inferior")
 		return InferiorDesignatedInfo
 	} else if (msgRole == PortRoleRootPort ||
 		msgRole == PortRoleAlternatePort ||
 		msgRole == PortRoleBackupPort) &&
 		IsMsgPriorityVectorTheSameOrWorseThanPortPriorityVector(msgpriority, &p.PortPriority) {
+		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg role is root, alternate or backup and msg priority is same or inferior")
 		return InferiorRootAlternateInfo
+	} else if msgRole == PortRoleDesignatedPort &&
+		IsMsgPriorityVectorSuperiorThanPortPriorityVector(msgpriority, &p.PortPriority) {
+		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg priority vector superior")
+		return SuperiorDesignatedInfo
 	} else {
+		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: default")
 		return OtherInfo
 	}
 }

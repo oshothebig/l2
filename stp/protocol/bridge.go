@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // bridge.go
 package stp
@@ -87,6 +87,8 @@ type Bridge struct {
 
 	// a way to sync all machines
 	wg sync.WaitGroup
+
+	DebugLevel int
 }
 
 type PriorityVector struct {
@@ -156,6 +158,7 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 			MessageAge: 0}, // this will be set once a port is set as root
 		TxHoldCount: uint64(c.TxHoldCount),
 		Vlan:        vlan,
+		DebugLevel:  c.DebugLevel,
 	}
 
 	key := BridgeKey{
@@ -196,7 +199,7 @@ func DelStpBridge(b *Bridge, force bool) {
 		}
 	} else {
 		if len(b.StpPorts) > 0 {
-			StpLoggerInfo("ERROR BRIDGE STILL HAS PORTS ASSOCIATED")
+			StpLogger("INFO", "ERROR BRIDGE STILL HAS PORTS ASSOCIATED")
 			return
 		}
 	}
