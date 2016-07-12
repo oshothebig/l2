@@ -286,7 +286,9 @@ func (p *StpPort) PrxmMachineMain() {
 					p.AdminEdge {
 					if p.BPDUGuardTimer.count != 0 {
 						p.BPDUGuardTimer.count = p.BpduGuardInterval
-						asicdBPDUGuardDetected(p.IfIndex, true)
+						for _, client := range GetAsicDPluginList() {
+							client.BPDUGuardDetected(p.IfIndex, true)
+						}
 					} else {
 						p.BPDUGuardTimer.count = p.BpduGuardInterval
 					}
@@ -384,7 +386,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 	bpdumsg := data.(RxBpduPdu)
 	bpduLayer := bpdumsg.pdu
 	flags := uint8(0)
-	//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("UpdtBPDUVersion: pbduType %#v", bpduLayer))
+	StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("UpdtBPDUVersion: pbduType %#v", bpduLayer))
 	switch bpduLayer.(type) {
 	case *layers.RSTP:
 		// 17.21.22
@@ -436,6 +438,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		// the BPDUType, but for completness going to add the check anyways
 		pvst := bpduLayer.(*layers.PVST)
 		flags = uint8(pvst.Flags)
+		//fmt.Println("PVST: Protocol version, bpdu type", pvst.ProtocolVersionId, pvst.BPDUType)
 		if pvst.ProtocolVersionId == layers.RSTPProtocolVersion &&
 			pvst.BPDUType == layers.BPDUTypeRSTP {
 			// Inform the Port Protocol Migration STate machine

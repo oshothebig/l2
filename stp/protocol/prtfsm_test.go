@@ -36,6 +36,7 @@ func UsedForTestOnlyPrtInitPortConfigTest() {
 			}
 		}
 	*/
+	UsedForTestOnlySetupAsicDPlugin()
 }
 
 func UsedForTestPrtBridgeAndPortSetup() *StpPort {

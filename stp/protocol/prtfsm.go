@@ -1953,7 +1953,6 @@ func (prtm *PrtMachine) setSyncTree(ifindex int32) {
 			if ifindex != pId {
 				defer p.PrtMachineFsm.NotifySyncChanged(p.Sync, true)
 			}
-			fmt.Println("Setting sync for port", p.IfIndex)
 			p.Sync = true
 		}
 	}
