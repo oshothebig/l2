@@ -32,6 +32,7 @@ import (
 
 // StpBridgeConfig config data
 type StpBridgeConfig struct {
+	IfIndex      int32
 	Address      string
 	Priority     uint16
 	MaxAge       uint16
@@ -162,18 +163,17 @@ func StpBrgConfigParamCheck(c *StpBridgeConfig) error {
 			return errors.New(fmt.Sprintf("Invalid Bridge Vlan %d valid range 1 - 4094", c.TxHoldCount))
 		}
 	}
-	return nil
+
+	// lets store the configuration
+	return StpBrgConfigSave(c)
 }
 
 // StpPortConfigParamCheck will validate the config paramater for a bridge port
 func StpPortConfigParamCheck(c *StpPortConfig, update bool) error {
 	var b *Bridge
-	if c.IfIndex == 0 {
-		return errors.New(fmt.Sprintf("Invalid PortIfIndex  %d Must be created with a valid bridge interface", c.IfIndex))
-	}
 
 	// bridge must be valid for a bridge port to be created
-	if !StpFindBridgeByIfIndex(c.BrgIfIndex, &b) {
+	if !StpFindBridgeByIfIndex(c.BrgIfIndex, &b) && StpBrgConfigGet(c.BrgIfIndex) == nil {
 		return errors.New(fmt.Sprintf("Invalid BrgIfIndex %d, port %d must be associated with valid bridge", c.BrgIfIndex, c.IfIndex))
 	}
 
@@ -211,7 +211,7 @@ func StpPortConfigParamCheck(c *StpPortConfig, update bool) error {
 		c.BrgIfIndex = brgifindex
 	}
 
-	return nil
+	return StpPortConfigSave(c, update)
 }
 
 func StpBridgeCreate(c *StpBridgeConfig) error {
@@ -228,9 +228,6 @@ func StpBridgeCreate(c *StpBridgeConfig) error {
 	if !StpFindBridgeById(key, &b) {
 		b = NewStpBridge(c)
 		b.BEGIN(false)
-
-		// lets store the configuration
-		StpBrgConfigSave(c)
 
 	} else {
 		return errors.New(fmt.Sprintf("Invalid config, bridge vlan %d already exists", c.Vlan))
@@ -361,9 +358,11 @@ func StpPortEnable(pId int32, bId int32, enable bool) error {
 					p.PortEnabled = false
 				}
 			} else {
-				if asicdGetPortLinkStatus(pId) {
-					defer p.NotifyPortEnabled("CONFIG: ", p.PortEnabled, true)
-					p.PortEnabled = true
+				for _, client := range GetAsicDPluginList() {
+					if client.GetPortLinkStatus(pId) {
+						defer p.NotifyPortEnabled("CONFIG: ", p.PortEnabled, true)
+						p.PortEnabled = true
+					}
 				}
 			}
 			p.AdminPortEnabled = enable

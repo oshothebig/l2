@@ -70,6 +70,9 @@ func StpPortConfigSetup(createbridge, update bool) (*StpPortConfig, *StpBridgeCo
 		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
 	}
 
+	// set dummy mac
+	SaveSwitchMac("00:11:22:33:44:55")
+
 	return p, brg
 }
 
@@ -593,21 +596,6 @@ type StpPortConfig struct {
 	BpduGuardInterval int32
 }
 */
-
-func TestStpPortParamIfIndex(t *testing.T) {
-
-	p, b := StpPortConfigSetup(true, false)
-	defer StpPortConfigDelete(p.IfIndex)
-	if b != nil {
-		defer StpBridgeDelete(b)
-	}
-	// invalid value
-	p.IfIndex = 0
-	err := StpPortConfigParamCheck(p, true)
-	if err == nil {
-		t.Error("ERROR: an invalid ifindex was set should have errored", p.IfIndex, err)
-	}
-}
 
 func TestStpPortParamBrgIfIndex(t *testing.T) {
 	p, b := StpPortConfigSetup(false, false)
