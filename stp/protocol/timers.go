@@ -156,6 +156,40 @@ func (p *StpPort) DecrementTimerCounters() {
 
 			if p.HelloWhenTimer.count == 0 {
 				defer p.NotifyHelloWhenTimerExpired()
+			} else {
+				if p.PtxmMachineFsm != nil &&
+					p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
+					if p.SendRSTP &&
+						p.NewInfo &&
+						(p.TxCount < p.b.TxHoldCount) &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+							e:   PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+							src: PtxmMachineModuleStr,
+						}
+					} else if !p.SendRSTP &&
+						p.NewInfo &&
+						p.Role == PortRoleRootPort &&
+						(p.TxCount < p.b.TxHoldCount) &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+							e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+							src: PtxmMachineModuleStr,
+						}
+					} else if !p.SendRSTP &&
+						p.NewInfo &&
+						p.Role == PortRoleDesignatedPort &&
+						(p.TxCount < p.b.TxHoldCount) &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+							e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+							src: PtxmMachineModuleStr,
+						}
+					}
+				}
 			}
 		} else {
 			p.HelloWhenTimer.count = int32(p.PortTimes.HelloTime)

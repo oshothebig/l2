@@ -442,3 +442,189 @@ func TestPtmFdWhileTimerExpiredDesignatedPortRrwhileEqualZeroAndNotSyncAndLearnA
 
 	UsedForTestOnlyPtmTestTeardown(p, t)
 }
+
+func TestPtmHelloWhenTimerExpired(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PtxmMachineFsm.Machine.Curr.SetState(PtxmStateIdle)
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.HelloWhenTimer.count = 1
+	p.Sync = true
+	p.Synced = true
+	p.Learn = true
+	p.Forward = true
+	p.Learning = true
+	p.Forwarding = true
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PtxmMachineFsm.PtxmEvents
+	if event.e != PtxmEventHelloWhenEqualsZeroAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PTX Machine event as expected")
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmHelloWhenTimerNotEqualZeroSendRSTPNewInfoTxCountLessThanTxHoldCount(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PtxmMachineFsm.Machine.Curr.SetState(PtxmStateIdle)
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.SendRSTP = true
+	p.NewInfo = true
+	p.b.TxHoldCount = TransmitHoldCountDefault - 1
+	p.Sync = true
+	p.Synced = true
+	p.Learn = true
+	p.Forward = true
+	p.Learning = true
+	p.Forwarding = true
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PtxmMachineFsm.PtxmEvents
+	if event.e != PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PTX Machine event as expected")
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmHelloWhenTimerNotEqualZeroNotSendRSTPNewInfoRootPortTxCountLessThanTxHoldCount(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PtxmMachineFsm.Machine.Curr.SetState(PtxmStateIdle)
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateRootPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleRootPort
+	p.SelectedRole = PortRoleRootPort
+	p.SendRSTP = false
+	p.NewInfo = true
+	p.b.TxHoldCount = TransmitHoldCountDefault - 1
+	p.Sync = true
+	p.Synced = true
+	p.Learn = true
+	p.Forward = true
+	p.Learning = true
+	p.Forwarding = true
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PtxmMachineFsm.PtxmEvents
+	if event.e != PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PTX Machine event as expected")
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmHelloWhenTimerNotEqualZeroNotSendRSTPNewInfoDesignatedPortTxCountLessThanTxHoldCount(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PtxmMachineFsm.Machine.Curr.SetState(PtxmStateIdle)
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateRootPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.SendRSTP = false
+	p.NewInfo = true
+	p.b.TxHoldCount = TransmitHoldCountDefault - 1
+	p.Sync = true
+	p.Synced = true
+	p.Learn = true
+	p.Forward = true
+	p.Learning = true
+	p.Forwarding = true
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PtxmMachineFsm.PtxmEvents
+	if event.e != PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PTX Machine event as expected")
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
