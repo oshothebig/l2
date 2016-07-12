@@ -158,14 +158,19 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (pim *PimMachine) Stop() {
 
-	wait := make(chan string, 1)
-	// stop the go routine
-	pim.PimKillSignalEvent <- MachineEvent{
-		e:            PimEventBegin,
-		responseChan: wait,
-	}
+	// special case found during unit testing that if
+	// we don't init the go routine then this event will hang
+	// will not happen under normal conditions
+	if pim.Machine.Curr.CurrentState() != PimStateNone {
+		wait := make(chan string, 1)
+		// stop the go routine
+		pim.PimKillSignalEvent <- MachineEvent{
+			e:            PimEventBegin,
+			responseChan: wait,
+		}
 
-	<-wait
+		<-wait
+	}
 
 	close(pim.PimEvents)
 	close(pim.PimLogEnableEvent)

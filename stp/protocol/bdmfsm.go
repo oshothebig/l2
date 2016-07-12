@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // 802.1D-2004 17.25 Bridge Detection State Machine
 //The Bridge Detection state machine shall implement the function specified by the state diagram in Figure
@@ -127,15 +127,20 @@ func (bdm *BdmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (bdm *BdmMachine) Stop() {
 
-	wait := make(chan string, 1)
+	// special case found during unit testing that if
+	// we don't init the go routine then this event will hang
+	// will not happen under normal conditions
+	if bdm.Machine.Curr.CurrentState() != BdmStateNone {
+		wait := make(chan string, 1)
 
-	// stop the go routine
-	bdm.BdmKillSignalEvent <- MachineEvent{
-		e:            BdmEventBeginAdminEdge,
-		responseChan: wait,
+		// stop the go routine
+		bdm.BdmKillSignalEvent <- MachineEvent{
+			e:            BdmEventBeginAdminEdge,
+			responseChan: wait,
+		}
+
+		<-wait
 	}
-
-	<-wait
 
 	close(bdm.BdmEvents)
 	close(bdm.BdmLogEnableEvent)

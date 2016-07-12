@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // 802.1D-2004 17.28 Port Role Selection State Machine
 //The Port Role Selection state machine shall implement the function specified by the state diagram in Figure
@@ -96,7 +96,7 @@ func (m *PrsMachine) GetPrevStateStr() string {
 func NewStpPrsMachine(b *Bridge) *PrsMachine {
 	prsm := &PrsMachine{
 		b:                  b,
-		debugLevel:         1,
+		debugLevel:         b.DebugLevel,
 		PrsEvents:          make(chan MachineEvent, 50),
 		PrsKillSignalEvent: make(chan MachineEvent, 1),
 		PrsLogEnableEvent:  make(chan bool)}
@@ -134,14 +134,19 @@ func (prsm *PrsMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (prsm *PrsMachine) Stop() {
 
-	wait := make(chan string, 1)
-	// stop the go routine
-	prsm.PrsKillSignalEvent <- MachineEvent{
-		e:            PrsEventBegin,
-		responseChan: wait,
-	}
+	// special case found during unit testing that if
+	// we don't init the go routine then this event will hang
+	// will not happen under normal conditions
+	if prsm.Machine.Curr.CurrentState() != PrsStateNone {
+		wait := make(chan string, 1)
+		// stop the go routine
+		prsm.PrsKillSignalEvent <- MachineEvent{
+			e:            PrsEventBegin,
+			responseChan: wait,
+		}
 
-	<-wait
+		<-wait
+	}
 
 	close(prsm.PrsEvents)
 	close(prsm.PrsLogEnableEvent)
@@ -265,12 +270,6 @@ func (prsm *PrsMachine) updtRoleDisabledTree() {
 }
 
 // updtRolesTree: 17.21.25
-//STP_VECT_create (OUT PRIO_VECTOR_T* t,
-//                 IN BRIDGE_ID* root_br,
-//                IN unsigned long root_path_cost,
-//                 IN BRIDGE_ID* design_bridge,
-//                 IN PORT_ID design_port,
-//                 IN PORT_ID bridge_port)
 func (prsm *PrsMachine) updtRolesTree() {
 
 	b := prsm.b
@@ -282,6 +281,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 		DesignatedBridgeId: b.BridgePriority.DesignatedBridgeId,
 	}
 
+	// 17.21.25 (c)(1)
 	rootTimes := Times{
 		ForwardingDelay: b.BridgeTimes.ForwardingDelay,
 		HelloTime:       b.BridgeTimes.HelloTime,
@@ -300,16 +300,19 @@ func (prsm *PrsMachine) updtRolesTree() {
 			if prsm.debugLevel > 1 {
 				StpMachineLogger("INFO", PrsMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("updtRolesTree: InfoIs %d", p.InfoIs))
 			}
+			// 17.21.25 (a)
 			if p.InfoIs == PortInfoStateReceived {
 
 				/*if CompareBridgeAddr(GetBridgeAddrFromBridgeId(myBridgeId),
 					GetBridgeAddrFromBridgeId(p.PortPriority.DesignatedBridgeId)) == 0 {
 					continue
 				}*/
-
+				StpMachineLogger("INFO", PrsMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("updtRolesTree: port root bridge %#v  tmpRootBridge %#v", p.PortPriority.RootBridgeId, tmpVector.RootBridgeId))
 				compare := CompareBridgeId(p.PortPriority.RootBridgeId, tmpVector.RootBridgeId)
 				switch compare {
+				// 17.21.25 (b) bridge is superior
 				case -1:
+
 					if prsm.debugLevel > 1 {
 						StpMachineLogger("INFO", PrsMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("updtRolesTree: Root Bridge Received is SUPERIOR port Priority %#v", p.PortPriority))
 					}
@@ -318,11 +321,13 @@ func (prsm *PrsMachine) updtRolesTree() {
 					tmpVector.DesignatedBridgeId = p.PortPriority.DesignatedBridgeId
 					tmpVector.DesignatedPortId = p.PortPriority.DesignatedPortId
 					rootPortId = int32(p.Priority<<8 | p.PortId)
+					// 17.21.25 (c)(2)
 					rootTimes = p.PortTimes
 				case 0:
 					if prsm.debugLevel > 1 {
 						StpMachineLogger("INFO", PrsMachineModuleStr, p.IfIndex, p.BrgIfIndex, "updtRolesTree: Root Bridge Received by port SAME")
 					}
+					// 17.21.25 (b) path cost or port determines root
 					tmpCost := p.PortPriority.RootPathCost + p.PortPathCost
 					if prsm.debugLevel > 1 {
 						StpMachineLogger("INFO", PrsMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("updtRolesTree: rx+txCost[%d] bridgeCost[%d]", tmpCost, tmpVector.RootPathCost))
