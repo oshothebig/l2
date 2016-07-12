@@ -555,7 +555,9 @@ func (tcm *TcMachine) FlushFdb() {
 	// send event to TCM
 	// TODO work out mechanism with asicd
 	//var delay time.Duration = time.Second * 1
-	asicdFlushFdb(p.b.StgId)
+	for _, client := range GetAsicDPluginList() {
+		client.FlushStgFdb(p.b.StgId)
+	}
 	//time.Sleep(delay)
 	StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "FDB Flush")
 	p.FdbFlush = false

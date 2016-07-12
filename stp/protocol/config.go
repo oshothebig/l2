@@ -32,6 +32,7 @@ import (
 
 // StpBridgeConfig config data
 type StpBridgeConfig struct {
+	IfIndex      int32
 	Address      string
 	Priority     uint16
 	MaxAge       uint16
@@ -83,12 +84,21 @@ func StpBrgConfigGet(bId int32) *StpBridgeConfig {
 	return nil
 }
 
+func StpBrgConfigDelete(bId int32) error {
+	if StpBrgConfigGet(bId) != nil {
+		delete(StpBridgeConfigMap, bId)
+		return nil
+	}
+	return errors.New(fmt.Sprintf("Error Trying to Delete Bridge %d Config that does not exist", bId))
+}
+
 // StpPortConfigSave Save the last config given by user this is a validation
 // check as well so that all port contain the same config
 func StpPortConfigSave(c *StpPortConfig, update bool) error {
 	brgIfIndex := c.BrgIfIndex
 	c.BrgIfIndex = 0
 	if _, ok := StpPortConfigMap[c.IfIndex]; !ok {
+		//fmt.Println("Saving Port Config", c.IfIndex)
 		StpPortConfigMap[c.IfIndex] = *c
 	} else {
 		if !update && *c != StpPortConfigMap[c.IfIndex] {
@@ -108,6 +118,7 @@ func StpPortConfigSave(c *StpPortConfig, update bool) error {
 // StpPortConfigSave Save the last config given by user this is a validation
 // check as well so that all port contain the same config
 func StpBrgConfigSave(c *StpBridgeConfig) error {
+	//fmt.Println("Saving Bridge Config", c.Vlan)
 	StpBridgeConfigMap[int32(c.Vlan)] = *c
 	return nil
 }
@@ -162,18 +173,17 @@ func StpBrgConfigParamCheck(c *StpBridgeConfig) error {
 			return errors.New(fmt.Sprintf("Invalid Bridge Vlan %d valid range 1 - 4094", c.TxHoldCount))
 		}
 	}
-	return nil
+
+	// lets store the configuration
+	return StpBrgConfigSave(c)
 }
 
 // StpPortConfigParamCheck will validate the config paramater for a bridge port
 func StpPortConfigParamCheck(c *StpPortConfig, update bool) error {
 	var b *Bridge
-	if c.IfIndex == 0 {
-		return errors.New(fmt.Sprintf("Invalid PortIfIndex  %d Must be created with a valid bridge interface", c.IfIndex))
-	}
 
 	// bridge must be valid for a bridge port to be created
-	if !StpFindBridgeByIfIndex(c.BrgIfIndex, &b) {
+	if !StpFindBridgeByIfIndex(c.BrgIfIndex, &b) && StpBrgConfigGet(c.BrgIfIndex) == nil {
 		return errors.New(fmt.Sprintf("Invalid BrgIfIndex %d, port %d must be associated with valid bridge", c.BrgIfIndex, c.IfIndex))
 	}
 
@@ -211,7 +221,7 @@ func StpPortConfigParamCheck(c *StpPortConfig, update bool) error {
 		c.BrgIfIndex = brgifindex
 	}
 
-	return nil
+	return StpPortConfigSave(c, update)
 }
 
 func StpBridgeCreate(c *StpBridgeConfig) error {
@@ -229,9 +239,6 @@ func StpBridgeCreate(c *StpBridgeConfig) error {
 		b = NewStpBridge(c)
 		b.BEGIN(false)
 
-		// lets store the configuration
-		StpBrgConfigSave(c)
-
 	} else {
 		return errors.New(fmt.Sprintf("Invalid config, bridge vlan %d already exists", c.Vlan))
 	}
@@ -248,7 +255,7 @@ func StpBridgeDelete(c *StpBridgeConfig) error {
 		DelStpBridge(b, true)
 		for _, btmp := range StpBridgeConfigMap {
 			if btmp.Vlan == c.Vlan {
-				delete(StpBridgeConfigMap, b.BrgIfIndex)
+				StpBrgConfigDelete(int32(c.Vlan))
 			}
 		}
 	} else {
@@ -295,6 +302,7 @@ func StpPortDelete(c *StpPortConfig) error {
 		if !foundPort {
 			delete(StpPortConfigMap, c.IfIndex)
 		}
+
 	} else {
 		return errors.New(fmt.Sprintf("Invalid config, port %d bridge %d does not exists", c.IfIndex, c.BrgIfIndex))
 	}
@@ -361,9 +369,11 @@ func StpPortEnable(pId int32, bId int32, enable bool) error {
 					p.PortEnabled = false
 				}
 			} else {
-				if asicdGetPortLinkStatus(pId) {
-					defer p.NotifyPortEnabled("CONFIG: ", p.PortEnabled, true)
-					p.PortEnabled = true
+				for _, client := range GetAsicDPluginList() {
+					if client.GetPortLinkStatus(pId) {
+						defer p.NotifyPortEnabled("CONFIG: ", p.PortEnabled, true)
+						p.PortEnabled = true
+					}
 				}
 			}
 			p.AdminPortEnabled = enable

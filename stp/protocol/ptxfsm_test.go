@@ -73,6 +73,7 @@ func UsedForTestOnlyTxInitPortConfigTest() {
 			}
 		}
 	*/
+	UsedForTestOnlySetupAsicDPlugin()
 }
 
 func UsedForTestOnlyPtxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *StpPort) {
