@@ -519,6 +519,7 @@ func TestStpBridgeParamCheckVlan(t *testing.T) {
 		if err != nil {
 			t.Error("ERROR valid vlan was set should not have errored", brgcfg.Vlan)
 		}
+		StpBrgConfigDelete(int32(brgcfg.Vlan))
 	}
 }
 
@@ -607,18 +608,19 @@ func TestStpPortParamBrgIfIndex(t *testing.T) {
 		t.Error("ERROR: an invalid brgIfndex was set should have errored", p.BrgIfIndex, err)
 	}
 
-	// port created with invalid bridge
+	// bridge created, and port created with invalid bridge reference
 	p, b = StpPortConfigSetup(true, false)
 	if b != nil {
 		defer StpBridgeDelete(b)
 	}
+
 	p.BrgIfIndex = 1000
 	err = StpPortConfigParamCheck(p, true)
 	if err == nil {
 		t.Error("ERROR: an invalid brgIfndex was set should have errored", p.BrgIfIndex, err)
 	}
 
-	p, b = StpPortConfigSetup(true, false)
+	p, b = StpPortConfigSetup(false, false)
 	err = StpPortConfigParamCheck(p, true)
 	if err != nil {
 		t.Error("ERROR: an valid brgIfndex was set should not have errored", p.BrgIfIndex, err)
@@ -983,22 +985,24 @@ func TestStpPortPortEnable(t *testing.T) {
 	p.Enable = true
 	err := StpPortConfigParamCheck(p, true)
 	if err != nil {
-		t.Error("ERROR: invalid port config protocol migration not set", err)
+		t.Error("ERROR: invalid port config Enable not set", err)
 	}
+	StpPortConfigDelete(p.IfIndex)
 
 	// port disable
 	p.Enable = false
 	err = StpPortConfigParamCheck(p, true)
 	if err != nil {
-		t.Error("ERROR: invalid port config protocol migration not set", err)
+		t.Error("ERROR: invalid port config Enable not cleared", err)
 	}
+	StpPortConfigDelete(p.IfIndex)
 
 	p.Enable = true
 	// lets save the config and create the port so we can play around with update
 	StpPortConfigSave(p, false)
 	err = StpPortCreate(p)
 	if err != nil {
-		t.Error("ERROR: port creation failed")
+		t.Error("ERROR: port creation failed", err)
 	}
 	defer StpPortDelete(p)
 

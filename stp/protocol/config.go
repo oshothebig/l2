@@ -84,12 +84,21 @@ func StpBrgConfigGet(bId int32) *StpBridgeConfig {
 	return nil
 }
 
+func StpBrgConfigDelete(bId int32) error {
+	if StpBrgConfigGet(bId) != nil {
+		delete(StpBridgeConfigMap, bId)
+		return nil
+	}
+	return errors.New(fmt.Sprintf("Error Trying to Delete Bridge %d Config that does not exist", bId))
+}
+
 // StpPortConfigSave Save the last config given by user this is a validation
 // check as well so that all port contain the same config
 func StpPortConfigSave(c *StpPortConfig, update bool) error {
 	brgIfIndex := c.BrgIfIndex
 	c.BrgIfIndex = 0
 	if _, ok := StpPortConfigMap[c.IfIndex]; !ok {
+		//fmt.Println("Saving Port Config", c.IfIndex)
 		StpPortConfigMap[c.IfIndex] = *c
 	} else {
 		if !update && *c != StpPortConfigMap[c.IfIndex] {
@@ -109,6 +118,7 @@ func StpPortConfigSave(c *StpPortConfig, update bool) error {
 // StpPortConfigSave Save the last config given by user this is a validation
 // check as well so that all port contain the same config
 func StpBrgConfigSave(c *StpBridgeConfig) error {
+	//fmt.Println("Saving Bridge Config", c.Vlan)
 	StpBridgeConfigMap[int32(c.Vlan)] = *c
 	return nil
 }
@@ -245,7 +255,7 @@ func StpBridgeDelete(c *StpBridgeConfig) error {
 		DelStpBridge(b, true)
 		for _, btmp := range StpBridgeConfigMap {
 			if btmp.Vlan == c.Vlan {
-				delete(StpBridgeConfigMap, b.BrgIfIndex)
+				StpBrgConfigDelete(int32(c.Vlan))
 			}
 		}
 	} else {
@@ -292,6 +302,7 @@ func StpPortDelete(c *StpPortConfig) error {
 		if !foundPort {
 			delete(StpPortConfigMap, c.IfIndex)
 		}
+
 	} else {
 		return errors.New(fmt.Sprintf("Invalid config, port %d bridge %d does not exists", c.IfIndex, c.BrgIfIndex))
 	}
