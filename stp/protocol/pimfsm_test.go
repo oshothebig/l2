@@ -57,6 +57,7 @@ func UsedForTestOnlyPimInitPortConfigTest() {
 			}
 		}
 	*/
+	UsedForTestOnlySetupAsicDPlugin()
 }
 
 func UsedForTestOnlyPimTestSetup(t *testing.T, enable bool) (p *StpPort) {

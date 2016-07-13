@@ -34,6 +34,7 @@ func UsedForTestOnlyPrsInitPortConfigTest() {
 			}
 		}
 	*/
+	UsedForTestOnlySetupAsicDPlugin()
 }
 
 // TestPrsUpdtRolesTreePortIsRootBridge1 update role should update root as the behind the port msg was received

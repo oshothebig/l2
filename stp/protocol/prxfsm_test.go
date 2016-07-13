@@ -26,11 +26,11 @@
 package stp
 
 import (
-	"net"
-
+	//"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"net"
 	//"strconv"
 	//"strings"
 	"testing"
@@ -74,6 +74,7 @@ func UsedForTestOnlyRxInitPortConfigTest() {
 			}
 		}
 	*/
+	UsedForTestOnlySetupAsicDPlugin()
 }
 
 func UsedForTestOnlyPrxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *StpPort) {
@@ -89,13 +90,17 @@ func UsedForTestOnlyPrxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 		TxHoldCount:  TransmitHoldCountDefault,
 	}
 
+	if stpconfig.BrgIfIndex != 0 {
+		bridgeconfig.Vlan = uint16(stpconfig.BrgIfIndex)
+	} else {
+		stpconfig.BrgIfIndex = DEFAULT_STP_BRIDGE_VLAN
+	}
+
 	//StpBridgeCreate
 	b := NewStpBridge(bridgeconfig)
 	PrsMachineFSMBuild(b)
 	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
 	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventUnconditionallFallThrough, nil)
-
-	stpconfig.BrgIfIndex = DEFAULT_STP_BRIDGE_VLAN
 
 	// create a port
 	p = NewStpPort(stpconfig)
@@ -332,6 +337,83 @@ func UsedForTestOnlySendValidRStpFrame(txifindex int32, t *testing.T) {
 	}
 	// Send one packet for every address.
 	gopacket.SerializeLayers(buf, opts, &eth, &llc, &stp)
+	if err = handle.WritePacketData(buf.Bytes()); err != nil {
+		t.Error("Error writing packet to interface")
+	}
+	handle.Close()
+	handle = nil
+}
+
+func UsedForTestOnlySendValidPVSTFrame(txifindex int32, pvstvlan uint16, t *testing.T) {
+	ifname, _ := PortConfigMap[TEST_TX_PORT_CONFIG_IFINDEX]
+	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	if err != nil {
+		t.Error("Error opening pcap TX interface", TEST_TX_PORT_CONFIG_IFINDEX, ifname.Name, err)
+		return
+	}
+	//txIface, _ := net.InterfaceByName(ifname.Name)
+
+	eth := layers.Ethernet{
+		SrcMAC: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x66},
+		DstMAC: layers.BpduPVSTDMAC,
+		// length
+		EthernetType: layers.EthernetTypeDot1Q,
+	}
+
+	vlan := layers.Dot1Q{
+		Priority:       PVST_VLAN_PRIORITY,
+		DropEligible:   false,
+		VLANIdentifier: pvstvlan,
+		Type:           layers.EthernetType(layers.PVSTProtocolLength + 3 + 5), // length
+	}
+
+	llc := layers.LLC{
+		DSAP:    0xAA,
+		IG:      false,
+		SSAP:    0xAA,
+		CR:      false,
+		Control: 0x03,
+	}
+
+	snap := layers.SNAP{
+		OrganizationalCode: []byte{0x00, 0x00, 0x0C},
+		Type:               0x010b,
+	}
+
+	stp := layers.PVST{
+		ProtocolId:        layers.RSTPProtocolIdentifier,
+		ProtocolVersionId: layers.RSTPProtocolVersion,
+		BPDUType:          layers.BPDUTypePVST,
+		Flags:             0,
+		RootId:            [8]byte{0x80, 0x01, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
+		RootPathCost:      1,
+		BridgeId:          [8]byte{0x80, 0x64, 0x00, 0x19, 0x06, 0xEA, 0xB8, 0x80},
+		PortId:            0x1111,
+		MsgAge:            0,
+		MaxAge:            20,
+		HelloTime:         2,
+		FwdDelay:          15,
+		Version1Length:    0,
+		OriginatingVlan: layers.STPOriginatingVlanTlv{
+			Type:     0,
+			Length:   2,
+			OrigVlan: pvstvlan,
+		},
+	}
+
+	var flags uint8
+	StpSetBpduFlags(0, 0, 0, 0, ConvertRoleToPktRole(PortRoleDesignatedPort), 1, 0, &flags)
+
+	stp.Flags = layers.StpFlags(flags)
+
+	// Set up buffer and options for serialization.
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+	// Send one packet for every address.
+	gopacket.SerializeLayers(buf, opts, &eth, &vlan, &llc, &snap, &stp)
 	if err = handle.WritePacketData(buf.Bytes()); err != nil {
 		t.Error("Error writing packet to interface")
 	}
@@ -583,6 +665,82 @@ func TestRxValidRStpPacket(t *testing.T) {
 	if rx.e != PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP {
 		t.Error("Failed PPMM received invalid event")
 		t.FailNow()
+	}
+
+	// remove reference to fsm allocated above
+	UsedForTestOnlyPrxTestTeardown(p, t)
+}
+
+func TestRxValidPVSTPacket(t *testing.T) {
+	// configure a port
+	stpconfig := &StpPortConfig{
+		IfIndex:           TEST_RX_PORT_CONFIG_IFINDEX,
+		Priority:          0x80,
+		Enable:            true,
+		PathCost:          1,
+		ProtocolMigration: 0,
+		AdminPointToPoint: StpPointToPointForceFalse,
+		AdminEdgePort:     false,
+		AdminPathCost:     0,
+		BrgIfIndex:        100,
+	}
+
+	p := UsedForTestOnlyPrxTestSetup(stpconfig, t)
+
+	// setup pre-condition, lets fake out and pretent we were in send STP mode
+	p.SendRSTP = false
+
+	// send a packet
+	UsedForTestOnlySendValidPVSTFrame(TEST_TX_PORT_CONFIG_IFINDEX, 100, t)
+
+	testWait := make(chan bool)
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func() {
+		for i := 0; i < NUM_DELAY_TRIES &&
+			(p.PvstRx == 0); i++ {
+			time.Sleep(TIME_TO_DELAY_TO_WAIT_FOR_PACKET_ARRIVAL)
+		}
+		testWait <- true
+	}()
+
+	<-testWait
+
+	if p.PvstRx == 0 {
+		t.Errorf("Failed Rx PVST count did not increment")
+	}
+
+	if p.RcvdBPDU == true {
+		t.Errorf("Failed RcvdBPDU is set")
+	}
+
+	if p.OperEdge == true {
+		t.Errorf("Failed OperEdge is set")
+	}
+
+	if p.RcvdSTP != false {
+		t.Errorf("Failed RcvdSTP is set")
+	}
+	if p.RcvdRSTP != true {
+		t.Errorf("Failed RcvdRSTP not set")
+	}
+
+	if p.RcvdMsg != true {
+		t.Errorf("Failed RcvdMsg not set")
+	}
+
+	if p.EdgeDelayWhileTimer.count != MigrateTimeDefault {
+		t.Errorf("Failed EdgeDelayWhiletimer tick count not set to MigrateTimeDefault")
+	}
+
+	if p.PrxmMachineFsm.Machine.Curr.CurrentState() != PrxmStateReceive {
+		t.Errorf("Failed to transition state to Receive")
+	}
+
+	// we should have received an event from rx machine
+	rx, _ := <-p.PpmmMachineFsm.PpmmEvents
+	if rx.e != PpmmEventRstpVersionAndNotSendRSTPAndRcvdRSTP {
+		t.Errorf("Failed PPMM received invalid event")
 	}
 
 	// remove reference to fsm allocated above
