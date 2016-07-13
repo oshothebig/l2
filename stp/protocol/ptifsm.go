@@ -25,7 +25,6 @@
 package stp
 
 import (
-	//"fmt"
 	"time"
 	"utils/fsm"
 )
@@ -125,7 +124,7 @@ func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ptm.Machine.Rules = r
 	ptm.Machine.Curr = &StpStateEvent{
 		strStateMap: PtmStateStrMap,
-		logEna:      false, // WARNING do not enable as this will cause a log ever second
+		logEna:      true, // WARNING do not enable as this will cause a log ever second
 		logger:      ptm.PtmLogger,
 		owner:       PtmMachineModuleStr,
 		ps:          PtmStateNone,
@@ -228,7 +227,6 @@ func (p *StpPort) PtmMachineMain() {
 				return
 
 			case <-m.TickTimer.C:
-
 				m.Tick = true
 				m.Machine.ProcessEvent(PtmMachineModuleStr, PtmEventTickEqualsTrue, nil)
 
