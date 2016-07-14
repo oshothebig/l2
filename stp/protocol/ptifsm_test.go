@@ -75,6 +75,7 @@ func UsedForTestOnlyPtmTestSetup(t *testing.T) (p *StpPort) {
 
 	// create a port
 	p = NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// start timer tick machine
 	p.PtmMachineMain()
@@ -82,7 +83,9 @@ func UsedForTestOnlyPtmTestSetup(t *testing.T) (p *StpPort) {
 	// lets not start the main routines for the other state machines
 	p.BEGIN(true)
 
-	p.PollingTimer.Stop()
+	if p.PollingTimer != nil {
+		p.PollingTimer.Stop()
+	}
 
 	// NOTE: must be called after BEGIN
 	// Lets Instatiate but not run the following Machines
@@ -138,6 +141,12 @@ func UsedForTestOnlyPtmTestTeardown(p *StpPort, t *testing.T) {
 
 	b := p.b
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
