@@ -20,37 +20,18 @@
 // |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
-
-// init.go
 package stp
 
 import (
-	"utils/logging"
+	"utils/asicdClient"
 )
 
-var gLogger *logging.Writer
+var ClientIntfs []asicdClient.AsicdClientIntf
 
-func init() {
-	PortConfigMap = make(map[int32]portConfig)
-	PortMapTable = make(map[PortMapKey]*StpPort, 0)
-	BridgeMapTable = make(map[BridgeKey]*Bridge, 0)
-	StpPortConfigMap = make(map[int32]StpPortConfig, 0)
-	StpBridgeConfigMap = make(map[int32]StpBridgeConfig, 0)
+func SetAsicDPlugin(clientif asicdClient.AsicdClientIntf) {
+	ClientIntfs = append(ClientIntfs, clientif)
+}
 
-	// Init the state string maps
-	TimerTypeStrStateMapInit()
-	PtmMachineStrStateMapInit()
-	PrxmMachineStrStateMapInit()
-	PrsMachineStrStateMapInit()
-	PrtMachineStrStateMapInit()
-	BdmMachineStrStateMapInit()
-	PimMachineStrStateMapInit()
-	PpmmMachineStrStateMapInit()
-	TcMachineStrStateMapInit()
-	PtxmMachineStrStateMapInit()
-	PstMachineStrStateMapInit()
-
-	// create the logger used by this module
-	gLogger, _ = logging.NewLogger("stpd", "STP", true)
-
+func GetAsicDPluginList() []asicdClient.AsicdClientIntf {
+	return ClientIntfs
 }
