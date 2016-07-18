@@ -97,6 +97,7 @@ func UsedForTestOnlyPtxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 
 	// create a port
 	p = NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PtxmMachineMain()
@@ -169,8 +170,13 @@ func UsedForTestOnlyPtxTestTeardown(p *StpPort, t *testing.T) {
 	p.PpmmMachineFsm = nil
 	p.b.PrsMachineFsm = nil
 	b := p.b
-	DelStpPort(p)
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
 
+	DelStpPort(p)
 	DelStpBridge(b, true)
 }
 

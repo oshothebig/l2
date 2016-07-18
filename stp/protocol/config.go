@@ -317,19 +317,22 @@ func StpPortAddToBridge(pId int32, brgifindex int32) {
 		b.StpPorts = append(b.StpPorts, pId)
 		p.BEGIN(false)
 
-		// check all other bridge ports to see if any are AdminEdge
-		isOtherBrgPortOperEdge := p.IsAdminEdgePort()
-		if !p.AdminEdge && isOtherBrgPortOperEdge {
-			p.BdmMachineFsm.BdmEvents <- MachineEvent{
-				e:   BdmEventBeginAdminEdge,
-				src: "CONFIG: AdminEgeSet",
-			}
-		} else if p.AdminEdge && !isOtherBrgPortOperEdge {
-			for _, ptmp := range PortListTable {
-				if p != ptmp {
-					p.BdmMachineFsm.BdmEvents <- MachineEvent{
-						e:   BdmEventBeginAdminEdge,
-						src: "CONFIG: AdminEgeSet",
+		if p.BdmMachineFsm != nil {
+			// check all other bridge ports to see if any are AdminEdge
+			isOtherBrgPortOperEdge := p.IsAdminEdgePort()
+			if !p.AdminEdge &&
+				isOtherBrgPortOperEdge {
+				p.BdmMachineFsm.BdmEvents <- MachineEvent{
+					e:   BdmEventBeginAdminEdge,
+					src: "CONFIG: AdminEgeSet",
+				}
+			} else if p.AdminEdge && !isOtherBrgPortOperEdge {
+				for _, ptmp := range PortListTable {
+					if p != ptmp {
+						p.BdmMachineFsm.BdmEvents <- MachineEvent{
+							e:   BdmEventBeginAdminEdge,
+							src: "CONFIG: AdminEgeSet",
+						}
 					}
 				}
 			}
@@ -365,7 +368,7 @@ func StpPortEnable(pId int32, bId int32, enable bool) error {
 		if p.AdminPortEnabled != enable {
 			if p.AdminPortEnabled {
 				if p.PortEnabled {
-					defer p.NotifyPortEnabled("CONFIG: ", p.PortEnabled, false)
+					p.NotifyPortEnabled("CONFIG: ", p.PortEnabled, false)
 					p.PortEnabled = false
 				}
 			} else {
@@ -426,9 +429,11 @@ func StpBrgPrioritySet(bId int32, priority uint16) error {
 						p.Reselect = true
 					}
 				}
-				b.PrsMachineFsm.PrsEvents <- MachineEvent{
-					e:   PrsEventReselect,
-					src: "CONFIG: BrgPrioritySet",
+				if b.PrsMachineFsm != nil {
+					b.PrsMachineFsm.PrsEvents <- MachineEvent{
+						e:   PrsEventReselect,
+						src: "CONFIG: BrgPrioritySet",
+					}
 				}
 			}
 			return err
@@ -490,9 +495,11 @@ func StpPortPrioritySet(pId int32, bId int32, priority uint16) error {
 					port.Selected = false
 					port.Reselect = true
 
-					port.b.PrsMachineFsm.PrsEvents <- MachineEvent{
-						e:   PrsEventReselect,
-						src: "CONFIG: PortPrioritySet",
+					if port.b.PrsMachineFsm != nil {
+						port.b.PrsMachineFsm.PrsEvents <- MachineEvent{
+							e:   PrsEventReselect,
+							src: "CONFIG: PortPrioritySet",
+						}
 					}
 				}
 			}

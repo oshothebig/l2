@@ -136,6 +136,7 @@ func (p *StpPort) TxPVST() {
 
 	pvst.Flags = layers.StpFlags(flags)
 
+	/* NOT VALID within PVST STP frames should have been detected outside of this logic
 	if !p.SendRSTP {
 		pvst.ProtocolId = layers.RSTPProtocolIdentifier
 		pvst.ProtocolVersionId = layers.STPProtocolVersion
@@ -151,8 +152,8 @@ func (p *StpPort) TxPVST() {
 			&flags)
 
 		pvst.Flags = layers.StpFlags(flags)
-
 	}
+	*/
 
 	// Set up buffer and options for serialization.
 	buf := gopacket.NewSerializeBuffer()
