@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // 802.1D-2004 17.29 Port State Transition State Machine
 //The Port State Transition state machine shall implement the function specified by the state diagram in Figure
@@ -133,14 +133,19 @@ func (pstm *PstMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (pstm *PstMachine) Stop() {
 
-	wait := make(chan string, 1)
-	// stop the go routine
-	pstm.PstKillSignalEvent <- MachineEvent{
-		e:            PstEventBegin,
-		responseChan: wait,
-	}
+	// special case found during unit testing that if
+	// we don't init the go routine then this event will hang
+	// will not happen under normal conditions
+	if pstm.Machine.Curr.CurrentState() != PstStateNone {
+		wait := make(chan string, 1)
+		// stop the go routine
+		pstm.PstKillSignalEvent <- MachineEvent{
+			e:            PstEventBegin,
+			responseChan: wait,
+		}
 
-	<-wait
+		<-wait
+	}
 	close(pstm.PstEvents)
 	close(pstm.PstLogEnableEvent)
 	close(pstm.PstKillSignalEvent)
@@ -426,24 +431,32 @@ func (pstm *PstMachine) NotifyForwardingChanged(oldforwarding bool, newforwardin
 func (pstm *PstMachine) disableLearning() {
 	p := pstm.p
 	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do disable learning")
-	asicdSetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_BLOCKING)
+	for _, client := range GetAsicDPluginList() {
+		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_BLOCKING)
+	}
 }
 
 func (pstm *PstMachine) disableForwarding() {
 	p := pstm.p
 	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do disable forwarding")
-	asicdSetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_BLOCKING)
+	for _, client := range GetAsicDPluginList() {
+		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_BLOCKING)
+	}
 }
 
 func (pstm *PstMachine) enableLearning() {
 	p := pstm.p
 	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable learning")
-	asicdSetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_LEARNING)
+	for _, client := range GetAsicDPluginList() {
+		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_LEARNING)
+	}
 }
 
 func (pstm *PstMachine) enableForwarding() {
 	p := pstm.p
 	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable forwarding")
-	asicdSetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_FORWARDING)
+	for _, client := range GetAsicDPluginList() {
+		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_FORWARDING)
+	}
 	p.ForwardingTransitions += 1
 }

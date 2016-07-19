@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // The Periodic Transmission Machine is described in the 802.1ax-2014 Section 6.4.13
 package lacp
@@ -96,8 +96,8 @@ func (ptxm *LacpPtxMachine) PrevState() fsm.State { return ptxm.PreviousState }
 func (ptxm *LacpPtxMachine) PrevStateSet(s fsm.State) { ptxm.PreviousState = s }
 
 func (ptxm *LacpPtxMachine) Stop() {
-	ptxm.PeriodicTimerStop()
 
+	ptxm.PeriodicTimerStop()
 	ptxm.PtxmKillSignalEvent <- true
 
 	close(ptxm.PtxmEvents)
@@ -286,7 +286,7 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 				}
 
 				if event.responseChan != nil {
-					SendResponse("Periodic TX Machine", event.responseChan)
+					SendResponse(PtxMachineModuleStr, event.responseChan)
 				}
 
 				if tmpLogEna == true {

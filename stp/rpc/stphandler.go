@@ -27,6 +27,7 @@ package rpc
 import (
 	"fmt"
 	stp "l2/stp/protocol"
+	"l2/stp/server"
 	"models/objects"
 	"reflect"
 	"stpd"
@@ -38,13 +39,16 @@ import (
 const DBName string = "UsrConfDb.db"
 
 type STPDServiceHandler struct {
+	server *server.STPServer
 }
 
-func NewSTPDServiceHandler() *STPDServiceHandler {
-	//lacp.LacpStartTime = time.Now()
-	// link up/down events for now
-	startEvtHandler()
-	return &STPDServiceHandler{}
+func NewSTPDServiceHandler(svr *server.STPServer) *STPDServiceHandler {
+	svchdl := &STPDServiceHandler{
+		server: svr,
+	}
+	// lets read the db and replay the data
+	svchdl.ReadConfigFromDB()
+	return svchdl
 }
 
 //
@@ -60,18 +64,20 @@ func ConvertThriftBrgConfigToStpBrgConfig(config *stpd.StpBridgeInstance, brgcon
 	brgconfig.TxHoldCount = int32(config.TxHoldCount)
 }
 
+// converts yang true(1)/false(2) to bool
 func ConvertInt32ToBool(val int32) bool {
-	if val == 0 {
+	if val == 2 {
 		return false
 	}
 	return true
 }
 
+// converts  bool to yang true(1)/false(2)
 func ConvertBoolToInt32(val bool) int32 {
 	if val {
-		return 1
+		return 2
 	}
-	return 0
+	return 1
 }
 
 func ConvertThriftPortConfigToStpPortConfig(config *stpd.StpPort, portconfig *stp.StpPortConfig) {
@@ -173,7 +179,11 @@ func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInsta
 
 	err := stp.StpBrgConfigParamCheck(brgconfig)
 	if err == nil {
-		stp.StpBridgeCreate(brgconfig)
+		cfg := server.STPConfig{
+			Msgtype: server.STPConfigMsgCreateBridge,
+			Msgdata: brgconfig,
+		}
+		s.server.ConfigCh <- cfg
 		return true, err
 	}
 	return false, err
@@ -251,34 +261,48 @@ func (s *STPDServiceHandler) DeleteStpBridgeInstance(config *stpd.StpBridgeInsta
 	stp.StpLogger("INFO", "DeleteStpBridgeInstance (server): deleted ")
 	brgconfig := &stp.StpBridgeConfig{}
 	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
-	err := stp.StpBridgeDelete(brgconfig)
-	if err == nil {
-		return true, err
+	cfg := server.STPConfig{
+		Msgtype: server.STPConfigMsgDeleteBridge,
+		Msgdata: brgconfig,
 	}
-	return false, err
+	s.server.ConfigCh <- cfg
+	return false, nil
 }
 
 func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op []*stpd.PatchOpInfo) (bool, error) {
 	var b *stp.Bridge
 	brgconfig := &stp.StpBridgeConfig{}
 	objTyp := reflect.TypeOf(*origconfig)
-	//objVal := reflect.ValueOf(origconfig)
-	//updateObjVal := reflect.ValueOf(*updateconfig)
 
 	key := stp.BridgeKey{
 		Vlan: uint16(origconfig.Vlan),
 	}
-	brgIfIndex := int32(0)
-	if stp.StpFindBridgeById(key, &b) {
-		brgIfIndex = b.BrgIfIndex
-	} else {
+	// see if the bridge instance exists
+	if !stp.StpFindBridgeById(key, &b) {
 		return false, errors.New("Unknown Bridge in update config")
 	}
 
+	// convert thrift struct to stp struct
 	ConvertThriftBrgConfigToStpBrgConfig(updateconfig, brgconfig)
+	// perform paramater checks to validate the config coming down
 	err := stp.StpBrgConfigParamCheck(brgconfig)
 	if err != nil {
 		return false, err
+	}
+
+	// config message data
+	cfg := server.STPConfig{
+		Msgdata: brgconfig,
+	}
+
+	// attribute that user is allowed to update
+	attrMap := map[string]server.STPConfigMsgType{
+		"MaxAge":       server.STPConfigMsgUpdateBridgeMaxAge,
+		"HelloTime":    server.STPConfigMsgUpdateBridgeHelloTime,
+		"ForwardDelay": server.STPConfigMsgUpdateBridgeForwardDelay,
+		"TxHoldCount":  server.STPConfigMsgUpdateBridgeTxHoldCount,
+		"Priority":     server.STPConfigMsgUpdateBridgePriority,
+		"ForceVersion": server.STPConfigMsgUpdateBridgeForceVersion,
 	}
 
 	// important to note that the attrset starts at index 0 which is the BaseObj
@@ -290,25 +314,11 @@ func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeI
 		if attrset[i] {
 			stp.StpLogger("INFO", fmt.Sprintf("UpdateStpBridgeInstance (server): changed ", objName))
 
-			if objName == "MaxAge" {
-				stp.StpBrgMaxAgeSet(brgIfIndex, uint16(updateconfig.MaxAge))
-			}
-			if objName == "HelloTime" {
-				stp.StpBrgHelloTimeSet(brgIfIndex, uint16(updateconfig.HelloTime))
-			}
-			if objName == "ForwardDelay" {
-				stp.StpBrgForwardDelaySet(brgIfIndex, uint16(updateconfig.ForwardDelay))
-			}
-			if objName == "TxHoldCount" {
-				stp.StpBrgTxHoldCountSet(brgIfIndex, uint16(updateconfig.TxHoldCount))
-			}
-			// causes re-selection
-			if objName == "Priority" {
-				stp.StpBrgPrioritySet(brgIfIndex, uint16(updateconfig.Priority))
-			}
-			// causes restart
-			if objName == "ForceVersion" {
-				stp.StpBrgForceVersion(brgIfIndex, updateconfig.ForceVersion)
+			if msgtype, ok := attrMap[objName]; ok {
+				// set message type
+				cfg.Msgtype = msgtype
+				// send config message to server
+				s.server.ConfigCh <- cfg
 			}
 		}
 	}
@@ -319,12 +329,14 @@ func (s *STPDServiceHandler) CreateStpPort(config *stpd.StpPort) (bool, error) {
 	stp.StpLogger("INFO", fmt.Sprintf("CreateStpPort (server): created %#v", config))
 	portconfig := &stp.StpPortConfig{}
 	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
-	err := stp.StpPortConfigParamCheck(portconfig)
+	err := stp.StpPortConfigParamCheck(portconfig, false)
 	if err == nil {
-		err = stp.StpPortCreate(portconfig)
-		if err == nil {
-			return true, err
+		cfg := server.STPConfig{
+			Msgtype: server.STPConfigMsgCreatePort,
+			Msgdata: portconfig,
 		}
+		s.server.ConfigCh <- cfg
+		return true, nil
 	}
 	return false, err
 }
@@ -334,11 +346,12 @@ func (s *STPDServiceHandler) DeleteStpPort(config *stpd.StpPort) (bool, error) {
 	portconfig := &stp.StpPortConfig{}
 	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
 
-	err := stp.StpPortDelete(portconfig)
-	if err == nil {
-		return true, err
+	cfg := server.STPConfig{
+		Msgtype: server.STPConfigMsgDeletePort,
+		Msgdata: portconfig,
 	}
-	return false, err
+	s.server.ConfigCh <- cfg
+	return true, nil
 }
 
 func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool, op []*stpd.PatchOpInfo) (bool, error) {
@@ -357,13 +370,30 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 	}
 
 	ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
-	err := stp.StpPortConfigParamCheck(portconfig)
+	err := stp.StpPortConfigParamCheck(portconfig, true)
 	if err != nil {
 		return false, err
 	}
 	err = stp.StpPortConfigSave(portconfig, true)
 	if err != nil {
 		return false, err
+	}
+
+	// config message data
+	cfg := server.STPConfig{
+		Msgdata: portconfig,
+	}
+
+	attrMap := map[string]server.STPConfigMsgType{
+		"Priority":          server.STPConfigMsgUpdatePortPriority,
+		"Enable":            server.STPConfigMsgUpdatePortEnable,
+		"PathCost":          server.STPConfigMsgUpdatePortPathCost,
+		"ProtocolMigration": server.STPConfigMsgUpdatePortProtocolMigration,
+		"AdminPointToPoint": server.STPConfigMsgUpdatePortAdminPointToPoint,
+		"AdminEdge":         server.STPConfigMsgUpdatePortAdminEdge,
+		"AdminPathCost":     server.STPConfigMsgUpdatePortAdminPathCost,
+		"BpduGuard":         server.STPConfigMsgUpdatePortBpduGuard,
+		"BridgeAssurance":   server.STPConfigMsgUpdatePortBridgeAssurance,
 	}
 
 	// important to note that the attrset starts at index 0 which is the BaseObj
@@ -375,39 +405,11 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 		if attrset[i] {
 			stp.StpLogger("INFO", fmt.Sprintf("StpPort (server): changed ", objName))
 
-			var err error
-			if objName == "Priority" {
-				err = stp.StpPortPrioritySet(ifIndex, brgIfIndex, uint16(updateconfig.Priority))
-			}
-			if objName == "Enable" {
-				err = stp.StpPortEnable(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.Enable))
-			}
-			if objName == "PathCost" {
-				err = stp.StpPortPortPathCostSet(ifIndex, brgIfIndex, uint32(updateconfig.PathCost))
-			}
-			if objName == "ProtocolMigration" {
-				err = stp.StpPortProtocolMigrationSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.ProtocolMigration))
-			}
-			if objName == "AdminPointToPoint" {
-				// TODO
-			}
-			if objName == "AdminEdgePort" {
-				err = stp.StpPortAdminEdgeSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.AdminEdgePort))
-			}
-			if objName == "AdminPathCost" {
-				// TODO
-			}
-			if objName == "BpduGuard" {
-				// TOOD
-				err = stp.StpPortBpduGuardSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.BpduGuard))
-			}
-			if objName == "BridgeAssurance" {
-				err = stp.StpPortBridgeAssuranceSet(ifIndex, brgIfIndex, ConvertInt32ToBool(updateconfig.BridgeAssurance))
-
-			}
-
-			if err != nil {
-				return false, err
+			if msgtype, ok := attrMap[objName]; ok {
+				// set message type
+				cfg.Msgtype = msgtype
+				// send config message to server
+				s.server.ConfigCh <- cfg
 			}
 		}
 	}

@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // timers
 package stp
@@ -109,17 +109,37 @@ func (p *StpPort) DecrementTimerCounters() {
 
 		if p.EdgeDelayWhileTimer.count == 0 {
 			defer p.NotifyEdgeDelayWhileTimerExpired()
+		} else {
+			if p.PrxmMachineFsm != nil &&
+				p.EdgeDelayWhileTimer.count != MigrateTimeDefault &&
+				!p.PortEnabled {
+				p.PrxmMachineFsm.PrxmEvents <- MachineEvent{
+					e:   PrxmEventEdgeDelayWhileNotEqualMigrateTimeAndNotPortEnabled,
+					src: PrtMachineModuleStr,
+				}
+			}
 		}
 	}
 	// Prt owner
 	if p.FdWhileTimer.count > 0 {
-		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort &&
-			uint16(p.FdWhileTimer.count) != p.b.BridgeTimes.MaxAge &&
-			p.Selected &&
-			!p.UpdtInfo {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo,
-				src: PrtMachineModuleStr,
+		if p.PrtMachineFsm != nil {
+
+			if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort &&
+				uint16(p.FdWhileTimer.count) != p.b.BridgeTimes.MaxAge &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort &&
+				uint16(p.FdWhileTimer.count) != p.b.BridgeTimes.ForwardingDelay &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventFdWhileNotEqualForwardDelayAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
 			}
 		}
 		p.FdWhileTimer.count--
@@ -136,6 +156,40 @@ func (p *StpPort) DecrementTimerCounters() {
 
 			if p.HelloWhenTimer.count == 0 {
 				defer p.NotifyHelloWhenTimerExpired()
+			} else {
+				if p.PtxmMachineFsm != nil &&
+					p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
+					if p.SendRSTP &&
+						p.NewInfo &&
+						(p.TxCount < p.b.TxHoldCount) &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+							e:   PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+							src: PtxmMachineModuleStr,
+						}
+					} else if !p.SendRSTP &&
+						p.NewInfo &&
+						p.Role == PortRoleRootPort &&
+						(p.TxCount < p.b.TxHoldCount) &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+							e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+							src: PtxmMachineModuleStr,
+						}
+					} else if !p.SendRSTP &&
+						p.NewInfo &&
+						p.Role == PortRoleDesignatedPort &&
+						(p.TxCount < p.b.TxHoldCount) &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+							e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+							src: PtxmMachineModuleStr,
+						}
+					}
+				}
 			}
 		} else {
 			p.HelloWhenTimer.count = int32(p.PortTimes.HelloTime)
@@ -154,7 +208,8 @@ func (p *StpPort) DecrementTimerCounters() {
 	// prt owner
 	if p.RbWhileTimer.count > 0 {
 		// this case should reset the rbwhiletimer
-		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort &&
+		if p.PrtMachineFsm != nil &&
+			p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort &&
 			p.Role == PortRoleBackupPort &&
 			p.Selected &&
 			!p.UpdtInfo {
@@ -180,7 +235,8 @@ func (p *StpPort) DecrementTimerCounters() {
 	// prt owner
 	if p.RrWhileTimer.count > 0 {
 		p.RrWhileTimer.count--
-		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+		if p.PrtMachineFsm != nil &&
+			p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
 
 			if p.RrWhileTimer.count != int32(p.b.RootTimes.ForwardingDelay) &&
 				p.Selected &&
@@ -197,6 +253,7 @@ func (p *StpPort) DecrementTimerCounters() {
 			//p.RrWhileTimer.count = int32(p.PortTimes.ForwardingDelay)
 		} else {
 			if p.RrWhileTimer.count != 0 &&
+				p.PrtMachineFsm != nil &&
 				p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
 				if p.ReRoot &&
 					!p.OperEdge &&
@@ -236,7 +293,8 @@ func (p *StpPort) DecrementTimerCounters() {
 	if p.BridgeAssurance &&
 		!p.OperEdge &&
 		p.PortEnabled &&
-		p.BAWhileTimer.count > 0 {
+		p.BAWhileTimer.count > 0 &&
+		p.RcvdBPDU {
 		p.BAWhileTimer.count--
 
 		if p.BAWhileTimer.count == 0 {
@@ -253,14 +311,17 @@ func (p *StpPort) DecrementTimerCounters() {
 		// condition has not been detected lets clear the
 		// Detection
 		if p.BPDUGuardTimer.count == 0 {
-			asicdBPDUGuardDetected(p.IfIndex, false)
+			for _, client := range GetAsicDPluginList() {
+				client.BPDUGuardDetected(p.IfIndex, false)
+			}
 		}
 	}
 }
 
 func (p *StpPort) NotifyEdgeDelayWhileTimerExpired() {
 
-	if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateNotEdge &&
+	if p.BdmMachineFsm != nil &&
+		p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateNotEdge &&
 		p.AutoEdgePort &&
 		p.SendRSTP &&
 		p.Proposing {
@@ -275,65 +336,67 @@ func (p *StpPort) NotifyEdgeDelayWhileTimerExpired() {
 func (p *StpPort) NotifyFdWhileTimerExpired() {
 	//StpMachineLogger("INFO", "TIMER", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("FdWhileTimerExpired: PrtState[%s] RstpVersion[%t] Learn[%t] Forward[%t] Sync[%t] reroot[%t] rrwhile[%d] selected[%t] updtInfo[%t]",
 	//	PrtStateStrMap[p.PrtMachineFsm.Machine.Curr.CurrentState()], p.RstpVersion, p.Learn, p.Forward, p.Sync, p.ReRoot, p.RrWhileTimer.count, p.Selected, p.UpdtInfo))
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-		// events from Figure 17-21
-		if p.RstpVersion &&
-			!p.Learn &&
-			p.Selected &&
-			!p.UpdtInfo {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo,
-				src: PtmMachineModuleStr,
+	if p.PrtMachineFsm != nil {
+		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+			// events from Figure 17-21
+			if p.RstpVersion &&
+				!p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo,
+					src: PtmMachineModuleStr,
+				}
+			} else if p.RstpVersion &&
+				p.Learn &&
+				!p.Forward {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+					src: PtmMachineModuleStr,
+				}
 			}
-		} else if p.RstpVersion &&
-			p.Learn &&
-			!p.Forward {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
-				src: PtmMachineModuleStr,
-			}
-		}
-	} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-		// events from Figure 17-22
-		if p.RrWhileTimer.count == 0 &&
-			!p.Sync &&
-			!p.Learn &&
-			p.Selected &&
-			!p.UpdtInfo {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
-				src: PrtMachineModuleStr,
-			}
+		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+			// events from Figure 17-22
+			if p.RrWhileTimer.count == 0 &&
+				!p.Sync &&
+				!p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
 
-		} else if !p.ReRoot &&
-			!p.Sync &&
-			!p.Learn &&
-			p.Selected &&
-			!p.UpdtInfo {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo,
-				src: PrtMachineModuleStr,
-			}
+			} else if !p.ReRoot &&
+				!p.Sync &&
+				!p.Learn &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
 
-		} else if p.RrWhileTimer.count == 0 &&
-			!p.Sync &&
-			p.Learn &&
-			!p.Forward &&
-			p.Selected &&
-			!p.UpdtInfo {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo,
-				src: PrtMachineModuleStr,
-			}
-		} else if !p.ReRoot &&
-			!p.Sync &&
-			p.Learn &&
-			!p.Forward &&
-			p.Selected &&
-			!p.UpdtInfo {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo,
-				src: PrtMachineModuleStr,
+			} else if p.RrWhileTimer.count == 0 &&
+				!p.Sync &&
+				p.Learn &&
+				!p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventFdWhileEqualZeroAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
+			} else if !p.ReRoot &&
+				!p.Sync &&
+				p.Learn &&
+				!p.Forward &&
+				p.Selected &&
+				!p.UpdtInfo {
+				p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					e:   PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo,
+					src: PrtMachineModuleStr,
+				}
 			}
 		}
 	}
@@ -341,7 +404,8 @@ func (p *StpPort) NotifyFdWhileTimerExpired() {
 
 func (p *StpPort) NotifyHelloWhenTimerExpired() {
 
-	if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
+	if p.PtxmMachineFsm != nil &&
+		p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
 		if p.Selected &&
 			!p.UpdtInfo {
 			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
@@ -354,7 +418,8 @@ func (p *StpPort) NotifyHelloWhenTimerExpired() {
 
 func (p *StpPort) NotifyMdelayWhileTimerExpired() {
 
-	if p.PpmmMachineFsm.Machine.Curr.CurrentState() == PpmmStateCheckingRSTP ||
+	if p.PpmmMachineFsm != nil &&
+		p.PpmmMachineFsm.Machine.Curr.CurrentState() == PpmmStateCheckingRSTP ||
 		p.PpmmMachineFsm.Machine.Curr.CurrentState() == PpmmStateSelectingSTP {
 		p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
 			e:   PpmmEventMdelayWhileEqualZero,
@@ -365,7 +430,8 @@ func (p *StpPort) NotifyMdelayWhileTimerExpired() {
 
 func (p *StpPort) NotifyRbWhileTimerExpired() {
 
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
 		if p.b.ReRooted(p) &&
 			p.RstpVersion &&
 			!p.Learn &&
@@ -390,7 +456,8 @@ func (p *StpPort) NotifyRbWhileTimerExpired() {
 }
 
 func (p *StpPort) NotifyRcvdInfoWhileTimerExpired() {
-	if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent {
+	if p.PimMachineFsm != nil &&
+		p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent {
 		if p.InfoIs == PortInfoStateReceived &&
 			!p.UpdtInfo &&
 			!p.RcvdMsg {
@@ -403,7 +470,8 @@ func (p *StpPort) NotifyRcvdInfoWhileTimerExpired() {
 }
 
 func (p *StpPort) NotifyRrWhileTimerExpired() {
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
 		if p.ReRoot &&
 			p.Selected &&
 			!p.UpdtInfo {

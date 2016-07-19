@@ -34,22 +34,14 @@ func StpLogger(t string, msg string) {
 
 	switch t {
 	case "INFO":
-		gLogger.Info(msg)
-	case "DEBUG":
-		gLogger.Debug(msg)
+		GetStpLogger().Info(msg)
 	case "ERROR":
-		gLogger.Err(msg)
-	case "WARNING":
-		gLogger.Warning(msg)
+		GetStpLogger().Err(msg)
 	}
 }
 
 func GetStpLogger() *logging.Writer {
 	return gLogger
-}
-
-func StpLoggerInfo(msg string) {
-	StpLogger("INFO", msg)
 }
 
 func StpMachineLogger(t string, m string, p int32, b int32, msg string) {

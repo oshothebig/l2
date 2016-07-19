@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // rx will take care of parsing a received frame from a linux socket
 // if checks pass then packet will be either passed rx machine or
@@ -42,14 +42,11 @@ func BpduRxMain(pId int32, bId int32, rxPktChan chan gopacket.Packet) {
 		rxMainPort := portId
 		rxMainBrg := bId
 		rxMainChan := rx
-		fmt.Println("RxMain START")
-		// TODO add logic to either wait on a socket or wait on a channel,
-		// maybe both?  Can spawn a seperate go thread to wait on a socket
-		// and send the packet to this thread
+		StpLogger("INFO", "RxMain START")
 		for {
 			select {
 			case packet, ok := <-rxMainChan:
-				//fmt.Println("RxMain: port", rxMainPort)
+				//fmt.Println("RxMain: port", rxMainPort, packet)
 
 				if ok {
 					if packet != nil {

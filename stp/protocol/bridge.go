@@ -13,21 +13,19 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // bridge.go
 package stp
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"sync"
 )
@@ -41,14 +39,6 @@ var StpBridgeMac [6]uint8
 type BridgeId [8]uint8
 type BridgeKey struct {
 	Vlan uint16
-}
-
-type cfgFileJson struct {
-	SwitchMac        string            `json:"SwitchMac"`
-	PluginList       []string          `json:"PluginList"`
-	IfNameMap        map[string]string `json:"IfNameMap"`
-	IfNamePrefix     map[string]string `json:"IfNamePrefix"`
-	SysRsvdVlanRange string            `json:"SysRsvdVlanRange"`
 }
 
 type Bridge struct {
@@ -87,6 +77,8 @@ type Bridge struct {
 
 	// a way to sync all machines
 	wg sync.WaitGroup
+
+	DebugLevel int
 }
 
 type PriorityVector struct {
@@ -104,23 +96,9 @@ type Times struct {
 	MessageAge      uint16
 }
 
-func SaveSwitchMac(asicdconffilename string) {
-	var cfgFile cfgFileJson
-
-	cfgFileData, err := ioutil.ReadFile(asicdconffilename)
-	if err != nil {
-		StpLogger("ERROR", "Error reading config file - asicd.conf. Using defaults (linux plugin only)")
-		return
-	}
-	err = json.Unmarshal(cfgFileData, &cfgFile)
-	if err != nil {
-		StpLogger("ERROR", "Error parsing config file, using defaults (linux plugin only)")
-		return
-	}
-
-	netAddr, _ := net.ParseMAC(cfgFile.SwitchMac)
+func SaveSwitchMac(switchMac string) {
+	netAddr, _ := net.ParseMAC(switchMac)
 	StpBridgeMac = [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
-
 }
 
 func NewStpBridge(c *StpBridgeConfig) *Bridge {
@@ -156,6 +134,7 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 			MessageAge: 0}, // this will be set once a port is set as root
 		TxHoldCount: uint64(c.TxHoldCount),
 		Vlan:        vlan,
+		DebugLevel:  c.DebugLevel,
 	}
 
 	key := BridgeKey{
@@ -178,7 +157,9 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 	}
 
 	// lets create the stg group
-	b.StgId = asicdCreateStgBridge([]uint16{b.Vlan})
+	for _, client := range GetAsicDPluginList() {
+		b.StgId = client.CreateStgBridge([]uint16{b.Vlan})
+	}
 	StpLogger("INFO", fmt.Sprintf("NEW BRIDGE: %#v\n", b))
 	return b
 }
@@ -196,7 +177,7 @@ func DelStpBridge(b *Bridge, force bool) {
 		}
 	} else {
 		if len(b.StpPorts) > 0 {
-			StpLoggerInfo("ERROR BRIDGE STILL HAS PORTS ASSOCIATED")
+			StpLogger("INFO", "ERROR BRIDGE STILL HAS PORTS ASSOCIATED")
 			return
 		}
 	}
@@ -213,7 +194,9 @@ func DelStpBridge(b *Bridge, force bool) {
 				BridgeListTable = nil
 			} else {
 				BridgeListTable = append(BridgeListTable[:i], BridgeListTable[i+1:]...)
-				asicdDeleteStgBridge(b.StgId, []uint16{b.Vlan})
+				for _, client := range GetAsicDPluginList() {
+					client.DeleteStgBridge(b.StgId, []uint16{b.Vlan})
+				}
 			}
 		}
 	}

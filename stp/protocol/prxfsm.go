@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // 17.23 Port Receive state machine
 package stp
@@ -135,13 +135,18 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (prxm *PrxmMachine) Stop() {
 
-	wait := make(chan string, 1)
-	// stop the go routine
-	prxm.PrxmKillSignalEvent <- MachineEvent{
-		e:            PrxmEventBegin,
-		responseChan: wait,
+	// special case found during unit testing that if
+	// we don't init the go routine then this event will hang
+	// will not happen under normal conditions
+	if prxm.Machine.Curr.CurrentState() != PrxmStateNone {
+		wait := make(chan string, 1)
+		// stop the go routine
+		prxm.PrxmKillSignalEvent <- MachineEvent{
+			e:            PrxmEventBegin,
+			responseChan: wait,
+		}
+		<-wait
 	}
-	<-wait
 
 	close(prxm.PrxmEvents)
 	close(prxm.PrxmRxBpduPkt)
@@ -185,6 +190,7 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 		p.OperEdge = false
 	}
 
+	// Not setting this as it will conflict with bridge assurance / BPDU Guard
 	//p.OperEdge = false
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
@@ -245,6 +251,7 @@ func (p *StpPort) PrxmMachineMain() {
 		for {
 			select {
 			case event := <-m.PrxmKillSignalEvent:
+
 				StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
 				if event.responseChan != nil {
 					SendResponse(PrxmMachineModuleStr, event.responseChan)
@@ -280,7 +287,9 @@ func (p *StpPort) PrxmMachineMain() {
 					p.AdminEdge {
 					if p.BPDUGuardTimer.count != 0 {
 						p.BPDUGuardTimer.count = p.BpduGuardInterval
-						asicdBPDUGuardDetected(p.IfIndex, true)
+						for _, client := range GetAsicDPluginList() {
+							client.BPDUGuardDetected(p.IfIndex, true)
+						}
 					} else {
 						p.BPDUGuardTimer.count = p.BpduGuardInterval
 					}
@@ -378,7 +387,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 	bpdumsg := data.(RxBpduPdu)
 	bpduLayer := bpdumsg.pdu
 	flags := uint8(0)
-	//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("UpdtBPDUVersion: pbduType %#v", bpduLayer))
+	StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("UpdtBPDUVersion: pbduType %#v", bpduLayer))
 	switch bpduLayer.(type) {
 	case *layers.RSTP:
 		// 17.21.22
@@ -430,6 +439,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		// the BPDUType, but for completness going to add the check anyways
 		pvst := bpduLayer.(*layers.PVST)
 		flags = uint8(pvst.Flags)
+		//fmt.Println("PVST: Protocol version, bpdu type", pvst.ProtocolVersionId, pvst.BPDUType)
 		if pvst.ProtocolVersionId == layers.RSTPProtocolVersion &&
 			pvst.BPDUType == layers.BPDUTypeRSTP {
 			// Inform the Port Protocol Migration STate machine

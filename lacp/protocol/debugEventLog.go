@@ -27,7 +27,6 @@ package lacp
 import (
 	//"fmt"
 	"strings"
-	"time"
 	"utils/logging"
 )
 
@@ -57,6 +56,10 @@ func GetLacpLogger() *logging.Writer {
 
 func (l *LacpDebug) Stop() {
 	close(l.LacpLogChan)
+	if gLogger != nil {
+		gLogger.Close()
+		gLogger = nil
+	}
 }
 
 func (p *LaAggPort) LacpDebugEventLogMain() {
@@ -100,47 +103,47 @@ func (a *LaAggregator) LacpDebugAggEventLogMain() {
 }
 
 func (a *LaAggregator) LacpAggLog(msg string) {
-	a.log <- strings.Join([]string{"AGG", time.Now().String(), msg}, ":")
+	a.log <- strings.Join([]string{"AGG", msg}, ":")
 }
 
 func (txm *LacpTxMachine) LacpTxmLog(msg string) {
 	if txm.Machine.Curr.IsLoggerEna() {
-		txm.log <- strings.Join([]string{"TXM", time.Now().String(), msg}, ":")
+		txm.log <- strings.Join([]string{"TXM", msg}, ":")
 	}
 }
 
 func (cdm *LacpCdMachine) LacpCdmLog(msg string) {
 	if cdm.Machine.Curr.IsLoggerEna() {
-		cdm.log <- strings.Join([]string{"CDM", time.Now().String(), msg}, ":")
+		cdm.log <- strings.Join([]string{"CDM", msg}, ":")
 	}
 }
 
 func (cdm *LacpPartnerCdMachine) LacpCdmLog(msg string) {
 	if cdm.Machine.Curr.IsLoggerEna() {
-		cdm.log <- strings.Join([]string{"PCDM", time.Now().String(), msg}, ":")
+		cdm.log <- strings.Join([]string{"PCDM", msg}, ":")
 	}
 }
 
 func (ptxm *LacpPtxMachine) LacpPtxmLog(msg string) {
 	if ptxm.Machine.Curr.IsLoggerEna() {
-		ptxm.log <- strings.Join([]string{"PTXM", time.Now().String(), msg}, ":")
+		ptxm.log <- strings.Join([]string{"PTXM", msg}, ":")
 	}
 }
 
 func (rxm *LacpRxMachine) LacpRxmLog(msg string) {
 	if rxm.Machine.Curr.IsLoggerEna() {
-		rxm.log <- strings.Join([]string{"RXM", time.Now().String(), msg}, ":")
+		rxm.log <- strings.Join([]string{"RXM", msg}, ":")
 	}
 }
 
 func (muxm *LacpMuxMachine) LacpMuxmLog(msg string) {
 	if muxm.Machine.Curr.IsLoggerEna() {
-		muxm.log <- strings.Join([]string{"MUXM", time.Now().String(), msg}, ":")
+		muxm.log <- strings.Join([]string{"MUXM", msg}, ":")
 	}
 }
 
 func (mr *LampMarkerResponderMachine) LampMarkerResponderLog(msg string) {
 	if mr.Machine.Curr.IsLoggerEna() {
-		mr.log <- strings.Join([]string{"MARKER RESPONDER", time.Now().String(), msg}, ":")
+		mr.log <- strings.Join([]string{"MARKER RESPONDER", msg}, ":")
 	}
 }

@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // 802.1D-2004 17.29 Port Role Selection State Machine
 //The Port Role Selection state machine shall implement the function specified by the state diagram in Figure
@@ -106,7 +106,7 @@ const (
 	PrtEventUnconditionallFallThrough // 2
 	// events taken from Figure 17.20 Disabled Port role transitions
 	PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo // 3
-	PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo                              //4
+	PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo                              // 4
 	PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo                                    // 5
 	PrtEventSyncAndSelectedAndNotUpdtInfo                                                     // 6 also applies to Alternate and Backup Port role
 	PrtEventReRootAndSelectedAndNotUpdtInfo                                                   // 7 also applies to Alternate and Backup Port role
@@ -226,14 +226,19 @@ func (prtm *PrtMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (prtm *PrtMachine) Stop() {
 
-	wait := make(chan string, 1)
-	// stop the go routine
-	prtm.PrtKillSignalEvent <- MachineEvent{
-		e:            PrtEventBegin,
-		responseChan: wait,
-	}
+	// special case found during unit testing that if
+	// we don't init the go routine then this event will hang
+	// will not happen under normal conditions
+	if prtm.Machine.Curr.CurrentState() != PrtStateNone {
+		wait := make(chan string, 1)
+		// stop the go routine
+		prtm.PrtKillSignalEvent <- MachineEvent{
+			e:            PrtEventBegin,
+			responseChan: wait,
+		}
 
-	<-wait
+		<-wait
+	}
 	close(prtm.PrtEvents)
 	close(prtm.PrtLogEnableEvent)
 	close(prtm.PrtKillSignalEvent)
@@ -853,33 +858,35 @@ func (prtm *PrtMachine) NotifyRoleChanged(oldrole PortRole, newrole PortRole) {
 	// 2) Topology Change
 	p := prtm.p
 	if oldrole != newrole {
-		if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning {
-			if p.Role != PortRoleRootPort &&
-				p.Role != PortRoleDesignatedPort &&
-				!p.Learn &&
-				p.Learning &&
-				!p.RcvdTc &&
-				!p.RcvdTcn &&
-				!p.RcvdTcAck &&
-				!p.TcProp {
-				p.TcMachineFsm.TcEvents <- MachineEvent{
-					e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
-					src: PrtMachineModuleStr,
+		if p.TcMachineFsm != nil {
+			if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning {
+				if p.Role != PortRoleRootPort &&
+					p.Role != PortRoleDesignatedPort &&
+					!p.Learn &&
+					p.Learning &&
+					!p.RcvdTc &&
+					!p.RcvdTcn &&
+					!p.RcvdTcAck &&
+					!p.TcProp {
+					p.TcMachineFsm.TcEvents <- MachineEvent{
+						e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
+						src: PrtMachineModuleStr,
+					}
+				} else if p.Role == PortRoleRootPort &&
+					p.Forward &&
+					!p.OperEdge {
+					p.TcMachineFsm.TcEvents <- MachineEvent{
+						e:   TcEventRoleEqualRootPortAndForwardAndNotOperEdge,
+						src: PrtMachineModuleStr,
+					}
 				}
-			} else if p.Role == PortRoleRootPort &&
-				p.Forward &&
-				!p.OperEdge {
-				p.TcMachineFsm.TcEvents <- MachineEvent{
-					e:   TcEventRoleEqualRootPortAndForwardAndNotOperEdge,
-					src: PrtMachineModuleStr,
-				}
-			}
-		} else if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive {
-			if p.Role != PortRoleRootPort &&
-				p.Role != PortRoleDesignatedPort {
-				p.TcMachineFsm.TcEvents <- MachineEvent{
-					e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPort,
-					src: PrtMachineModuleStr,
+			} else if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateActive {
+				if p.Role != PortRoleRootPort &&
+					p.Role != PortRoleDesignatedPort {
+					p.TcMachineFsm.TcEvents <- MachineEvent{
+						e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPort,
+						src: PrtMachineModuleStr,
+					}
 				}
 			}
 		}
@@ -890,37 +897,41 @@ func (prtm *PrtMachine) NotifyForwardChanged(oldforward bool, newforward bool) {
 	p := prtm.p
 	if oldforward != newforward {
 		// Pst
-		if p.PstMachineFsm.Machine.Curr.CurrentState() == PstStateLearning {
-			if p.Forward {
-				p.PstMachineFsm.PstEvents <- MachineEvent{
-					e:   PstEventForward,
-					src: PrtMachineModuleStr,
+		if p.PstMachineFsm != nil {
+			if p.PstMachineFsm.Machine.Curr.CurrentState() == PstStateLearning {
+				if p.Forward {
+					p.PstMachineFsm.PstEvents <- MachineEvent{
+						e:   PstEventForward,
+						src: PrtMachineModuleStr,
+					}
 				}
-			}
 
-		} else if p.PstMachineFsm.Machine.Curr.CurrentState() == PstStateForwarding {
-			if !p.Forward {
-				p.PstMachineFsm.PstEvents <- MachineEvent{
-					e:   PstEventNotForward,
-					src: PrtMachineModuleStr,
+			} else if p.PstMachineFsm.Machine.Curr.CurrentState() == PstStateForwarding {
+				if !p.Forward {
+					p.PstMachineFsm.PstEvents <- MachineEvent{
+						e:   PstEventNotForward,
+						src: PrtMachineModuleStr,
+					}
 				}
 			}
 		}
 		// Tc
-		if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning {
-			if p.Role == PortRoleRootPort &&
-				p.Forward &&
-				!p.OperEdge {
-				p.TcMachineFsm.TcEvents <- MachineEvent{
-					e:   TcEventRoleEqualRootPortAndForwardAndNotOperEdge,
-					src: PrtMachineModuleStr,
-				}
-			} else if p.Role == PortRoleDesignatedPort &&
-				p.Forward &&
-				!p.OperEdge {
-				p.TcMachineFsm.TcEvents <- MachineEvent{
-					e:   TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge,
-					src: PrtMachineModuleStr,
+		if p.TcMachineFsm != nil {
+			if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning {
+				if p.Role == PortRoleRootPort &&
+					p.Forward &&
+					!p.OperEdge {
+					p.TcMachineFsm.TcEvents <- MachineEvent{
+						e:   TcEventRoleEqualRootPortAndForwardAndNotOperEdge,
+						src: PrtMachineModuleStr,
+					}
+				} else if p.Role == PortRoleDesignatedPort &&
+					p.Forward &&
+					!p.OperEdge {
+					p.TcMachineFsm.TcEvents <- MachineEvent{
+						e:   TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge,
+						src: PrtMachineModuleStr,
+					}
 				}
 			}
 		}
@@ -931,43 +942,47 @@ func (prtm *PrtMachine) NotifyLearnChanged(oldlearn bool, newlearn bool) {
 	p := prtm.p
 	if oldlearn != newlearn {
 		// Pst
-		if p.PstMachineFsm.Machine.Curr.CurrentState() == PstStateDiscarding {
-			if p.Learn {
-				p.PstMachineFsm.PstEvents <- MachineEvent{
-					e:   PstEventLearn,
-					src: PrtMachineModuleStr,
+		if p.PstMachineFsm != nil {
+			if p.PstMachineFsm.Machine.Curr.CurrentState() == PstStateDiscarding {
+				if p.Learn {
+					p.PstMachineFsm.PstEvents <- MachineEvent{
+						e:   PstEventLearn,
+						src: PrtMachineModuleStr,
+					}
 				}
-			}
 
-		} else if p.PstMachineFsm.Machine.Curr.CurrentState() == PstStateLearning {
-			if !p.Learn {
-				p.PstMachineFsm.PstEvents <- MachineEvent{
-					e:   PstEventNotLearn,
-					src: PrtMachineModuleStr,
+			} else if p.PstMachineFsm.Machine.Curr.CurrentState() == PstStateLearning {
+				if !p.Learn {
+					p.PstMachineFsm.PstEvents <- MachineEvent{
+						e:   PstEventNotLearn,
+						src: PrtMachineModuleStr,
+					}
 				}
 			}
 		}
 		// Tc
-		if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning {
-			if p.Role != PortRoleRootPort &&
-				p.Role != PortRoleDesignatedPort &&
-				!p.Learn &&
-				!p.Learning &&
-				!p.RcvdTc &&
-				!p.RcvdTcn &&
-				!p.RcvdTcAck &&
-				!p.TcProp {
-				p.TcMachineFsm.TcEvents <- MachineEvent{
-					e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
-					src: PrtMachineModuleStr,
+		if p.TcMachineFsm != nil {
+			if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateLearning {
+				if p.Role != PortRoleRootPort &&
+					p.Role != PortRoleDesignatedPort &&
+					!p.Learn &&
+					!p.Learning &&
+					!p.RcvdTc &&
+					!p.RcvdTcn &&
+					!p.RcvdTcAck &&
+					!p.TcProp {
+					p.TcMachineFsm.TcEvents <- MachineEvent{
+						e:   TcEventRoleNotEqualRootPortAndRoleNotEqualDesignatedPortAndNotLearnAndNotLearningAndNotRcvdTcAndNotRcvdTcnAndNotRcvdTcAckAndNotTcProp,
+						src: PrtMachineModuleStr,
+					}
 				}
-			}
-		} else if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateInactive {
-			if p.Learn &&
-				!p.FdbFlush {
-				p.TcMachineFsm.TcEvents <- MachineEvent{
-					e:   TcEventLearnAndNotFdbFlush,
-					src: PrtMachineModuleStr,
+			} else if p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateInactive {
+				if p.Learn &&
+					!p.FdbFlush {
+					p.TcMachineFsm.TcEvents <- MachineEvent{
+						e:   TcEventLearnAndNotFdbFlush,
+						src: PrtMachineModuleStr,
+					}
 				}
 			}
 		}
@@ -977,16 +992,18 @@ func (prtm *PrtMachine) NotifyLearnChanged(oldlearn bool, newlearn bool) {
 func (prtm *PrtMachine) NotifyNewInfoChanged(oldnewinfo bool, newnewinfo bool) {
 	p := prtm.p
 	if oldnewinfo != newnewinfo {
-		if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
-			if p.SendRSTP &&
-				p.NewInfo &&
-				p.TxCount < p.b.TxHoldCount &&
-				p.HelloWhenTimer.count != 0 &&
-				p.Selected &&
-				!p.UpdtInfo {
-				rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo))
+		if p.PtxmMachineFsm != nil {
+			if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
+				if p.SendRSTP &&
+					p.NewInfo &&
+					p.TxCount < p.b.TxHoldCount &&
+					p.HelloWhenTimer.count != 0 &&
+					p.Selected &&
+					!p.UpdtInfo {
+					rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo, nil)
+					if rv != nil {
+						StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PtxmEventSendRSTPAndNewInfoAndTxCountLessThanTxHoldCoundAndHelloWhenNotEqualZeroAndSelectedAndNotUpdtInfo))
+					}
 				}
 			}
 		}
