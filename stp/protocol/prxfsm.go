@@ -190,6 +190,7 @@ func (prxm *PrxmMachine) PrxmMachineReceive(m fsm.Machine, data interface{}) fsm
 		p.OperEdge = false
 	}
 
+	// Not setting this as it will conflict with bridge assurance / BPDU Guard
 	//p.OperEdge = false
 	p.RcvdBPDU = false
 	p.EdgeDelayWhileTimer.count = MigrateTimeDefault
