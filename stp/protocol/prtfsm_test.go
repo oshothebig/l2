@@ -36,6 +36,7 @@ func UsedForTestOnlyPrtInitPortConfigTest() {
 			}
 		}
 	*/
+	UsedForTestOnlySetupAsicDPlugin()
 }
 
 func UsedForTestPrtBridgeAndPortSetup() *StpPort {
@@ -72,12 +73,13 @@ func UsedForTestPrtBridgeAndPortSetup() *StpPort {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	// add port to bridge list
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
+
 	StpPortConfigSave(stpconfig, false)
 
 	// lets only start the Port Information State Machine
 	p.PrtMachineMain()
-	// add port to bridge list
-	b.StpPorts = append(b.StpPorts, p.IfIndex)
 	// going just send event and not start main as we just did above
 	p.BEGIN(true)
 
@@ -216,13 +218,15 @@ func TestPrtFsmDisablePortInvalidEvents(t *testing.T) {
 		}
 	}
 
-	pconf := StpPortConfigGet(p.IfIndex)
-	pconf.BrgIfIndex = p.BrgIfIndex
-	p.b.PrsMachineFsm = nil
+	b := p.b
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+	DelStpPort(p)
+	DelStpBridge(b, true)
 
-	StpPortDelete(pconf)
-	bconf := StpBrgConfigGet(p.BrgIfIndex)
-	StpBridgeDelete(bconf)
 }
 
 func TestPrtFsmDisabledPortInvalidStates(t *testing.T) {
@@ -299,13 +303,14 @@ func TestPrtFsmDisabledPortInvalidStates(t *testing.T) {
 		}
 	}
 
-	pconf := StpPortConfigGet(p.IfIndex)
-	pconf.BrgIfIndex = p.BrgIfIndex
-	p.b.PrsMachineFsm = nil
-
-	StpPortDelete(pconf)
-	bconf := StpBrgConfigGet(p.BrgIfIndex)
-	StpBridgeDelete(bconf)
+	b := p.b
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+	DelStpPort(p)
+	DelStpBridge(b, true)
 }
 
 func TestPrtFsmDisablePortStates(t *testing.T) {
@@ -430,11 +435,16 @@ func TestPrtFsmDisablePortStates(t *testing.T) {
 
 	// reset state so that we can delete the resources
 	p.PstMachineFsm.Machine.Curr.SetState(PstStateNone)
-	pconf := StpPortConfigGet(p.IfIndex)
-	pconf.BrgIfIndex = p.BrgIfIndex
-	StpPortDelete(pconf)
-	bconf := StpBrgConfigGet(p.BrgIfIndex)
-	StpBridgeDelete(bconf)
+
+	b := p.b
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+	DelStpPort(p)
+	DelStpBridge(b, true)
+
 }
 
 type statevalidatefn func(p *StpPort) (rstr string, rv bool)
@@ -614,6 +624,17 @@ func TestRootPortValidateStateTransitions(t *testing.T) {
 			t.Error(rstr)
 		}
 	}
+
+	b := p.b
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
+	DelStpPort(p)
+	DelStpBridge(b, true)
+
 }
 
 func ValidateBlockPort(p *StpPort) (rstr string, rv bool) {
@@ -817,4 +838,14 @@ func TestAlternateBackupValidateStateTransitions(t *testing.T) {
 			t.Error(rstr)
 		}
 	}
+
+	b := p.b
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+	DelStpPort(p)
+	DelStpBridge(b, true)
+
 }

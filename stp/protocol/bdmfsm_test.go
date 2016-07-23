@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // bdm_test.go
 package stp
@@ -48,8 +48,9 @@ func UsedForTestOnlyBdmTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 
 	// create a port
 	p = NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
-	// lets only start the Port Information State Machine
+	// lets only start the BDM State Machine
 	p.BdmMachineMain()
 	PrsMachineFSMBuild(b)
 	b.PrsMachineFsm.Machine.ProcessEvent("TEST", PrsEventBegin, nil)
@@ -59,7 +60,6 @@ func UsedForTestOnlyBdmTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 	p.BEGIN(true)
 
 	// only instanciated object not starting go routine
-	PrsMachineFSMBuild(b)
 	PrxmMachineFSMBuild(p)
 	PtxmMachineFSMBuild(p)
 	PimMachineFSMBuild(p)
@@ -131,8 +131,12 @@ func UsedForTestOnlyBdmTestTeardown(p *StpPort, t *testing.T) {
 	p.PpmmMachineFsm = nil
 	p.b.PrsMachineFsm = nil
 	b := p.b
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
 	DelStpPort(p)
-
 	DelStpBridge(b, true)
 }
 

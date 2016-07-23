@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // ppm_test.go
 // This is a test file to test the port protocol migration state machine
@@ -61,6 +61,7 @@ func UsedForTestOnlyPpmmInitPortConfigTest() {
 			}
 		}
 	*/
+	UsedForTestOnlySetupAsicDPlugin()
 }
 
 func UsedForTestOnlyCheckPpmStateSensing(p *StpPort, t *testing.T, trace string) {
@@ -224,6 +225,8 @@ func TestPpmmBEGIN(t *testing.T) {
 	// create a port
 	p := NewStpPort(stpconfig)
 
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
+
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
 
@@ -237,6 +240,12 @@ func TestPpmmBEGIN(t *testing.T) {
 
 	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 
@@ -276,6 +285,7 @@ func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -321,8 +331,13 @@ func TestPpmCheckingRSTPInvalidStateTransitions(t *testing.T) {
 
 	p.PtxmMachineFsm = nil
 	p.b.PrsMachineFsm = nil
-	DelStpPort(p)
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
 
+	DelStpPort(p)
 	DelStpBridge(b, true)
 }
 
@@ -360,6 +375,7 @@ func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testin
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -393,6 +409,12 @@ func TestPpmCheckingRSTPMdelayWhileNotEqualMigrateTimeAndNotPortEnable(t *testin
 
 	p.PtxmMachineFsm = nil
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
@@ -515,6 +537,7 @@ func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -551,6 +574,12 @@ func TestPpmSelectingSTPInvalidStateTransitions(t *testing.T) {
 		}
 	}
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 
@@ -591,6 +620,7 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -629,6 +659,12 @@ func TestPpmSelectingSTPMdelayWhileNotEqualMigrateTime(t *testing.T) {
 		t.FailNow()
 	}
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
@@ -667,6 +703,7 @@ func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -694,6 +731,12 @@ func TestPpmSelectingSTPMdelayWhileEqualZero(t *testing.T) {
 
 	UsedForTestOnlyCheckPpmStateSensing(p, t, "1")
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
@@ -732,6 +775,7 @@ func TestPpmSelectingSTPMcheck(t *testing.T) {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -781,6 +825,12 @@ func TestPpmSelectingSTPMcheck(t *testing.T) {
 		t.FailNow()
 	}
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
@@ -819,6 +869,7 @@ func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -858,6 +909,12 @@ func TestPpmSelectingSTPNotPortEnabled(t *testing.T) {
 
 	UsedForTestOnlyCheckPpmCheckingRSTP(p, t, "1")
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
@@ -896,6 +953,7 @@ func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -934,6 +992,12 @@ func TestPpmSensingInvalidStateTransitions(t *testing.T) {
 	}
 	p.PtxmMachineFsm = nil
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
@@ -974,6 +1038,7 @@ func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -1052,6 +1117,12 @@ func TestPpmSensingDesignatedPortSendRSTPAndRcvdSTP(t *testing.T) {
 
 	p.PtxmMachineFsm = nil
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
@@ -1091,6 +1162,7 @@ func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -1169,6 +1241,12 @@ func TestPpmSensingRootPortSendRSTPAndRcvdSTP(t *testing.T) {
 
 	p.PtxmMachineFsm = nil
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
@@ -1209,6 +1287,7 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 
 	// create a port
 	p := NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PpmmMachineMain()
@@ -1243,6 +1322,11 @@ func TestPpmSensingNotPortEnabled(t *testing.T) {
 
 	p.PtxmMachineFsm = nil
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
 
 	DelStpPort(p)
 	DelStpBridge(b, true)
