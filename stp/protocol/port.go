@@ -25,12 +25,13 @@
 package stp
 
 import (
+	"asicd/asicdCommonDefs"
 	"asicd/pluginManager/pluginCommon"
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"github.com/vishvananda/netlink"
+	//"github.com/vishvananda/netlink"
 	"net"
 	"strings"
 	"sync"
@@ -174,7 +175,8 @@ type StpPort struct {
 	portChan chan string
 
 	// used to poll linux interface status.  Useful for SIM/TEST
-	PollingTimer *time.Timer
+	PollingRoutine bool
+	PollingTimer   *time.Timer
 }
 
 type PortTimer struct {
@@ -196,7 +198,6 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	*/
 	enabled := c.Enable
 	if enabled {
-		// TODO get the status from asicd
 		/*
 			netif, err := netlink.LinkByName(PortConfigMap[c.].Name)
 			StpLogger("INFO", fmt.Sprintf("LinkByName err %#v", err))
@@ -209,7 +210,16 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 				}
 			}
 		*/
-		enabled = asicdGetPortLinkStatus(c.IfIndex)
+		for i, client := range GetAsicDPluginList() {
+			if i == 0 {
+				enabled = client.GetPortLinkStatus(c.IfIndex)
+			} else {
+				tmpena := client.GetPortLinkStatus(c.IfIndex)
+				if tmpena != enabled {
+					StpLogger("ERROR", fmt.Sprintf("plugin link status do not match %t"))
+				}
+			}
+		}
 	} else {
 		// in the case of tests we may not find the actual link so lets force
 		// enabled to configured value
@@ -309,22 +319,29 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	p.handle = handle
 	StpLogger("INFO", fmt.Sprintf("NEW PORT: ifname %s %#v\n", ifName.Name, p))
 
-	if strings.Contains(ifName.Name, "eth") ||
-		strings.Contains(ifName.Name, "lo") {
-		p.PollLinuxLinkStatus()
-	}
-
+	/*
+		if strings.Contains(ifName.Name, "eth") ||
+			strings.Contains(ifName.Name, "lo") {
+			p.PollLinuxLinkStatus()
+		}
+	*/
 	return p
 
 }
 
+/* NOT NEEDED
 func (p *StpPort) PollLinuxLinkStatus() {
 
 	p.PollingTimer = time.NewTimer(time.Second * 1)
+	p.PollingRoutine = true
 
 	go func(p *StpPort) {
 		StpMachineLogger("INFO", "LINUX POLLING", p.IfIndex, p.BrgIfIndex, "Start")
 		for {
+			if !p.PollingRoutine {
+				fmt.Println("Stopping Link Polling Routine")
+				return
+			}
 			select {
 			case <-p.PollingTimer.C:
 				netif, _ := netlink.LinkByName(PortConfigMap[p.IfIndex].Name)
@@ -349,6 +366,7 @@ func (p *StpPort) PollLinuxLinkStatus() {
 		}
 	}(p)
 }
+*/
 func DelStpPort(p *StpPort) {
 	p.Stop()
 	key := PortMapKey{
@@ -386,6 +404,9 @@ func (p *StpPort) Stop() {
 
 	if p.PollingTimer != nil {
 		p.PollingTimer.Stop()
+		// used to stop the go routine
+		p.PollingRoutine = false
+		p.PollingTimer = nil
 	}
 
 	// close rx/tx processing
@@ -577,6 +598,7 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 				event[idx].responseChan = p.portChan
 			}
 			event[idx].src = PortConfigModuleStr
+			//fmt.Println("distribute events", machineEventChannel[idx], event[idx])
 			machineEventChannel[idx] <- event[idx]
 		}(p, waitForResponse, j, mec, e)
 	}
@@ -588,6 +610,7 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 			select {
 			case mStr := <-p.portChan:
 				i++
+				//fmt.Println("distribute events response received", mStr)
 				StpLogger("INFO", strings.Join([]string{"STPPORT:", mStr, "response received"}, " "))
 				//fmt.Println("LAPORT: Waiting for response Delayed", length, "curr", i, time.Now())
 				if i >= length {
@@ -670,9 +693,12 @@ ProtocolId        uint16
 
 func (p *StpPort) SaveMsgRcvInfo(data interface{}) {
 
-	switch data.(type) {
-	case layers.STP:
-		stp := data.(*layers.STP)
+	bpdumsg := data.(RxBpduPdu)
+	bpduLayer := bpdumsg.pdu
+
+	switch bpduLayer.(type) {
+	case *layers.STP:
+		stp := bpduLayer.(*layers.STP)
 		// TODO revisit what the BridgePortId should be
 		p.MsgPriority.BridgePortId = stp.PortId
 		p.MsgPriority.DesignatedBridgeId = stp.BridgeId
@@ -685,8 +711,8 @@ func (p *StpPort) SaveMsgRcvInfo(data interface{}) {
 		p.MsgTimes.MaxAge = stp.MaxAge >> 8
 		p.MsgTimes.MessageAge = stp.MsgAge >> 8
 
-	case layers.RSTP:
-		rstp := data.(*layers.RSTP)
+	case *layers.RSTP:
+		rstp := bpduLayer.(*layers.RSTP)
 		// TODO revisit what the BridgePortId should be
 		p.MsgPriority.BridgePortId = rstp.PortId
 		p.MsgPriority.DesignatedBridgeId = rstp.BridgeId
@@ -699,8 +725,8 @@ func (p *StpPort) SaveMsgRcvInfo(data interface{}) {
 		p.MsgTimes.MaxAge = rstp.MaxAge >> 8
 		p.MsgTimes.MessageAge = rstp.MsgAge >> 8
 
-	case layers.PVST:
-		pvst := data.(*layers.PVST)
+	case *layers.PVST:
+		pvst := bpduLayer.(*layers.PVST)
 		// TODO revisit what the BridgePortId should be
 		p.MsgPriority.BridgePortId = pvst.PortId
 		p.MsgPriority.DesignatedBridgeId = pvst.BridgeId
@@ -722,11 +748,6 @@ func (p *StpPort) BridgeProtocolVersionGet() uint8 {
 	return layers.RSTPProtocolVersion
 }
 
-func (p *StpPort) BridgeRootPortGet() int32 {
-	// TODO get the bridge RootPortId
-	return 10
-}
-
 func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenabled bool) {
 	// The following Machines need to know about
 	// changes in PortEnable State
@@ -741,42 +762,52 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 
 		// notify the state machines
 		if !newportenabled {
+
 			if p.EdgeDelayWhileTimer.count != MigrateTimeDefault {
-				mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
-				evt = append(evt, MachineEvent{e: PrxmEventEdgeDelayWhileNotEqualMigrateTimeAndNotPortEnabled,
-					src: src})
+				if p.PrxmMachineFsm != nil {
+					mEvtChan = append(mEvtChan, p.PrxmMachineFsm.PrxmEvents)
+					evt = append(evt, MachineEvent{e: PrxmEventEdgeDelayWhileNotEqualMigrateTimeAndNotPortEnabled,
+						src: src})
+				}
 			}
 
-			if p.PpmmMachineFsm.Machine.Curr.CurrentState() == PpmmStateCheckingRSTP {
-				if p.MdelayWhiletimer.count != MigrateTimeDefault {
+			if p.PpmmMachineFsm != nil {
+				if p.PpmmMachineFsm.Machine.Curr.CurrentState() == PpmmStateCheckingRSTP {
+					if p.MdelayWhiletimer.count != MigrateTimeDefault {
+						mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
+						evt = append(evt, MachineEvent{e: PpmmEventMdelayNotEqualMigrateTimeAndNotPortEnabled,
+							src: src})
+					}
+				} else {
 					mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
-					evt = append(evt, MachineEvent{e: PpmmEventMdelayNotEqualMigrateTimeAndNotPortEnabled,
-						src: src})
-				}
-			} else {
-				mEvtChan = append(mEvtChan, p.PpmmMachineFsm.PpmmEvents)
-				evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
-					src: src})
-			}
-			if !p.AdminEdge {
-				if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateEdge {
-					//BdEventNotPortEnabledAndNotAdminEdge
-					mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
-					evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndNotAdminEdge,
-						src: src})
-				}
-			} else {
-				if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateNotEdge {
-					//BdmEventNotPortEnabledAndAdminEdge
-					mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
-					evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndAdminEdge,
+					evt = append(evt, MachineEvent{e: PpmmEventNotPortEnabled,
 						src: src})
 				}
 			}
-			if p.InfoIs != PortInfoStateDisabled {
-				mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
-				evt = append(evt, MachineEvent{e: PimEventNotPortEnabledInfoIsNotEqualDisabled,
-					src: src})
+
+			if p.BdmMachineFsm != nil {
+				if !p.AdminEdge {
+					if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateEdge {
+						//BdEventNotPortEnabledAndNotAdminEdge
+						mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
+						evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndNotAdminEdge,
+							src: src})
+					}
+				} else {
+					if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateNotEdge {
+						//BdmEventNotPortEnabledAndAdminEdge
+						mEvtChan = append(mEvtChan, p.BdmMachineFsm.BdmEvents)
+						evt = append(evt, MachineEvent{e: BdmEventNotPortEnabledAndAdminEdge,
+							src: src})
+					}
+				}
+			}
+			if p.PimMachineFsm != nil {
+				if p.InfoIs != PortInfoStateDisabled {
+					mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
+					evt = append(evt, MachineEvent{e: PimEventNotPortEnabledInfoIsNotEqualDisabled,
+						src: src})
+				}
 			}
 
 		} else {
@@ -805,15 +836,16 @@ func (p *StpPort) NotifyPortEnabled(src string, oldportenabled bool, newportenab
 				}
 			*/
 
-			if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
-				mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
-				evt = append(evt, MachineEvent{e: PimEventPortEnabled,
-					src: src})
+			if p.PimMachineFsm != nil {
+				if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
+					mEvtChan = append(mEvtChan, p.PimMachineFsm.PimEvents)
+					evt = append(evt, MachineEvent{e: PimEventPortEnabled,
+						src: src})
+				}
 			}
 		}
 		if len(mEvtChan) > 0 {
-			// distribute the events
-			p.DistributeMachineEvents(mEvtChan, evt, false)
+			p.DistributeMachineEvents(mEvtChan, evt, true)
 		}
 	}
 }
@@ -823,6 +855,7 @@ func (p *StpPort) NotifyRcvdMsgChanged(src string, oldrcvdmsg bool, newrcvdmsg b
 	// changed in rcvdMsg state
 	// 1) Port Receive
 	// 2) Port Information
+	//fmt.Println("NotifyRcvdMsgChanged old/new", oldrcvdmsg, newrcvdmsg, p.RcvdMsg, p.PimMachineFsm.Machine.Curr.CurrentState())
 	if oldrcvdmsg != newrcvdmsg {
 		/*
 			NOT a valid transition RcvdMsg is only PRX -> PIM
@@ -842,30 +875,32 @@ func (p *StpPort) NotifyRcvdMsgChanged(src string, oldrcvdmsg bool, newrcvdmsg b
 			bpdumsg := data.(RxBpduPdu)
 			bpduLayer := bpdumsg.pdu
 
-			if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
-				if p.RcvdMsg {
-					p.PimMachineFsm.PimEvents <- MachineEvent{
-						e:    PimEventRcvdMsg,
-						src:  src,
-						data: bpduLayer,
+			if p.PimMachineFsm != nil {
+				if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateDisabled {
+					if p.RcvdMsg {
+						p.PimMachineFsm.PimEvents <- MachineEvent{
+							e:    PimEventRcvdMsg,
+							src:  src,
+							data: bpduLayer,
+						}
 					}
-				}
-			} else if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent {
-				if p.RcvdMsg &&
-					!p.UpdtInfo {
-					p.PimMachineFsm.PimEvents <- MachineEvent{
-						e:    PimEventRcvdMsgAndNotUpdtInfo,
-						src:  src,
-						data: bpduLayer,
-					}
-				} else if p.InfoIs == PortInfoStateReceived &&
-					p.RcvdInfoWhiletimer.count == 0 &&
-					!p.UpdtInfo &&
-					!p.RcvdMsg {
-					p.PimMachineFsm.PimEvents <- MachineEvent{
-						e:    PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg,
-						src:  src,
-						data: bpduLayer,
+				} else if p.PimMachineFsm.Machine.Curr.CurrentState() == PimStateCurrent {
+					if p.RcvdMsg &&
+						!p.UpdtInfo {
+						p.PimMachineFsm.PimEvents <- MachineEvent{
+							e:    PimEventRcvdMsgAndNotUpdtInfo,
+							src:  src,
+							data: bpduLayer,
+						}
+					} else if p.InfoIs == PortInfoStateReceived &&
+						p.RcvdInfoWhiletimer.count == 0 &&
+						!p.UpdtInfo &&
+						!p.RcvdMsg {
+						p.PimMachineFsm.PimEvents <- MachineEvent{
+							e:    PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg,
+							src:  src,
+							data: bpduLayer,
+						}
 					}
 				}
 			}
@@ -1354,95 +1389,97 @@ func (p *StpPort) NotifySyncedChanged(src string, oldsynced bool, newsynced bool
 
 	if oldsynced != newsynced {
 		if src != PrtMachineModuleStr {
-			if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
-				if !p.Synced &&
-					p.Selected &&
-					!p.UpdtInfo {
-					p.PrtMachineFsm.PrtEvents <- MachineEvent{
-						e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
-						src: src,
+			if p.PrtMachineFsm != nil {
+				if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
+					if !p.Synced &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
 					}
-				}
-			} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-				if p.b.AllSynced() &&
-					!p.Agree &&
-					p.Selected &&
-					!p.UpdtInfo {
-					p.PrtMachineFsm.PrtEvents <- MachineEvent{
-						e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
-						src: src,
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+					if p.b.AllSynced() &&
+						!p.Agree &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
 					}
-				}
-			} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-				if !p.Learning &&
-					!p.Forwarding &&
-					!p.Synced &&
-					p.Selected &&
-					!p.UpdtInfo {
-					p.PrtMachineFsm.PrtEvents <- MachineEvent{
-						e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
-						src: src,
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+					if !p.Learning &&
+						!p.Forwarding &&
+						!p.Synced &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotLearningAndNotForwardingAndNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Agreed &&
+						!p.Synced &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.OperEdge &&
+						!p.Synced &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync &&
+						p.Synced &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync &&
+						!p.Synced &&
+						!p.OperEdge &&
+						p.Learn &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if p.Sync &&
+						!p.Synced &&
+						!p.OperEdge &&
+						p.Forward &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
 					}
-				} else if p.Agreed &&
-					!p.Synced &&
-					p.Selected &&
-					!p.UpdtInfo {
-					p.PrtMachineFsm.PrtEvents <- MachineEvent{
-						e:   PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
-						src: src,
-					}
-				} else if p.OperEdge &&
-					!p.Synced &&
-					p.Selected &&
-					!p.UpdtInfo {
-					p.PrtMachineFsm.PrtEvents <- MachineEvent{
-						e:   PrtEventOperEdgeAndNotSyncedAndSelectedAndNotUpdtInfo,
-						src: src,
-					}
-				} else if p.Sync &&
-					p.Synced &&
-					p.Selected &&
-					!p.UpdtInfo {
-					p.PrtMachineFsm.PrtEvents <- MachineEvent{
-						e:   PrtEventSyncAndSyncedAndSelectedAndNotUpdtInfo,
-						src: src,
-					}
-				} else if p.Sync &&
-					!p.Synced &&
-					!p.OperEdge &&
-					p.Learn &&
-					p.Selected &&
-					!p.UpdtInfo {
-					p.PrtMachineFsm.PrtEvents <- MachineEvent{
-						e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
-						src: src,
-					}
-				} else if p.Sync &&
-					!p.Synced &&
-					!p.OperEdge &&
-					p.Forward &&
-					p.Selected &&
-					!p.UpdtInfo {
-					p.PrtMachineFsm.PrtEvents <- MachineEvent{
-						e:   PrtEventSyncAndNotSyncedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
-						src: src,
-					}
-				}
-			} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
-				if p.b.AllSynced() &&
-					!p.Agree &&
-					p.Selected &&
-					!p.UpdtInfo {
-					p.PrtMachineFsm.PrtEvents <- MachineEvent{
-						e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
-						src: src,
-					}
-				} else if !p.Synced &&
-					p.Selected &&
-					!p.UpdtInfo {
-					p.PrtMachineFsm.PrtEvents <- MachineEvent{
-						e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
-						src: src,
+				} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
+					if p.b.AllSynced() &&
+						!p.Agree &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
+					} else if !p.Synced &&
+						p.Selected &&
+						!p.UpdtInfo {
+						p.PrtMachineFsm.PrtEvents <- MachineEvent{
+							e:   PrtEventNotSyncedAndSelectedAndNotUpdtInfo,
+							src: src,
+						}
 					}
 				}
 			}
@@ -1476,8 +1513,8 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 	// 2) Port Role Transitions
 	// 3) Port Transmit
 	if oldselected != newselected {
-		//StpMachineLogger("INFO", src, p.IfIndex, fmt.Sprintf("NotifySelectedChanged Role[%d] SelectedRole[%d] Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
-		//	p.Role, p.SelectedRole, p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
+		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedChanged Role[%d] SelectedRole[%d] Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+			p.Role, p.SelectedRole, p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 
 		// PI
 		if p.Selected {
@@ -1520,7 +1557,8 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 
 				}
 			*/
-			if src == PrsMachineModuleStr && p.PrtMachineFsm != nil {
+			if src == PrsMachineModuleStr &&
+				p.PrtMachineFsm != nil {
 				if !p.UpdtInfo {
 					// PRSM -> PRTM
 					if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisablePort &&
@@ -1587,12 +1625,6 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 								e:   PrtEventNotForwardAndNotReRootAndSelectedAndNotUpdtInfo,
 								src: src,
 							}
-						} else if p.SelectedRole == PortRoleRootPort &&
-							p.Role != p.SelectedRole {
-							p.PrtMachineFsm.PrtEvents <- MachineEvent{
-								e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-								src: src,
-							}
 						} else if p.RrWhileTimer.count != int32(p.PortTimes.ForwardingDelay) {
 							p.PrtMachineFsm.PrtEvents <- MachineEvent{
 								e:   PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo,
@@ -1634,14 +1666,6 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 							!p.Forward {
 							p.PrtMachineFsm.PrtEvents <- MachineEvent{
 								e:   PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
-								src: src,
-							}
-						}
-					} else {
-						if p.SelectedRole == PortRoleRootPort &&
-							p.Role != p.SelectedRole {
-							p.PrtMachineFsm.PrtEvents <- MachineEvent{
-								e:   PrtEventSelectedRoleEqualRootPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
 								src: src,
 							}
 						}
@@ -1836,15 +1860,8 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 								src: src,
 							}
 						}
-					} else {
-						if p.SelectedRole == PortRoleDesignatedPort &&
-							p.Role != p.SelectedRole {
-							p.PrtMachineFsm.PrtEvents <- MachineEvent{
-								e:   PrtEventSelectedRoleEqualDesignatedPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-								src: src,
-							}
-						}
 					}
+
 					if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
 						if p.Proposed &&
 							!p.Agree {
@@ -1891,34 +1908,13 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 								src: src,
 							}
 						}
-					} else {
-						if p.SelectedRole == PortRoleAlternatePort &&
-							p.Role != p.SelectedRole {
-							p.PrtMachineFsm.PrtEvents <- MachineEvent{
-								e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-								src: src,
-							}
-						}
 					}
+
 					if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateBlockPort {
 						if !p.Learning &&
 							!p.Forwarding {
 							p.PrtMachineFsm.PrtEvents <- MachineEvent{
 								e:   PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo,
-								src: src,
-							}
-						}
-					} else {
-						if p.SelectedRole == PortRoleBackupPort &&
-							p.Role != p.SelectedRole {
-							p.PrtMachineFsm.PrtEvents <- MachineEvent{
-								e:   PrtEventSelectedRoleEqualBackupPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
-								src: src,
-							}
-						} else if p.SelectedRole == PortRoleAlternatePort &&
-							p.Role != p.SelectedRole {
-							p.PrtMachineFsm.PrtEvents <- MachineEvent{
-								e:   PrtEventSelectedRoleEqualAlternateAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo,
 								src: src,
 							}
 						}
@@ -2126,7 +2122,8 @@ func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole
 
 func (p *StpPort) NotifyProposingChanged(src string, oldproposing bool, newproposing bool) {
 	if oldproposing != newproposing {
-		if src != BdmMachineModuleStr && p.BdmMachineFsm != nil {
+		if src != BdmMachineModuleStr &&
+			p.BdmMachineFsm != nil {
 			if p.BdmMachineFsm.Machine.Curr.CurrentState() == BdmStateNotEdge {
 				if p.EdgeDelayWhileTimer.count == 0 &&
 					p.AutoEdgePort &&
@@ -2226,4 +2223,43 @@ func (p *StpPort) IsAdminEdgePort() bool {
 		}
 	}
 	return false
+}
+
+func ConstructPortConfigMap() {
+	currMarker := int(asicdCommonDefs.MIN_SYS_PORTS)
+	count := 100
+	for _, client := range GetAsicDPluginList() {
+		StpLogger("INFO", "Calling asicd for port config")
+		for {
+			bulkInfo, err := client.GetBulkPortState(currMarker, count)
+			if err != nil {
+				StpLogger("ERROR", fmt.Sprintf("GetBulkPortState Error: %s", err))
+				return
+			}
+			StpLogger("INFO", fmt.Sprintf("Length of GetBulkPortState: %d", bulkInfo.Count))
+
+			bulkCfgInfo, err := client.GetBulkPort(currMarker, count)
+			if err != nil {
+				StpLogger("ERROR", fmt.Sprintf("Error: %s", err))
+				return
+			}
+
+			StpLogger("INFO", fmt.Sprintf("Length of GetBulkPortConfig: %d", bulkCfgInfo.Count))
+			objCount := int(bulkInfo.Count)
+			more := bool(bulkInfo.More)
+			currMarker = int(bulkInfo.EndIdx)
+			for i := 0; i < objCount; i++ {
+				ifindex := bulkInfo.PortStateList[i].IfIndex
+				ent := PortConfigMap[ifindex]
+				ent.IfIndex = ifindex
+				ent.Name = bulkInfo.PortStateList[i].Name
+				ent.HardwareAddr, _ = net.ParseMAC(bulkCfgInfo.PortList[i].MacAddr)
+				PortConfigMap[ifindex] = ent
+				StpLogger("INIT", fmt.Sprintf("Found Port IfIndex %d Name %s\n", ent.IfIndex, ent.Name))
+			}
+			if more == false {
+				return
+			}
+		}
+	}
 }
