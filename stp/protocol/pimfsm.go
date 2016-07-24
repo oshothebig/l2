@@ -672,69 +672,103 @@ func (pim *PimMachine) ProcessPostStateProcessing(data interface{}) {
 func (pim *PimMachine) NotifyAgreedChanged(oldagreed bool, newagreed bool) {
 	p := pim.p
 	if oldagreed != newagreed {
-		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-			if !p.Forward &&
-				!p.Agreed &&
-				!p.Proposing &&
-				!p.OperEdge &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				!p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				p.RrWhileTimer.count == 0 &&
-				!p.Sync &&
-				!p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				!p.ReRoot &&
-				!p.Sync &&
-				!p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				p.RrWhileTimer.count == 0 &&
-				!p.Sync &&
-				p.Learn &&
-				!p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				!p.ReRoot &&
-				!p.Sync &&
-				p.Learn &&
-				!p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
+		mEvtChan := make([]chan MachineEvent, 0)
+		evt := make([]MachineEvent, 0)
+		if p.PrtMachineFsm != nil {
+
+			if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+				if !p.Forward &&
+					!p.Agreed &&
+					!p.Proposing &&
+					!p.OperEdge &&
+					p.Selected &&
+					!p.UpdtInfo {
+
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Agreed &&
+					!p.Synced &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Agreed &&
+					p.RrWhileTimer.count == 0 &&
+					!p.Sync &&
+					!p.Learn &&
+					p.Selected &&
+					!p.UpdtInfo {
+
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Agreed &&
+					!p.ReRoot &&
+					!p.Sync &&
+					!p.Learn &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Agreed &&
+					p.RrWhileTimer.count == 0 &&
+					!p.Sync &&
+					p.Learn &&
+					!p.Forward &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Agreed &&
+					!p.ReRoot &&
+					!p.Sync &&
+					p.Learn &&
+					!p.Forward &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAgreedAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAgreedAndNotReRootAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
 				}
 			}
+		}
 
+		if len(evt) > 0 {
+			p.DistributeMachineEvents(mEvtChan, evt, false)
 		}
 	}
 }
@@ -743,174 +777,268 @@ func (pim *PimMachine) NotifyAgreedChanged(oldagreed bool, newagreed bool) {
 func (pim *PimMachine) NotifyAgreeChanged(oldagree bool, newagree bool) {
 	p := pim.p
 	if oldagree != newagree {
-		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-			if p.Proposed &&
-				!p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
+		mEvtChan := make([]chan MachineEvent, 0)
+		evt := make([]MachineEvent, 0)
+
+		if p.PrtMachineFsm != nil {
+
+			if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+				if p.Proposed &&
+					!p.Agree &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.b.AllSynced() &&
+					!p.Agree &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Proposed &&
+					p.Agree &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
 				}
-			} else if p.b.AllSynced() &&
-				!p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
+			} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+				if !p.Forward &&
+					!p.Agreed &&
+					!p.Proposing &&
+					!p.OperEdge &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Agreed &&
+					!p.Synced &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Agreed &&
+					p.RrWhileTimer.count == 0 &&
+					!p.Sync &&
+					!p.Learn &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Agreed &&
+					!p.ReRoot &&
+					!p.Sync &&
+					!p.Learn &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Agreed &&
+					p.RrWhileTimer.count == 0 &&
+					!p.Sync &&
+					p.Learn &&
+					!p.Forward &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Agreed &&
+					!p.ReRoot &&
+					!p.Sync &&
+					!p.Learn &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
 				}
-			} else if p.Proposed &&
-				p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
-		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-			if !p.Forward &&
-				!p.Agreed &&
-				!p.Proposing &&
-				!p.OperEdge &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventNotForwardAndNotAgreedAndNotProposingAndNotOperEdgeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				!p.Synced &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndNotSyncedAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				p.RrWhileTimer.count == 0 &&
-				!p.Sync &&
-				!p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				!p.ReRoot &&
-				!p.Sync &&
-				!p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				p.RrWhileTimer.count == 0 &&
-				!p.Sync &&
-				p.Learn &&
-				!p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Agreed &&
-				!p.ReRoot &&
-				!p.Sync &&
-				!p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAgreedAndNotReRootAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
-		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
-			if p.Proposed &&
-				!p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.b.AllSynced() &&
-				!p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Proposed &&
-				p.Agree &&
-				p.Proposed &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
+			} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
+				if p.Proposed &&
+					!p.Agree &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.b.AllSynced() &&
+					!p.Agree &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Proposed &&
+					p.Agree &&
+					p.Proposed &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
 				}
 			}
 		}
+		if len(evt) > 0 {
+			p.DistributeMachineEvents(mEvtChan, evt, false)
+		}
+
 	}
 }
 
 func (pim *PimMachine) NotifyProposedChanged(oldproposed bool, newproposed bool) {
 	p := pim.p
 	if oldproposed != newproposed {
-		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-			if p.Proposed &&
-				p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
+		mEvtChan := make([]chan MachineEvent, 0)
+		evt := make([]MachineEvent, 0)
+
+		if p.PrtMachineFsm != nil {
+			if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+				if p.Proposed &&
+					p.Agree &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Proposed &&
+					!p.Agree &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
 				}
-			} else if p.Proposed &&
-				!p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
+			} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
+				if p.Proposed &&
+					!p.Agree &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Proposed &&
+					p.Agree &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
 				}
 			}
-		} else if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
-			if p.Proposed &&
-				!p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Proposed &&
-				p.Agree &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			}
+		}
+		if len(evt) > 0 {
+			p.DistributeMachineEvents(mEvtChan, evt, false)
 		}
 	}
 }
 
 func (pim *PimMachine) NotifyReselectChanged(oldreselect bool, newreselect bool) {
+	mEvtChan := make([]chan MachineEvent, 0)
+	evt := make([]MachineEvent, 0)
+
 	p := pim.p
 	if newreselect {
-		if p.b.PrsMachineFsm.Machine.Curr.CurrentState() == PrsStateRoleSelection {
-			p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
-				e:   PrsEventReselect,
-				src: PimMachineModuleStr,
+		if p.b.PrsMachineFsm != nil {
+			if p.b.PrsMachineFsm.Machine.Curr.CurrentState() == PrsStateRoleSelection {
+				mEvtChan = append(mEvtChan, p.b.PrsMachineFsm.PrsEvents)
+				evt = append(evt, MachineEvent{e: PrsEventReselect,
+					src: PimMachineModuleStr})
+
+				//p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
+				//	e:   PrsEventReselect,
+				//	src: PimMachineModuleStr,
+				//}
 			}
+		}
+		if len(evt) > 0 {
+			p.DistributeMachineEvents(mEvtChan, evt, false)
 		}
 	}
 }
@@ -918,29 +1046,45 @@ func (pim *PimMachine) NotifyReselectChanged(oldreselect bool, newreselect bool)
 func (pim *PimMachine) NotifyNewInfoChange(oldnewinfo bool, newnewinfo bool) {
 	p := pim.p
 	if oldnewinfo != newnewinfo {
-		if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
-			if !p.SendRSTP &&
-				p.NewInfo &&
-				p.Role == PortRoleDesignatedPort &&
-				p.TxCount < p.b.TxHoldCount &&
-				p.HelloWhenTimer.count != 0 &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
-					e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if !p.SendRSTP &&
-				p.NewInfo &&
-				p.Role == PortRoleRootPort &&
-				p.HelloWhenTimer.count != 0 &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
-					e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
+		mEvtChan := make([]chan MachineEvent, 0)
+		evt := make([]MachineEvent, 0)
+
+		if p.PtxmMachineFsm != nil {
+			if p.PtxmMachineFsm.Machine.Curr.CurrentState() == PtxmStateIdle {
+				if !p.SendRSTP &&
+					p.NewInfo &&
+					p.Role == PortRoleDesignatedPort &&
+					p.TxCount < p.b.TxHoldCount &&
+					p.HelloWhenTimer.count != 0 &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PtxmMachineFsm.PtxmEvents)
+					evt = append(evt, MachineEvent{e: PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+					//	e:   PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if !p.SendRSTP &&
+					p.NewInfo &&
+					p.Role == PortRoleRootPort &&
+					p.HelloWhenTimer.count != 0 &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PtxmMachineFsm.PtxmEvents)
+					evt = append(evt, MachineEvent{e: PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
+					//	e:   PtxmEventNotSendRSTPAndNewInfoAndRootPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
 				}
 			}
+		}
+		if len(evt) > 0 {
+			p.DistributeMachineEvents(mEvtChan, evt, false)
 		}
 	}
 }
@@ -948,26 +1092,41 @@ func (pim *PimMachine) NotifyNewInfoChange(oldnewinfo bool, newnewinfo bool) {
 func (pim *PimMachine) NotifyDisputedChanged(olddisputed bool, newdisputed bool) {
 	p := pim.p
 	if olddisputed != newdisputed {
-		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-			if p.Disputed &&
-				!p.OperEdge &&
-				p.Learn &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
-					src: PimMachineModuleStr,
-				}
-			} else if p.Disputed &&
-				!p.OperEdge &&
-				p.Forward &&
-				p.Selected &&
-				!p.UpdtInfo {
-				p.PrtMachineFsm.PrtEvents <- MachineEvent{
-					e:   PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
-					src: PrsMachineModuleStr,
+		mEvtChan := make([]chan MachineEvent, 0)
+		evt := make([]MachineEvent, 0)
+		if p.PrtMachineFsm != nil {
+			if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+				if p.Disputed &&
+					!p.OperEdge &&
+					p.Learn &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventDisputedAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo,
+					//	src: PimMachineModuleStr,
+					//}
+				} else if p.Disputed &&
+					!p.OperEdge &&
+					p.Forward &&
+					p.Selected &&
+					!p.UpdtInfo {
+					mEvtChan = append(mEvtChan, p.PrtMachineFsm.PrtEvents)
+					evt = append(evt, MachineEvent{e: PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+						src: PimMachineModuleStr})
+
+					//p.PrtMachineFsm.PrtEvents <- MachineEvent{
+					//	e:   PrtEventDisputedAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo,
+					//	src: PrsMachineModuleStr,
+					//}
 				}
 			}
+		}
+		if len(evt) > 0 {
+			p.DistributeMachineEvents(mEvtChan, evt, false)
 		}
 	}
 }

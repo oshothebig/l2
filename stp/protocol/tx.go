@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // tx.go
 package stp
@@ -49,7 +49,7 @@ func ConvertRoleToPktRole(r PortRole) (rv uint8) {
 	default:
 		rv = layers.RoleMasterPort
 	}
-	return
+	return rv
 }
 
 func (p *StpPort) BuildRSTPEthernetLlcHeaders() (eth layers.Ethernet, llc layers.LLC) {
@@ -136,6 +136,7 @@ func (p *StpPort) TxPVST() {
 
 	pvst.Flags = layers.StpFlags(flags)
 
+	/* NOT VALID within PVST STP frames should have been detected outside of this logic
 	if !p.SendRSTP {
 		pvst.ProtocolId = layers.RSTPProtocolIdentifier
 		pvst.ProtocolVersionId = layers.STPProtocolVersion
@@ -151,8 +152,8 @@ func (p *StpPort) TxPVST() {
 			&flags)
 
 		pvst.Flags = layers.StpFlags(flags)
-
 	}
+	*/
 
 	// Set up buffer and options for serialization.
 	buf := gopacket.NewSerializeBuffer()
