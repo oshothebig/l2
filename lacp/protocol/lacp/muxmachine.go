@@ -28,6 +28,7 @@ package lacp
 
 import (
 	"fmt"
+	"l2/lacp/protocol/utils"
 	"sort"
 	"strconv"
 	"strings"
@@ -119,7 +120,7 @@ type LacpMuxMachine struct {
 	waitWhileTimer *time.Timer
 
 	// machine specific events
-	MuxmEvents          chan LacpMachineEvent
+	MuxmEvents          chan utils.MachineEvent
 	MuxmKillSignalEvent chan bool
 	MuxmLogEnableEvent  chan bool
 
@@ -149,7 +150,7 @@ func NewLacpMuxMachine(port *LaAggPort) *LacpMuxMachine {
 		collDistCoupled:       false,
 		waitWhileTimerTimeout: LacpAggregateWaitTime,
 		PreviousState:         LacpMuxmStateNone,
-		MuxmEvents:            make(chan LacpMachineEvent, 10),
+		MuxmEvents:            make(chan utils.MachineEvent, 10),
 		MuxmKillSignalEvent:   make(chan bool),
 		MuxmLogEnableEvent:    make(chan bool)}
 
@@ -171,11 +172,11 @@ func (muxm *LacpMuxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	muxm.Machine.Rules = r
-	muxm.Machine.Curr = &LacpStateEvent{
-		strStateMap: MuxmStateStrMap,
-		logEna:      muxm.p.logEna,
-		logger:      muxm.LacpMuxmLog,
-		owner:       MuxMachineModuleStr,
+	muxm.Machine.Curr = &utils.StateEvent{
+		StrStateMap: MuxmStateStrMap,
+		LogEna:      muxm.p.logEna,
+		Logger:      muxm.LacpMuxmLog,
+		Owner:       MuxMachineModuleStr,
 	}
 
 	return muxm.Machine
@@ -184,8 +185,9 @@ func (muxm *LacpMuxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 func (muxm *LacpMuxMachine) SendTxMachineNtt() {
 
 	if muxm.p.TxMachineFsm.Machine.Curr.CurrentState() != LacpTxmStateOff {
-		muxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
-			src: MuxMachineModuleStr}
+		muxm.p.TxMachineFsm.TxmEvents <- utils.MachineEvent{
+			E:   LacpTxmEventNtt,
+			Src: MuxMachineModuleStr}
 	}
 }
 
@@ -200,8 +202,9 @@ func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fs
 	LacpStateClear(&p.ActorOper.State, LacpStateSyncBit)
 	// inform cdm
 	if p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn {
-		p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
-			src: MuxMachineModuleStr}
+		p.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+			E:   LacpCdmEventActorOperPortStateSyncOff,
+			Src: MuxMachineModuleStr}
 	}
 
 	// Disable Distributing
@@ -273,8 +276,9 @@ func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fs
 	// inform cdm
 	if p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateActorChurnMonitor ||
 		p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateActorChurn {
-		p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
-			src: MuxMachineModuleStr}
+		p.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+			E:   LacpCdmEventActorOperPortStateSyncOn,
+			Src: MuxMachineModuleStr}
 	}
 
 	// debug
@@ -353,8 +357,9 @@ func (muxm *LacpMuxMachine) LacpMuxmCDetached(m fsm.Machine, data interface{}) f
 
 	if p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn {
 		// inform cdm
-		p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOff,
-			src: MuxMachineModuleStr}
+		p.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+			E:   LacpCdmEventActorOperPortStateSyncOff,
+			Src: MuxMachineModuleStr}
 	}
 
 	// Disable Collecting && Distributing
@@ -391,8 +396,9 @@ func (muxm *LacpMuxMachine) LacpMuxmCAttached(m fsm.Machine, data interface{}) f
 	// inform cdm
 	if p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateActorChurnMonitor ||
 		p.CdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateActorChurn {
-		p.CdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
-			src: MuxMachineModuleStr}
+		p.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+			E:   LacpCdmEventActorOperPortStateSyncOn,
+			Src: MuxMachineModuleStr}
 	}
 
 	// Actor Oper State Collecting = FALSE
@@ -546,14 +552,14 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 			case event := <-m.MuxmEvents:
 
 				p := m.p
-				//m.LacpMuxmLog(fmt.Sprintf("Event received %d src %s", event.e, event.src))
-				eventStr := strings.Join([]string{"from", event.src, MuxmEventStrMap[int(event.e)]}, " ")
+				//m.LacpMuxmLog(fmt.Sprintf("Event received %d src %s", event.E, event.Src))
+				eventStr := strings.Join([]string{"from", event.Src, MuxmEventStrMap[int(event.E)]}, " ")
 
 				// process the event
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 
 				if rv != nil {
-					m.LacpMuxmLog(strings.Join([]string{error.Error(rv), event.src, MuxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+					m.LacpMuxmLog(strings.Join([]string{error.Error(rv), event.Src, MuxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 				} else {
 
 					// continuation events
@@ -573,10 +579,10 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 								"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelected]}, " ")
 
 							m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelected, nil)
-							event.e = LacpMuxmEventSelectedEqualSelected
+							event.E = LacpMuxmEventSelectedEqualSelected
 						}
 					}
-					if event.e == LacpMuxmEventSelectedEqualSelected &&
+					if event.E == LacpMuxmEventSelectedEqualSelected &&
 						(m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
 							m.Machine.Curr.CurrentState() == LacpMuxmStateCWaiting) &&
 						!m.waitWhileTimerRunning {
@@ -603,7 +609,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 							"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting]}, " ")
 						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting, nil)
 					}
-					if event.e == LacpMuxmEventSelectedEqualUnselected &&
+					if event.E == LacpMuxmEventSelectedEqualUnselected &&
 						(m.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
 							m.Machine.Curr.CurrentState() != LacpMuxmStateCDetached) {
 						// Unselected State will cause a downward transition to detached State
@@ -628,9 +634,9 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 				}
 				p.AggPortDebug.AggPortDebugMuxReason = eventStr
 
-				if event.responseChan != nil {
+				if event.ResponseChan != nil {
 					//m.LacpMuxmLog("Sending response")
-					SendResponse(MuxMachineModuleStr, event.responseChan)
+					utils.SendResponse(MuxMachineModuleStr, event.ResponseChan)
 				}
 
 			case ena := <-m.MuxmLogEnableEvent:

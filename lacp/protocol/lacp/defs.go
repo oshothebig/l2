@@ -25,10 +25,7 @@
 package lacp
 
 import (
-	"strconv"
-	"strings"
 	"time"
-	"utils/fsm"
 )
 
 // 6.4.4 Constants
@@ -102,59 +99,6 @@ const (
 	// considered lacp enabled
 	LacpModePassive
 )
-
-// LacpMachineEvent machine events will be sent
-// with this struct and will provide extra data
-// in order to provide async communication between
-// sender and receiver
-type LacpMachineEvent struct {
-	e            fsm.Event
-	src          string
-	responseChan chan string
-}
-
-func SendResponse(msg string, responseChan chan string) {
-	responseChan <- msg
-}
-
-type LacpStateEvent struct {
-	// current State
-	s fsm.State
-	// previous State
-	ps fsm.State
-	// current event
-	e fsm.Event
-	// previous event
-	pe fsm.Event
-
-	// event src
-	esrc        string
-	owner       string
-	strStateMap map[fsm.State]string
-	logEna      bool
-	logger      func(string)
-}
-
-func (se *LacpStateEvent) LoggerSet(log func(string))                 { se.logger = log }
-func (se *LacpStateEvent) EnableLogging(ena bool)                     { se.logEna = ena }
-func (se *LacpStateEvent) IsLoggerEna() bool                          { return se.logEna }
-func (se *LacpStateEvent) StateStrMapSet(strMap map[fsm.State]string) { se.strStateMap = strMap }
-func (se *LacpStateEvent) PreviousState() fsm.State                   { return se.ps }
-func (se *LacpStateEvent) CurrentState() fsm.State                    { return se.s }
-func (se *LacpStateEvent) PreviousEvent() fsm.Event                   { return se.pe }
-func (se *LacpStateEvent) CurrentEvent() fsm.Event                    { return se.e }
-func (se *LacpStateEvent) SetEvent(es string, e fsm.Event) {
-	se.esrc = es
-	se.pe = se.e
-	se.e = e
-}
-func (se *LacpStateEvent) SetState(s fsm.State) {
-	se.ps = se.s
-	se.s = s
-	if se.IsLoggerEna() && se.ps != se.s {
-		se.logger((strings.Join([]string{"Src", se.esrc, "OldState", se.strStateMap[se.ps], "Evt", strconv.Itoa(int(se.e)), "NewState", se.strStateMap[s]}, ":")))
-	}
-}
 
 func LacpStateSet(currState *uint8, StateBits uint8) {
 	*currState |= StateBits

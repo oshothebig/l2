@@ -29,6 +29,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"l2/lacp/protocol/utils"
 	"net"
 	"strings"
 	"sync"
@@ -590,8 +591,8 @@ func (p *LaAggPort) Stop() {
 // and will send an event back to this caller
 // to begin processing.
 func (p *LaAggPort) BEGIN(restart bool) {
-	mEvtChan := make([]chan LacpMachineEvent, 0)
-	evt := make([]LacpMachineEvent, 0)
+	mEvtChan := make([]chan utils.MachineEvent, 0)
+	evt := make([]utils.MachineEvent, 0)
 
 	// there is a case in which we have only called
 	// restart and called main functions outside
@@ -640,8 +641,9 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	// Rxm
 	if p.RxMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpRxmEventBegin,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpRxmEventBegin,
+			Src: PortConfigModuleStr})
 		if !restart || !prevBegin {
 			p.wg.Add(1)
 		}
@@ -650,8 +652,9 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	// Ptxm
 	if p.PtxMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpPtxmEventBegin,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpPtxmEventBegin,
+			Src: PortConfigModuleStr})
 		if !restart || !prevBegin {
 			p.wg.Add(1)
 		}
@@ -659,8 +662,9 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	// Cdm
 	if p.CdMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpCdmEventBegin,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpCdmEventBegin,
+			Src: PortConfigModuleStr})
 		if !restart || !prevBegin {
 			p.wg.Add(1)
 		}
@@ -668,8 +672,9 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	// Cdm
 	if p.PCdMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.PCdMachineFsm.CdmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpCdmEventBegin,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpCdmEventBegin,
+			Src: PortConfigModuleStr})
 		if !restart || !prevBegin {
 			p.wg.Add(1)
 		}
@@ -677,8 +682,9 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	// Muxm
 	if p.MuxMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpMuxmEventBegin,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpMuxmEventBegin,
+			Src: PortConfigModuleStr})
 		if !restart || !prevBegin {
 			p.wg.Add(1)
 		}
@@ -686,8 +692,9 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	// Txm
 	if p.TxMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpTxmEventBegin,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpTxmEventBegin,
+			Src: PortConfigModuleStr})
 		if !restart || !prevBegin {
 			p.wg.Add(1)
 		}
@@ -695,8 +702,9 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	// Marker Responder
 	if p.MarkerResponderFsm != nil {
 		mEvtChan = append(mEvtChan, p.MarkerResponderFsm.LampMarkerResponderEvents)
-		evt = append(evt, LacpMachineEvent{e: LampMarkerResponderEventBegin,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LampMarkerResponderEventBegin,
+			Src: PortConfigModuleStr})
 		if !restart || !prevBegin {
 			p.wg.Add(1)
 		}
@@ -708,7 +716,7 @@ func (p *LaAggPort) BEGIN(restart bool) {
 
 // DistributeMachineEvents will distribute the events in parrallel
 // to each machine
-func (p *LaAggPort) DistributeMachineEvents(mec []chan LacpMachineEvent, e []LacpMachineEvent, waitForResponse bool) {
+func (p *LaAggPort) DistributeMachineEvents(mec []chan utils.MachineEvent, e []utils.MachineEvent, waitForResponse bool) {
 
 	length := len(mec)
 	if len(mec) != len(e) {
@@ -718,11 +726,11 @@ func (p *LaAggPort) DistributeMachineEvents(mec []chan LacpMachineEvent, e []Lac
 
 	// send all begin events to each machine in parrallel
 	for j := 0; j < length; j++ {
-		go func(port *LaAggPort, w bool, idx int, machineEventChannel []chan LacpMachineEvent, event []LacpMachineEvent) {
+		go func(port *LaAggPort, w bool, idx int, machineEventChannel []chan utils.MachineEvent, event []utils.MachineEvent) {
 			if w {
-				event[idx].responseChan = p.portChan
+				event[idx].ResponseChan = p.portChan
 			}
-			event[idx].src = PortConfigModuleStr
+			event[idx].Src = PortConfigModuleStr
 			machineEventChannel[idx] <- event[idx]
 		}(p, waitForResponse, j, mec, e)
 	}
@@ -759,9 +767,8 @@ func (p *LaAggPort) DistributeMachineEvents(mec []chan LacpMachineEvent, e []Lac
 // as well as inform the appropriate State machines of the
 // State change
 func (p *LaAggPort) LaAggPortDisable() {
-	mEvtChan := make([]chan LacpMachineEvent, 0)
-	evt := make([]LacpMachineEvent, 0)
-
+	mEvtChan := make([]chan utils.MachineEvent, 0)
+	evt := make([]utils.MachineEvent, 0)
 	p.LaPortLog("LAPORT: Port Disabled")
 
 	// port is disabled
@@ -770,29 +777,34 @@ func (p *LaAggPort) LaAggPortDisable() {
 	// Rxm
 	if !p.portMoved {
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpRxmEventNotPortEnabledAndNotPortMoved,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpRxmEventNotPortEnabledAndNotPortMoved,
+			Src: PortConfigModuleStr})
 	}
 	// Ptxm
 	mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpPtxmEventNotPortEnabled,
-		src: PortConfigModuleStr})
+	evt = append(evt, utils.MachineEvent{
+		E:   LacpPtxmEventNotPortEnabled,
+		Src: PortConfigModuleStr})
 
 	// Cdm
 	mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpCdmEventNotPortEnabled,
-		src: PortConfigModuleStr})
+	evt = append(evt, utils.MachineEvent{
+		E:   LacpCdmEventNotPortEnabled,
+		Src: PortConfigModuleStr})
 
 	// Partner Cdm
 	mEvtChan = append(mEvtChan, p.PCdMachineFsm.CdmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpCdmEventNotPortEnabled,
-		src: PortConfigModuleStr})
+	evt = append(evt, utils.MachineEvent{
+		E:   LacpCdmEventNotPortEnabled,
+		Src: PortConfigModuleStr})
 
 	if p.lacpEnabled {
 		// Txm
 		mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpDisabled,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpTxmEventLacpDisabled,
+			Src: PortConfigModuleStr})
 	}
 
 	// distribute the port disable event to various machines
@@ -805,8 +817,8 @@ func (p *LaAggPort) LaAggPortDisable() {
 // When this is called, it is assumed that all States are
 // in their default State.
 func (p *LaAggPort) LaAggPortEnabled() {
-	mEvtChan := make([]chan LacpMachineEvent, 0)
-	evt := make([]LacpMachineEvent, 0)
+	mEvtChan := make([]chan utils.MachineEvent, 0)
+	evt := make([]utils.MachineEvent, 0)
 
 	p.LaPortLog("LAPORT: Port Enabled")
 
@@ -818,41 +830,46 @@ func (p *LaAggPort) LaAggPortEnabled() {
 		if p.lacpEnabled {
 			if p.RxMachineFsm.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled {
 				mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-				evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpEnabled,
-					src: PortConfigModuleStr})
+				evt = append(evt, utils.MachineEvent{
+					E:   LacpRxmEventPortEnabledAndLacpEnabled,
+					Src: PortConfigModuleStr})
 			}
 		} else {
 			mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-			evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpDisabled,
-				src: PortConfigModuleStr})
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpRxmEventPortEnabledAndLacpDisabled,
+				Src: PortConfigModuleStr})
 		}
 	}
 
 	// Ptxm
 	if p.PtxMachineFsm.LacpPtxIsNoPeriodicExitCondition() {
 		mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpPtxmEventUnconditionalFallthrough,
+			Src: PortConfigModuleStr})
 	}
 
 	// Cdm
 	if LacpStateIsSet(p.ActorOper.State, LacpStateSyncBit) {
 		mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpCdmEventActorOperPortStateSyncOn,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpCdmEventActorOperPortStateSyncOn,
+			Src: PortConfigModuleStr})
 	}
 	// Partner Cdm
 	if LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
 		mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOn,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpCdmEventPartnerOperPortStateSyncOn,
+			Src: PortConfigModuleStr})
 	}
 
 	// Txm
 	if p.lacpEnabled {
 		mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpEnabled,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{E: LacpTxmEventLacpEnabled,
+			Src: PortConfigModuleStr})
 	}
 
 	// distribute the port disable event to various machines
@@ -863,8 +880,8 @@ func (p *LaAggPort) LaAggPortEnabled() {
 // as well as inform the appropriate State machines of the
 // State change
 func (p *LaAggPort) LaAggPortLacpDisable() {
-	mEvtChan := make([]chan LacpMachineEvent, 0)
-	evt := make([]LacpMachineEvent, 0)
+	mEvtChan := make([]chan utils.MachineEvent, 0)
+	evt := make([]utils.MachineEvent, 0)
 
 	p.LaPortLog("LAPORT: Port LACP Disabled")
 
@@ -875,27 +892,30 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 	if p.PortEnabled {
 		if p.RxMachineFsm.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled {
 			mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-			evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpDisabled,
-				src: PortConfigModuleStr})
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpRxmEventPortEnabledAndLacpDisabled,
+				Src: PortConfigModuleStr})
 		} else {
 			// lets force a port disable on the rx machine
 			// Important to note we are not changing the port enable status as it
 			// is not really disabled, just lacp is disabled
 			// State should transition from PORT_DISBLED to LACP_DISABLED state
 			mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-			evt = append(evt, LacpMachineEvent{e: LacpRxmEventNotPortEnabledAndNotPortMoved,
-				src: PortConfigModuleStr})
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpRxmEventNotPortEnabledAndNotPortMoved,
+				Src: PortConfigModuleStr})
 		}
 
 		// Ptxm
 		mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpPtxmEventLacpDisabled,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{E: LacpPtxmEventLacpDisabled,
+			Src: PortConfigModuleStr})
 
 		// Txm, if lacp is disabled then should not transmit packets
 		mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-		evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpDisabled,
-			src: PortConfigModuleStr})
+		evt = append(evt, utils.MachineEvent{
+			E:   LacpTxmEventLacpDisabled,
+			Src: PortConfigModuleStr})
 
 		// distribute the port disable event to various machines
 		p.DistributeMachineEvents(mEvtChan, evt, true)
@@ -919,8 +939,8 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 // as well as inform the appropriate State machines of the
 // State change
 func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
-	mEvtChan := make([]chan LacpMachineEvent, 0)
-	evt := make([]LacpMachineEvent, 0)
+	mEvtChan := make([]chan utils.MachineEvent, 0)
+	evt := make([]utils.MachineEvent, 0)
 
 	p.LaPortLog(fmt.Sprintln("LAPORT: Port LACP Enabled selected", p.aggSelected))
 
@@ -943,26 +963,30 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 		// Rxm
 		if p.RxMachineFsm.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled {
 			mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-			evt = append(evt, LacpMachineEvent{e: LacpRxmEventPortEnabledAndLacpEnabled,
-				src: PortConfigModuleStr})
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpRxmEventPortEnabledAndLacpEnabled,
+				Src: PortConfigModuleStr})
 		} else if p.RxMachineFsm.Machine.Curr.CurrentState() == LacpRxmStateLacpDisabled {
 			mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-			evt = append(evt, LacpMachineEvent{e: LacpRxmEventLacpEnabled,
-				src: PortConfigModuleStr})
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpRxmEventLacpEnabled,
+				Src: PortConfigModuleStr})
 		}
 
 		// txm
 		if p.TxMachineFsm.Machine.Curr.CurrentState() == LacpTxmStateOff {
 			mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-			evt = append(evt, LacpMachineEvent{e: LacpTxmEventLacpEnabled,
-				src: PortConfigModuleStr})
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpTxmEventLacpEnabled,
+				Src: PortConfigModuleStr})
 		}
 
 		// Ptxm
 		if p.PtxMachineFsm.LacpPtxIsNoPeriodicExitCondition() {
 			mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-			evt = append(evt, LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough,
-				src: PortConfigModuleStr})
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpPtxmEventUnconditionalFallthrough,
+				Src: PortConfigModuleStr})
 		}
 
 		// distribute the port disable event to various machines
@@ -972,8 +996,8 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 }
 
 func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16) {
-	mEvtChan := make([]chan LacpMachineEvent, 0)
-	evt := make([]LacpMachineEvent, 0)
+	mEvtChan := make([]chan utils.MachineEvent, 0)
+	evt := make([]utils.MachineEvent, 0)
 
 	p.actorAdmin.System.actor_System = sysIdMac
 	p.actorAdmin.System.Actor_System_priority = sysPrio
@@ -990,8 +1014,9 @@ func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16
 	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
 
 	mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-	evt = append(evt, LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
-		src: PortConfigModuleStr})
+	evt = append(evt, utils.MachineEvent{
+		E:   LacpMuxmEventSelectedEqualUnselected,
+		Src: PortConfigModuleStr})
 
 	// unselected event
 	p.DistributeMachineEvents(mEvtChan, evt, true)

@@ -27,6 +27,7 @@ package lacp
 import (
 	"fmt"
 	"github.com/google/gopacket/layers"
+	"l2/lacp/protocol/utils"
 	"reflect"
 	"strconv"
 	"strings"
@@ -100,7 +101,7 @@ type LacpRxMachine struct {
 	currentWhileTimer *time.Timer
 
 	// machine specific events
-	RxmEvents          chan LacpMachineEvent
+	RxmEvents          chan utils.MachineEvent
 	RxmPktRxEvent      chan LacpRxLacpPdu
 	RxmKillSignalEvent chan bool
 	RxmLogEnableEvent  chan bool
@@ -131,7 +132,7 @@ func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 		p:                  port,
 		log:                port.LacpDebug.LacpLogChan,
 		PreviousState:      LacpRxmStateNone,
-		RxmEvents:          make(chan LacpMachineEvent, 10),
+		RxmEvents:          make(chan utils.MachineEvent, 10),
 		RxmPktRxEvent:      make(chan LacpRxLacpPdu, 1000),
 		RxmKillSignalEvent: make(chan bool),
 		RxmLogEnableEvent:  make(chan bool)}
@@ -154,11 +155,11 @@ func (rxm *LacpRxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	rxm.Machine.Rules = r
-	rxm.Machine.Curr = &LacpStateEvent{
-		strStateMap: RxmStateStrMap,
-		logEna:      rxm.p.logEna,
-		logger:      rxm.LacpRxmLog,
-		owner:       RxMachineModuleStr,
+	rxm.Machine.Curr = &utils.StateEvent{
+		StrStateMap: RxmStateStrMap,
+		LogEna:      rxm.p.logEna,
+		Logger:      rxm.LacpRxmLog,
+		Owner:       RxMachineModuleStr,
 	}
 
 	return rxm.Machine
@@ -183,8 +184,9 @@ func (rxm *LacpRxMachine) LacpRxMachineInitialize(m fsm.Machine, data interface{
 	if p.MuxMachineFsm != nil {
 		if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCDetached {
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
-				src: RxMachineModuleStr}
+			p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+				E:   LacpMuxmEventSelectedEqualUnselected,
+				Src: RxMachineModuleStr}
 		}
 	}
 
@@ -212,15 +214,17 @@ func (rxm *LacpRxMachine) LacpRxMachinePortDisabled(m fsm.Machine, data interfac
 	// inform partner cdm
 	if p.PCdMachineFsm != nil &&
 		p.PCdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateNoPartnerChurn {
-		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOff,
-			src: RxMachineModuleStr}
+		p.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+			E:   LacpCdmEventPartnerOperPortStateSyncOff,
+			Src: RxMachineModuleStr}
 	}
 	if p.MuxMachineFsm != nil {
 		if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDistributing ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxStateCCollectingDistributing {
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
-				src: RxMachineModuleStr}
+			p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+				E:   LacpMuxmEventNotPartnerSync,
+				Src: RxMachineModuleStr}
 		}
 	}
 
@@ -238,13 +242,15 @@ func (rxm *LacpRxMachine) LacpRxMachineExpired(m fsm.Machine, data interface{}) 
 	// inform partner cdm
 	if p.PCdMachineFsm != nil &&
 		p.PCdMachineFsm.Machine.Curr.CurrentState() == LacpCdmStateNoPartnerChurn {
-		p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOff,
-			src: RxMachineModuleStr}
+		p.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+			E:   LacpCdmEventPartnerOperPortStateSyncOff,
+			Src: RxMachineModuleStr}
 	}
 
 	if p.MuxMachineFsm != nil {
-		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
-			src: RxMachineModuleStr}
+		p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+			E:   LacpMuxmEventNotPartnerSync,
+			Src: RxMachineModuleStr}
 	}
 	// Short timeout
 	//rxm.LacpRxmLog("Setting Partner Timeout Bit")
@@ -277,8 +283,9 @@ func (rxm *LacpRxMachine) LacpRxMachineLacpDisabled(m fsm.Machine, data interfac
 	if p.MuxMachineFsm != nil {
 		if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
 			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCDetached {
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
-				src: RxMachineModuleStr}
+			p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+				E:   LacpMuxmEventSelectedEqualUnselected,
+				Src: RxMachineModuleStr}
 		}
 	}
 
@@ -354,8 +361,9 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 
 	if ntt == true && p.TxMachineFsm != nil {
 		// update ntt, which should trigger a packet transmit
-		p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
-			src: RxMachineModuleStr}
+		p.TxMachineFsm.TxmEvents <- utils.MachineEvent{
+			E:   LacpTxmEventNtt,
+			Src: RxMachineModuleStr}
 	}
 
 	// Other machines may need to be informed of the various
@@ -388,23 +396,27 @@ func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
 			if p.aggSelected == LacpAggSelected {
 				if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
 					p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCAttached {
-					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
-						src: RxMachineModuleStr}
+					p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+						E:   LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
+						Src: RxMachineModuleStr}
 				} else if p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting {
-					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting,
-						src: RxMachineModuleStr}
+					p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+						E:   LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting,
+						Src: RxMachineModuleStr}
 				}
 			}
 		} else if !LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) &&
 			(p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDistributing ||
 				p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCollecting) {
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
-				src: RxMachineModuleStr}
+			p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+				E:   LacpMuxmEventNotPartnerSync,
+				Src: RxMachineModuleStr}
 
 		} else if !LacpStateIsSet(p.PartnerOper.State, LacpStateCollectingBit) &&
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDistributing {
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerCollecting,
-				src: RxMachineModuleStr}
+			p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+				E:   LacpMuxmEventNotPartnerCollecting,
+				Src: RxMachineModuleStr}
 		}
 
 		// if we were in no periodic state because both ends were in passive
@@ -414,16 +426,19 @@ func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
 			p.lacpEnabled &&
 			LacpStateIsSet(p.PartnerOper.State, LacpStateActivityBit) {
 			// peer changed to active mode
-			p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventUnconditionalFallthrough,
-				src: RxMachineModuleStr}
+			p.PtxMachineFsm.PtxmEvents <- utils.MachineEvent{
+				E:   LacpPtxmEventUnconditionalFallthrough,
+				Src: RxMachineModuleStr}
 		} else if LacpStateIsSet(p.PartnerOper.State, LacpStateTimeoutBit) &&
 			p.PtxMachineFsm.PeriodicTxTimerInterval == LacpSlowPeriodicTime {
-			p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventPartnerOperStateTimeoutShort,
-				src: RxMachineModuleStr}
+			p.PtxMachineFsm.PtxmEvents <- utils.MachineEvent{
+				E:   LacpPtxmEventPartnerOperStateTimeoutShort,
+				Src: RxMachineModuleStr}
 		} else if !LacpStateIsSet(p.PartnerOper.State, LacpStateTimeoutBit) &&
 			p.PtxMachineFsm.PeriodicTxTimerInterval == LacpFastPeriodicTime {
-			p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventPartnerOperStateTimeoutLong,
-				src: RxMachineModuleStr}
+			p.PtxMachineFsm.PtxmEvents <- utils.MachineEvent{
+				E:   LacpPtxmEventPartnerOperStateTimeoutLong,
+				Src: RxMachineModuleStr}
 		}
 
 		// lets inform the PTX machine of change as this is an indication of
@@ -432,8 +447,9 @@ func (rxm *LacpRxMachine) InformMachinesOfStateChanges() {
 		if !LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit) &&
 			!LacpStateIsSet(p.PartnerOper.State, LacpStateActivityBit) &&
 			p.PtxMachineFsm != nil {
-			p.PtxMachineFsm.PtxmEvents <- LacpMachineEvent{e: LacpPtxmEventActorPartnerOperActivityPassiveMode,
-				src: RxMachineModuleStr}
+			p.PtxMachineFsm.PtxmEvents <- utils.MachineEvent{
+				E:   LacpPtxmEventActorPartnerOperActivityPassiveMode,
+				Src: RxMachineModuleStr}
 		}
 	}
 
@@ -523,7 +539,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 				}
 
 			case event := <-m.RxmEvents:
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 				if rv == nil {
 					p := m.p
 					/* continue State transition */
@@ -547,12 +563,12 @@ func (p *LaAggPort) LacpRxMachineMain() {
 				}
 
 				if rv != nil {
-					m.LacpRxmLog(strings.Join([]string{error.Error(rv), event.src, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+					m.LacpRxmLog(strings.Join([]string{error.Error(rv), event.Src, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 				}
 
 				// respond to caller if necessary so that we don't have a deadlock
-				if event.responseChan != nil {
-					SendResponse(RxMachineModuleStr, event.responseChan)
+				if event.ResponseChan != nil {
+					utils.SendResponse(RxMachineModuleStr, event.ResponseChan)
 				}
 			case rx := <-m.RxmPktRxEvent:
 				//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.PortNum, rx.src))
@@ -577,7 +593,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 
 				// respond to caller if necessary so that we don't have a deadlock
 				if rx.responseChan != nil {
-					SendResponse(RxMachineModuleStr, rx.responseChan)
+					utils.SendResponse(RxMachineModuleStr, rx.responseChan)
 				}
 
 			case ena := <-m.RxmLogEnableEvent:
@@ -655,8 +671,9 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 			LacpStateSet(&p.PartnerOper.State, LacpStateSyncBit)
 			if p.PCdMachineFsm != nil {
 				// inform partner cdm
-				p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOn,
-					src: RxMachineModuleStr}
+				p.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:   LacpCdmEventPartnerOperPortStateSyncOn,
+					Src: RxMachineModuleStr}
 			}
 			// NOTE Mux will be informed at a later time
 		}
@@ -669,8 +686,9 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 			if p.MuxMachineFsm != nil {
 				_, ok := collDistMap[p.MuxMachineFsm.Machine.Curr.CurrentState()]
 				if ok {
-					p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventNotPartnerSync,
-						src: RxMachineModuleStr}
+					p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+						E:   LacpMuxmEventNotPartnerSync,
+						Src: RxMachineModuleStr}
 				}
 			}
 		}
@@ -702,8 +720,9 @@ func (rxm *LacpRxMachine) recordDefault() {
 		LacpStateSet(&p.PartnerOper.State, LacpStateSyncBit)
 		// inform partner cdm
 		if p.PCdMachineFsm != nil {
-			p.PCdMachineFsm.CdmEvents <- LacpMachineEvent{e: LacpCdmEventPartnerOperPortStateSyncOn,
-				src: RxMachineModuleStr}
+			p.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+				E:   LacpCdmEventPartnerOperPortStateSyncOn,
+				Src: RxMachineModuleStr}
 		}
 	}
 
@@ -711,8 +730,9 @@ func (rxm *LacpRxMachine) recordDefault() {
 		(p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
 		p.aggSelected == LacpAggSelected {
-		p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
-			src: RxMachineModuleStr}
+		p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+			E:   LacpMuxmEventSelectedEqualSelectedAndPartnerSync,
+			Src: RxMachineModuleStr}
 	}
 }
 

@@ -28,6 +28,7 @@
 package lacp
 
 import (
+	"l2/lacp/protocol/utils"
 	"testing"
 	"time"
 	"utils/fsm"
@@ -92,10 +93,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	p.portMoved = true
 	// send PORT MOVED event to Rx Machine
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventPortMoved,
-		responseChan: portchan,
-		src:          "TEST"}
+	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            LacpRxmEventPortMoved,
+		ResponseChan: portchan,
+		Src:          "TEST"}
 
 	// wait for response
 	msg = <-portchan
@@ -119,10 +120,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	p.PortEnabled = true
 	p.lacpEnabled = false
 	// send PORT ENABLED && LACP DISABLED event to Rx Machine
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventPortEnabledAndLacpDisabled,
-		responseChan: portchan,
-		src:          "TEST"}
+	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            LacpRxmEventPortEnabledAndLacpDisabled,
+		ResponseChan: portchan,
+		Src:          "TEST"}
 
 	// wait for response
 	msg = <-portchan
@@ -143,10 +144,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	p.lacpEnabled = true
 	// send LACP ENABLED event to Rx Machine
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventLacpEnabled,
-		responseChan: portchan,
-		src:          "TEST"}
+	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            LacpRxmEventLacpEnabled,
+		ResponseChan: portchan,
+		Src:          "TEST"}
 
 	// wait for response
 	msg = <-portchan
@@ -181,10 +182,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	p.PortEnabled = false
 	// send NOT ENABLED AND NOT MOVED event to Rx Machine from Expired State
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventNotPortEnabledAndNotPortMoved,
-		responseChan: portchan,
-		src:          "TEST"}
+	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            LacpRxmEventNotPortEnabledAndNotPortMoved,
+		ResponseChan: portchan,
+		Src:          "TEST"}
 
 	// wait for response
 	msg = <-portchan
@@ -210,10 +211,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	p.PortEnabled = true
 	p.lacpEnabled = false
 	// send NOT ENABLED AND NOT MOVED event to Rx Machine from Expired State
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventPortEnabledAndLacpDisabled,
-		responseChan: portchan,
-		src:          "TEST"}
+	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            LacpRxmEventPortEnabledAndLacpDisabled,
+		ResponseChan: portchan,
+		Src:          "TEST"}
 
 	// wait for response
 	msg = <-portchan
@@ -223,10 +224,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	p.PortEnabled = false
 	// send NOT ENABLED AND NOT MOVED event to Rx Machine from LACP DISABLED
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventNotPortEnabledAndNotPortMoved,
-		responseChan: portchan,
-		src:          "TEST"}
+	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            LacpRxmEventNotPortEnabledAndNotPortMoved,
+		ResponseChan: portchan,
+		Src:          "TEST"}
 
 	// wait for response
 	msg = <-portchan
@@ -248,10 +249,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	p.PortEnabled = true
 	p.lacpEnabled = true
 	// send PORT ENABLE LACP ENABLED event to Rx Machine
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventPortEnabledAndLacpEnabled,
-		responseChan: portchan,
-		src:          "TEST"}
+	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            LacpRxmEventPortEnabledAndLacpEnabled,
+		ResponseChan: portchan,
+		Src:          "TEST"}
 
 	// wait for response
 	msg = <-portchan
@@ -260,10 +261,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	}
 
 	// send CURRENT WHILE TIMER event to Rx Machine
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventCurrentWhileTimerExpired,
-		responseChan: portchan,
-		src:          "TEST"}
+	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            LacpRxmEventCurrentWhileTimerExpired,
+		ResponseChan: portchan,
+		Src:          "TEST"}
 
 	// wait for response
 	msg = <-portchan
@@ -288,10 +289,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	p.PortEnabled = false
 	// send NOT PORT ENABLE NOT PORT MOVED event to Rx Machine
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventNotPortEnabledAndNotPortMoved,
-		responseChan: portchan,
-		src:          "TEST"}
+	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            LacpRxmEventNotPortEnabledAndNotPortMoved,
+		ResponseChan: portchan,
+		Src:          "TEST"}
 
 	// wait for response
 	msg = <-portchan
@@ -301,10 +302,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	p.PortEnabled = true
 	// send PORT ENABLE LACP ENABLED event to Rx Machine
-	p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-		e:            LacpRxmEventPortEnabledAndLacpEnabled,
-		responseChan: portchan,
-		src:          "TEST"}
+	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            LacpRxmEventPortEnabledAndLacpEnabled,
+		ResponseChan: portchan,
+		Src:          "TEST"}
 
 	// wait for response
 	msg = <-portchan

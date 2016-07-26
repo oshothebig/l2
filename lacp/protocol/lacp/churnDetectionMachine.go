@@ -26,6 +26,7 @@ package lacp
 
 import (
 	//"fmt"
+	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -92,7 +93,7 @@ type LacpCdMachine struct {
 	churnTimer *time.Timer
 
 	// machine specific events
-	CdmEvents            chan LacpMachineEvent
+	CdmEvents            chan utils.MachineEvent
 	CdmKillSignalEvent   chan bool
 	CdmLogEnableEvent    chan bool
 	churnCountTimestamp  time.Time
@@ -129,7 +130,7 @@ func NewLacpActorCdMachine(port *LaAggPort) *LacpActorCdMachine {
 			log:                port.LacpDebug.LacpLogChan,
 			PreviousState:      LacpCdmStateNone,
 			churnTimerInterval: LacpChurnDetectionTime,
-			CdmEvents:          make(chan LacpMachineEvent, 10),
+			CdmEvents:          make(chan utils.MachineEvent, 10),
 			CdmKillSignalEvent: make(chan bool),
 			CdmLogEnableEvent:  make(chan bool)}}
 
@@ -146,7 +147,7 @@ func NewLacpPartnerCdMachine(port *LaAggPort) *LacpPartnerCdMachine {
 			log:                port.LacpDebug.LacpLogChan,
 			PreviousState:      LacpCdmStateNone,
 			churnTimerInterval: LacpChurnDetectionTime,
-			CdmEvents:          make(chan LacpMachineEvent, 10),
+			CdmEvents:          make(chan utils.MachineEvent, 10),
 			CdmKillSignalEvent: make(chan bool),
 			CdmLogEnableEvent:  make(chan bool)}}
 
@@ -165,11 +166,11 @@ func (cdm *LacpCdMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	cdm.Machine.Rules = r
-	cdm.Machine.Curr = &LacpStateEvent{
-		strStateMap: CdmStateStrMap,
-		logEna:      true, //cdm.p.logEna,
-		logger:      cdm.LacpCdmLog,
-		owner:       CdMachineModuleStr,
+	cdm.Machine.Curr = &utils.StateEvent{
+		StrStateMap: CdmStateStrMap,
+		LogEna:      true, //cdm.p.logEna,
+		Logger:      cdm.LacpCdmLog,
+		Owner:       CdMachineModuleStr,
 	}
 
 	return cdm.Machine
@@ -367,7 +368,7 @@ func (p *LaAggPort) LacpActorCdMachineMain() {
 				}
 			case event := <-m.CdmEvents:
 
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 
 				if rv == nil &&
 					m.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn &&
@@ -382,11 +383,11 @@ func (p *LaAggPort) LacpActorCdMachineMain() {
 				}
 
 				if rv != nil {
-					m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+					m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.Src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 				}
 
-				if event.responseChan != nil {
-					SendResponse(CdMachineModuleStr, event.responseChan)
+				if event.ResponseChan != nil {
+					utils.SendResponse(CdMachineModuleStr, event.ResponseChan)
 				}
 			case ena := <-m.CdmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
@@ -426,7 +427,7 @@ func (p *LaAggPort) LacpPartnerCdMachineMain() {
 				}
 			case event := <-m.CdmEvents:
 
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 
 				if rv == nil &&
 					m.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn &&
@@ -441,11 +442,11 @@ func (p *LaAggPort) LacpPartnerCdMachineMain() {
 				}
 
 				if rv != nil {
-					m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+					m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.Src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 				}
 
-				if event.responseChan != nil {
-					SendResponse(PCdMachineModuleStr, event.responseChan)
+				if event.ResponseChan != nil {
+					utils.SendResponse(PCdMachineModuleStr, event.ResponseChan)
 				}
 			case ena := <-m.CdmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)

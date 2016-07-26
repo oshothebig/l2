@@ -29,6 +29,7 @@ package lacp
 import (
 	"fmt"
 	"github.com/google/gopacket/layers"
+	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -95,7 +96,7 @@ type LacpTxMachine struct {
 	txGuardTimer *time.Timer
 
 	// machine specific events
-	TxmEvents          chan LacpMachineEvent
+	TxmEvents          chan utils.MachineEvent
 	TxmKillSignalEvent chan bool
 	TxmLogEnableEvent  chan bool
 }
@@ -126,7 +127,7 @@ func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 		txPkts:             0,
 		ntt:                false,
 		PreviousState:      LacpTxmStateNone,
-		TxmEvents:          make(chan LacpMachineEvent, 1000),
+		TxmEvents:          make(chan utils.MachineEvent, 1000),
 		TxmKillSignalEvent: make(chan bool),
 		TxmLogEnableEvent:  make(chan bool)}
 
@@ -148,11 +149,11 @@ func (txm *LacpTxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	txm.Machine.Rules = r
-	txm.Machine.Curr = &LacpStateEvent{
-		strStateMap: TxmStateStrMap,
-		logEna:      txm.p.logEna,
-		logger:      txm.LacpTxmLog,
-		owner:       TxMachineModuleStr,
+	txm.Machine.Curr = &utils.StateEvent{
+		StrStateMap: TxmStateStrMap,
+		LogEna:      txm.p.logEna,
+		Logger:      txm.LacpTxmLog,
+		Owner:       TxMachineModuleStr,
 	}
 
 	return txm.Machine
@@ -227,8 +228,9 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 			// lets force another transmit
 			if txm.txPending > 0 && txm.txPkts < 3 {
 				txm.txPending--
-				txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
-					src: TxMachineModuleStr}
+				txm.TxmEvents <- utils.MachineEvent{
+					E:   LacpTxmEventNtt,
+					Src: TxMachineModuleStr}
 			}
 		} else {
 			txm.txPending++
@@ -256,13 +258,14 @@ func (txm *LacpTxMachine) LacpTxMachineDelayed(m fsm.Machine, data interface{}) 
 	txm.LacpTxmLog(fmt.Sprintf("Delayed: txPending %d txPkts %d delaying tx", txm.txPending, txm.txPkts))
 	if txm.txPending > 0 && txm.txPkts > 3 {
 		State = LacpTxmStateDelayed
-		//txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventDelayTx,
+		//txm.TxmEvents <- utils.MachineEvent{e: LacpTxmEventDelayTx,
 		//	src: TxMachineModuleStr}
 	} else {
 		// transmit packet
 		txm.txPending--
-		txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
-			src: TxMachineModuleStr}
+		txm.TxmEvents <- utils.MachineEvent{
+			E:   LacpTxmEventNtt,
+			Src: TxMachineModuleStr}
 	}
 
 	return State
@@ -360,17 +363,17 @@ func (p *LaAggPort) LacpTxMachineMain() {
 
 			case event := <-m.TxmEvents:
 
-				//m.LacpTxmLog(fmt.Sprintf("Event rx %d %s %s", event.e, event.src, TxmStateStrMap[m.Machine.Curr.CurrentState()]))
+				//m.LacpTxmLog(fmt.Sprintf("Event rx %d %s %s", event.E, event.Src, TxmStateStrMap[m.Machine.Curr.CurrentState()]))
 				// special case, another machine has a need to
 				// transmit a packet
-				if event.e == LacpTxmEventNtt {
+				if event.E == LacpTxmEventNtt {
 					m.ntt = true
 				}
 
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 
 				if rv != nil {
-					m.LacpTxmLog(strings.Join([]string{error.Error(rv), event.src, TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+					m.LacpTxmLog(strings.Join([]string{error.Error(rv), event.Src, TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 				} else {
 					if m.Machine.Curr.CurrentState() == LacpTxmStateGuardTimerExpire &&
 						m.txPending > 0 && m.txPkts == 0 {
@@ -384,8 +387,8 @@ func (p *LaAggPort) LacpTxMachineMain() {
 					}
 				}
 
-				if event.responseChan != nil {
-					SendResponse(TxMachineModuleStr, event.responseChan)
+				if event.ResponseChan != nil {
+					utils.SendResponse(TxMachineModuleStr, event.ResponseChan)
 				}
 			case ena := <-m.TxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
@@ -398,6 +401,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 // in order to clear the txPkts count
 func (txm *LacpTxMachine) LacpTxGuardGeneration() {
 	//txm.LacpTxmLog("LacpTxGuardGeneration")
-	txm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventGuardTimer,
-		src: TxMachineModuleStr}
+	txm.TxmEvents <- utils.MachineEvent{
+		E:   LacpTxmEventGuardTimer,
+		Src: TxMachineModuleStr}
 }

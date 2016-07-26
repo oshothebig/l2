@@ -26,6 +26,7 @@ package lacp
 
 import (
 	//"fmt"
+	"l2/lacp/protocol/utils"
 	"net"
 	"testing"
 	"time"
@@ -103,20 +104,20 @@ func TestCdmNoActorChurnInvalidEvents(t *testing.T) {
 		} else {
 			// set sync bit
 			LacpStateSet(&p1.ActorOper.State, LacpStateSyncBit)
-			p1.CdMachineFsm.CdmEvents <- LacpMachineEvent{
-				e:            LacpCdmEventActorOperPortStateSyncOn,
-				src:          "TEST",
-				responseChan: responseChannel,
+			p1.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+				E:            LacpCdmEventActorOperPortStateSyncOn,
+				Src:          "TEST",
+				ResponseChan: responseChannel,
 			}
 			<-responseChannel
 		}
 
 		for _, evt := range invalidStateMap {
 			// force state to no actor churn
-			p1.CdMachineFsm.CdmEvents <- LacpMachineEvent{
-				e:            evt,
-				src:          "TEST",
-				responseChan: responseChannel,
+			p1.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+				E:            evt,
+				Src:          "TEST",
+				ResponseChan: responseChannel,
 			}
 			<-responseChannel
 			if p1.CdMachineFsm.Machine.Curr.CurrentState() != LacpCdmStateNoActorChurn {
@@ -146,10 +147,10 @@ func TestCdmNoPartnerChurnInvalidEvents(t *testing.T) {
 		} else {
 			// set sync bit
 			LacpStateSet(&p1.PartnerOper.State, LacpStateSyncBit)
-			p1.PCdMachineFsm.CdmEvents <- LacpMachineEvent{
-				e:            LacpCdmEventPartnerOperPortStateSyncOn,
-				src:          "TEST",
-				responseChan: responseChannel,
+			p1.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+				E:            LacpCdmEventPartnerOperPortStateSyncOn,
+				Src:          "TEST",
+				ResponseChan: responseChannel,
 			}
 			<-responseChannel
 		}
@@ -158,10 +159,10 @@ func TestCdmNoPartnerChurnInvalidEvents(t *testing.T) {
 		}
 		for _, evt := range invalidStateMap {
 			// force state to no actor churn
-			p1.PCdMachineFsm.CdmEvents <- LacpMachineEvent{
-				e:            evt,
-				src:          "TEST",
-				responseChan: responseChannel,
+			p1.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+				E:            evt,
+				Src:          "TEST",
+				ResponseChan: responseChannel,
 			}
 			<-responseChannel
 			if p1.PCdMachineFsm.Machine.Curr.CurrentState() != LacpCdmStateNoPartnerChurn {
@@ -189,10 +190,10 @@ func TestCdmActorChurnInvalidEvents(t *testing.T) {
 			t.Error("Error State machine is not initalized to the proper state of ",
 				CdmStateStrMap[LacpCdmStateActorChurnMonitor], "found ", CdmStateStrMap[p1.CdMachineFsm.Machine.Curr.CurrentState()])
 		} else {
-			p1.CdMachineFsm.CdmEvents <- LacpMachineEvent{
-				e:            LacpCdmEventActorChurnTimerExpired,
-				src:          "TEST",
-				responseChan: responseChannel,
+			p1.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+				E:            LacpCdmEventActorChurnTimerExpired,
+				Src:          "TEST",
+				ResponseChan: responseChannel,
 			}
 			<-responseChannel
 		}
@@ -202,10 +203,10 @@ func TestCdmActorChurnInvalidEvents(t *testing.T) {
 
 		for _, evt := range invalidStateMap {
 			// force state to no actor churn
-			p1.CdMachineFsm.CdmEvents <- LacpMachineEvent{
-				e:            evt,
-				src:          "TEST",
-				responseChan: responseChannel,
+			p1.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+				E:            evt,
+				Src:          "TEST",
+				ResponseChan: responseChannel,
 			}
 			<-responseChannel
 			if p1.CdMachineFsm.Machine.Curr.CurrentState() != LacpCdmStateActorChurn {
@@ -233,20 +234,20 @@ func TestCdmPartnerChurnInvalidEvents(t *testing.T) {
 			t.Error("Error State machine is not initalized to the proper state of ",
 				CdmStateStrMap[LacpCdmStatePartnerChurnMonitor], "found ", CdmStateStrMap[p1.PCdMachineFsm.Machine.Curr.CurrentState()])
 		} else {
-			p1.PCdMachineFsm.CdmEvents <- LacpMachineEvent{
-				e:            LacpCdmEventActorChurnTimerExpired,
-				src:          "TEST",
-				responseChan: responseChannel,
+			p1.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+				E:            LacpCdmEventActorChurnTimerExpired,
+				Src:          "TEST",
+				ResponseChan: responseChannel,
 			}
 			<-responseChannel
 		}
 
 		for _, evt := range invalidStateMap {
 			// force state to no actor churn
-			p1.PCdMachineFsm.CdmEvents <- LacpMachineEvent{
-				e:            evt,
-				src:          "TEST",
-				responseChan: responseChannel,
+			p1.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+				E:            evt,
+				Src:          "TEST",
+				ResponseChan: responseChannel,
 			}
 			<-responseChannel
 			if p1.PCdMachineFsm.Machine.Curr.CurrentState() != LacpCdmStatePartnerChurn {
@@ -324,28 +325,28 @@ func TestCdmActorChurnDebugCountDoesNotIncrementWhenStateReachedMoreThanFiveTime
 			currentChurnActorTimestamp := p1.CdMachineFsm.churnCountTimestamp
 			for i := 0; i < 7; i++ {
 				// Sync set Actor Churn
-				p1.CdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventActorChurnTimerExpired,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventActorChurnTimerExpired,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 
 				// Actor Churn -> No actor churn
 				LacpStateSet(&p1.ActorOper.State, LacpStateSyncBit)
-				p1.CdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventActorOperPortStateSyncOn,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventActorOperPortStateSyncOn,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 
 				// No Actory Churn -> Actor Churn Monitor
 				LacpStateClear(&p1.ActorOper.State, LacpStateSyncBit)
-				p1.CdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventActorOperPortStateSyncOff,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventActorOperPortStateSyncOff,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 			}
@@ -374,10 +375,10 @@ func TestCdmPartnerChurnDebugCountDoesNotIncrementWhenStateReachedMoreThanFiveTi
 			currentChurnPartnerTimestamp := p1.PCdMachineFsm.churnCountTimestamp
 			for i := 0; i < 7; i++ {
 				// Sync set Actor Churn
-				p1.PCdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventPartnerChurnTimerExpired,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventPartnerChurnTimerExpired,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 
@@ -387,10 +388,10 @@ func TestCdmPartnerChurnDebugCountDoesNotIncrementWhenStateReachedMoreThanFiveTi
 
 				// Actor Churn -> No actor churn
 				LacpStateSet(&p1.PartnerOper.State, LacpStateSyncBit)
-				p1.PCdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventPartnerOperPortStateSyncOn,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventPartnerOperPortStateSyncOn,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 
@@ -400,10 +401,10 @@ func TestCdmPartnerChurnDebugCountDoesNotIncrementWhenStateReachedMoreThanFiveTi
 
 				// No Actory Churn -> Actor Churn Monitor
 				LacpStateClear(&p1.PartnerOper.State, LacpStateSyncBit)
-				p1.PCdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventPartnerOperPortStateSyncOff,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventPartnerOperPortStateSyncOff,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 				if p1.PCdMachineFsm.Machine.Curr.CurrentState() != LacpCdmStatePartnerChurnMonitor {
@@ -434,28 +435,28 @@ func TestCdmActorChurnDebugCountIncrementsWhenStateReachMoreThanOneSecond(t *tes
 		} else {
 			for i := 0; i < 3; i++ {
 				// Sync set Actor Churn
-				p1.CdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventActorChurnTimerExpired,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventActorChurnTimerExpired,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 
 				// Actor Churn -> No actor churn
 				LacpStateSet(&p1.ActorOper.State, LacpStateSyncBit)
-				p1.CdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventActorOperPortStateSyncOn,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventActorOperPortStateSyncOn,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 
 				// No Actory Churn -> Actor Churn Monitor
 				LacpStateClear(&p1.ActorOper.State, LacpStateSyncBit)
-				p1.CdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventActorOperPortStateSyncOff,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventActorOperPortStateSyncOff,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 				time.Sleep(time.Second * 2)
@@ -484,10 +485,10 @@ func TestCdmPartnerChurnDebugCountIncrementsWhenStateReachMoreThanOneSecond(t *t
 		} else {
 			for i := 0; i < 3; i++ {
 				// Sync set Actor Churn
-				p1.PCdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventPartnerChurnTimerExpired,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventPartnerChurnTimerExpired,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 
@@ -497,10 +498,10 @@ func TestCdmPartnerChurnDebugCountIncrementsWhenStateReachMoreThanOneSecond(t *t
 
 				// Actor Churn -> No actor churn
 				LacpStateSet(&p1.PartnerOper.State, LacpStateSyncBit)
-				p1.PCdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventPartnerOperPortStateSyncOn,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventPartnerOperPortStateSyncOn,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 
@@ -510,10 +511,10 @@ func TestCdmPartnerChurnDebugCountIncrementsWhenStateReachMoreThanOneSecond(t *t
 
 				// No Actory Churn -> Actor Churn Monitor
 				LacpStateClear(&p1.PartnerOper.State, LacpStateSyncBit)
-				p1.PCdMachineFsm.CdmEvents <- LacpMachineEvent{
-					e:            LacpCdmEventPartnerOperPortStateSyncOff,
-					src:          "TEST",
-					responseChan: responseChannel,
+				p1.PCdMachineFsm.CdmEvents <- utils.MachineEvent{
+					E:            LacpCdmEventPartnerOperPortStateSyncOff,
+					Src:          "TEST",
+					ResponseChan: responseChannel,
 				}
 				<-responseChannel
 				if p1.PCdMachineFsm.Machine.Curr.CurrentState() != LacpCdmStatePartnerChurnMonitor {

@@ -26,6 +26,7 @@ package lacp
 
 import (
 	//"fmt"
+	"l2/lacp/protocol/utils"
 	"time"
 	"utils/fsm"
 )
@@ -83,7 +84,7 @@ type LacpPtxMachine struct {
 	periodicTxTimer *time.Timer
 
 	// machine specific events
-	PtxmEvents chan LacpMachineEvent
+	PtxmEvents chan utils.MachineEvent
 	// stop go routine
 	PtxmKillSignalEvent chan bool
 	// enable logging
@@ -112,7 +113,7 @@ func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 		log:                     port.LacpDebug.LacpLogChan,
 		PreviousState:           LacpPtxmStateNone,
 		PeriodicTxTimerInterval: LacpSlowPeriodicTime,
-		PtxmEvents:              make(chan LacpMachineEvent, 10),
+		PtxmEvents:              make(chan utils.MachineEvent, 10),
 		PtxmKillSignalEvent:     make(chan bool),
 		PtxmLogEnableEvent:      make(chan bool)}
 
@@ -134,12 +135,12 @@ func (ptxm *LacpPtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	ptxm.Machine.Rules = r
-	ptxm.Machine.Curr = &LacpStateEvent{
-		strStateMap: PtxmStateStrMap,
+	ptxm.Machine.Curr = &utils.StateEvent{
+		StrStateMap: PtxmStateStrMap,
 		//logEna:      ptxm.p.logEna,
-		logEna: false,
-		logger: ptxm.LacpPtxmLog,
-		owner:  PtxMachineModuleStr,
+		LogEna: false,
+		Logger: ptxm.LacpPtxmLog,
+		Owner:  PtxMachineModuleStr,
 	}
 
 	return ptxm.Machine
@@ -173,8 +174,9 @@ func (ptxm *LacpPtxMachine) LacpPtxMachinePeriodicTx(m fsm.Machine, data interfa
 	// inform the tx machine that ntt should change to true which should transmit a
 	// packet
 	if ptxm.p.TxMachineFsm.Machine.Curr.CurrentState() != LacpTxmStateOff {
-		ptxm.p.TxMachineFsm.TxmEvents <- LacpMachineEvent{e: LacpTxmEventNtt,
-			src: PtxMachineModuleStr}
+		ptxm.p.TxMachineFsm.TxmEvents <- utils.MachineEvent{
+			E:   LacpTxmEventNtt,
+			Src: PtxMachineModuleStr}
 	}
 
 	return LacpPtxmStatePeriodicTx
@@ -273,7 +275,7 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 					tmpLogEna = true
 					m.Machine.Curr.EnableLogging(true)
 				}
-				m.Machine.ProcessEvent(event.src, event.e, nil)
+				m.Machine.ProcessEvent(event.Src, event.E, nil)
 				/* special case */
 				if m.LacpPtxIsNoPeriodicExitCondition() {
 					m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventUnconditionalFallthrough, nil)
@@ -285,8 +287,8 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 					}
 				}
 
-				if event.responseChan != nil {
-					SendResponse(PtxMachineModuleStr, event.responseChan)
+				if event.ResponseChan != nil {
+					utils.SendResponse(PtxMachineModuleStr, event.ResponseChan)
 				}
 
 				if tmpLogEna == true {

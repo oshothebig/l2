@@ -28,7 +28,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	lacp "l2/lacp/protocol"
+	"l2/lacp/protocol/lacp"
 	"lacpd"
 	"models/objects"
 	//"net"

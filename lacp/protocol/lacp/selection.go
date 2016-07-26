@@ -27,6 +27,7 @@ package lacp
 import (
 	"fmt"
 	"github.com/google/gopacket/layers"
+	"l2/lacp/protocol/utils"
 	"sync"
 )
 
@@ -208,8 +209,9 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *layers.LACP) {
 			(p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
 				p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCWaiting) {
 			p.aggSelected = LacpAggUnSelected
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
-				src: RxMachineModuleStr}
+			p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+				E:   LacpMuxmEventSelectedEqualUnselected,
+				Src: RxMachineModuleStr}
 		}
 	}
 }
@@ -235,8 +237,9 @@ func (rxm *LacpRxMachine) updateDefaultSelected() {
 			(p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
 				p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCWaiting) {
 			p.aggSelected = LacpAggUnSelected
-			p.MuxMachineFsm.MuxmEvents <- LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
-				src: RxMachineModuleStr}
+			p.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+				E:   LacpMuxmEventSelectedEqualUnselected,
+				Src: RxMachineModuleStr}
 		}
 	}
 }
@@ -262,12 +265,13 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 			p.aggSelected = LacpAggSelected
 			LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
 
-			mEvtChan := make([]chan LacpMachineEvent, 0)
-			evt := make([]LacpMachineEvent, 0)
+			mEvtChan := make([]chan utils.MachineEvent, 0)
+			evt := make([]utils.MachineEvent, 0)
 
 			mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-			evt = append(evt, LacpMachineEvent{e: LacpMuxmEventSelectedEqualSelected,
-				src: PortConfigModuleStr})
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpMuxmEventSelectedEqualSelected,
+				Src: PortConfigModuleStr})
 			// inform mux that port has been selected
 			// wait for response
 			p.DistributeMachineEvents(mEvtChan, evt, true)
@@ -282,12 +286,13 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 			// attach the agg to the port
 			//p.AggAttached = a
 
-			mEvtChan := make([]chan LacpMachineEvent, 0)
-			evt := make([]LacpMachineEvent, 0)
+			mEvtChan := make([]chan utils.MachineEvent, 0)
+			evt := make([]utils.MachineEvent, 0)
 
 			mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-			evt = append(evt, LacpMachineEvent{e: LacpMuxmEventSelectedEqualUnselected,
-				src: PortConfigModuleStr})
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpMuxmEventSelectedEqualUnselected,
+				Src: PortConfigModuleStr})
 			// inform mux that port has been selected
 			// wait for response
 			p.DistributeMachineEvents(mEvtChan, evt, true)

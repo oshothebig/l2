@@ -29,12 +29,12 @@ package lacp
 
 import (
 	"fmt"
+	"github.com/google/gopacket"
+	"l2/lacp/protocol/utils"
 	"net"
 	"testing"
 	"time"
 	"utils/fsm"
-
-	"github.com/google/gopacket"
 )
 
 func InvalidStateCheck(p *LaAggPort, invalidStates []fsm.Event, prevState fsm.State, currState fsm.State) (string, bool) {
@@ -50,10 +50,10 @@ func InvalidStateCheck(p *LaAggPort, invalidStates []fsm.Event, prevState fsm.St
 
 	for _, e := range invalidStates {
 		// send PORT MOVED event to Rx Machine
-		p.RxMachineFsm.RxmEvents <- LacpMachineEvent{
-			e:            e,
-			responseChan: portchan,
-			src:          "TEST"}
+		p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+			E:            e,
+			ResponseChan: portchan,
+			Src:          "TEST"}
 
 		// wait for response
 		if msg := <-portchan; msg != RxMachineModuleStr {

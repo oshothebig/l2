@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 // markerResponder.go
 package lacp
@@ -27,6 +27,7 @@ package lacp
 import (
 	"fmt"
 	"github.com/google/gopacket/layers"
+	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
 	"utils/fsm"
@@ -78,7 +79,7 @@ type LampMarkerResponderMachine struct {
 	log chan string
 
 	// machine specific events
-	LampMarkerResponderEvents          chan LacpMachineEvent
+	LampMarkerResponderEvents          chan utils.MachineEvent
 	LampMarkerResponderPktRxEvent      chan LampRxLampPdu
 	LampMarkerResponderKillSignalEvent chan bool
 	LampMarkerResponderLogEnableEvent  chan bool
@@ -111,11 +112,11 @@ func (mr *LampMarkerResponderMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 	// Assign the ruleset to be used for this machine
 	mr.Machine.Rules = r
-	mr.Machine.Curr = &LacpStateEvent{
-		strStateMap: LampMarkerResponderStateStrMap,
-		logEna:      mr.p.logEna,
-		logger:      mr.LampMarkerResponderLog,
-		owner:       MarkerResponderModuleStr,
+	mr.Machine.Curr = &utils.StateEvent{
+		StrStateMap: LampMarkerResponderStateStrMap,
+		LogEna:      mr.p.logEna,
+		Logger:      mr.LampMarkerResponderLog,
+		Owner:       MarkerResponderModuleStr,
 	}
 
 	return mr.Machine
@@ -127,7 +128,7 @@ func NewLampMarkerResponder(port *LaAggPort) *LampMarkerResponderMachine {
 		p:                                  port,
 		log:                                port.LacpDebug.LacpLogChan,
 		PreviousState:                      LacpRxmStateNone,
-		LampMarkerResponderEvents:          make(chan LacpMachineEvent, 10),
+		LampMarkerResponderEvents:          make(chan utils.MachineEvent, 10),
 		LampMarkerResponderPktRxEvent:      make(chan LampRxLampPdu, 1000),
 		LampMarkerResponderKillSignalEvent: make(chan bool),
 		LampMarkerResponderLogEnableEvent:  make(chan bool)}
@@ -229,15 +230,15 @@ func (p *LaAggPort) LampMarkerResponderMain() {
 				return
 
 			case event := <-m.LampMarkerResponderEvents:
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 
 				if rv != nil {
-					m.LampMarkerResponderLog(strings.Join([]string{error.Error(rv), event.src, LampMarkerResponderStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+					m.LampMarkerResponderLog(strings.Join([]string{error.Error(rv), event.Src, LampMarkerResponderStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 				}
 
 				// respond to caller if necessary so that we don't have a deadlock
-				if event.responseChan != nil {
-					SendResponse(RxMachineModuleStr, event.responseChan)
+				if event.ResponseChan != nil {
+					utils.SendResponse(RxMachineModuleStr, event.ResponseChan)
 				}
 			case rx := <-m.LampMarkerResponderPktRxEvent:
 				//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.PortNum, rx.src))
@@ -258,7 +259,7 @@ func (p *LaAggPort) LampMarkerResponderMain() {
 
 				// respond to caller if necessary so that we don't have a deadlock
 				if rx.responseChan != nil {
-					SendResponse(RxMachineModuleStr, rx.responseChan)
+					utils.SendResponse(RxMachineModuleStr, rx.responseChan)
 				}
 
 			case ena := <-m.LampMarkerResponderLogEnableEvent:
