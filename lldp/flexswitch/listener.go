@@ -109,8 +109,7 @@ func (h *ConfigHandler) UpdateLLDPGlobal(origconfig *lldpd.LLDPGlobal,
 	return api.UpdateGlobalConfig(newconfig.Vrf, newconfig.Enable)
 }
 
-func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(
-	state config.IntfState) *lldpd.LLDPIntfState {
+func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(state config.IntfState) *lldpd.LLDPIntfState {
 	entry := lldpd.NewLLDPIntfState()
 	entry.LocalPort = state.LocalPort
 	entry.PeerMac = state.PeerMac
@@ -118,14 +117,14 @@ func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(
 	entry.HoldTime = state.HoldTime
 	entry.Enable = state.Enable
 	entry.IfIndex = state.IfIndex
+	entry.SystemCapabilities = state.SystemCapabilities
+	entry.EnabledCapabilities = state.EnabledCapabilities
 	return entry
 }
 
-func (h *ConfigHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int,
-	count lldpd.Int) (*lldpd.LLDPIntfStateGetInfo, error) {
+func (h *ConfigHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int, count lldpd.Int) (*lldpd.LLDPIntfStateGetInfo, error) {
 
-	nextIdx, currCount, lldpIntfStateEntries := api.GetIntfStates(
-		int(fromIndex), int(count))
+	nextIdx, currCount, lldpIntfStateEntries := api.GetIntfStates(int(fromIndex), int(count))
 	if lldpIntfStateEntries == nil {
 		return nil, errors.New("No neighbor found")
 	}
