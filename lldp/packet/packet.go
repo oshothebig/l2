@@ -44,6 +44,9 @@ type RX struct {
 	RxFrame         *layers.LinkLayerDiscovery
 	RxLinkInfo      *layers.LinkLayerDiscoveryInfo
 	ClearCacheTimer *time.Timer
+
+	// cache last packet and see if we need to update current information or not
+	LastPkt []byte
 }
 
 type TX struct {

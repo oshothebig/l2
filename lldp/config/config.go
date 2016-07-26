@@ -68,4 +68,5 @@ const (
 	Learned
 	Updated
 	Removed
+	NoOp
 )

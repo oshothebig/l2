@@ -389,32 +389,28 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 			gblInfo, exists := svr.lldpGblInfo[rcvdInfo.ifIndex]
 			if exists {
+				var err error
 				eventInfo := config.EventInfo{}
 				gblInfo.RxLock.Lock()
-				if gblInfo.RxInfo == nil {
-					eventInfo.EventType = config.Learned
-				} else {
-					eventInfo.EventType = config.Updated
-				}
-				err := gblInfo.RxInfo.Process(gblInfo.RxInfo, rcvdInfo.pkt)
+				eventInfo.EventType, err = gblInfo.RxInfo.Process(gblInfo.RxInfo, rcvdInfo.pkt)
 				if err != nil {
 					gblInfo.RxLock.Unlock()
-					debug.Logger.Err(fmt.Sprintln("err", err,
-						" while processing rx frame on port",
+					debug.Logger.Err(fmt.Sprintln("err", err, "while processing rx frame on port",
 						gblInfo.Port.Name))
 					continue
 				}
 				gblInfo.RxLock.Unlock()
 				// reset/start timer for recipient information
-				//gblInfo.RxInfo.CheckPeerEntry(gblInfo.Port.Name)
 				gblInfo.RxInfo.CheckPeerEntry(gblInfo.Port.Name, svr.EventCh, rcvdInfo.ifIndex)
 				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
-				// dump the frame
-				gblInfo.DumpFrame()
 				eventInfo.Info = svr.GetIntfState(rcvdInfo.ifIndex)
 				eventInfo.IfIndex = rcvdInfo.ifIndex
-				svr.SysPlugin.PublishEvent(eventInfo)
-				//svr.EventCh <- eventInfo
+
+				if eventInfo.EventType != config.NoOp {
+					svr.SysPlugin.PublishEvent(eventInfo)
+				}
+				// dump the frame
+				//gblInfo.DumpFrame()
 			}
 		case exit := <-svr.lldpExit:
 			if exit {
@@ -461,7 +457,6 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 			eventInfo.Info = svr.GetIntfState(eventInfo.IfIndex)
 			svr.SysPlugin.PublishEvent(eventInfo)
-			//svr.SysPlugin.PublishEvent(eventInfo.eventType, svr.GetIntfState(eventInfo.ifIndex))
 		}
 	}
 }
