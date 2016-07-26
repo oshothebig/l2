@@ -108,6 +108,10 @@ func GetIntfStates(idx int, cnt int) (int, int, []config.IntfState) {
 	return n, c, result
 }
 
+func GetIntfState(ifIndex int32) *config.IntfState {
+	return lldpapi.server.GetIntfState(ifIndex)
+}
+
 func UpdateCache() {
 	lldpapi.server.UpdateCacheCh <- true
 }

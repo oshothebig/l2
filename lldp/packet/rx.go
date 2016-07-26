@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 package packet
 
@@ -29,6 +29,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	_ "github.com/google/gopacket/pcap"
+	"l2/lldp/config"
 	"l2/lldp/utils"
 	"net"
 	"time"
@@ -107,24 +108,26 @@ func (p *RX) Process(gblInfo *RX, pkt gopacket.Packet) error {
  *  Handle TTL timer. Once the timer expires, we will delete the remote entry
  *  if timer is running then reset the value
  */
-func (gblInfo *RX) CheckPeerEntry(port string) {
+func (gblInfo *RX) CheckPeerEntry(port string, eCh chan config.EventInfo, ifIndex int32) {
+	//func (gblInfo *RX) CheckPeerEntry(port string) {
 	if gblInfo.ClearCacheTimer != nil {
 		// timer is running reset the time so that it doesn't expire
-		gblInfo.ClearCacheTimer.Reset(time.Duration(
-			gblInfo.RxFrame.TTL) * time.Second)
+		gblInfo.ClearCacheTimer.Reset(time.Duration(gblInfo.RxFrame.TTL) * time.Second)
 	} else {
 		var clearPeerInfo_func func()
 		// On timer expiration we will delete peer info and set it to nil
 		clearPeerInfo_func = func() {
-			debug.Logger.Info("Recipient info delete timer expired for " +
-				"peer connected to port " + port +
-				" and hence deleting peer information from runtime")
+			debug.Logger.Info("Recipient info delete timer expired for " + "peer connected to port " +
+				port + " and hence deleting peer information from runtime")
 			gblInfo.RxFrame = nil
 			gblInfo.RxLinkInfo = nil
+			eCh <- config.EventInfo{
+				EventType: config.Removed,
+				IfIndex:   ifIndex,
+			}
 		}
 		// First time start function
-		gblInfo.ClearCacheTimer = time.AfterFunc(
-			time.Duration(gblInfo.RxFrame.TTL)*time.Second,
+		gblInfo.ClearCacheTimer = time.AfterFunc(time.Duration(gblInfo.RxFrame.TTL)*time.Second,
 			clearPeerInfo_func)
 	}
 }

@@ -35,16 +35,18 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+	"utils/dbutils"
 )
 
 /* Create lldp server object for the main handler..
  */
-func LLDPNewServer(aPlugin plugin.AsicIntf, lPlugin plugin.ConfigIntf,
-	sPlugin plugin.SystemIntf) *LLDPServer {
+func LLDPNewServer(aPlugin plugin.AsicIntf, lPlugin plugin.ConfigIntf, sPlugin plugin.SystemIntf,
+	dbHdl *dbutils.DBUtil) *LLDPServer {
 	lldpServerInfo := &LLDPServer{
 		asicPlugin: aPlugin,
 		CfgPlugin:  lPlugin,
 		SysPlugin:  sPlugin,
+		lldpDbHdl:  dbHdl,
 	}
 	// Allocate memory to all the Data Structures
 	lldpServerInfo.InitGlobalDS()
@@ -75,7 +77,7 @@ func (svr *LLDPServer) InitGlobalDS() {
 	svr.IntfCfgCh = make(chan *config.Intf)
 	svr.IfStateCh = make(chan *config.PortState)
 	svr.UpdateCacheCh = make(chan bool)
-
+	svr.EventCh = make(chan config.EventInfo, 10)
 	// All Plugin Info
 }
 
@@ -387,18 +389,32 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 			gblInfo, exists := svr.lldpGblInfo[rcvdInfo.ifIndex]
 			if exists {
+				eventInfo := config.EventInfo{}
+				gblInfo.RxLock.Lock()
+				if gblInfo.RxInfo == nil {
+					eventInfo.EventType = config.Learned
+				} else {
+					eventInfo.EventType = config.Updated
+				}
 				err := gblInfo.RxInfo.Process(gblInfo.RxInfo, rcvdInfo.pkt)
 				if err != nil {
+					gblInfo.RxLock.Unlock()
 					debug.Logger.Err(fmt.Sprintln("err", err,
 						" while processing rx frame on port",
 						gblInfo.Port.Name))
 					continue
 				}
+				gblInfo.RxLock.Unlock()
 				// reset/start timer for recipient information
-				gblInfo.RxInfo.CheckPeerEntry(gblInfo.Port.Name)
+				//gblInfo.RxInfo.CheckPeerEntry(gblInfo.Port.Name)
+				gblInfo.RxInfo.CheckPeerEntry(gblInfo.Port.Name, svr.EventCh, rcvdInfo.ifIndex)
 				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
 				// dump the frame
 				gblInfo.DumpFrame()
+				eventInfo.Info = svr.GetIntfState(rcvdInfo.ifIndex)
+				eventInfo.IfIndex = rcvdInfo.ifIndex
+				svr.SysPlugin.PublishEvent(eventInfo)
+				//svr.EventCh <- eventInfo
 			}
 		case exit := <-svr.lldpExit:
 			if exit {
@@ -439,6 +455,13 @@ func (svr *LLDPServer) ChannelHanlder() {
 				continue
 			}
 			svr.UpdateCache()
+		case eventInfo, ok := <-svr.EventCh: //used only for delete
+			if !ok {
+				continue
+			}
+			eventInfo.Info = svr.GetIntfState(eventInfo.IfIndex)
+			svr.SysPlugin.PublishEvent(eventInfo)
+			//svr.SysPlugin.PublishEvent(eventInfo.eventType, svr.GetIntfState(eventInfo.ifIndex))
 		}
 	}
 }

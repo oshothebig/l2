@@ -21,51 +21,40 @@
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
 
-package config
+package flexswitch
 
-type Global struct {
-	Vrf    string
-	Enable bool
-}
-
-type Intf struct {
-	IfIndex int32
-	Enable  bool
-}
-
-type PortInfo struct {
-	IfIndex     int32
-	Name        string
-	OperState   string
-	MacAddr     string
-	Description string
-}
-
-type PortState struct {
-	IfIndex int32
-	IfState string
-}
-
-type IntfState struct {
-	IfIndex             int32
-	Enable              bool
-	LocalPort           string
-	PeerMac             string
-	Port                string
-	HoldTime            string
-	SystemCapabilities  string
-	EnabledCapabilities string
-}
-
-type EventInfo struct {
-	IfIndex   int32
-	EventType int
-	Info      *IntfState
-}
-
-const (
-	_ = iota
-	Learned
-	Updated
-	Removed
+import (
+	"fmt"
+	"l2/lldp/config"
+	"l2/lldp/utils"
+	"models/events"
+	"utils/eventUtils"
 )
+
+func (p *SystemPlugin) PublishEvent(info config.EventInfo) { //eventType int, entry *config.IntfState) {
+	eventType := info.EventType
+	entry := info.Info
+	evtKey := events.LLDPIntfKey{
+		LocalPort:           entry.LocalPort,
+		NeighborPort:        entry.Port,
+		NeighborMac:         entry.PeerMac,
+		HoldTime:            entry.HoldTime,
+		SystemCapabilities:  entry.SystemCapabilities,
+		EnabledCapabilities: entry.EnabledCapabilities,
+	}
+	debug.Logger.Info(fmt.Sprintln("Publishing event Type:", eventType, "--->", evtKey))
+	var err error
+	switch eventType {
+	case config.Learned:
+		err = eventUtils.PublishEvents(events.NeighborLearned, evtKey, "")
+	case config.Updated:
+		err = eventUtils.PublishEvents(events.NeighborUpdated, evtKey, "")
+	case config.Removed:
+		err = eventUtils.PublishEvents(events.NeighborRemoved, evtKey, "")
+
+	}
+	if err != nil {
+		debug.Logger.Err(fmt.Sprintln("Publishining Event for", entry, "event Type", eventType,
+			"failed with error:", err))
+	}
+}
