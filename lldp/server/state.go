@@ -30,10 +30,10 @@ import (
 	"strconv"
 )
 
-/*  helper function to convert Mandatory TLV's (chassisID, portID, TTL) from byte
+/*  helper function to convert TLV's (chassisID, portID, TTL) from byte
  *  format to string
  */
-func (svr *LLDPServer) PopulateMandatoryTLV(ifIndex int32, entry *config.IntfState) bool {
+func (svr *LLDPServer) PopulateTLV(ifIndex int32, entry *config.IntfState) bool {
 	gblInfo, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
 		debug.Logger.Err(fmt.Sprintln("Entry not found for", ifIndex))
@@ -45,6 +45,12 @@ func (svr *LLDPServer) PopulateMandatoryTLV(ifIndex int32, entry *config.IntfSta
 		entry.Port = gblInfo.GetPortIdInfo()
 		entry.HoldTime = strconv.Itoa(int(gblInfo.RxInfo.RxFrame.TTL))
 	}
+
+	if gblInfo.RxInfo.RxLinkInfo != nil {
+		entry.SystemCapabilities = gblInfo.GetSystemCap()
+		entry.EnabledCapabilities = gblInfo.GetEnabledCap()
+	}
+
 	entry.IfIndex = gblInfo.Port.IfIndex
 	entry.Enable = gblInfo.enable
 	return exists
@@ -68,7 +74,7 @@ func (svr *LLDPServer) GetIntfStates(idx, cnt int) (int, int, []config.IntfState
 
 	for i, j = 0, idx; i < cnt && j < length; j++ {
 		key := svr.lldpUpIntfStateSlice[j]
-		succes := svr.PopulateMandatoryTLV(key, &result[i])
+		succes := svr.PopulateTLV(key, &result[i])
 		if !succes {
 			result = nil
 			return 0, 0, nil
