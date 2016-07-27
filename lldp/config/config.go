@@ -60,7 +60,7 @@ type IntfState struct {
 type EventInfo struct {
 	IfIndex   int32
 	EventType int
-	Info      *IntfState
+	//Info      *IntfState
 }
 
 const (

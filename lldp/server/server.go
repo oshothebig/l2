@@ -403,7 +403,7 @@ func (svr *LLDPServer) ChannelHanlder() {
 				// reset/start timer for recipient information
 				gblInfo.RxInfo.CheckPeerEntry(gblInfo.Port.Name, svr.EventCh, rcvdInfo.ifIndex)
 				svr.lldpGblInfo[rcvdInfo.ifIndex] = gblInfo
-				eventInfo.Info = svr.GetIntfState(rcvdInfo.ifIndex)
+				//eventInfo.Info = svr.GetIntfState(rcvdInfo.ifIndex)
 				eventInfo.IfIndex = rcvdInfo.ifIndex
 
 				if eventInfo.EventType != config.NoOp {
@@ -455,7 +455,7 @@ func (svr *LLDPServer) ChannelHanlder() {
 			if !ok {
 				continue
 			}
-			eventInfo.Info = svr.GetIntfState(eventInfo.IfIndex)
+			//eventInfo.Info = svr.GetIntfState(eventInfo.IfIndex)
 			svr.SysPlugin.PublishEvent(eventInfo)
 		}
 	}

@@ -31,17 +31,19 @@ import (
 	"utils/eventUtils"
 )
 
-func (p *SystemPlugin) PublishEvent(info config.EventInfo) { //eventType int, entry *config.IntfState) {
+func (p *SystemPlugin) PublishEvent(info config.EventInfo) {
 	eventType := info.EventType
-	entry := info.Info
-	evtKey := events.LLDPIntfKey{
-		LocalPort:           entry.LocalPort,
-		NeighborPort:        entry.Port,
-		NeighborMac:         entry.PeerMac,
-		HoldTime:            entry.HoldTime,
-		SystemCapabilities:  entry.SystemCapabilities,
-		EnabledCapabilities: entry.EnabledCapabilities,
-	}
+	//entry := info.Info
+	evtKey := events.LLDPIntfKey{info.IfIndex}
+	/*
+			LocalPort:           entry.LocalPort,
+			NeighborPort:        entry.Port,
+			NeighborMac:         entry.PeerMac,
+			HoldTime:            entry.HoldTime,
+			SystemCapabilities:  entry.SystemCapabilities,
+			EnabledCapabilities: entry.EnabledCapabilities,
+		}
+	*/
 	debug.Logger.Info(fmt.Sprintln("Publishing event Type:", eventType, "--->", evtKey))
 	var err error
 	switch eventType {
@@ -54,7 +56,7 @@ func (p *SystemPlugin) PublishEvent(info config.EventInfo) { //eventType int, en
 
 	}
 	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("Publishining Event for", entry, "event Type", eventType,
+		debug.Logger.Err(fmt.Sprintln("Publishining Event for", info.IfIndex, "event Type", eventType,
 			"failed with error:", err))
 	}
 }
