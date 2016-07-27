@@ -33,6 +33,7 @@ import (
 	"l2/lldp/utils"
 	"models/objects"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -201,6 +202,106 @@ func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
 
 	}
 	return retVal
+}
+
+/*  Get System Capability info
+ *	 Based on booleans value Return the string, which states what system capabilities are enabled
+// LLDPCapabilities represents the capabilities of a device
+type LLDPCapabilities struct {
+	Other       bool
+	Repeater    bool
+	Bridge      bool
+	WLANAP      bool
+	Router      bool
+	Phone       bool
+	DocSis      bool
+	StationOnly bool
+	CVLAN       bool
+	SVLAN       bool
+	TMPR        bool
+}
+*/
+func (gblInfo *LLDPGlobalInfo) GetSystemCap() string {
+	retVal := ""
+	systemCap := gblInfo.RxInfo.RxLinkInfo.SysCapabilities.SystemCap
+	if systemCap.Other {
+		retVal += "Other, "
+	}
+	if systemCap.Repeater {
+		retVal += "Repeater, "
+	}
+	if systemCap.Bridge {
+		retVal += "Bridge, "
+	}
+	if systemCap.WLANAP {
+		retVal += "WlanAP, "
+	}
+	if systemCap.Router {
+		retVal += "Router, "
+	}
+	if systemCap.Phone {
+		retVal += "Phone, "
+	}
+	if systemCap.DocSis {
+		retVal += "DocSis, "
+	}
+	if systemCap.StationOnly {
+		retVal += "StationOnly, "
+	}
+	if systemCap.CVLAN {
+		retVal += "CVlan, "
+	}
+	if systemCap.SVLAN {
+		retVal += "SVlan, "
+	}
+	if systemCap.TMPR {
+		retVal += "TMPR, "
+	}
+
+	return strings.TrimSuffix(retVal, ", ")
+}
+
+/*  Get Enabled Capability info
+ *	 Based on booleans value Return the string, which states what enabled capabilities are enabled
+ */
+func (gblInfo *LLDPGlobalInfo) GetEnabledCap() string {
+	retVal := ""
+	enabledCap := gblInfo.RxInfo.RxLinkInfo.SysCapabilities.EnabledCap
+	if enabledCap.Other {
+		retVal += "Other, "
+	}
+	if enabledCap.Repeater {
+		retVal += "Repeater, "
+	}
+	if enabledCap.Bridge {
+		retVal += "Bridge, "
+	}
+	if enabledCap.WLANAP {
+		retVal += "WlanAP, "
+	}
+	if enabledCap.Router {
+		retVal += "Router, "
+	}
+	if enabledCap.Phone {
+		retVal += "Phone, "
+	}
+	if enabledCap.DocSis {
+		retVal += "DocSis, "
+	}
+	if enabledCap.StationOnly {
+		retVal += "StationOnly, "
+	}
+	if enabledCap.CVLAN {
+		retVal += "CVlan, "
+	}
+	if enabledCap.SVLAN {
+		retVal += "SVlan, "
+	}
+	if enabledCap.TMPR {
+		retVal += "TMPR, "
+	}
+
+	return strings.TrimSuffix(retVal, ", ")
 }
 
 /*  dump received lldp frame and other TX information
