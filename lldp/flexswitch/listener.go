@@ -146,5 +146,10 @@ func (h *ConfigHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int, count lldpd.In
 }
 
 func (h *ConfigHandler) GetLLDPIntfState(ifIndex int32) (*lldpd.LLDPIntfState, error) {
-	return nil, nil
+	lldpIntf := api.GetIntfState(ifIndex)
+	if lldpIntf == nil {
+		return nil, errors.New(fmt.Sprintf("No Information found for", ifIndex))
+	}
+
+	return h.convertLLDPIntfStateEntryToThriftEntry(*lldpIntf), nil
 }

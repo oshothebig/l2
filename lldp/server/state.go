@@ -39,6 +39,8 @@ func (svr *LLDPServer) PopulateTLV(ifIndex int32, entry *config.IntfState) bool 
 		debug.Logger.Err(fmt.Sprintln("Entry not found for", ifIndex))
 		return exists
 	}
+	gblInfo.RxLock.RLock()
+	defer gblInfo.RxLock.RUnlock()
 	entry.LocalPort = gblInfo.Port.Name
 	if gblInfo.RxInfo.RxFrame != nil {
 		entry.PeerMac = gblInfo.GetChassisIdInfo()
@@ -87,4 +89,15 @@ func (svr *LLDPServer) GetIntfStates(idx, cnt int) (int, int, []config.IntfState
 	}
 	count = i
 	return nextIdx, count, result
+}
+
+/*  Server get lldp interface state per interface
+ */
+func (svr *LLDPServer) GetIntfState(ifIndex int32) *config.IntfState {
+	entry := config.IntfState{}
+	success := svr.PopulateTLV(ifIndex, &entry)
+	if success {
+		return &entry
+	}
+	return nil
 }

@@ -56,3 +56,17 @@ type IntfState struct {
 	SystemCapabilities  string
 	EnabledCapabilities string
 }
+
+type EventInfo struct {
+	IfIndex   int32
+	EventType int
+	//Info      *IntfState
+}
+
+const (
+	_ = iota
+	Learned
+	Updated
+	Removed
+	NoOp
+)
