@@ -21,41 +21,42 @@
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
 
-package packet
+package flexswitch
 
 import (
-	"github.com/google/gopacket/layers"
-	"net"
-	"time"
+	"fmt"
+	"l2/lldp/config"
+	"l2/lldp/utils"
+	"models/events"
+	"utils/eventUtils"
 )
 
-const (
-	LLDP_MAX_TTL             = 65535
-	LLDP_PROTO_DST_MAC       = "01:80:c2:00:00:0e"
-	LLDP_TOTAL_TLV_SUPPORTED = 8
-)
+func (p *SystemPlugin) PublishEvent(info config.EventInfo) {
+	eventType := info.EventType
+	//entry := info.Info
+	evtKey := events.LLDPIntfKey{info.IfIndex}
+	/*
+			LocalPort:           entry.LocalPort,
+			NeighborPort:        entry.Port,
+			NeighborMac:         entry.PeerMac,
+			HoldTime:            entry.HoldTime,
+			SystemCapabilities:  entry.SystemCapabilities,
+			EnabledCapabilities: entry.EnabledCapabilities,
+		}
+	*/
+	debug.Logger.Info(fmt.Sprintln("Publishing event Type:", eventType, "--->", evtKey))
+	var err error
+	switch eventType {
+	case config.Learned:
+		err = eventUtils.PublishEvents(events.NeighborLearned, evtKey, "")
+	case config.Updated:
+		err = eventUtils.PublishEvents(events.NeighborUpdated, evtKey, "")
+	case config.Removed:
+		err = eventUtils.PublishEvents(events.NeighborRemoved, evtKey, "")
 
-type RX struct {
-	// ethernet frame Info (used for rx/tx)
-	SrcMAC net.HardwareAddr // NOTE: Please be informed this is Peer Mac Addr
-	DstMAC net.HardwareAddr
-
-	// lldp rx information
-	RxFrame         *layers.LinkLayerDiscovery
-	RxLinkInfo      *layers.LinkLayerDiscoveryInfo
-	ClearCacheTimer *time.Timer
-
-	// cache last packet and see if we need to update current information or not
-	LastPkt []byte
-}
-
-type TX struct {
-	// tx information
-	ttl                     int
-	DstMAC                  net.HardwareAddr
-	MessageTxInterval       int
-	MessageTxHoldMultiplier int
-	useCacheFrame           bool
-	cacheFrame              []byte
-	TxTimer                 *time.Timer
+	}
+	if err != nil {
+		debug.Logger.Err(fmt.Sprintln("Publishining Event for", info.IfIndex, "event Type", eventType,
+			"failed with error:", err))
+	}
 }

@@ -24,24 +24,25 @@ package flexswitch
 
 import (
 	"encoding/json"
-	_ "errors"
 	"fmt"
 	nanomsg "github.com/op/go-nanomsg"
 	"infra/sysd/sysdCommonDefs"
 	"l2/lldp/api"
 	"l2/lldp/utils"
-	_ "strconv"
-	_ "sysd"
-	_ "time"
-	_ "utils/ipcutils"
+	"utils/dbutils"
+	"utils/eventUtils"
 )
 
 type SystemPlugin struct {
 	sysdSubSocket *nanomsg.SubSocket
 }
 
-func NewSystemPlugin(fileName string) (*SystemPlugin, error) {
+func NewSystemPlugin(fileName string, db *dbutils.DBUtil) (*SystemPlugin, error) {
 	mgr := &SystemPlugin{}
+	err := eventUtils.InitEvents("LLDPD", db, debug.Logger, 1000)
+	if err != nil {
+		debug.Logger.Info(fmt.Sprintln("unable to initialize event utils", err))
+	}
 	return mgr, nil
 }
 

@@ -34,6 +34,7 @@ import (
 	"models/objects"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -59,6 +60,7 @@ func (gblInfo *LLDPGlobalInfo) InitRuntimeInfo(portConf *config.PortInfo) {
 	gblInfo.TxInfo = packet.TxInit(LLDP_DEFAULT_TX_INTERVAL, LLDP_DEFAULT_TX_HOLD_MULTIPLIER)
 	gblInfo.RxKill = make(chan bool)
 	gblInfo.TxDone = make(chan bool)
+	gblInfo.RxLock = &sync.RWMutex{}
 }
 
 /*  De-Init l2 port information
@@ -106,6 +108,8 @@ func (gblInfo *LLDPGlobalInfo) isEnabled() bool {
 /*  Stop RX cache timer
  */
 func (gblInfo *LLDPGlobalInfo) StopCacheTimer() {
+	gblInfo.RxLock.Lock()
+	defer gblInfo.RxLock.Unlock()
 	if gblInfo.RxInfo.ClearCacheTimer == nil {
 		return
 	}
@@ -115,6 +119,8 @@ func (gblInfo *LLDPGlobalInfo) StopCacheTimer() {
 /*  Return back all the memory which was allocated using new
  */
 func (gblInfo *LLDPGlobalInfo) FreeDynamicMemory() {
+	gblInfo.RxLock.Lock()
+	defer gblInfo.RxLock.Unlock()
 	gblInfo.RxInfo.RxFrame = nil
 	gblInfo.RxInfo.RxLinkInfo = nil
 }
@@ -206,21 +212,7 @@ func (gblInfo *LLDPGlobalInfo) GetPortIdInfo() string {
 
 /*  Get System Capability info
  *	 Based on booleans value Return the string, which states what system capabilities are enabled
-// LLDPCapabilities represents the capabilities of a device
-type LLDPCapabilities struct {
-	Other       bool
-	Repeater    bool
-	Bridge      bool
-	WLANAP      bool
-	Router      bool
-	Phone       bool
-	DocSis      bool
-	StationOnly bool
-	CVLAN       bool
-	SVLAN       bool
-	TMPR        bool
-}
-*/
+ */
 func (gblInfo *LLDPGlobalInfo) GetSystemCap() string {
 	retVal := ""
 	systemCap := gblInfo.RxInfo.RxLinkInfo.SysCapabilities.SystemCap
@@ -307,6 +299,8 @@ func (gblInfo *LLDPGlobalInfo) GetEnabledCap() string {
 /*  dump received lldp frame and other TX information
  */
 func (gblInfo LLDPGlobalInfo) DumpFrame() {
+	gblInfo.RxLock.RLock()
+	defer gblInfo.RxLock.RUnlock()
 	debug.Logger.Debug(fmt.Sprintln("L2 Port:", gblInfo.Port.IfIndex, "Port IfIndex:",
 		gblInfo.Port.IfIndex))
 	debug.Logger.Debug(fmt.Sprintln("SrcMAC:", gblInfo.RxInfo.SrcMAC.String(),
