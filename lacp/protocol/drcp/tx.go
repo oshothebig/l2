@@ -33,7 +33,7 @@ import (
 )
 
 // bridge will simulate communication between two channels
-type SimulationBridge struct {
+type SimulationNeighborBridge struct {
 	port1       uint16
 	port2       uint16
 	rxLacpPort1 chan gopacket.Packet
@@ -42,10 +42,10 @@ type SimulationBridge struct {
 	rxLampPort2 chan gopacket.Packet
 }
 
-func (bridge *SimulationBridge) TxViaGoChannel(port uint16, pdu interface{}) {
+func (bridge *SimulationNeighborBridge) TxViaGoChannel(port uint16, pdu interface{}) {
 
-	var p *LaAggPort
-	if LaFindPortById(port, &p) {
+	var p *DRCPIpp
+	if LaDrcpFindIPPById(port, &p) {
 
 		// Set up all the layers' fields we can.
 		eth := layers.Ethernet{
@@ -60,20 +60,13 @@ func (bridge *SimulationBridge) TxViaGoChannel(port uint16, pdu interface{}) {
 		}
 
 		switch pdu.(type) {
-		case *layers.LACP:
+		case *layers.DRCP:
 			slow := layers.SlowProtocol{
 				SubType: layers.SlowProtocolTypeLACP,
 			}
 			lacp := pdu.(*layers.LACP)
 
 			gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
-
-		case *layers.LAMP:
-			slow := layers.SlowProtocol{
-				SubType: layers.SlowProtocolTypeLAMP,
-			}
-			lamp := pdu.(*layers.LAMP)
-			gopacket.SerializeLayers(buf, opts, &eth, &slow, lamp)
 		}
 
 		pkt := gopacket.NewPacket(buf.Bytes(), layers.LinkTypeEthernet, gopacket.Default)

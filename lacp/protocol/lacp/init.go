@@ -24,9 +24,7 @@
 // init
 package lacp
 
-import (
-	"utils/logging"
-)
+import ()
 
 var LaSystemIdDefault LacpSystem
 var MuxStateStrMap map[uint8]string
@@ -44,9 +42,4 @@ func init() {
 		actor_System:          [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 	}
 	LacpSysGlobalInfoInit(LaSystemIdDefault)
-
-	if gLogger == nil {
-		gLogger, _ = logging.NewLogger("lacpd", "LACP", true)
-	}
-
 }

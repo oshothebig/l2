@@ -196,9 +196,6 @@ type LaAggregator struct {
 	// 3 - ENCAP
 	// 4 - ENCAP2
 	LagHash uint32
-
-	LacpDebug *LacpDebug
-	log       chan string
 }
 
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
@@ -224,8 +221,6 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		LagHash:                ac.HashMode,
 	}
 
-	a.LacpDebugAggEventLogMain()
-
 	// want to ensure that the application can use a string name id
 	// to uniquely identify a lag
 	Key := AggIdKey{Id: ac.Id,
@@ -240,7 +235,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 			a.PortNumList = append(a.PortNumList, pId)
 		}
 	} else {
-		gLogger.Err(fmt.Sprintf("Error trying to create aggregator duplicate id or key or name\n", ac.Id, ac.Key, ac.Name))
+		a.LacpAggLog(fmt.Sprintf("Error trying to create aggregator duplicate id or key or name\n", ac.Id, ac.Key, ac.Name))
 		a = nil
 	}
 

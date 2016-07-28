@@ -81,7 +81,7 @@ type RxDrcpPdu struct {
 
 // DrcpRxMachine holds FSM and current State
 // and event channels for State transitions
-type DrcpRxMachine struct {
+type RxMachine struct {
 	// for debugging
 	PreviousState fsm.State
 
@@ -117,7 +117,7 @@ func (rxm *RxMachine) Stop() {
 }
 
 // NewDrcpRxMachine will create a new instance of the LacpRxMachine
-func NewDrcpRxMachine(port *DRCPIpp) *DrcpRxMachine {
+func NewDrcpRxMachine(port *DRCPIpp) *RxMachine {
 	rxm := &RxMachine{
 		p:             port,
 		PreviousState: RxmStateNone,
@@ -144,8 +144,8 @@ func (rxm *RxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	rxm.Machine.Rules = r
 	rxm.Machine.Curr = &utils.StateEvent{
 		StrStateMap: RxmStateStrMap,
-		LogEna:      rxm.p.logEna,
-		Logger:      rxm.LacpRxmLog,
+		LogEna:      false,
+		Logger:      rxm.DrcpRxmLog,
 		Owner:       RxMachineModuleStr,
 	}
 
@@ -171,6 +171,7 @@ func (rxm *RxMachine) DrcpRxMachineExpired(m fsm.Machine, data interface{}) fsm.
 	p := rxm.p
 
 	p.DRFNeighborOperDRCPState.ClearState(layers.DRCPStateIPPActivity)
+	defer rxm.NotifyDRCPStateTimeoutChange(p.DRFNeighborOperDRCPState.GetState(DRCPStateDRCPTimeout), layers.DRCPShortTimeout)
 	// short timeout
 	p.DRFNeighborOperDRCPState.SetState(layers.DRCPStateDRCPTimeout)
 	// start the timer
@@ -236,7 +237,7 @@ func (rxm *RxMachine) DrcpRxMachineCurrent(m fsm.Machine, data interface{}) fsm.
 	return RxmStateCurrent
 }
 
-func DrcpRxMachineFSMBuild(p *LaAggPort) *LacpRxMachine {
+func DrcpRxMachineFSMBuild(p *DRCPIpp) *LacpRxMachine {
 
 	RxMachineStrStateMapCreate()
 
@@ -309,11 +310,12 @@ func DrcpRxMachineFSMBuild(p *LaAggPort) *LacpRxMachine {
 // DrcpRxMachineMain:  802.1ax-2014 Figure 9-23
 // Creation of Rx State Machine State transitions and callbacks
 // and create go routine to pend on events
-func (p *LaAggPort) DrcpRxMachineMain() {
+func (p *DRCPIpp) DrcpRxMachineMain() {
 
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.12 Receive Machine
 	rxm := DrcpRxMachineFSMBuild(p)
+	p.wg.Add(1)
 
 	// set the inital State
 	rxm.Machine.Start(rxm.PrevState())
@@ -378,7 +380,7 @@ func (p *LaAggPort) DrcpRxMachineMain() {
 				//p.LacpCounter.AggPortStatsLACPDUsRx += 1
 
 				//p.AggPortDebug.AggPortDebugLastRxTime = (time.Now().Nanosecond() - LacpStartTime.Nanosecond()) / 10
-				m.Machine.ProcessEvent(RxModuleStr, LacpRxmEventLacpPktRx, rx.pdu)
+				m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventLacpPktRx, rx.pdu)
 
 				// respond to caller if necessary so that we don't have a deadlock
 				if rx.responseChan != nil {
@@ -387,6 +389,122 @@ func (p *LaAggPort) DrcpRxMachineMain() {
 			}
 		}
 	}(rxm)
+}
+
+// NotifyDRCPStateTimeoutChange notify the Periodic Transmit Machine of a neighbor state
+// timeout change
+func (rxm *RxMachine) NotifyDRCPStateTimeoutChange(oldval, newval int32) {
+
+	if oldval != newval {
+		if newval == layers.DRCPShortTimeout {
+			p.PtxMachineFsm.PtxmEvents <- utils.MachineEvent{
+				E:   PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualShortTimeout,
+				Src: RxMachineModuleStr,
+			}
+		} else {
+			p.PtxMachineFsm.PtxmEvents <- utils.MachineEvent{
+				E:   PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout,
+				Src: RxMachineModuleStr,
+			}
+		}
+	}
+}
+
+// processPostStates will check local params to see if any conditions
+// are met in order to transition to next state
+func (rxm *RxMachine) processPostStates() {
+	rxm.processPostStateInitialize()
+	rxm.processPostStateExpire()
+	rxm.processPostStatePortalCheck()
+	rxm.processPostStateCompatibilityCheck()
+	rxm.processPostStateDiscard()
+	rxm.processPostStateCurrent()
+	rxm.processPostStateDefaulted()
+}
+
+// processPostStateInitialize will check local params to see if any conditions
+// are met in order to transition to next state
+func (rxm *RxMachine) processPostStateInitialize() {
+	p := rxm.p
+	if rxm.Machine.Curr.CurrentState() == RxmStateInitialize &&
+		p.IPPPortEnabed && p.DRCPEnabled {
+		rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventIPPPortEnabledAndDRCPEnabled, nil)
+		if rv != nil {
+			m.LacpRxmLog(strings.Join([]string{error.Error(rv), RxMachineModuleStr, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+		} else {
+			rxm.processPostStates()
+		}
+	}
+}
+
+// processPostStateExpired will check local params to see if any conditions
+// are met in order to transition to next state
+func (rxm *RxMachine) processPostStateExpired() {
+	// nothin to do events are triggered by rx packet or current while timer expired
+}
+
+// processPostStatePortalCheck will check local params to see if any conditions
+// are met in order to transition to next state
+func (rxm *RxMachine) processPostStatePortalCheck() {
+	p := rxm.p
+	if rxm.Machine.Curr.CurrentState() == RxmStatePortalCheck {
+		if p.DifferPortal {
+			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDifferPortal, nil)
+			if rv != nil {
+				m.LacpRxmLog(strings.Join([]string{error.Error(rv), RxMachineModuleStr, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+			} else {
+				rxm.processPostStates()
+			}
+		} else {
+			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventNotDifferPortal, nil)
+			if rv != nil {
+				m.LacpRxmLog(strings.Join([]string{error.Error(rv), RxMachineModuleStr, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+			} else {
+				rxm.processPostStates()
+			}
+		}
+	}
+}
+
+// processPostStateCompatibilityCheck will check local params to see if any conditions
+// are met in order to transition to next state
+func (rxm *RxMachine) processPostStateCompatibilityCheck() {
+	p := rxm.p
+	if rxm.Machine.Curr.CurrentState() == RxmStateCompatibilityCheck {
+		if p.DifferConfPortal {
+			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDifferConfPortal, nil)
+			if rv != nil {
+				m.LacpRxmLog(strings.Join([]string{error.Error(rv), RxMachineModuleStr, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+			} else {
+				rxm.processPostStates()
+			}
+		} else {
+			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventNotDifferConfPortal, nil)
+			if rv != nil {
+				m.LacpRxmLog(strings.Join([]string{error.Error(rv), RxMachineModuleStr, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+			} else {
+				rxm.processPostStates()
+			}
+		}
+	}
+}
+
+// processPostStateDiscard will check local params to see if any conditions
+// are met in order to transition to next state
+func (rxm *RxMachine) processPostStateDiscard(pdu interface{}) {
+	// nothin to do events are triggered by rx packet or current while timer expired
+}
+
+// processPostStateCurrent will check local params to see if any conditions
+// are met in order to transition to next state
+func (rxm *RxMachine) processPostStateCurrent(pdu interface{}) {
+	// nothin to do events are triggered by rx packet or current while timer expired
+}
+
+// processPostStateCurrent will check local params to see if any conditions
+// are met in order to transition to next state
+func (rxm *RxMachine) processPostStateDefaulted(pdu interface{}) {
+	// nothin to do events are triggered by rx packet or current while timer expired
 }
 
 // recordDefaultDRCPDU: 802.1ax Section 9.4.1.1

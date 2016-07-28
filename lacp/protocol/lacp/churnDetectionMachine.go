@@ -83,9 +83,6 @@ type LacpCdMachine struct {
 
 	p *LaAggPort
 
-	// debug log
-	log chan string
-
 	// timer intervals
 	churnTimerInterval time.Duration
 
@@ -127,7 +124,6 @@ func (cdm *LacpCdMachine) PrevStateSet(s fsm.State) { cdm.PreviousState = s }
 func NewLacpActorCdMachine(port *LaAggPort) *LacpActorCdMachine {
 	cdm := &LacpActorCdMachine{
 		LacpCdMachine{p: port,
-			log:                port.LacpDebug.LacpLogChan,
 			PreviousState:      LacpCdmStateNone,
 			churnTimerInterval: LacpChurnDetectionTime,
 			CdmEvents:          make(chan utils.MachineEvent, 10),
@@ -144,7 +140,6 @@ func NewLacpActorCdMachine(port *LaAggPort) *LacpActorCdMachine {
 func NewLacpPartnerCdMachine(port *LaAggPort) *LacpPartnerCdMachine {
 	cdm := &LacpPartnerCdMachine{
 		LacpCdMachine{p: port,
-			log:                port.LacpDebug.LacpLogChan,
 			PreviousState:      LacpCdmStateNone,
 			churnTimerInterval: LacpChurnDetectionTime,
 			CdmEvents:          make(chan utils.MachineEvent, 10),
@@ -345,6 +340,7 @@ func (p *LaAggPort) LacpActorCdMachineMain() {
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.17 Churn Detection machine
 	cdm := LacpActorCdMachineFSMBuild(p)
+	p.wg.Add(1)
 
 	// set the inital State
 	cdm.Machine.Start(cdm.PrevState())

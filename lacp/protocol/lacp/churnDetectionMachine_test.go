@@ -43,9 +43,12 @@ const LaAggChurnPortPeerIf = "SIMeth1"
 func ChurnDetectionStateMachineTeardown() {
 
 	DeleteLaAggPort(LaAggChurnPortActor)
+	OnlyForTestTeardown()
 }
 
 func ChurnDetectionStateMachineSetup() {
+
+	OnlyForTestSetup()
 	// must be called to initialize the global
 	//LaSystemActor := LacpSystem{Actor_System_priority: 128,
 	//	actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
@@ -68,6 +71,14 @@ func ChurnDetectionStateMachineSetup() {
 		},
 		IntfId:   LaAggChurnPortActorIf,
 		TraceEna: true,
+	}
+
+	utils.PortConfigMap[int32(p1conf.Id)] = utils.PortConfig{Name: LaAggChurnPortActorIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
+	}
+
+	utils.PortConfigMap[LaAggChurnPortPeer] = utils.PortConfig{Name: LaAggChurnPortPeerIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x44, 0x44, 0x22, 0x22, 0x33},
 	}
 
 	// lets create a port and start the machines

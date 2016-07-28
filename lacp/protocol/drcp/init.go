@@ -24,10 +24,11 @@
 // init
 package drcp
 
-import (
-	""
-)
+import ()
 
 func init() {
-
+	DRCPIppDB = make(map[string]*DRCPIpp)
+	DRCPIppDBList = make([]*DRCPIpp, 0)
+	DistributedRelayDB = make(map[string]*DistributedRelay)
+	DistributedRelayDBList = make([]*DistributedRelay, 0)
 }

@@ -20,52 +20,18 @@
 // |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
-
-// hw.go
-package lacp
+package utils
 
 import (
-	hwconst "asicd/asicdCommonDefs"
-	"strings"
+	"utils/asicdClient"
 )
 
-// convert the lacp port names name to asic format string list
-func asicDPortBmpFormatGet(distPortList []string) string {
-	s := ""
-	dLength := len(distPortList)
+var ClientIntfs []asicdClient.AsicdClientIntf
 
-	for i := 0; i < dLength; i++ {
-		var num string
-		if strings.Contains(distPortList[i], "-") {
-			num = strings.Split(distPortList[i], "-")[1]
-		} else if strings.HasPrefix(distPortList[i], "eth") {
-			num = strings.TrimLeft(distPortList[i], "eth")
-		} else if strings.HasPrefix(distPortList[i], "fpPort") {
-			num = strings.TrimLeft(distPortList[i], "fpPort")
-		}
-		if i == dLength-1 {
-			s += num
-		} else {
-			s += num + ","
-		}
-	}
-	return s
-
+func SetAsicDPlugin(clientif asicdClient.AsicdClientIntf) {
+	ClientIntfs = append(ClientIntfs, clientif)
 }
 
-// convert the model value to asic value
-func asicDHashModeGet(hashmode uint32) (laghash int32) {
-	switch hashmode {
-	case 0: //L2
-		laghash = hwconst.HASH_SEL_SRCDSTMAC
-		break
-	case 1: //L2 + L3
-		laghash = hwconst.HASH_SEL_SRCDSTIP
-		break
-	//case 2: //L3 + L4
-	//break
-	default:
-		laghash = hwconst.HASH_SEL_SRCDSTMAC
-	}
-	return laghash
+func GetAsicDPluginList() []asicdClient.AsicdClientIntf {
+	return ClientIntfs
 }

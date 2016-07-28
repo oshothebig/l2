@@ -28,16 +28,17 @@
 package lacp
 
 import (
+	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
+	"net"
 	"testing"
 	"time"
 	"utils/fsm"
-
-	"github.com/google/gopacket/layers"
 )
 
 func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
+	OnlyForTestSetup()
 	var msg string
 	var portchan chan string
 	// must be called to initialize the global
@@ -50,6 +51,10 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Prio:   0x80,
 		IntfId: "SIMeth1.1",
 		Key:    100,
+	}
+
+	utils.PortConfigMap[int32(pconf.Id)] = utils.PortConfig{Name: pconf.IntfId,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
 	}
 
 	// not calling Create because we don't want to launch all State machines
@@ -500,10 +505,12 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	OnlyForTestTeardown()
 }
 
 func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 
+	OnlyForTestSetup()
 	// must be called to initialize the global
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
@@ -515,6 +522,10 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 		Prio:   0x80,
 		IntfId: "SIMeth1.1",
 		Key:    100,
+	}
+
+	utils.PortConfigMap[int32(pconf.Id)] = utils.PortConfig{Name: pconf.IntfId,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
 	}
 
 	// not calling Create because we don't want to launch all State machines
@@ -613,4 +624,5 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	OnlyForTestTeardown()
 }

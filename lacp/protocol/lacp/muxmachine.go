@@ -146,7 +146,6 @@ func (muxm *LacpMuxMachine) PrevStateSet(s fsm.State) { muxm.PreviousState = s }
 func NewLacpMuxMachine(port *LaAggPort) *LacpMuxMachine {
 	muxm := &LacpMuxMachine{
 		p:                     port,
-		log:                   port.LacpDebug.LacpLogChan,
 		collDistCoupled:       false,
 		waitWhileTimerTimeout: LacpAggregateWaitTime,
 		PreviousState:         LacpMuxmStateNone,
@@ -519,6 +518,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
 	muxm := p.LacpMuxMachineFSMBuild()
+	p.wg.Add(1)
 
 	// TODO: Hw only supports mux coupling, this should be a param file for lacp
 	//if LacpSysGlobalInfoGet(LacpSystem{actor_System: p.AggAttached.Config.SystemIdMac,
@@ -759,11 +759,23 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 
 		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d hwAggId %d EnableDistributing PortsListLen %d PortList %v", p.AggId, a.HwAggId, len(a.DistributedPortNumList), a.DistributedPortNumList))
 		if len(a.DistributedPortNumList) == 1 {
-			a.HwAggId = asicDCreateLag(a)
+			for _, client := range utils.GetAsicDPluginList() {
+				hwId, err := client.CreateLag(asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
+				if err != nil {
+					a.LacpAggLog(fmt.Sprintln("EnableDistributing: Error creating first port in LAG Group in HW", err))
+					return
+				}
+				a.HwAggId = hwId
+			}
 			a.OperState = true
 			// TODO UPDATE SQL DB for warm boot purposes
 		} else {
-			asicDUpdateLag(a)
+			for _, client := range utils.GetAsicDPluginList() {
+				err := client.UpdateLag(a.HwAggId, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
+				if err != nil {
+					a.LacpAggLog(fmt.Sprintln("EnableDistributing: Error updating LAG in HW", err))
+				}
+			}
 		}
 	}
 }
@@ -791,13 +803,25 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 		if portFound {
 			sort.Strings(a.DistributedPortNumList)
 
-			muxm.LacpMuxmLog(fmt.Sprintf("Agg %d DisableDistributing PortsListLen %d PortList %v", p.AggId, len(a.DistributedPortNumList), a.DistributedPortNumList))
+			muxm.LacpMuxmLog(fmt.Sprintf("Agg %d HwId %d DisableDistributing PortsListLen %d PortList %v", p.AggId, a.HwAggId, len(a.DistributedPortNumList), a.DistributedPortNumList))
 
-			asicDUpdateLag(a)
+			for _, client := range utils.GetAsicDPluginList() {
+				err := client.UpdateLag(a.HwAggId, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
+				if err != nil {
+					muxm.LacpMuxmLog(fmt.Sprintln("ERROR Updating Lag in HW", err))
+					return
+				}
+			}
 
 			if len(a.DistributedPortNumList) == 0 {
 				muxm.LacpMuxmLog("Sending Lag Delete to ASICD")
-				asicDDeleteLag(a)
+				for _, client := range utils.GetAsicDPluginList() {
+					err := client.DeleteLag(a.HwAggId)
+					if err != nil {
+						muxm.LacpMuxmLog(fmt.Sprintln("ERROR Deleting Lag in HW", err))
+						return
+					}
+				}
 				a.HwAggId = 0
 				// no more ports active in group, lets mark the lag as operationally down
 				a.OperState = false

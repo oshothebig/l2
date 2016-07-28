@@ -26,10 +26,16 @@ package lacp
 import (
 	"fmt"
 	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
+	"l2/lacp/protocol/lacp"
+	"l2/lacp/protocol/utils"
 	"time"
 )
 
 // DRNI - Distributed Resilient Network Interconnect
+
+var DRCPIppDB map[string]*DRCPIpp
+var DRCPIppDBList []*DRCPIpp
 
 const (
 	MAX_CONVERSATION_IDS = 4096
@@ -37,6 +43,7 @@ const (
 
 // 802.1ax-2014 7.4.2.1.1
 type DistributedRelayIPP struct {
+	Name                         string
 	Id                           uint32
 	PortConversationPasses       [MAX_CONVERSATION_IDS]bool
 	GatewayConversationDirection [MAX_CONVERSATION_IDS]bool
@@ -166,15 +173,237 @@ type DRCPIpp struct {
 	// reference to the distributed relay object
 	dr *DistributedRelay
 
-	Logger *DrcpDebug
+	// sync creation and deletion
+	wg sync.WaitGroup
+
+	// handle used to tx packets to linux if
+	handle *pcap.Handle
 
 	// FSMs
-	RxMachineFsm *RxMachine
+	RxMachineFsm  *RxMachine
+	PtxMachineFsm *PtxMachine
+	PsMachineFsm  *PsMachine
 }
 
-func NewDRCPIpp() *DRCPIpp {
+func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 
-	return &DRCPIpp{}
+	ipp := &DRCPIpp{
+		Name:        PortConfigMap[id].Name,
+		Id:          id,
+		AdminState:  true,
+		dr:          dr,
+		DRCPEnabled: true,
+	}
+
+	DRCPIppDB[ipp.Name] = ipp
+	DRCPIppDBList = append(DRCPIppDBList, ipp)
+
+	// check the link status
+	for _, client := range utils.GetAsicDPluginList() {
+		ipp.OperState = client.GetPortLinkStatus(int32(ipp.id))
+		ipp.IppPortEnabled = ipp.OperState
+	}
+
+	handle, err := pcap.OpenLive(ipp.Name, 65536, false, 50*time.Millisecond)
+	if err != nil {
+		// failure here may be ok as this may be SIM
+		if !strings.Contains(ipp.Name, "SIM") {
+			fmt.Println("Error creating pcap OpenLive handle for port", ipp.Id, ipp.Name, err)
+		}
+		return p
+	}
+	fmt.Println("Creating Listener for intf", ipp.Name)
+	ipp.handle = handle
+	src := gopacket.NewPacketSource(ipp.handle, layers.LayerTypeEthernet)
+	in := src.Packets()
+	// start rx routine
+	DrRxMain(ipp.Id, in)
+	fmt.Println("Rx Main Started for ipp link port", ipp.Id)
+
+	// register the tx func
+	//sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, tx.TxViaLinuxIf)
+
+}
+
+// BEGIN this will send the start event to the start the state machines
+func (p *DRCPIpp) BEGIN(restart bool) {
+
+	mEvtChan := make([]chan utils.MachineEvent, 0)
+	evt := make([]utils.MachineEvent, 0)
+
+	// there is a case in which we have only called
+	// restart and called main functions outside
+	// of this scope (TEST for example)
+	//prevBegin := p.begin
+
+	// System in being initalized
+	//p.begin = true
+
+	if !restart {
+		// start all the State machines
+		// Order here matters as Rx machine
+		// will send event to Mux machine
+		// thus machine must be up and
+		// running first
+		// Mux Machine
+		//p.LacpMuxMachineMain()
+		// Periodic Tx Machine
+		//p.LacpPtxMachineMain()
+		// Churn Detection Machine
+		//p.LacpActorCdMachineMain()
+		// Partner Churn Detection Machine
+		//p.LacpPartnerCdMachineMain()
+		// Rx Machine
+		//p.LacpRxMachineMain()
+		// Tx Machine
+		//p.LacpTxMachineMain()
+		// Marker Responder
+		//p.LampMarkerResponderMain()
+		p.DrcpRxMachineMain()
+	}
+
+	// wait group used when stopping all the
+	// State mahines associated with this port.
+	// want to ensure that all routines are stopped
+	// before proceeding with cleanup thus why not
+	// create the wg as part of a BEGIN process
+	// 1) Rx Machine
+	// 2) Tx Machine
+	// 3) Mux Machine
+	// 4) Periodic Tx Machine
+	// 5) Churn Detection Machine * 2
+	// 6) Marker Responder
+	// Rxm
+	if p.RxMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
+		evt = append(evt, utils.MachineEvent{
+			E:   RxmEventBegin,
+			Src: DRCPConfigModuleStr})
+	}
+	/*
+		if p.RxMachineFsm != nil {
+			mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpRxmEventBegin,
+				Src: PortConfigModuleStr})
+			if !restart || !prevBegin {
+				p.wg.Add(1)
+			}
+		}
+
+		// Ptxm
+		if p.PtxMachineFsm != nil {
+			mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpPtxmEventBegin,
+				Src: PortConfigModuleStr})
+			if !restart || !prevBegin {
+				p.wg.Add(1)
+			}
+		}
+		// Cdm
+		if p.CdMachineFsm != nil {
+			mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpCdmEventBegin,
+				Src: PortConfigModuleStr})
+			if !restart || !prevBegin {
+				p.wg.Add(1)
+			}
+		}
+		// Cdm
+		if p.PCdMachineFsm != nil {
+			mEvtChan = append(mEvtChan, p.PCdMachineFsm.CdmEvents)
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpCdmEventBegin,
+				Src: PortConfigModuleStr})
+			if !restart || !prevBegin {
+				p.wg.Add(1)
+			}
+		}
+		// Muxm
+		if p.MuxMachineFsm != nil {
+			mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpMuxmEventBegin,
+				Src: PortConfigModuleStr})
+			if !restart || !prevBegin {
+				p.wg.Add(1)
+			}
+		}
+		// Txm
+		if p.TxMachineFsm != nil {
+			mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpTxmEventBegin,
+				Src: PortConfigModuleStr})
+			if !restart || !prevBegin {
+				p.wg.Add(1)
+			}
+		}
+		// Marker Responder
+		if p.MarkerResponderFsm != nil {
+			mEvtChan = append(mEvtChan, p.MarkerResponderFsm.LampMarkerResponderEvents)
+			evt = append(evt, utils.MachineEvent{
+				E:   LampMarkerResponderEventBegin,
+				Src: PortConfigModuleStr})
+			if !restart || !prevBegin {
+				p.wg.Add(1)
+			}
+		}
+		// call the begin event for each
+		// distribute the port disable event to various machines
+		p.DistributeMachineEvents(mEvtChan, evt, true)
+	*/
+}
+
+// DistributeMachineEvents will distribute the events in parrallel
+// to each machine
+func (dr *DRCPIpp) DistributeMachineEvents(mec []chan utils.MachineEvent, e []utils.MachineEvent, waitForResponse bool) {
+
+	length := len(mec)
+	if len(mec) != len(e) {
+		dr.LaDrLog("LADR: Distributing of events failed")
+		return
+	}
+
+	// send all begin events to each machine in parrallel
+	for j := 0; j < length; j++ {
+		go func(port *DRCPIpp, w bool, idx int, machineEventChannel []chan utils.MachineEvent, event []utils.MachineEvent) {
+			if w {
+				event[idx].ResponseChan = p.portChan
+			}
+			event[idx].Src = DRCPConfigModuleStr
+			machineEventChannel[idx] <- event[idx]
+		}(p, waitForResponse, j, mec, e)
+	}
+
+	if waitForResponse {
+		i := 0
+		// lets wait for all the machines to respond
+		for {
+			select {
+			case mStr := <-dr.drEvtResponseChan:
+				i++
+				dr.LaDrLog(strings.Join([]string{"LADR:", mStr, "response received"}, " "))
+				//fmt.Println("LAPORT: Waiting for response Delayed", length, "curr", i, time.Now())
+				if i >= length {
+					// 10/24/15 fixed hack by sending response after Machine.ProcessEvent
+					// HACK, found that port is pre-empting the State machine callback return
+					// lets delay for a short period to allow for event to be received
+					// and other routines to process their events
+					/*
+						if p.logEna {
+							time.Sleep(time.Millisecond * 3)
+						} else {
+							time.Sleep(time.Millisecond * 1)
+						}
+					*/
+					return
+				}
+			}
+		}
+	}
 }
 
 // ReportToManagement send events for various reason to infor management of something

@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"l2/lacp/protocol/utils"
 	"net"
 	"testing"
 	"time"
@@ -35,6 +36,7 @@ import (
 
 func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 
+	OnlyForTestSetup()
 	const LaAggPortActor = 10
 	const LaAggPortPeer = 20
 	LaAggPortActorIf := "SIMeth0"
@@ -75,6 +77,10 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 		TraceEna: false,
 	}
 
+	utils.PortConfigMap[int32(p1conf.Id)] = utils.PortConfig{Name: LaAggPortActorIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
+	}
+
 	p2conf := &LaAggPortConfig{
 		Id:     LaAggPortPeer,
 		Prio:   0x80,
@@ -90,6 +96,10 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 		},
 		IntfId:   LaAggPortPeerIf,
 		TraceEna: false,
+	}
+
+	utils.PortConfigMap[int32(p1conf.Id)] = utils.PortConfig{Name: LaAggPortPeerIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
 	}
 
 	// lets create a port and start the machines
@@ -215,4 +225,5 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	OnlyForTestTeardown()
 }

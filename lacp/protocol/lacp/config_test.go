@@ -37,6 +37,18 @@ import (
 	"utils/fsm"
 )
 
+func ConfigSetup() {
+
+	OnlyForTestSetup()
+	utils.PortConfigMap[3] = utils.PortConfig{Name: "SIMeth1.1",
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
+	}
+}
+
+func ConfigTeardown() {
+	OnlyForTestTeardown()
+}
+
 func InvalidStateCheck(p *LaAggPort, invalidStates []fsm.Event, prevState fsm.State, currState fsm.State) (string, bool) {
 
 	var s string
@@ -83,13 +95,14 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 
 	var p *LaAggPort
 
+	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
-		Id:     1,
+		Id:     3,
 		Prio:   0x80,
 		Key:    100,
 		AggId:  2000,
@@ -159,12 +172,14 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	ConfigTeardown()
 }
 
 func TestLaAggPortCreateDifferentModes(t *testing.T) {
 
 	var p *LaAggPort
 
+	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -174,7 +189,7 @@ func TestLaAggPortCreateDifferentModes(t *testing.T) {
 
 	for _, mode := range modeList {
 		pconf := &LaAggPortConfig{
-			Id:     1,
+			Id:     3,
 			Prio:   0x80,
 			Key:    100,
 			AggId:  2000,
@@ -245,11 +260,13 @@ func TestLaAggPortCreateDifferentModes(t *testing.T) {
 			}
 		}
 	}
+	ConfigTeardown()
 }
 
 func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 	var p *LaAggPort
 
+	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -270,7 +287,7 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 	CreateLaAgg(aconf)
 
 	pconf := &LaAggPortConfig{
-		Id:     2,
+		Id:     3,
 		Prio:   0x80,
 		Key:    100, // INVALID
 		AggId:  2000,
@@ -308,11 +325,13 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.SysKey, sgi.PortList, sgi.PortMap)
 		}
 	}
+	ConfigTeardown()
 }
 
 func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 
 	var p *LaAggPort
+	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -356,11 +375,13 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	ConfigTeardown()
 }
 
 func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 
 	var p *LaAggPort
+	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -430,6 +451,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	ConfigTeardown()
 }
 
 // TestLaAggPortCreateThenCorrectAggCreateThenDetach:
@@ -440,6 +462,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 
 	var p *LaAggPort
+	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -513,11 +536,13 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	ConfigTeardown()
 }
 
 // Enable port post creation
 func TestLaAggPortEnable(t *testing.T) {
 	var p *LaAggPort
+	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -588,6 +613,7 @@ func TestLaAggPortEnable(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	ConfigTeardown()
 }
 
 func TestTwoAggsBackToBackSinglePort(t *testing.T) {
@@ -596,6 +622,14 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	const LaAggPortPeer = 20
 	LaAggPortActorIf := "SIMeth0"
 	LaAggPortPeerIf := "SIM2eth0"
+	OnlyForTestSetup()
+	utils.PortConfigMap[LaAggPortActor] = utils.PortConfig{Name: LaAggPortActorIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
+	}
+	utils.PortConfigMap[LaAggPortPeer] = utils.PortConfig{Name: LaAggPortPeerIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x44, 0x44, 0x22, 0x22, 0x33},
+	}
+
 	// must be called to initialize the global
 	LaSystemActor := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
@@ -739,6 +773,7 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	OnlyForTestTeardown()
 }
 
 // TestTwoAggsBackToBackSinglePortTimeout will allow for
@@ -746,10 +781,19 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 // one end of the connection by setting the mode to "ON"
 func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 
+	OnlyForTestSetup()
 	const LaAggPortActor = 11
 	const LaAggPortPeer = 21
 	const LaAggPortActorIf = "SIMeth0"
 	const LaAggPortPeerIf = "SIMeth1"
+
+	utils.PortConfigMap[LaAggPortActor] = utils.PortConfig{Name: LaAggPortActorIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
+	}
+	utils.PortConfigMap[LaAggPortPeer] = utils.PortConfig{Name: LaAggPortPeerIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x44, 0x44, 0x22, 0x22, 0x33},
+	}
+
 	// must be called to initialize the global
 	LaSystemActor := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
@@ -927,11 +971,13 @@ func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	OnlyForTestTeardown()
 }
 
 // TestLaAggCallSaveLaAggConfig No logic just coverage
 func TestLaAggCallSaveLaAggConfig(t *testing.T) {
 
+	OnlyForTestSetup()
 	aconf := &LaAggConfig{
 		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
 		Id:  200,
@@ -954,6 +1000,7 @@ func TestLaAggCallSaveLaAggConfig(t *testing.T) {
 
 	// delete the lag
 	DeleteLaAgg(aconf.Id)
+	OnlyForTestTeardown()
 
 }
 
@@ -961,10 +1008,19 @@ func TestLaAggCallSaveLaAggConfig(t *testing.T) {
 // two ports to sync up then disable one end of the lag
 func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
 
+	OnlyForTestSetup()
 	const LaAggPortActor = 11
 	const LaAggPortPeer = 21
 	const LaAggPortActorIf = "SIMeth0"
 	const LaAggPortPeerIf = "SIMeth1"
+
+	utils.PortConfigMap[LaAggPortActor] = utils.PortConfig{Name: LaAggPortActorIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
+	}
+	utils.PortConfigMap[LaAggPortPeer] = utils.PortConfig{Name: LaAggPortPeerIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
+	}
+
 	// must be called to initialize the global
 	LaSystemActor := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
@@ -1175,14 +1231,23 @@ func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	OnlyForTestTeardown()
 }
 
 func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
 
+	OnlyForTestSetup()
 	const LaAggPortActor = 10
 	const LaAggPortPeer = 20
 	LaAggPortActorIf := "SIMeth0"
 	LaAggPortPeerIf := "SIM2eth0"
+	utils.PortConfigMap[LaAggPortActor] = utils.PortConfig{Name: LaAggPortActorIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
+	}
+	utils.PortConfigMap[LaAggPortPeer] = utils.PortConfig{Name: LaAggPortPeerIf,
+		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
+	}
+
 	// must be called to initialize the global
 	LaSystemActor := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
@@ -1380,10 +1445,12 @@ func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
 			}
 		}
 	}
+	OnlyForTestTeardown()
 }
 
 func TestSetLaAggPortSystemInfo(t *testing.T) {
 
+	OnlyForTestSetup()
 	p1conf := &LaAggPortConfig{
 		Id:      LaAggChurnPortActor,
 		Prio:    0x80,
@@ -1414,5 +1481,5 @@ func TestSetLaAggPortSystemInfo(t *testing.T) {
 	SetLaAggPortSystemInfo(p1conf.Id, "11:11:11:11:11:11", 100)
 
 	DeleteLaAggPort(p1conf.Id)
-
+	OnlyForTestTeardown()
 }

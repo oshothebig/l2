@@ -285,13 +285,9 @@ type LaAggPort struct {
 	// GET
 	AggPortDebug AggPortDebugInformationObject
 
-	// will serialize State transition logging per port
-	LacpDebug *LacpDebug
-
 	// on configuration changes need to inform all State
 	// machines and wait for a response
 	portChan chan string
-	log      chan string
 	logEna   bool
 	wg       sync.WaitGroup
 
@@ -306,12 +302,6 @@ type LaAggPort struct {
 	partnerVersion uint8
 
 	sysId net.HardwareAddr
-}
-
-func (p *LaAggPort) LaPortLog(msg string) {
-	if p.logEna {
-		p.log <- msg
-	}
 }
 
 // find a port from the global map table by PortNum
@@ -403,6 +393,12 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
+	portcfg, ok := utils.PortConfigMap[int32(config.Id)]
+	if !ok {
+		utils.GlobalLogger.Err(fmt.Sprintln("ERROR could not find port in map", config.Id, utils.PortConfigMap))
+		return nil
+	}
+	config.IntfId = portcfg.Name
 
 	p := &LaAggPort{
 		portId:       LaConvertPortAndPriToPortId(config.Id, config.Prio),
@@ -424,9 +420,6 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		portChan:     make(chan string),
 		AggPortDebug: AggPortDebugInformationObject{AggPortDebugInformationID: int(config.Id)},
 	}
-
-	// Start Port Logger
-	p.LacpDebugEventLogMain()
 
 	// default actor admin
 	//fmt.Println(config.sysId, gLacpSysGlobalInfo[config.sysId])
@@ -497,7 +490,9 @@ func (p *LaAggPort) IsPortAdminEnabled() bool {
 }
 
 func (p *LaAggPort) IsPortOperStatusUp() bool {
-	p.LinkOperStatus = asicdGetPortLinkStatus(p.IntfNum)
+	for _, client := range utils.GetAsicDPluginList() {
+		p.LinkOperStatus = client.GetPortLinkStatus(utils.GetIfIndexFromName(p.IntfNum))
+	}
 	return p.LinkOperStatus
 }
 
@@ -580,11 +575,6 @@ func (p *LaAggPort) Stop() {
 	// lets wait for all the State machines to have stopped
 	p.wg.Wait()
 	close(p.portChan)
-
-	// kill the logger for this port
-	p.LacpDebug.logger.Info(fmt.Sprintln("Logger stopped for port", p.PortNum))
-	p.LacpDebug.Stop()
-
 }
 
 //  BEGIN will initiate all the State machines
@@ -594,18 +584,10 @@ func (p *LaAggPort) BEGIN(restart bool) {
 	mEvtChan := make([]chan utils.MachineEvent, 0)
 	evt := make([]utils.MachineEvent, 0)
 
-	// there is a case in which we have only called
-	// restart and called main functions outside
-	// of this scope (TEST for example)
-	prevBegin := p.begin
-
 	// System in being initalized
 	p.begin = true
 
 	if !restart {
-		// save off a shortcut to the log chan
-		p.log = p.LacpDebug.LacpLogChan
-
 		// start all the State machines
 		// Order here matters as Rx machine
 		// will send event to Mux machine
@@ -644,9 +626,6 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		evt = append(evt, utils.MachineEvent{
 			E:   LacpRxmEventBegin,
 			Src: PortConfigModuleStr})
-		if !restart || !prevBegin {
-			p.wg.Add(1)
-		}
 	}
 
 	// Ptxm
@@ -655,9 +634,6 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		evt = append(evt, utils.MachineEvent{
 			E:   LacpPtxmEventBegin,
 			Src: PortConfigModuleStr})
-		if !restart || !prevBegin {
-			p.wg.Add(1)
-		}
 	}
 	// Cdm
 	if p.CdMachineFsm != nil {
@@ -665,9 +641,6 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		evt = append(evt, utils.MachineEvent{
 			E:   LacpCdmEventBegin,
 			Src: PortConfigModuleStr})
-		if !restart || !prevBegin {
-			p.wg.Add(1)
-		}
 	}
 	// Cdm
 	if p.PCdMachineFsm != nil {
@@ -675,9 +648,6 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		evt = append(evt, utils.MachineEvent{
 			E:   LacpCdmEventBegin,
 			Src: PortConfigModuleStr})
-		if !restart || !prevBegin {
-			p.wg.Add(1)
-		}
 	}
 	// Muxm
 	if p.MuxMachineFsm != nil {
@@ -685,9 +655,6 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		evt = append(evt, utils.MachineEvent{
 			E:   LacpMuxmEventBegin,
 			Src: PortConfigModuleStr})
-		if !restart || !prevBegin {
-			p.wg.Add(1)
-		}
 	}
 	// Txm
 	if p.TxMachineFsm != nil {
@@ -695,9 +662,6 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		evt = append(evt, utils.MachineEvent{
 			E:   LacpTxmEventBegin,
 			Src: PortConfigModuleStr})
-		if !restart || !prevBegin {
-			p.wg.Add(1)
-		}
 	}
 	// Marker Responder
 	if p.MarkerResponderFsm != nil {
@@ -705,9 +669,6 @@ func (p *LaAggPort) BEGIN(restart bool) {
 		evt = append(evt, utils.MachineEvent{
 			E:   LampMarkerResponderEventBegin,
 			Src: PortConfigModuleStr})
-		if !restart || !prevBegin {
-			p.wg.Add(1)
-		}
 	}
 	// call the begin event for each
 	// distribute the port disable event to various machines

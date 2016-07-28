@@ -25,11 +25,33 @@ package lacp
 
 import (
 	"fmt"
+	"l2/lacp/protocol/utils"
 	"testing"
+	asicdmock "utils/asicdClient/mock"
+	"utils/logging"
 )
+
+type MyMockAsicdClientMgr struct {
+	asicdmock.MockAsicdClientMgr
+}
+
+func (mock *MyMockAsicdClientMgr) CreateLag(hashType int32, ports string) (hwAggId int32, err error) {
+	return 10, nil
+}
+
+func OnlyForTestSetup() {
+	logger, _ := logging.NewLogger("lacpd", "TEST", false)
+	utils.SetLaLogger(logger)
+
+	utils.SetAsicDPlugin(&asicdmock.MockAsicdClientMgr{})
+}
+func OnlyForTestTeardown() {
+	utils.SetLaLogger(nil)
+}
 
 func TestCreateDeleteLaAggregatorNoMembers(t *testing.T) {
 
+	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -59,10 +81,12 @@ func TestCreateDeleteLaAggregatorNoMembers(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	OnlyForTestTeardown()
 }
 
 func TestCreateDeleteLaAggregatorWithMembers(t *testing.T) {
 
+	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -94,10 +118,11 @@ func TestCreateDeleteLaAggregatorWithMembers(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.SysKey, sgi.PortList, sgi.PortMap)
 		}
 	}
+	OnlyForTestTeardown()
 }
 
 func TestCreateDeleteFindByAggName(t *testing.T) {
-
+	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -150,11 +175,12 @@ func TestCreateDeleteFindByAggName(t *testing.T) {
 	if LaFindAggByName("agg2000", &na) {
 		t.Error("Error found aggregator by name")
 	}
-
+	OnlyForTestTeardown()
 }
 
 func TestCreateDeleteFindById(t *testing.T) {
 
+	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -207,10 +233,12 @@ func TestCreateDeleteFindById(t *testing.T) {
 	if LaFindAggById(2000, &na) {
 		t.Error("Error found aggregator by name")
 	}
+	OnlyForTestTeardown()
 }
 
 func TestCreateDeleteFindByKey(t *testing.T) {
 
+	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -263,10 +291,13 @@ func TestCreateDeleteFindByKey(t *testing.T) {
 	if LaFindAggByKey(50, &na) {
 		t.Error("Error found aggregator by deleted key")
 	}
+
+	OnlyForTestTeardown()
 }
 
 func TestCreateDeleteFindLacpPortMember(t *testing.T) {
 
+	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -326,10 +357,12 @@ func TestCreateDeleteFindLacpPortMember(t *testing.T) {
 	if LaFindAggByKey(50, &na) {
 		t.Error("Error found aggregator by name")
 	}
+	OnlyForTestTeardown()
 }
 
 func TestDuplicateAdd(t *testing.T) {
 
+	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -364,13 +397,14 @@ func TestDuplicateAdd(t *testing.T) {
 	}
 
 	agg1.DeleteLaAgg()
-
+	OnlyForTestTeardown()
 }
 
 // Worst case is usually a single port lag and one per port
 // so lets test a 128 port switch
 func TestScaleAggCreate(t *testing.T) {
 
+	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -444,4 +478,5 @@ func TestScaleAggCreate(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.SysKey, sgi.PortList, sgi.PortMap)
 		}
 	}
+	OnlyForTestTeardown()
 }

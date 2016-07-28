@@ -22,68 +22,24 @@
 //
 
 // debugEventLog this code is meant to serialize the logging States
-package drcp
+package lacp
 
 import (
-	//"fmt"
-	"strings"
-	"utils/logging"
+	"l2/lacp/protocol/utils"
 )
 
-var gLogger *logging.Writer
-
-type DrcpDebug struct {
-	LacpLogChan chan string
-	logger      *logging.Writer
-}
-
-// NewLacpRxMachine will create a new instance of the LacpRxMachine
-func NewDrcpDebug() *DrcpDebug {
-	if gLogger == nil {
-		gLogger, _ = logging.NewLogger("lacpd", "DRCP", true)
-	}
-	drcpdebug := &DrcpDebug{
-		LogChan: make(chan string, 100),
-		logger:  gLogger,
-	}
-
-	return drcpdebug
-}
-
-func GetLacpLogger() *logging.Writer {
-	return gLogger
-}
-
-func (l *LacpDebug) Stop() {
-	close(l.LogChan)
-	if gLogger != nil {
-		gLogger.Close()
-		gLogger = nil
-	}
-}
-
-func (p *DRCPIpp) DrcpDebugEventLogMain() {
-
-	p.DrcpDebug = NewLacpDebug()
-
-	go func(port *DRCPIpp) {
-
-		for {
-			select {
-
-			case msg, logEvent := <-port.DrcpDebug.LogChan:
-				if logEvent {
-					port.DrcpDebug.logger.Info(strings.Join([]string{p.IntfNum, msg}, "-"))
-				} else {
-					return
-				}
-			}
-		}
-	}(p)
+func (dr *DistributedRelay) LaDrLog(msg string) {
+	utils.GlobalLogger.Info(msg)
 }
 
 func (rxm *RxMachine) DrcpRxmLog(msg string) {
-	if rxm.Machine.Curr.IsLoggerEna() {
-		rxm.log <- strings.Join([]string{"DRXM", msg}, ":")
-	}
+	utils.GlobalLogger.Info(msg)
+}
+
+func (ptxm *PtxMachine) DrcpPtxmLog(msg string) {
+	utils.GlobalLogger.Info(msg)
+}
+
+func (psm *PsMachine) DrcpPsmLog(msg string) {
+	utils.GlobalLogger.Info(msg)
 }

@@ -29,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"l2/lacp/protocol/lacp"
+	"l2/lacp/server"
 	"lacpd"
 	"models/objects"
 	//"net"
@@ -42,13 +43,17 @@ import (
 const DBName string = "UsrConfDb.db"
 
 type LACPDServiceHandler struct {
+	svr *server.LAServer
 }
 
-func NewLACPDServiceHandler() *LACPDServiceHandler {
+func NewLACPDServiceHandler(svr *server.LAServer) *LACPDServiceHandler {
 	lacp.LacpStartTime = time.Now()
 	// link up/down events for now
-	startEvtHandler()
-	return &LACPDServiceHandler{}
+	handle := &LACPDServiceHandler{
+		svr: svr,
+	}
+	handle.ReadConfigFromDB()
+	return handle
 }
 
 func ConvertStringToUint8Array(s string) [6]uint8 {
@@ -337,20 +342,22 @@ func (la *LACPDServiceHandler) ReadConfigFromDB() error {
 //	9 : i32 	LacpMode (0 == ACTIVE, 1 == PASSIVE)
 //	10 : string SystemIdMac
 //	11 : i16 	SystemPriority
-func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) (bool, error) {
+func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) (bool, error) {
 
-	aggModeMap := map[uint32]string{
+	aggModeMap := map[uint32]uint32{
 		//LacpActivityTypeACTIVE:  "ACTIVE",
 		//LacpActivityTypeSTANDBY: "STANDBY",
-		lacp.LacpModeOn:      "ON",
-		lacp.LacpModeActive:  "ACTIVE",
-		lacp.LacpModePassive: "PASSIVE",
+		lacp.LacpModeOn:      lacp.LacpModeOn,
+		lacp.LacpModeActive:  lacp.LacpModeActive,
+		lacp.LacpModePassive: lacp.LacpModePassive,
 	}
-	aggIntervalToTimeoutMap := map[time.Duration]string{
+	aggIntervalToTimeoutMap := map[time.Duration]time.Duration{
 		//LacpPeriodTypeSLOW: "LONG",
 		//LacpPeriodTypeFAST: "SHORT",
-		lacp.LacpSlowPeriodicTime: "LONG",
-		lacp.LacpFastPeriodicTime: "SHORT",
+		//lacp.LacpSlowPeriodicTime: "LONG",
+		//lacp.LacpFastPeriodicTime: "SHORT",
+		lacp.LacpSlowPeriodicTime: lacp.LacpLongTimeoutTime,
+		lacp.LacpFastPeriodicTime: lacp.LacpShortTimeoutTime,
 	}
 
 	nameKey := fmt.Sprintf("agg-%d", config.LagId)
@@ -378,55 +385,70 @@ func (la LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) (
 				SystemIdMac:    config.SystemIdMac,
 				SystemPriority: uint16(config.SystemPriority),
 			},
-			//Properties: lacp.PortProperties{
-			//	Mtu: int(config.Mtu),
-			//},
 			HashMode: uint32(config.LagHash),
 		}
-		lacp.CreateLaAgg(conf)
+		err := lacp.LaAggConfigParamCheck(conf)
+		if err != nil {
+			return false, err
+		} else {
 
-		var a *lacp.LaAggregator
-		if lacp.LaFindAggById(conf.Id, &a) {
+			cfg := server.LAConfig{
+				Msgtype: server.LAConfigMsgCreateLaPortChannel,
+				Msgdata: conf,
+			}
+			s.server.ConfigCh <- cfg
+			//lacp.CreateLaAgg(conf)
 
-			for _, ifindex := range config.Members {
-				mode, ok := aggModeMap[uint32(a.Config.Mode)]
-				if !ok || a.AggType == lacp.LaAggTypeSTATIC {
-					mode = "ON"
+			var a *lacp.LaAggregator
+			if lacp.LaFindAggById(conf.Id, &a) {
+
+				for _, ifindex := range config.Members {
+					mode, ok := aggModeMap[uint32(a.Config.Mode)]
+					if !ok || a.AggType == lacp.LaAggTypeSTATIC {
+						mode = lacp.LacpModeOn
+					}
+
+					timeout, ok := aggIntervalToTimeoutMap[a.Config.Interval]
+					if !ok {
+						timeout = lacp.LacpLongTimeoutTime
+					}
+					conf := &LaAggPortConfig{
+						Id:       uint16(ifindex),
+						Prio:     uint16(a.Config.SystemPriority),
+						Key:      uint16(config.LagId),
+						AggId:    int(GetIdByName(nameKey)),
+						Enable:   conf.Enabled,
+						Mode:     mode,
+						Timeout:  timeout,
+						TraceEna: true,
+					}
+
+					cfg := server.LAConfig{
+						Msgtype: server.LAConfigMsgCreateLaAggPort,
+						Msgdata: conf,
+					}
+					s.server.ConfigCh <- cfg
 				}
-
-				timeout, ok := aggIntervalToTimeoutMap[a.Config.Interval]
-				if !ok {
-					timeout = "LONG"
-				}
-
-				// origional tested thrift api
-				la.CreateLaAggPort(
-					lacpd.Uint16(ifindex),
-					lacpd.Uint16(a.Config.SystemPriority),
-					lacpd.Uint16(config.LagId),
-					lacpd.Int(GetIdByName(nameKey)),
-					conf.Enabled,
-					mode,
-					timeout,
-					"", // taken from port
-					0,  // taken from port
-					0,  // taken from port
-					0,  // taken from port
-					a.Config.SystemIdMac,
-					fmt.Sprintf("fpPort%d", ifindex), // taken from port
-				)
 			}
 		}
 	}
 	return true, nil
 }
 
-func (la LACPDServiceHandler) DeleteLaPortChannel(config *lacpd.LaPortChannel) (bool, error) {
+func (la *LACPDServiceHandler) DeleteLaPortChannel(config *lacpd.LaPortChannel) (bool, error) {
 
 	nameKey := fmt.Sprintf("agg-%d", config.LagId)
 
-	// Aggregation found now lets delete
-	lacp.DeleteLaAgg(GetIdByName(nameKey))
+	conf := &lacp.LaAggConfig{
+		Id: int(config.LagId),
+	}
+
+	cfg := server.LAConfig{
+		Msgtype: server.LAConfigMsgDeleteLaAggPort,
+		Msgdata: conf,
+	}
+	s.server.ConfigCh <- cfg
+
 	return true, nil
 }
 
@@ -459,7 +481,7 @@ func GetAddDelMembers(orig []uint16, update []int32) (add, del []int32) {
 	return
 }
 
-func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChannel, updateconfig *lacpd.LaPortChannel, attrset []bool, op []*lacpd.PatchOpInfo) (bool, error) {
+func (la *LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChannel, updateconfig *lacpd.LaPortChannel, attrset []bool, op []*lacpd.PatchOpInfo) (bool, error) {
 
 	aggModeMap := map[uint32]string{
 		//LacpActivityTypeACTIVE:  "ACTIVE",
@@ -499,106 +521,106 @@ func (la LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChanne
 		},
 		HashMode: uint32(updateconfig.LagHash),
 	}
+	err := lacp.LaAggConfigParamCheck(conf)
+	if err != nil {
+		return false, err
+	} else {
 
-	// lets deal with Members attribute first
-	for i := 0; i < objTyp.NumField(); i++ {
-		objName := objTyp.Field(i).Name
-		//fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
-		if attrset[i] {
-			fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
-			if objName == "Members" {
-				var a *lacp.LaAggregator
+		// lets deal with Members attribute first
+		for i := 0; i < objTyp.NumField(); i++ {
+			objName := objTyp.Field(i).Name
+			//fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
+			if attrset[i] {
+				fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
+				if objName == "Members" {
+					var a *lacp.LaAggregator
 
-				if lacp.LaFindAggById(int(conf.Id), &a) {
-					addList, delList := GetAddDelMembers(a.PortNumList, updateconfig.Members)
-					for _, m := range delList {
-						la.DeleteLaAggPort(lacpd.Uint16(m))
-					}
-					for _, ifindex := range addList {
-						mode, ok := aggModeMap[uint32(a.Config.Mode)]
-						if !ok || a.AggType == lacp.LaAggTypeSTATIC {
-							mode = "ON"
+					if lacp.LaFindAggById(int(conf.Id), &a) {
+						addList, delList := GetAddDelMembers(a.PortNumList, updateconfig.Members)
+						for _, m := range delList {
+							conf := &LaAggPortConfig{
+								Id: uint16(m),
+							}
+
+							cfg := server.LAConfig{
+								Msgtype: server.LAConfigMsgDeleteLaAggPort,
+								Msgdata: conf,
+							}
+							s.server.ConfigCh <- cfg
 						}
+						for _, ifindex := range addList {
+							mode, ok := aggModeMap[uint32(a.Config.Mode)]
+							if !ok || a.AggType == lacp.LaAggTypeSTATIC {
+								mode = lacp.LacpModeOn
+							}
 
-						timeout, ok := aggIntervalToTimeoutMap[a.Config.Interval]
-						if !ok {
-							timeout = "LONG"
+							timeout, ok := aggIntervalToTimeoutMap[a.Config.Interval]
+							if !ok {
+								timeout = lacp.LacpLongTimeoutTime
+							}
+							conf := &LaAggPortConfig{
+								Id:       uint16(ifindex),
+								Prio:     uint16(a.Config.SystemPriority),
+								Key:      uint16(config.LagId),
+								AggId:    int(GetIdByName(nameKey)),
+								Enable:   conf.Enabled,
+								Mode:     mode,
+								Timeout:  timeout,
+								TraceEna: true,
+							}
+
+							cfg := server.LAConfig{
+								Msgtype: server.LAConfigMsgCreateLaAggPort,
+								Msgdata: conf,
+							}
+							s.server.ConfigCh <- cfg
 						}
-
-						// origional tested thrift api
-						la.CreateLaAggPort(
-							lacpd.Uint16(ifindex),
-							lacpd.Uint16(updateconfig.SystemPriority),
-							lacpd.Uint16(conf.Id),
-							lacpd.Int(GetIdByName(nameKey)),
-							conf.Enabled,
-							mode,
-							timeout,
-							"", // taken from port
-							0,  // taken from port
-							0,  // taken from port
-							0,  // taken from port
-							updateconfig.SystemIdMac,
-							fmt.Sprintf("fpPort%d", ifindex), // TODO read from port if taken from port
-						)
 					}
 				}
 			}
 		}
-	}
 
-	// important to note that the attrset starts at index 0 which is the BaseObj
-	// which is not the first element on the thrift obj, thus we need to skip
-	// this attribute
-	for i := 0; i < objTyp.NumField(); i++ {
-		objName := objTyp.Field(i).Name
-		//fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
-		if attrset[i] {
-			fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
-			if objName == "AdminState" {
-				if conf.Enabled {
-					lacp.SaveLaAggConfig(conf)
-					EnableLaAgg(conf)
-				} else {
-					DisableLaAgg(conf)
-					lacp.SaveLaAggConfig(conf)
+		attrMap := map[string]server.STPConfigMsgType{
+			"AdminState":     server.LAConfigMsgUpdateLaPortChannelAdminState,
+			"LagType":        server.LAConfigMsgUpdateLaPortChannelLagType,
+			"LagHash":        server.LAConfigMsgUpdateLaPortChannelLagHash,
+			"LacpMode":       server.LAConfigMsgUpdateLaPortChannelAggMode,
+			"Interval":       server.LAConfigMsgUpdateLaPortChannelPeriod,
+			"SystemIdMac":    server.LAConfigMsgUpdateLaPortChannelSystemIdMac,
+			"SystemPriority": server.LAConfigMsgUpdateLaPortChannelSystemPriority,
+		}
+
+		// important to note that the attrset starts at index 0 which is the BaseObj
+		// which is not the first element on the thrift obj, thus we need to skip
+		// this attribute
+		for i := 0; i < objTyp.NumField(); i++ {
+			objName := objTyp.Field(i).Name
+			//fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
+			if attrset[i] {
+				fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
+				if msgtype, ok := attrMap[objName]; ok {
+					// set message type
+					cfg := server.LAConfig{
+						Msgdata: conf,
+						Msgtype: msgtype,
+					}
+					if objName == "AdminState" {
+						lacp.SaveLaAggConfig(conf)
+						s.server.ConfigCh <- cfg
+						return true, nil
+
+					} else {
+						lacp.SaveLaAggConfig(conf)
+						s.server.ConfigCh <- cfg
+					}
 				}
-				return true, nil
-
-			} else if objName == "LagType" {
-				// transitioning to on or lacp
-				SetLaAggType(conf)
-
-			} else {
-				switch objName {
-				case "LagHash":
-					SetLaAggHashMode(conf)
-					break
-				case "LacpMode":
-					SetLaAggMode(conf)
-					break
-				case "Interval":
-					SetLaAggPeriod(conf)
-					break
-				// port move cause systemId changes
-				case "SystemIdMac", "SystemPriority":
-					SetLaAggSystemInfo(conf)
-					break
-				// this may cause lag to go down if min ports is > actual ports
-				case "MinLinks":
-					break
-				default:
-					// unhandled config
-				}
-
-				lacp.SaveLaAggConfig(conf)
 			}
 		}
 	}
 	return true, nil
 }
 
-func (la LACPDServiceHandler) CreateLaAggPort(Id lacpd.Uint16,
+func (la *LACPDServiceHandler) CreateLaAggPort(Id lacpd.Uint16,
 	Prio lacpd.Uint16,
 	Key lacpd.Uint16,
 	AggId lacpd.Int,
@@ -734,7 +756,7 @@ func SetLaAggSystemInfo(conf *lacp.LaAggConfig) error {
 // SetPortLacpLogEnable will enable on a per port basis logging
 // modStr - PORT, RXM, TXM, PTXM, TXM, CDM, ALL
 // modStr can be a string containing one or more of the above
-func (la LACPDServiceHandler) SetPortLacpLogEnable(Id lacpd.Uint16, modStr string, ena bool) (lacpd.Int, error) {
+func (la *LACPDServiceHandler) SetPortLacpLogEnable(Id lacpd.Uint16, modStr string, ena bool) (lacpd.Int, error) {
 	modules := make(map[string]chan bool)
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(Id), &p) {
@@ -758,7 +780,7 @@ func (la LACPDServiceHandler) SetPortLacpLogEnable(Id lacpd.Uint16, modStr strin
 	return 1, errors.New(fmt.Sprintf("LACP: LOG set failed,  Unable to find Port", Id))
 }
 
-func (la LACPDServiceHandler) GetPortChannelState(portChannel *lacpd.LaPortChannelState) (*lacpd.LaPortChannelState, error) {
+func (la *LACPDServiceHandler) GetPortChannelState(portChannel *lacpd.LaPortChannelState) (*lacpd.LaPortChannelState, error) {
 	pcs := &lacpd.LaPortChannelState{}
 
 	var a *lacp.LaAggregator
@@ -796,7 +818,7 @@ func (la LACPDServiceHandler) GetPortChannelState(portChannel *lacpd.LaPortChann
 	return pcs, nil
 }
 
-func (la LACPDServiceHandler) GetLaPortChannelState(lagId int32) (obj *lacpd.LaPortChannelState, err error) {
+func (la *LACPDServiceHandler) GetLaPortChannelState(lagId int32) (obj *lacpd.LaPortChannelState, err error) {
 	return nil, nil
 }
 
@@ -805,7 +827,7 @@ func (la LACPDServiceHandler) GetLaPortChannelState(lagId int32) (obj *lacpd.LaP
 // at which a for loop iterates over the map is preserved.  It is assumed
 // that at the time of this operation that no new aggragators are added,
 // otherwise can get inconsistent results
-func (la LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.LaPortChannelStateGetInfo, err error) {
+func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.LaPortChannelStateGetInfo, err error) {
 
 	var lagStateList []lacpd.LaPortChannelState = make([]lacpd.LaPortChannelState, count)
 	var nextLagState *lacpd.LaPortChannelState
@@ -875,7 +897,7 @@ func (la LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, cou
 	return obj, nil
 }
 
-func (la LACPDServiceHandler) GetPortChannelMemberState(portchannelmemberstate *lacpd.LaPortChannelMemberState) (*lacpd.LaPortChannelMemberState, error) {
+func (la *LACPDServiceHandler) GetPortChannelMemberState(portchannelmemberstate *lacpd.LaPortChannelMemberState) (*lacpd.LaPortChannelMemberState, error) {
 	pcms := &lacpd.LaPortChannelMemberState{}
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortByPortId(int(portchannelmemberstate.IfIndex), &p) {
@@ -969,13 +991,13 @@ func (la LACPDServiceHandler) GetPortChannelMemberState(portchannelmemberstate *
 	return pcms, nil
 }
 
-func (la LACPDServiceHandler) GetLaPortChannelMemberState(ifIndex int32) (obj *lacpd.LaPortChannelMemberState, err error) {
+func (la *LACPDServiceHandler) GetLaPortChannelMemberState(ifIndex int32) (obj *lacpd.LaPortChannelMemberState, err error) {
 	return nil, nil
 }
 
 // GetBulkAggregationLacpMemberStateCounters will return the status of all
 // the lag members.
-func (la LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.LaPortChannelMemberStateGetInfo, err error) {
+func (la *LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.LaPortChannelMemberStateGetInfo, err error) {
 
 	var lagMemberStateList []lacpd.LaPortChannelMemberState = make([]lacpd.LaPortChannelMemberState, count)
 	var nextLagMemberState *lacpd.LaPortChannelMemberState
@@ -1100,4 +1122,113 @@ func (la LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.In
 	obj.Count = validCount
 
 	return obj, nil
+}
+
+func (la *LACPDServiceHandler) convertDbObjDataToDRCPData(objData *objects.DistributedRelay, cfgData *drcp.DistrubtedRelayConfig) {
+	cfgData.aDrniName = objData.Name
+	cfgData.aDrniPortalAddress = objData.PortalAddress
+	cfgData.aDrniPortalPriority = uint16(objData.PortalPriority)
+	cfgData.aDrniThreePortalSystem = objData.ThreePortalSystem
+	cfgData.aDrniPortalSystemNumber = objData.PortalSystemNumber
+	cfgData.aDrniIntraPortalLinkList = objData.IntraPortalLinkList
+	cfgData.aDrniAggregator = objData.LagId
+	cfgData.aDrniConvAdminGateway = objData.ConvAdminGateway
+	for i, data := range objData.NeighborAdminConvGatewayListDigest {
+		cfgData.aDrniNeighborAdminConvGatewayListDigest[i] = data
+	}
+	for i, data := range objData.NeighborAdminConvPortListDigest {
+		cfgData.aDrniNeighborAdminConvPortListDigest[i] = data
+	}
+	cfgData.aDrniGatewayAlgorithm = objData.GatewayAlgorithm
+	cfgData.aDrniNeighborAdminGatewayAlgorithm = objData.NeighborGatewayAlgorithm
+	cfgData.aDrniNeighborAdminPortAlgorithm = objData.NeighborPortAlgorithm
+	cfgData.aDrniNeighborAdminDRCPState = objData.NeighborAdminDRCPState
+	cfgData.aDrniEncapMethod = objData.EncapMethod
+	cfgData.aDrniIPLEncapMap = objData.IPLEncapMap
+	cfgData.aDrniNetEncapMap = objData.NetEncapMap
+	cfgData.aDrniPortConversationControl = objData.PortConversationControl
+	cfgData.aDrniIntraPortalPortProtocolDA = objData.IntraPortalPortProtocolDA
+}
+
+func (la *LACPDServiceHandler) CreateDistributedRelay(config *lacpd.DistributedRelay) (bool, error) {
+
+	data = &objects.DistributedRelay{}
+	objects.ConvertThriftTolacpdDistributedRelayObj(config, data)
+
+	conf := &drcp.DistrubtedRelayConfig{}
+	// convert to drcp module config data
+	la.convertDbObjDataToDRCPData(data, conf)
+	err := drcp.DistrubtedRelayConfigParamCheck(conf)
+	if err != nil {
+		return false, err
+	} else {
+		cfg := server.LAConfig{
+			Msgtype: server.LAConfigMsgCreateDistributedRelay,
+			Msgdata: conf,
+		}
+		s.server.ConfigCh <- cfg
+	}
+
+	return true, nil
+}
+func (la *LACPDServiceHandler) UpdateDistributedRelay(origconfig *lacpd.DistributedRelay, updateconfig *lacpd.DistributedRelay, attrset []bool, op []*lacpd.PatchOpInfo) (bool, error) {
+
+	olddata := &objects.DistributedRelay{}
+	objects.ConvertThriftTolacpdDistributedRelayObj(origconfig, olddata)
+
+	newdata := &objects.DistributedRelay{}
+	objects.ConvertThriftTolacpdDistributedRelayObj(updateconfig, newdata)
+
+	oldconf := &drcp.DistrubtedRelayConfig{}
+	// convert to drcp module config data
+	la.convertDbObjDataToDRCPData(olddata, oldconf)
+	newconf := &drcp.DistrubtedRelayConfig{}
+	// convert to drcp module config data
+	la.convertDbObjDataToDRCPData(newdata, newconf)
+	err := drcp.DistrubtedRelayConfigParamCheck(newconf)
+	if err != nil {
+		return false, err
+	} else {
+		// TODO set valid attribute updates
+		validAttrMap := map[string]int32{}
+		// lets deal with Members attribute first
+		for i := 0; i < objTyp.NumField(); i++ {
+			objName := objTyp.Field(i).Name
+			//fmt.Println("UpdateDistributedRelay (server): (index, objName) ", i, objName)
+			if attrset[i] {
+				fmt.Println("UpdateDistributedRelay (server): changed ", objName)
+
+				if msgtype, ok := attrMap[objName]; ok {
+					// set message type
+					cfg := server.LAConfig{
+						Msgdata: newconf,
+						Msgtype: msgtype,
+					}
+					s.server.ConfigCh <- cfg
+				}
+			}
+		}
+	}
+
+	return true, nil
+}
+func (la *LACPDServiceHandler) DeleteDistributedRelay(config *lacpd.DistributedRelay) (bool, error) {
+	data = &objects.DistributedRelay{}
+	objects.ConvertThriftTolacpdDistributedRelayObj(config, data)
+
+	conf := &drcp.DistrubtedRelayConfig{}
+	// convert to drcp module config data
+	la.convertDbObjDataToDRCPData(data, conf)
+	err := drcp.DistrubtedRelayConfigParamCheck(conf)
+	if err != nil {
+		return false, err
+	} else {
+		cfg := server.LAConfig{
+			Msgtype: server.LAConfigMsgDeleteDistributedRelay,
+			Msgdata: conf,
+		}
+		s.server.ConfigCh <- cfg
+	}
+
+	return true, nil
 }

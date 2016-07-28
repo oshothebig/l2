@@ -45,3 +45,21 @@ func (rxm *RxMachine) CurrentWhileTimerStop() {
 func (rxm *RxMachine) CurrentWhileTimerTimeoutSet(timeout time.Duration) {
 	rxm.currentWhileTimerTimeout = timeout
 }
+
+func (ptxm *PtxMachine) PeriodicTimerStart() {
+	if ptxm.periodicTimer == nil {
+		ptxm.periodicTimer = time.NewTimer(ptxm.periodicTimerInterval)
+	} else {
+		ptxm.periodicTimer.Reset(rxm.currentWhileTimerTimeout)
+	}
+}
+
+func (ptxm *PtxMachine) PeriodicTimerStop() {
+	if ptxm.periodicTimer != nil {
+		ptxm.periodicTimer.Stop()
+	}
+}
+
+func (ptxm *PtxMachine) PeriodicTimerIntervalSet(interval time.Duration) {
+	ptxm.periodicTimerIntervalt = interval
+}

@@ -91,9 +91,6 @@ type LacpRxMachine struct {
 
 	p *LaAggPort
 
-	// debug log
-	log chan string
-
 	// timer interval
 	currentWhileTimerTimeout time.Duration
 
@@ -130,7 +127,6 @@ func (rxm *LacpRxMachine) Stop() {
 func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 	rxm := &LacpRxMachine{
 		p:                  port,
-		log:                port.LacpDebug.LacpLogChan,
 		PreviousState:      LacpRxmStateNone,
 		RxmEvents:          make(chan utils.MachineEvent, 10),
 		RxmPktRxEvent:      make(chan LacpRxLacpPdu, 1000),
@@ -512,6 +508,7 @@ func (p *LaAggPort) LacpRxMachineMain() {
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.12 Receive Machine
 	rxm := LacpRxMachineFSMBuild(p)
+	p.wg.Add(1)
 
 	// set the inital State
 	rxm.Machine.Start(rxm.PrevState())

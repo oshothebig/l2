@@ -75,9 +75,6 @@ type LampMarkerResponderMachine struct {
 
 	p *LaAggPort
 
-	// debug log
-	log chan string
-
 	// machine specific events
 	LampMarkerResponderEvents          chan utils.MachineEvent
 	LampMarkerResponderPktRxEvent      chan LampRxLampPdu
@@ -126,7 +123,6 @@ func (mr *LampMarkerResponderMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 func NewLampMarkerResponder(port *LaAggPort) *LampMarkerResponderMachine {
 	mr := &LampMarkerResponderMachine{
 		p:                                  port,
-		log:                                port.LacpDebug.LacpLogChan,
 		PreviousState:                      LacpRxmStateNone,
 		LampMarkerResponderEvents:          make(chan utils.MachineEvent, 10),
 		LampMarkerResponderPktRxEvent:      make(chan LampRxLampPdu, 1000),
@@ -214,6 +210,7 @@ func (p *LaAggPort) LampMarkerResponderMain() {
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.12 Receive Machine
 	mr := LampMarkerResponderFSMBuild(p)
+	p.wg.Add(1)
 
 	// set the inital State
 	mr.Machine.Start(mr.PrevState())

@@ -71,9 +71,6 @@ type LacpPtxMachine struct {
 
 	Machine *fsm.Machine
 
-	// State transition log
-	log chan string
-
 	// Reference to LaAggPort
 	p *LaAggPort
 
@@ -110,7 +107,6 @@ func (ptxm *LacpPtxMachine) Stop() {
 func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 	ptxm := &LacpPtxMachine{
 		p:                       port,
-		log:                     port.LacpDebug.LacpLogChan,
 		PreviousState:           LacpPtxmStateNone,
 		PeriodicTxTimerInterval: LacpSlowPeriodicTime,
 		PtxmEvents:              make(chan utils.MachineEvent, 10),
@@ -187,6 +183,7 @@ func LacpPtxMachineFSMBuild(p *LaAggPort) *LacpPtxMachine {
 	rules := fsm.Ruleset{}
 
 	PtxMachineStrStateMapCreate()
+	p.wg.Add(1)
 
 	// Instantiate a new LacpPtxMachine
 	// Initial State will be a psuedo State known as "begin" so that

@@ -89,9 +89,6 @@ type LacpTxMachine struct {
 	// the State machine will only clear
 	ntt bool
 
-	// debug log
-	log chan string
-
 	// timer needed for 802.1ax-20014 section 6.4.16
 	txGuardTimer *time.Timer
 
@@ -122,7 +119,6 @@ func (txm *LacpTxMachine) Stop() {
 func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 	txm := &LacpTxMachine{
 		p:                  port,
-		log:                port.LacpDebug.LacpLogChan,
 		txPending:          0,
 		txPkts:             0,
 		ntt:                false,
@@ -346,6 +342,7 @@ func (p *LaAggPort) LacpTxMachineMain() {
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.13 Periodic Transmission Machine
 	txm := LacpTxMachineFSMBuild(p)
+	p.wg.Add(1)
 
 	// set the inital State
 	txm.Machine.Start(txm.PrevState())
