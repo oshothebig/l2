@@ -58,6 +58,37 @@ func (svr *LLDPServer) PopulateTLV(ifIndex int32, entry *config.IntfState) bool 
 	return exists
 }
 
+/*  Server get bulk for lldp up intfs
+ */
+func (svr *LLDPServer) GetIntfs(idx, cnt int) (int, int, []config.Intf) {
+	var nextIdx int
+	var count int
+
+	if svr.lldpIntfStateSlice == nil {
+		debug.Logger.Info("No neighbor learned")
+		return 0, 0, nil
+	}
+	length := len(svr.lldpUpIntfStateSlice)
+	result := make([]config.Intf, cnt)
+	var i, j int
+	for i, j = 0, idx; i < cnt && j < length; {
+		key := svr.lldpUpIntfStateSlice[j]
+		gblInfo, exists := svr.lldpGblInfo[key]
+		if exists {
+			result[i].IfIndex = gblInfo.Port.IfIndex
+			result[i].Enable = gblInfo.enable
+			i++
+			j++
+		}
+	}
+	if j == length {
+		nextIdx = 0
+	}
+	count = i
+
+	return nextIdx, count, result
+}
+
 /*  Server get bulk for lldp up intf state's
  */
 func (svr *LLDPServer) GetIntfStates(idx, cnt int) (int, int, []config.IntfState) {

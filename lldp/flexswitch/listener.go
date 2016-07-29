@@ -94,6 +94,33 @@ func (h *ConfigHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
 	return api.UpdateIntfConfig(newconfig.IfIndex, newconfig.Enable)
 }
 
+func (h *ConfigHandler) GetLLDPIntf(ifIndex int32) (*lldpd.LLDPIntf, error) {
+	return nil, nil
+}
+
+func (h *ConfigHandler) GetBulkLLDPIntf(fromIndex lldpd.Int, count lldpd.Int) (*lldpd.LLDPIntfGetInfo, error) {
+	nextIdx, currCount, lldpIntfEntries := api.GetIntfs(int(fromIndex), int(count))
+	if lldpIntfEntries == nil {
+		return nil, errors.New("No neighbor found")
+	}
+
+	lldpEntryResp := make([]*lldpd.LLDPIntf, len(lldpIntfEntries))
+
+	for idx, item := range lldpIntfEntries {
+		lldpEntryResp[idx] = h.convertLLDPIntfEntryToThriftEntry(item)
+	}
+
+	lldpEntryBulk := lldpd.NewLLDPIntfGetInfo()
+	lldpEntryBulk.StartIdx = fromIndex
+	lldpEntryBulk.EndIdx = lldpd.Int(nextIdx)
+	lldpEntryBulk.Count = lldpd.Int(currCount)
+	lldpEntryBulk.More = (nextIdx != 0)
+	lldpEntryBulk.LLDPIntfList = lldpEntryResp
+
+	return lldpEntryBulk, nil
+	return nil, nil
+}
+
 func (h *ConfigHandler) CreateLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err error) {
 	return api.SendGlobalConfig(config.Vrf, config.Enable)
 }
@@ -107,6 +134,13 @@ func (h *ConfigHandler) UpdateLLDPGlobal(origconfig *lldpd.LLDPGlobal,
 	// On update we do not care for old config... just push the new config to api layer
 	// and let the api layer handle the information
 	return api.UpdateGlobalConfig(newconfig.Vrf, newconfig.Enable)
+}
+
+func (h *ConfigHandler) convertLLDPIntfEntryToThriftEntry(state config.Intf) *lldpd.LLDPIntf {
+	entry := lldpd.NewLLDPIntf()
+	entry.Enable = state.Enable
+	entry.IfIndex = state.IfIndex
+	return entry
 }
 
 func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(state config.IntfState) *lldpd.LLDPIntfState {
