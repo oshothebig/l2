@@ -68,11 +68,11 @@ func (svr *LLDPServer) GetIntfs(idx, cnt int) (int, int, []config.Intf) {
 		debug.Logger.Info("No neighbor learned")
 		return 0, 0, nil
 	}
-	length := len(svr.lldpUpIntfStateSlice)
+	length := len(svr.lldpIntfStateSlice)
 	result := make([]config.Intf, cnt)
 	var i, j int
 	for i, j = 0, idx; i < cnt && j < length; {
-		key := svr.lldpUpIntfStateSlice[j]
+		key := svr.lldpIntfStateSlice[j]
 		gblInfo, exists := svr.lldpGblInfo[key]
 		if exists {
 			result[i].IfIndex = gblInfo.Port.IfIndex
