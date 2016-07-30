@@ -118,7 +118,6 @@ func (h *ConfigHandler) GetBulkLLDPIntf(fromIndex lldpd.Int, count lldpd.Int) (*
 	lldpEntryBulk.LLDPIntfList = lldpEntryResp
 
 	return lldpEntryBulk, nil
-	return nil, nil
 }
 
 func (h *ConfigHandler) CreateLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err error) {
