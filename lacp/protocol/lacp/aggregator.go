@@ -143,11 +143,15 @@ type LaAggregator struct {
 	// Individual_Aggregator
 	aggOrIndividual bool
 	// Actor_Admin_Aggregator_Key
-	actorAdminKey uint16
+	ActorAdminKey uint16
 	// Actor_Oper_Aggregator_Key
 	ActorOperKey uint16
 	//Aggregator_MAC_address
-	aggMacAddr [6]uint8
+	AggMacAddr               [6]uint8 // AggActorSystmID
+	AggPriority              uint16   // AggActorSystemPriority
+	PortAlgorithm            [3]uint8 // AggPortAlgorithm
+	PartnerDWC               bool
+	AggConversationAdminLink [4096]uint16
 	// Partner_System
 	partnerSystemId [6]uint8
 	// Partner_System_Priority
@@ -209,8 +213,11 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		AggName:                ac.Name,
 		AggId:                  ac.Id,
 		AdminState:             ac.Enabled,
-		aggMacAddr:             sysId.actor_System,
-		actorAdminKey:          ac.Key,
+		AggMacAddr:             sysId.actor_System,
+		AggPriority:            ac.Lacp.SystemPriority,
+		PortAlgorithm:          [4]uint8{0x00, 0x80, 0xC2, 0x01},
+		PartnerDWC:             false,
+		ActorAdminKey:          ac.Key,
 		AggType:                ac.Type,
 		AggMinLinks:            ac.MinLinks,
 		Config:                 ac.Lacp,
@@ -313,7 +320,7 @@ func LaFindAggByKey(Key uint16, agg **LaAggregator) bool {
 
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for _, a := range sgi.LacpSysGlobalAggListGet() {
-			if a.actorAdminKey == Key {
+			if a.ActorAdminKey == Key {
 				*agg = a
 				return true
 			}
@@ -334,10 +341,10 @@ func (a *LaAggregator) DeleteLaAgg() {
 		}
 
 		for i, agg := range sgi.LacpSysGlobalAggListGet() {
-			if agg.actorAdminKey == a.actorAdminKey {
+			if agg.ActorAdminKey == a.ActorAdminKey {
 				sgi.AggList = append(sgi.AggList[:i], sgi.AggList[i+1:]...)
 				a.AggId = 0
-				a.actorAdminKey = 0
+				a.ActorAdminKey = 0
 				a.partnerSystemId = [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 				a.ready = false
 				break

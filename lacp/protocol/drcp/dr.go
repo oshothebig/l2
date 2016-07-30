@@ -21,7 +21,7 @@
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
 // dr.go
-package lacp
+package drcp
 
 import (
 	"fmt"
@@ -36,17 +36,23 @@ var DistributedRelayDBList []*DistributedRelay
 // 802.1ax-2014 7.4.1.1
 type DistributedRelay struct {
 	DistributedRelayFunction
-	DrniId                  uint32
-	DrniDescription         string
-	DrniName                string
-	DrniPortalAddr          net.HwAddress
-	DrniPortalPriority      uint16
-	DrniThreeSystemPortal   bool
+	DrniId          uint32
+	DrniDescription string
+	DrniName        string
+
+	// Also defined in 9.4.7
+	DrniAggregatorId              [6]uint8
+	DrniAggregatorPriority        uint16
+	DrniPortalAddr                net.HwAddress
+	DrniPortalPriority            uint16
+	DrniThreeSystemPortal         bool
+	DrniPortConversationPasses    [MAX_CONVERSATION_IDS]bool
+	DrniGatewayConversationPasses [MAX_CONVERSATION_IDS]bool
+	// End also defined in 9.4.7
+
 	DrniPortalSystemNumber  uint8                // 1-3
 	DrniIntraPortalLinkList [MAX_IPP_LINKS]int32 // ifindex
 	DrniAggregator          int32
-	DrniAggregatorPriority  uint16
-	DrniAggregatorId        [6]uint8
 	DrniConvAdminGateway    [MAX_GATEWAY_CONVERSATIONS]int32
 	// conversation id -> gateway
 	DrniNeighborAdminConvGatewayListDigest []Md5Digest
@@ -58,20 +64,29 @@ type DistributedRelay struct {
 	DrniEncapMethod                        EncapMethod
 	DrniIPLEncapMap                        map[uint32]uint32
 	DrniNetEncapMap                        map[uint32]uint32
-	DrniPortConversationPasses             [MAX_CONVERSATION_IDS]bool
-	DrniGatewayConversationPasses          [MAX_CONVERSATION_IDS]bool
 	DrniPSI                                bool
 	DrniPortConversationControl            bool
 	DrniPortalPortProtocolIDA              net.HwAddress
+
+	// 9.4.10
+	PortConversationUpdate    bool
+	IppAllPortUpdate          bool
+	GatewayConversationUpdate bool
 
 	// channel used to wait on response from distributed event send
 	drEvtResponseChan chan string
 
 	a *lacp.LaAggregator
 
+	// state machines
+	PsMachineFsm *PsMachine
+	GMachineFsm  [2]*GMachine
+	AMachineFsm  [2]*AMachine
+
 	Ipplinks []*DRCPIpp
 }
 
+// 802.1ax-2014 Section 9.4.8 Per-DR Function variables
 type DistributedRelayFunction struct {
 	ChangeDRFPorts                                bool
 	ChangePortal                                  bool
@@ -85,7 +100,7 @@ type DistributedRelayFunction struct {
 	DRFHomeGatewayConversationMask                [MAX_CONVERSATION_IDS]bool
 	DRFHomeGatewaySequence                        uint16
 	DRFHomePortAlgorithm                          [4]uint8
-	DRFHomeOperAggergatorKey                      uint16
+	DRFHomeOperAggregatorKey                      uint16
 	DRFHomeOperPartnerAggregatorKey               uint16
 	DRFHomeState                                  NeighborStateInfo
 	DRFNeighborAdminConversationGatewayListDigest Md5Digest
@@ -96,6 +111,10 @@ type DistributedRelayFunction struct {
 	// range 1..3
 	DRFPortalSystemNumber uint8
 	PSI                   bool
+
+	// 9.3.3.2
+	DrniPortalSystemGatewayConversation [4096]bool
+	DrniPortalSystemPortConversation    [4096]bool
 }
 
 func NewDistributedRelay(cfg *DistrubtedRelayConfig) {

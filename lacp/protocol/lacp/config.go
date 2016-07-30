@@ -211,8 +211,9 @@ func SaveLaAggConfig(ac *LaAggConfig) {
 		}
 		a.AggName = ac.Name
 		a.AggId = ac.Id
-		a.aggMacAddr = sysId.actor_System
-		a.actorAdminKey = ac.Key
+		a.AggMacAddr = sysId.actor_System
+		a.AggPriority = ac.Lacp.SystemPriority
+		a.ActorAdminKey = ac.Key
 		a.AggType = ac.Type
 		a.AggMinLinks = ac.MinLinks
 		a.Config = ac.Lacp
@@ -248,14 +249,14 @@ func CreateLaAgg(agg *LaAggConfig) {
 		*/
 		index := 0
 		var p *LaAggPort
-		a.LacpAggLog(fmt.Sprintln("looking for ports with actorAdminKey", a.actorAdminKey))
+		a.LacpAggLog(fmt.Sprintln("looking for ports with actorAdminKey", a.ActorAdminKey))
 		if mac, err := net.ParseMAC(a.Config.SystemIdMac); err == nil {
 			if sgi := LacpSysGlobalInfoByIdGet(LacpSystem{actor_System: convertNetHwAddressToSysIdKey(mac),
 				Actor_System_priority: a.Config.SystemPriority}); sgi != nil {
 				for index != -1 {
-					if LaFindPortByKey(a.actorAdminKey, &index, &p) {
+					if LaFindPortByKey(a.ActorAdminKey, &index, &p) {
 						if p.aggSelected == LacpAggUnSelected {
-							AddLaAggPortToAgg(a.actorAdminKey, p.PortNum)
+							AddLaAggPortToAgg(a.ActorAdminKey, p.PortNum)
 
 							if p.PortEnabled {
 								p.checkConfigForSelection()
@@ -350,7 +351,7 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 				if LaFindAggByKey(p.Key, &a) {
 					p.LaPortLog("Found Agg by Key, attaching port to agg")
 					// If the agg is defined lets add port to
-					AddLaAggPortToAgg(a.actorAdminKey, p.PortNum)
+					AddLaAggPortToAgg(a.ActorAdminKey, p.PortNum)
 				}
 			}
 
@@ -568,7 +569,7 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 		p.aggSelected == LacpAggUnSelected &&
 		!LaAggPortNumListPortIdExist(Key, pId) {
 
-		p.LaPortLog(fmt.Sprintf("Adding LaAggPort %d to LaAgg %d", pId, a.actorAdminKey))
+		p.LaPortLog(fmt.Sprintf("Adding LaAggPort %d to LaAgg %d", pId, a.ActorAdminKeys))
 		// add port to port number list
 		a.PortNumList = append(a.PortNumList, p.PortNum)
 		// add reference to aggId

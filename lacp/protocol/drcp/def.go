@@ -29,6 +29,9 @@ import (
 )
 
 const (
+	CONVERSATION_ID_TYPE_PORT    = 0
+	CONVERSATION_ID_TYPE_GATEWAY = 1
+
 	MAX_IPP_LINKS                    = 3
 	MAX_GATEWAY_CONVERSATIONS        = 4096
 	GATEWAY_ALGORITHM_RESERVED       = GatewayAlgorithm{0x00, 0x80, 0xC2, 0x00}

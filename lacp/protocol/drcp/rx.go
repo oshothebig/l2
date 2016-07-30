@@ -24,7 +24,7 @@
 // rx will take care of parsing a received frame from a linux socket
 // if checks pass then packet will be either passed rx machine or
 // marker responder
-package lacp
+package drcp
 
 import (
 	"fmt"
@@ -57,15 +57,14 @@ func DrRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 					//fmt.Println("RX:", packet)
 
 					if isdrcp := IsControlFrame(rxMainPort, packet); isdrcp {
-						//fmt.Println("IsControl Frame ", marker, lacp)
 						if isdrcp {
 							drcpLayer := packet.Layer(layers.LayerTypeDRCP)
 							if drcpLayer == nil {
-								fmt.Println("Received non LACP frame", packet)
+								fmt.Println("Received non DRCP frame", packet)
 							} else {
 
 								// lacp data
-								lacp := lacpLayer.(*layers.DRCP)
+								drcp := drcpLayer.(*layers.DRCP)
 
 								ProcessDrcpFrame(rxMainPort, drcp)
 							}
@@ -75,7 +74,7 @@ func DrRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 						}
 					} else {
 						// discard packet
-						fmt.Println("Discarding Packet not lacp or marker", packet)
+						fmt.Println("Discarding Packet not drcp", packet)
 					}
 				} else {
 					return

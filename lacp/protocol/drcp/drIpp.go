@@ -21,7 +21,7 @@
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
 // drIpp.go
-package lacp
+package drcp
 
 import (
 	"fmt"
@@ -154,15 +154,12 @@ type DRCPIntraPortal struct {
 	DRCPEnabled                 bool
 	HomeGatewayVectorTransmit   bool
 	GatewayConversationTransmit bool
-	GatewayConversationUpdate   bool
 	IppAllGatewayUpdate         bool
-	IppAllPortUpdate            bool
 	IppAllUpdate                bool
 	IppGatewayUpdate            bool
 	IppPortUpdate               bool
 	OtherGatewayVectorTransmit  bool
 	PortConversationTransmit    bool
-	PortConversationUpdate      bool
 }
 
 type DRCPIpp struct {
@@ -180,9 +177,10 @@ type DRCPIpp struct {
 	handle *pcap.Handle
 
 	// FSMs
-	RxMachineFsm  *RxMachine
-	PtxMachineFsm *PtxMachine
-	PsMachineFsm  *PsMachine
+	RxMachineFsm          *RxMachine
+	PtxMachineFsm         *PtxMachine
+	TxMachineFsm          *TxMachine
+	NetIplShareMachineFsm *NetIplShareMachine
 }
 
 func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
@@ -412,15 +410,6 @@ func (p *DRCPIpp) ReportToManagement() {
 
 	p.Logger.Info(fmt.Sprintln("Report Failure to Management: %s", p.DifferPortalReason))
 	// TODO send event
-}
-
-func (p *DRCPIpp) updateNTT() {
-	if !p.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
-		!p.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
-		!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
-		!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
-		p.NTTDRCPDU = true
-	}
 }
 
 // updateNeighborVector will update the vector, indexed by the received

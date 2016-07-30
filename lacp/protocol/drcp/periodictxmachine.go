@@ -171,13 +171,13 @@ func (ptxm *PtxMachine) DrcpPtxMachinePeriodicTx(m fsm.Machine, data interface{}
 	return PtxmStatePeriodicTx
 }
 
-func DrcpRxMachineFSMBuild(p *DRCPIpp) *LacpRxMachine {
+func DrcpPtxMachineFSMBuild(p *DRCPIpp) *PtxMachine {
 
 	PtxMachineStrStateMapCreate()
 
 	rules := fsm.Ruleset{}
 
-	// Instantiate a new LacpRxMachine
+	// Instantiate a new PtxMachine
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the initalize State
 	ptxm := NewDrcpPTxMachine(p)
@@ -220,27 +220,27 @@ func DrcpRxMachineFSMBuild(p *DRCPIpp) *LacpRxMachine {
 	return rxm
 }
 
-// DrcpRxMachineMain:  802.1ax-2014 Figure 9-23
-// Creation of Rx State Machine State transitions and callbacks
+// DrcpPtxMachineMain:  802.1ax-2014 Figure 9-24
+// Creation of DRCP Periodic Transmit State Machine State transitions and callbacks
 // and create go routine to pend on events
-func (p *DRCPIpp) DrcpRxMachineMain() {
+func (p *DRCPIpp) DrcpPtxMachineMain() {
 
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.12 Receive Machine
-	rxm := DrcpRxMachineFSMBuild(p)
+	ptxm := DrcpPtxMachineFSMBuild(p)
 	p.wg.Add(1)
 
 	// set the inital State
-	rxm.Machine.Start(rxm.PrevState())
+	ptxm.Machine.Start(ptxm.PrevState())
 
 	// lets create a go routing which will wait for the specific events
-	// that the RxMachine should handle.
-	go func(m *LacpRxMachine) {
-		m.LacpRxmLog("Machine Start")
+	// that the PtMachine should handle.
+	go func(m *PtxMachine) {
+		m.DrcpPtxmLog("Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.currentWhileTimer.C:
+			case <-m.periodicTimer.C:
 
 				m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRCPPeriodicTimerExpired, nil)
 
@@ -252,39 +252,39 @@ func (p *DRCPIpp) DrcpRxMachineMain() {
 					}
 				}
 
-			case event, ok := <-m.RxmEvents:
+			case event, ok := <-m.PtxmEvents:
 				if ok {
 					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 					if rv == nil {
 						p := m.p
 						/* continue State transition */
 						if m.Machine.Curr.CurrentState() == PtxmStateNoPeriodic {
-							rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventUnconditionalFallthrough, nil)
+							rv = m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventUnconditionalFallThrough, nil)
 						}
 						// post processing
 						if rv == nil {
 							if m.Machine.Curr.CurrentState() == PtxmStateFastPeriodic &&
 								p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) == layers.DRCPLongTimeout {
-								rv = m.Machine.ProcessEvent(RxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout, nil)
+								rv = m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout, nil)
 							}
 							if rv == nil &&
 								m.Machine.Curr.CurrentState() == PtxmStateSlowPeriodic &&
 								p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) == layers.DRCPShortTimeout {
-								rv = m.Machine.ProcessEvent(RxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualShortTimeout, nil)
+								rv = m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualShortTimeout, nil)
 							}
 							if rv == nil &&
 								m.Machine.Curr.CurrentState() == PtxmStatePeriodicTx {
 								if p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) == layers.DRCPLongTimeout {
-									rv = m.Machine.ProcessEvent(RxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout, nil)
+									rv = m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout, nil)
 								} else {
-									rv = m.Machine.ProcessEvent(RxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualShortTimeout, nil)
+									rv = m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualShortTimeout, nil)
 								}
 							}
 						}
 					}
 
 					if rv != nil {
-						m.DrcpPtxmLog(strings.Join([]string{error.Error(rv), event.src, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+						m.DrcpPtxmLog(strings.Join([]string{error.Error(rv), event.src, PtxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
 					}
 				}
 
@@ -298,7 +298,7 @@ func (p *DRCPIpp) DrcpRxMachineMain() {
 				}
 			}
 		}
-	}(rxm)
+	}(ptxm)
 }
 
 // NotifyNTTDRCPUDChange

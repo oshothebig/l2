@@ -22,7 +22,7 @@
 //
 
 // debugEventLog this code is meant to serialize the logging States
-package lacp
+package drcp
 
 import (
 	"l2/lacp/protocol/utils"
@@ -41,5 +41,21 @@ func (ptxm *PtxMachine) DrcpPtxmLog(msg string) {
 }
 
 func (psm *PsMachine) DrcpPsmLog(msg string) {
+	utils.GlobalLogger.Info(msg)
+}
+
+func (gm *GMachine) DrcpGmLog(msg string) {
+	utils.GlobalLogger.Info(msg)
+}
+
+func (am *AMachine) DrcpAmLog(msg string) {
+	utils.GlobalLogger.Info(msg)
+}
+
+func (txm *TxMachine) DrcpTxmLog(msg string) {
+	utils.GlobalLogger.Info(msg)
+}
+
+func (nism *NetIplShareMachine) DrcpNetIplSharemLog(msg string) {
 	utils.GlobalLogger.Info(msg)
 }

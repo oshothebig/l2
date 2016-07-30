@@ -28,6 +28,7 @@ import (
 	"asicd/asicdCommonDefs"
 	"fmt"
 	"net"
+	"utils/dbutils"
 )
 
 var PortConfigMap map[int32]PortConfig
@@ -37,6 +38,8 @@ type PortConfig struct {
 	HardwareAddr net.HardwareAddr
 	Speed        int32
 	IfIndex      int32
+	Mtu          int32
+	Duplex       string
 }
 
 func ConstructPortConfigMap() {
@@ -75,6 +78,32 @@ func ConstructPortConfigMap() {
 				return
 			}
 		}
+	}
+
+	// lets read from db the rest of the info from db
+	// MTU/Duplex/Speed
+	dbHdl := dbutils.NewDBUtil(GetLaLogger())
+	err := dbHdl.Connect()
+	if err != nil {
+		GlobalLogger.Info("Failed to open connection to read Port Info from the DB with error %s", err)
+		return err
+	}
+	defer dbHdl.Disconnect()
+
+	var dbObj objects.Port
+	objList, err := dbObj.GetAllObjFromDb(dbHdl)
+	if err != nil {
+		fmt.Println("DB Query failed when retrieving Port objects")
+		return err
+	}
+	for idx := 0; idx < len(objList); idx++ {
+		dbObject := objList[idx].(objects.Port)
+		ifindex := dbObject.IfIndex
+		ent := PortConfigMap[ifindex]
+		ent.Mtu = dbObject.Mtu
+		ent.Duplex = dbObject.Duplex
+		ent.Speed = dbObject.Speed
+		PortConfigMap[ifindex] = ent
 	}
 }
 

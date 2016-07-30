@@ -22,7 +22,7 @@
 //
 
 // tx
-package lacp
+package drcp
 
 import (
 	"fmt"
@@ -34,15 +34,13 @@ import (
 
 // bridge will simulate communication between two channels
 type SimulationNeighborBridge struct {
-	port1       uint16
-	port2       uint16
-	rxLacpPort1 chan gopacket.Packet
-	rxLacpPort2 chan gopacket.Packet
-	rxLampPort1 chan gopacket.Packet
-	rxLampPort2 chan gopacket.Packet
+	port1      uint16
+	port2      uint16
+	rxIppPort1 chan gopacket.Packet
+	rxIppPort2 chan gopacket.Packet
 }
 
-func (bridge *SimulationNeighborBridge) TxViaGoChannel(port uint16, pdu interface{}) {
+func (bridge *SimulationNeighborBridge) TxViaGoChannel(port uint16, dmac net.HwAddress, pdu interface{}) {
 
 	var p *DRCPIpp
 	if LaDrcpFindIPPById(port, &p) {
@@ -50,8 +48,8 @@ func (bridge *SimulationNeighborBridge) TxViaGoChannel(port uint16, pdu interfac
 		// Set up all the layers' fields we can.
 		eth := layers.Ethernet{
 			SrcMAC:       net.HardwareAddr{0x00, uint8(p.PortNum & 0xff), 0x00, 0x01, 0x01, 0x01},
-			DstMAC:       layers.SlowProtocolDMAC,
-			EthernetType: layers.EthernetTypeSlowProtocol,
+			DstMAC:       dmac,
+			EthernetType: layers.EthernetTypeDRCP,
 		}
 		buf := gopacket.NewSerializeBuffer()
 		opts := gopacket.SerializeOptions{
@@ -61,30 +59,27 @@ func (bridge *SimulationNeighborBridge) TxViaGoChannel(port uint16, pdu interfac
 
 		switch pdu.(type) {
 		case *layers.DRCP:
-			slow := layers.SlowProtocol{
-				SubType: layers.SlowProtocolTypeLACP,
-			}
-			lacp := pdu.(*layers.LACP)
+			drcp := pdu.(*layers.DRCP)
 
-			gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
+			gopacket.SerializeLayers(buf, opts, &eth, &slow, drcp)
 		}
 
 		pkt := gopacket.NewPacket(buf.Bytes(), layers.LinkTypeEthernet, gopacket.Default)
 
-		if port != bridge.port1 && bridge.rxLacpPort1 != nil {
+		if port != bridge.port1 && bridge.rxIppPort1 != nil {
 			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port1)
 			//fmt.Println("TX:", pkt)
-			bridge.rxLacpPort1 <- pkt
-		} else if bridge.rxLacpPort2 != nil {
+			bridge.rxIppPort1 <- pkt
+		} else if bridge.rxIppPort2 != nil {
 			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port2)
-			bridge.rxLacpPort2 <- pkt
+			bridge.rxIppPort2 <- pkt
 		}
 	} else {
 		utils.GlobalLogger.Err(fmt.Sprintf("Unable to find port %d in tx", port))
 	}
 }
 
-func TxViaLinuxIf(port uint16, pdu interface{}) {
+func TxViaLinuxIf(port uint16, dmac net.HwAddress, pdu interface{}) {
 	var p *LaAggPort
 	if LaFindPortById(port, &p) {
 
@@ -94,8 +89,8 @@ func TxViaLinuxIf(port uint16, pdu interface{}) {
 			// Set up all the layers' fields we can.
 			eth := layers.Ethernet{
 				SrcMAC:       txIface.HardwareAddr,
-				DstMAC:       layers.SlowProtocolDMAC,
-				EthernetType: layers.EthernetTypeSlowProtocol,
+				DstMAC:       dmac,
+				EthernetType: layers.EthernetTypeDRCP,
 			}
 
 			// Set up buffer and options for serialization.
@@ -106,19 +101,9 @@ func TxViaLinuxIf(port uint16, pdu interface{}) {
 			}
 
 			switch pdu.(type) {
-			case *layers.LACP:
-				slow := layers.SlowProtocol{
-					SubType: layers.SlowProtocolTypeLACP,
-				}
-				lacp := pdu.(*layers.LACP)
+			case *layers.DRCP:
+				drcp := pdu.(*layers.DRCP)
 				gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
-
-			case *layers.LAMP:
-				slow := layers.SlowProtocol{
-					SubType: layers.SlowProtocolTypeLAMP,
-				}
-				lamp := pdu.(*layers.LAMP)
-				gopacket.SerializeLayers(buf, opts, &eth, &slow, lamp)
 			}
 
 			// Send one packet for every address.

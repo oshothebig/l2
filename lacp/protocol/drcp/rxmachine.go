@@ -209,8 +209,8 @@ func (rxm *RxMachine) DrcpRxMachineDiscard(m fsm.Machine, data interface{}) fsm.
 func (rxm *RxMachine) DrcpRxMachineDefaulted(m fsm.Machine, data interface{}) fsm.State {
 	p := rxm.p
 
-	p.DRFHomeOperDRCPState.SetState(DRCPStateExpired)
-	p.recordDefaultDRCPDU(data)
+	p.DRFHomeOperDRCPState.SetState(layers.DRCPStateExpired)
+	rxm.recordDefaultDRCPDU(data)
 	p.reportToManagement()
 
 	return RxmStateDefaulted
@@ -221,8 +221,8 @@ func (rxm *RxMachine) DrcpRxMachineDefaulted(m fsm.Machine, data interface{}) fs
 func (rxm *RxMachine) DrcpRxMachineCurrent(m fsm.Machine, data interface{}) fsm.State {
 	p := rxm.p
 
-	p.recordNeighborState()
-	p.updateNTT()
+	rxm.recordNeighborState()
+	rxm.updateNTT()
 
 	// 1 short , 0 long
 	if p.DRFHomeOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) {
@@ -333,36 +333,19 @@ func (p *DRCPIpp) DrcpRxMachineMain() {
 				// gets processed first as this will clear/restart the timer
 				if len(m.RxmPktRxEvent) == 0 {
 					m.DrcpRxmLog("Current While Timer Expired")
-					m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventCurrentWhileTimerExpired, nil)
+					m.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDRCPCurrentWhileTimerExpired, nil)
 				}
 
 			case event, ok := <-m.RxmEvents:
 				if ok {
 					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 					if rv == nil {
-						p := m.p
 						/* continue State transition */
-						if m.Machine.Curr.CurrentState() == LacpRxmStateInitialize {
-							rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventUnconditionalFallthrough, nil)
-						}
-						if rv == nil {
-							m.DrcpRxmLog(fmt.Sprintln("Port Enabled, LacpEnabled, State", p.PortEnabled, p.lacpEnabled, m.Machine.Curr.CurrentState()))
-							if m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled {
-								if p.lacpEnabled == true &&
-									p.PortEnabled == true {
-									rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpEnabled, nil)
-								} else if p.lacpEnabled == false &&
-									p.PortEnabled == true {
-									rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpDisabled, nil)
-								} else if p.portMoved {
-									rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortMoved, nil)
-								}
-							}
-						}
+						m.Machine.processPostStates()
 					}
 
 					if rv != nil {
-						m.LacpRxmLog(strings.Join([]string{error.Error(rv), event.src, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+						m.DrcpRxmLog(strings.Join([]string{error.Error(rv), event.src, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
 					}
 				}
 
@@ -375,12 +358,7 @@ func (p *DRCPIpp) DrcpRxMachineMain() {
 					return
 				}
 			case rx := <-m.RxmPktRxEvent:
-				//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.PortNum, rx.src))
-				// lets check if the port has moved
-				//p.LacpCounter.AggPortStatsLACPDUsRx += 1
-
-				//p.AggPortDebug.AggPortDebugLastRxTime = (time.Now().Nanosecond() - LacpStartTime.Nanosecond()) / 10
-				m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventLacpPktRx, rx.pdu)
+				m.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDRCPDURx, rx.pdu)
 
 				// respond to caller if necessary so that we don't have a deadlock
 				if rx.responseChan != nil {
@@ -505,6 +483,17 @@ func (rxm *RxMachine) processPostStateCurrent(pdu interface{}) {
 // are met in order to transition to next state
 func (rxm *RxMachine) processPostStateDefaulted(pdu interface{}) {
 	// nothin to do events are triggered by rx packet or current while timer expired
+}
+
+// updateNTT This function sets NTTDRCPDU to TRUE, if any of:
+func (rxm *RxMachine) updateNTT() {
+	p := rxm.p
+	if !p.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!p.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
+		!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
+		p.NTTDRCPDU = true
+	}
 }
 
 // recordDefaultDRCPDU: 802.1ax Section 9.4.1.1
@@ -642,8 +631,8 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 	confPortalSystemNumEqual := p.DRFNeighborConfPortalSystemNumber == p.DRFPortalSystemNumber
 	threeSystemPortalEqual := p.DrniNeighborThreeSystemPortal == p.d.DrniThreeSystemPortal
 	commonMethodsEqual := p.DrniNeighborCommonMethods == p.d.DrniCommonMethods
-	operAggKeyEqual := p.DRFNeighborOperAggregatoryKey[2:] == p.dr.DRFHomeOperAggergatorKey[2:]
-	operAggKeyFullEqual := p.DRFNeighborOperAggregatoryKey == p.dr.DRFHomeOperAggergatorKey
+	operAggKeyEqual := p.DRFNeighborOperAggregatoryKey[2:] == p.dr.DRFHomeOperAggregatorKey[2:]
+	operAggKeyFullEqual := p.DRFNeighborOperAggregatoryKey == p.dr.DRFHomeOperAggregatorKey
 	portAlgorithmEqual := p.DRFNeighborPortAlgorithm == p.dr.DRFHomePortAlgorithm
 	conversationPortListDigestEqual := p.DRFNeighborConversationPortListDigest == p.dr.DRFHomeConverstaionPortListDigest
 	gatewayAlgorithmEqual := p.DRFNeighborGatewayAlgorithm == p.dr.DRFHomeGatewayAlgorithm
@@ -982,7 +971,11 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 		}
 
 		// Lets also record the following variables
-		p.DRFHomeOperDRCPState.SetState(DRCPStateHomeGatewayBit, drcpPduInfo.State.State.GetState(layers.DRCPStateHomeGatewayBit))
+		if drcpPduInfo.State.State.GetState(layers.DRCPStateHomeGatewayBit) {
+			p.DRFHomeOperDRCPState.SetState(layers.DRCPStateHomeGatewayBit)
+		} else {
+			p.DRFHomeOperDRCPState.ClearState(layers.DRCPStateHomeGatewayBit)
+		}
 		if drcpPduInfo.HomePortsInfo.TlvTypeLength.GetTlv() == layers.DRCPTLVTypeHomePortsInfo {
 			// Active_Home_Ports in the Home Ports Information TLV, carried in a
 			// received DRCPDU on the IPP, are used as the current values for the DRF_Neighbor_State on
@@ -991,7 +984,11 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 		}
 		// TODO the Gateway Vector from the most recent entry in the Gateway Vector database for the Neighbor Portal System
 
-		p.DRFHomeOperDRCPState.SetState(DRCPStateOtherGatewayBit, drcpPduInfo.State.State.GetState(layers.DRCPStateOtherGatewayBit))
+		if drcpPduInfo.State.State.GetState(layers.DRCPStateOtherGatewayBit) {
+			p.DRFHomeOperDRCPState.SetState(layers.DRCPStateOtherGatewayBit)
+		} else {
+			p.DRFHomeOperDRCPState.ClearState(layers.DRCPStateOtherGatewayBit)
+		}
 
 		p.compareOtherPortsInfo(drcpPduInfo)
 
@@ -1006,6 +1003,7 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 }
 
 func (rxm *RxMachine) compareOtherPortsInfo(drcpPduInfo *layers.DRCP) {
+	p := rxm.p
 	if drcpPduInfo.OtherPortsInfo.TlvTypeLength.GetTlv() == layers.DRCPTLVTypeOtherPortsInfo {
 		// the Other_Neighbor_Ports in the Other Ports Information TLV,
 		// carried in a received DRCPDU on the IPP, are used as the current values for the
@@ -1047,6 +1045,8 @@ func (rxm *RxMachine) compareNetworkIPLMethod(drcpPduInfo *layers.DRCP) {
 
 func (rxm *RxMachine) compareGatewayOperGatewayVector() {
 
+	p := rxm.p
+
 	operOrVectorDiffer := false
 	for i := 0; i < 3 && !operOrVectorDiffer; i++ {
 		if p.DrniPortalSystemState[i].OpState != p.DrniNeighborSystemState[i].OpState ||
@@ -1056,7 +1056,7 @@ func (rxm *RxMachine) compareGatewayOperGatewayVector() {
 	}
 
 	if operOrVectorDiffer {
-		p.GatewayConversationUpdate = true
+		p.dr.GatewayConversationUpdate = true
 		p.DRFHomeOperDRCPState.ClearState(layers.DRCPStateGatewaySync)
 		if p.MissingRcvGatewayConVector {
 			for i := 0; i < 1024; i++ {
@@ -1069,10 +1069,10 @@ func (rxm *RxMachine) compareGatewayOperGatewayVector() {
 		}
 	} else {
 		if !p.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) {
-			p.GatewayConversationUpdate = true
+			p.dr.GatewayConversationUpdate = true
 			p.DRFHomeOperDRCPState.SetState(layers.DRCPStateGatewaySync)
 		} else if p.DifferGatewayDigest {
-			p.GatewayConversationUpdate = true
+			p.dr.GatewayConversationUpdate = true
 		} else {
 			p.DRFHomeOperDRCPState.SetState(layers.DRCPStateGatewaySync)
 		}
@@ -1085,7 +1085,7 @@ func (s sortPortList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s sortPortList) Less(i, j int) bool { return s[i] < s[j] }
 
 func (rxm *RxMachine) comparePortIds() {
-
+	p := rxm.p
 	portListDiffer := false
 
 	for i := 0; i < 3 && !operOrVectorDiffer; i++ {
@@ -1102,7 +1102,7 @@ func (rxm *RxMachine) comparePortIds() {
 	}
 
 	if portListDiffer {
-		p.PortConversationUpdate = true
+		p.dr.PortConversationUpdate = true
 		p.DRFHomeOperDRCPState.ClearState(layers.DRCPStatePortSync)
 		if p.MissingRcvPortConVector {
 			for i := 0; i < 1024; i++ {
@@ -1115,9 +1115,9 @@ func (rxm *RxMachine) comparePortIds() {
 		}
 	} else {
 		if p.DifferPortDigest {
-			p.PortConversationUpdate = true
+			p.dr.PortConversationUpdate = true
 		} else if !p.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
-			p.PortConversationUpdate = true
+			p.dr.PortConversationUpdate = true
 			p.DRFHomeOperDRCPState.SetState(layers.DRCPStatePortSync)
 		} else {
 			p.DRFHomeOperDRCPState.SetState(layers.DRCPStatePortSync)

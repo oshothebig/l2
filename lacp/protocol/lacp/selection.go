@@ -256,7 +256,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 	if p.AggId != 0 && LaFindAggById(p.AggId, &a) {
 		if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
-			p.Key == a.actorAdminKey &&
+			p.Key == a.ActorAdminKey &&
 			p.PortEnabled {
 
 			p.LaPortLog("checkConfigForSelection: selected")
