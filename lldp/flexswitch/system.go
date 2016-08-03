@@ -39,7 +39,7 @@ type SystemPlugin struct {
 
 func NewSystemPlugin(fileName string, db *dbutils.DBUtil) (*SystemPlugin, error) {
 	mgr := &SystemPlugin{}
-	err := eventUtils.InitEvents("LLDPD", db, debug.Logger, 1000)
+	err := eventUtils.InitEvents("LLDPD", db, db, debug.Logger, 1000)
 	if err != nil {
 		debug.Logger.Info(fmt.Sprintln("unable to initialize event utils", err))
 	}
