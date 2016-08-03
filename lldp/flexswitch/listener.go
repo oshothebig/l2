@@ -94,6 +94,33 @@ func (h *ConfigHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
 	return api.UpdateIntfConfig(newconfig.IfIndex, newconfig.Enable)
 }
 
+func (h *ConfigHandler) GetLLDPIntf(ifIndex int32) (*lldpd.LLDPIntf, error) {
+	return nil, nil
+}
+
+func (h *ConfigHandler) GetBulkLLDPIntf(fromIndex lldpd.Int, count lldpd.Int) (*lldpd.LLDPIntfGetInfo, error) {
+	nextIdx, currCount, lldpIntfEntries := api.GetIntfs(int(fromIndex), int(count))
+	if lldpIntfEntries == nil {
+		return nil, errors.New("No neighbor found")
+	}
+
+	lldpEntryResp := make([]*lldpd.LLDPIntf, len(lldpIntfEntries))
+
+	for idx, item := range lldpIntfEntries {
+		lldpEntryResp[idx] = h.convertLLDPIntfEntryToThriftEntry(item)
+	}
+
+	lldpEntryBulk := lldpd.NewLLDPIntfGetInfo()
+	lldpEntryBulk.StartIdx = fromIndex
+	lldpEntryBulk.EndIdx = lldpd.Int(nextIdx)
+	lldpEntryBulk.Count = lldpd.Int(currCount)
+	lldpEntryBulk.More = (nextIdx != 0)
+	lldpEntryBulk.LLDPIntfList = lldpEntryResp
+
+	return lldpEntryBulk, nil
+	return nil, nil
+}
+
 func (h *ConfigHandler) CreateLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err error) {
 	return api.SendGlobalConfig(config.Vrf, config.Enable)
 }
@@ -109,8 +136,14 @@ func (h *ConfigHandler) UpdateLLDPGlobal(origconfig *lldpd.LLDPGlobal,
 	return api.UpdateGlobalConfig(newconfig.Vrf, newconfig.Enable)
 }
 
-func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(
-	state config.IntfState) *lldpd.LLDPIntfState {
+func (h *ConfigHandler) convertLLDPIntfEntryToThriftEntry(state config.Intf) *lldpd.LLDPIntf {
+	entry := lldpd.NewLLDPIntf()
+	entry.Enable = state.Enable
+	entry.IfIndex = state.IfIndex
+	return entry
+}
+
+func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(state config.IntfState) *lldpd.LLDPIntfState {
 	entry := lldpd.NewLLDPIntfState()
 	entry.LocalPort = state.LocalPort
 	entry.PeerMac = state.PeerMac
@@ -118,14 +151,14 @@ func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(
 	entry.HoldTime = state.HoldTime
 	entry.Enable = state.Enable
 	entry.IfIndex = state.IfIndex
+	entry.SystemCapabilities = state.SystemCapabilities
+	entry.EnabledCapabilities = state.EnabledCapabilities
 	return entry
 }
 
-func (h *ConfigHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int,
-	count lldpd.Int) (*lldpd.LLDPIntfStateGetInfo, error) {
+func (h *ConfigHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int, count lldpd.Int) (*lldpd.LLDPIntfStateGetInfo, error) {
 
-	nextIdx, currCount, lldpIntfStateEntries := api.GetIntfStates(
-		int(fromIndex), int(count))
+	nextIdx, currCount, lldpIntfStateEntries := api.GetIntfStates(int(fromIndex), int(count))
 	if lldpIntfStateEntries == nil {
 		return nil, errors.New("No neighbor found")
 	}
@@ -147,5 +180,10 @@ func (h *ConfigHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int,
 }
 
 func (h *ConfigHandler) GetLLDPIntfState(ifIndex int32) (*lldpd.LLDPIntfState, error) {
-	return nil, nil
+	lldpIntf := api.GetIntfState(ifIndex)
+	if lldpIntf == nil {
+		return nil, errors.New(fmt.Sprintf("No Information found for", ifIndex))
+	}
+
+	return h.convertLLDPIntfStateEntryToThriftEntry(*lldpIntf), nil
 }

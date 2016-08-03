@@ -13,13 +13,13 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 package main
 
@@ -30,6 +30,7 @@ import (
 	"l2/lldp/flexswitch"
 	"l2/lldp/server"
 	"l2/lldp/utils"
+	"utils/dbutils"
 	"utils/keepalive"
 	"utils/logging"
 )
@@ -57,21 +58,21 @@ func main() {
 	case "ovsdb":
 
 	default:
+		lldpDbHdl := dbutils.NewDBUtil(debug.Logger)
 		aPlugin, err := flexswitch.NewAsicPlugin(fileName)
 		if err != nil {
 			return
 		}
-		sPlugin, err := flexswitch.NewSystemPlugin(fileName)
+		sPlugin, err := flexswitch.NewSystemPlugin(fileName, lldpDbHdl)
 		if err != nil {
 			return
 		}
 		// Create lldp rpc handler
-		//lldpHdl := lldpRpc.LLDPNewHandler(lldpSvr)
 		lldpHdl := flexswitch.NewConfigHandler()
 		lPlugin := flexswitch.NewNBPlugin(lldpHdl, fileName)
 
 		// Create lldp server handler
-		lldpSvr := server.LLDPNewServer(aPlugin, lPlugin, sPlugin)
+		lldpSvr := server.LLDPNewServer(aPlugin, lPlugin, sPlugin, lldpDbHdl)
 		// Start Api Layer
 		api.Init(lldpSvr)
 

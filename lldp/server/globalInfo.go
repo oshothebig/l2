@@ -30,6 +30,7 @@ import (
 	"l2/lldp/packet"
 	"l2/lldp/plugin"
 	"models/objects"
+	"sync"
 	"time"
 	"utils/dbutils"
 )
@@ -55,6 +56,8 @@ type LLDPGlobalInfo struct {
 	// State info
 	enable bool
 
+	// Reading received info & updating received info lock
+	RxLock *sync.RWMutex
 	// Go Routine Killer Channels
 	RxKill chan bool
 	TxDone chan bool
@@ -97,7 +100,8 @@ type LLDPServer struct {
 	IfStateCh chan *config.PortState
 	// Update Cache notification channel
 	UpdateCacheCh chan bool
-
+	// Event Publish channel for server
+	EventCh chan config.EventInfo
 	// lldp exit
 	lldpExit chan bool
 }

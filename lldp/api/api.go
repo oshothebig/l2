@@ -103,9 +103,18 @@ func SendPortStateChange(ifIndex int32, state string) {
 	lldpapi.server.IfStateCh <- &config.PortState{ifIndex, state}
 }
 
+func GetIntfs(idx int, cnt int) (int, int, []config.Intf) {
+	n, c, result := lldpapi.server.GetIntfs(idx, cnt)
+	return n, c, result
+}
+
 func GetIntfStates(idx int, cnt int) (int, int, []config.IntfState) {
 	n, c, result := lldpapi.server.GetIntfStates(idx, cnt)
 	return n, c, result
+}
+
+func GetIntfState(ifIndex int32) *config.IntfState {
+	return lldpapi.server.GetIntfState(ifIndex)
 }
 
 func UpdateCache() {

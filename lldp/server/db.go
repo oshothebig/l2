@@ -28,13 +28,11 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/utils"
 	"models/objects"
-	"utils/dbutils"
 )
 
 func (svr *LLDPServer) InitDB() error {
 	var err error
 	debug.Logger.Info("Initializing DB")
-	svr.lldpDbHdl = dbutils.NewDBUtil(debug.Logger)
 	err = svr.lldpDbHdl.Connect()
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Failed to Create DB Handle", err))
