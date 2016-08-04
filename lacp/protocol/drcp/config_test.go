@@ -165,7 +165,7 @@ func TestDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T) {
 		len(DistributedRelayDBList) == 0 {
 		t.Error("ERROR Distributed Relay Object was not added to global DB's")
 	}
-	dr, ok := DistributedRelayDB[cfg.aDrniName]
+	dr, ok := DistributedRelayDB[cfg.DrniName]
 	if !ok {
 		t.Error("ERROR Distributed Relay Object was not found in global DB's")
 	}
@@ -218,7 +218,7 @@ func TestDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T) {
 			t.Error("ERROR BEGIN Initial IPP Gateway Machine state is not correct", ipp.IGMachineFsm.Machine.Curr.CurrentState())
 		}
 	}
-	DeleteDistributedRelay(cfg.aDrniName)
+	DeleteDistributedRelay(cfg.DrniName)
 	lacp.DeleteLaAgg(a.AggId)
 	ConfigTestTeardwon()
 }
