@@ -1,12 +1,12 @@
 package asicdMgr
 
 import (
-	"l2/stp/server"
+	"l2/lacp/server"
 	"utils/commonDefs"
 )
 
 type NotificationHdl struct {
-	Server *server.STPServer
+	Server *server.LAServer
 }
 
 func initAsicdNotification() commonDefs.AsicdNotification {
@@ -17,7 +17,7 @@ func initAsicdNotification() commonDefs.AsicdNotification {
 	return nMap
 }
 
-func NewNotificationHdl(server *server.STPServer) (commonDefs.AsicdNotificationHdl, commonDefs.AsicdNotification) {
+func NewNotificationHdl(server *server.LAServer) (commonDefs.AsicdNotificationHdl, commonDefs.AsicdNotification) {
 	nMap := initAsicdNotification()
 	return &NotificationHdl{server}, nMap
 }

@@ -190,7 +190,8 @@ func (dr *DistributedRelay) DrcpAMachineMain() {
 	// Build the State machine for  DRNI Aggregator Machine according to
 	// 802.1ax-2014 Section 9.4.17 DRNI Gateway and Aggregator machines
 	am := DrcpAMachineFSMBuild(dr)
-	dr.wg.Add(1)
+	//dr.wg.Add(1)
+	dr.waitgroupadd("AM")
 
 	// set the inital State
 	am.Machine.Start(am.PrevState())
@@ -199,7 +200,8 @@ func (dr *DistributedRelay) DrcpAMachineMain() {
 	// that the AMachine should handle.
 	go func(m *AMachine) {
 		m.DrcpAmLog("Machine Start")
-		defer m.dr.wg.Done()
+		//defer m.dr.wg.Done()
+		defer m.dr.waitgroupstop("AM")
 		for {
 			select {
 			case event, ok := <-m.AmEvents:

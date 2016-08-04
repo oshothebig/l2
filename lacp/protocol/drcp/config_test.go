@@ -130,28 +130,28 @@ func ConfigTestTeardwon() {
 
 func TestDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T) {
 
-	OnlyForTestSetup()
+	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
 
 	cfg := &DistrubtedRelayConfig{
-		aDrniName:                          "DR-1",
-		aDrniPortalAddress:                 "00:00:DE:AD:BE:EF",
-		aDrniPortalPriority:                128,
-		aDrniThreePortalSystem:             false,
-		aDrniPortalSystemNumber:            1,
-		aDrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)},
-		aDrniAggregator:                    uint32(a.AggId),
-		aDrniGatewayAlgorithm:              "00:80:C2:01",
-		aDrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
-		aDrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
-		aDrniNeighborAdminDRCPState:        "00000000",
-		aDrniEncapMethod:                   "00:80:C2:01",
-		aDrniPortConversationControl:       true,                // gateway and port algorithm same
-		aDrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)},
+		DrniAggregator:                    uint32(a.AggId),
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 	// map vlan 100 to this system
 	// in real system this should be filled in by vlan membership
-	cfg.aDrniConvAdminGateway[100][0] = cfg.aDrniPortalSystemNumber
+	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
 	err := DistrubtedRelayConfigParamCheck(cfg)
 	if err != nil {
@@ -182,7 +182,7 @@ func TestDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T) {
 		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayInitialize {
 		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", dr.GMachineFsm.Machine.Curr.CurrentState())
 	}
-	if dr.AMachineFsm != nil ||
+	if dr.AMachineFsm == nil ||
 		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortInitialize {
 		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", dr.AMachineFsm.Machine.Curr.CurrentState())
 	}
@@ -194,7 +194,7 @@ func TestDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T) {
 	for _, ipp := range dr.Ipplinks {
 		// IPL should be disabled thus state should be in initialized state
 		if ipp.RxMachineFsm == nil ||
-			ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateInitialize {
+			ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateExpired {
 			t.Error("ERROR BEGIN Initial Receive Machine state is not correct", ipp.RxMachineFsm.Machine.Curr.CurrentState())
 		}
 		if ipp.PtxMachineFsm == nil ||

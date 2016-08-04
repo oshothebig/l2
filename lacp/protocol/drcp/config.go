@@ -43,25 +43,29 @@ const DRCPConfigModuleStr = "DRCP Config"
 // 802.1.AX-2014 7.4.1.1 Distributed Relay Attributes GET-SET
 type DistrubtedRelayConfig struct {
 	// GET-SET
-	aDrniName                               string
-	aDrniPortalAddress                      string
-	aDrniPortalPriority                     uint16
-	aDrniThreePortalSystem                  bool
-	aDrniPortalSystemNumber                 uint8
-	aDrniIntraPortalLinkList                [3]uint32
-	aDrniAggregator                         uint32
-	aDrniConvAdminGateway                   [4096][3]uint8
-	aDrniNeighborAdminConvGatewayListDigest [16]uint8
-	aDrniNeighborAdminConvPortListDigest    [16]uint8
-	aDrniGatewayAlgorithm                   string
-	aDrniNeighborAdminGatewayAlgorithm      string
-	aDrniNeighborAdminPortAlgorithm         string
-	aDrniNeighborAdminDRCPState             string
-	aDrniEncapMethod                        string
-	aDrniIPLEncapMap                        [16]uint32
-	aDrniNetEncapMap                        [16]uint32
-	aDrniPortConversationControl            bool
-	aDrniIntraPortalPortProtocolDA          string
+	DrniName                               string
+	DrniPortalAddress                      string
+	DrniPortalPriority                     uint16
+	DrniThreePortalSystem                  bool
+	DrniPortalSystemNumber                 uint8
+	DrniIntraPortalLinkList                [3]uint32
+	DrniAggregator                         uint32
+	DrniConvAdminGateway                   [4096][3]uint8
+	DrniNeighborAdminConvGatewayListDigest [16]uint8
+	DrniNeighborAdminConvPortListDigest    [16]uint8
+	DrniGatewayAlgorithm                   string
+	DrniNeighborAdminGatewayAlgorithm      string
+	DrniNeighborAdminPortAlgorithm         string
+	DrniNeighborAdminDRCPState             string
+	DrniEncapMethod                        string
+	DrniIPLEncapMap                        [16]uint32
+	DrniNetEncapMap                        [16]uint32
+	DrniPortConversationControl            bool
+	DrniIntraPortalPortProtocolDA          string
+}
+
+func (d *DistrubtedRelayConfig) GetKey() string {
+	return d.DrniName
 }
 
 // DistrubtedRelayConfigParamCheck will validate the config from the user after it has
@@ -70,23 +74,31 @@ type DistrubtedRelayConfig struct {
 // will be translated to model values
 func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 
-	_, err := net.ParseMAC(mlag.aDrniPortalAddress)
+	_, err := net.ParseMAC(mlag.DrniPortalAddress)
 	if err != nil {
-		return errors.New(fmt.Sprintln("ERROR Portal System MAC Supplied must be in the format of 00:00:00:00:00:00 rcvd:", mlag.aDrniPortalAddress))
+		return errors.New(fmt.Sprintln("ERROR Portal System MAC Supplied must be in the format of 00:00:00:00:00:00 rcvd:", mlag.DrniPortalAddress))
 	}
 
-	for _, ippid := range mlag.aDrniIntraPortalLinkList {
-		if _, ok := utils.PortConfigMap[int32(ippid)]; !ok {
-			return errors.New(fmt.Sprintln("ERROR Invalid Intra Portal Link Port Id supplied", ippid))
+	linkcnt := 0
+	for _, ippid := range mlag.DrniIntraPortalLinkList {
+		if ippid > 0 {
+			if _, ok := utils.PortConfigMap[int32(ippid)]; !ok {
+				return errors.New(fmt.Sprintln("ERROR Invalid Intra Portal Link Port Id supplied", ippid, utils.PortConfigMap))
+			}
+		} else {
+			linkcnt++
 		}
 	}
+	if linkcnt == 3 {
+		return errors.New("ERROR Invalid Intra Portal Link Port required")
+	}
 
-	if mlag.aDrniThreePortalSystem {
+	if mlag.DrniThreePortalSystem {
 		return errors.New(fmt.Sprintln("ERROR Only support a 2 Portal System"))
 	}
 
-	if mlag.aDrniPortalSystemNumber < DRNI_PORTAL_SYSTEM_ID_MIN ||
-		mlag.aDrniPortalSystemNumber > DRNI_PORTAL_SYSTEM_ID_MAX {
+	if mlag.DrniPortalSystemNumber < DRNI_PORTAL_SYSTEM_ID_MIN ||
+		mlag.DrniPortalSystemNumber > DRNI_PORTAL_SYSTEM_ID_MAX {
 		return errors.New(fmt.Sprintln("ERROR Invalid Portal System Number must be between 1 and ", DRNI_PORTAL_SYSTEM_ID_MAX))
 	}
 
@@ -98,16 +110,16 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 		"00:80:C2:05": true,
 	}
 
-	if _, ok := validPortGatewayAlgorithms[mlag.aDrniGatewayAlgorithm]; !ok {
-		return errors.New(fmt.Sprintln("ERROR Invalid Gateway Algorithm supplied must be in the format 00:80:C2:XX where XX is 1-5 the value of the algorithm ", mlag.aDrniGatewayAlgorithm))
+	if _, ok := validPortGatewayAlgorithms[mlag.DrniGatewayAlgorithm]; !ok {
+		return errors.New(fmt.Sprintln("ERROR Invalid Gateway Algorithm supplied must be in the format 00:80:C2:XX where XX is 1-5 the value of the algorithm ", mlag.DrniGatewayAlgorithm))
 	}
 
-	if _, ok := validPortGatewayAlgorithms[mlag.aDrniNeighborAdminGatewayAlgorithm]; !ok {
-		return errors.New(fmt.Sprintln("ERROR Invalid Neighbor Gateway Algorithm supplied must be in the format 00:80:C2:XX where XX is 1-5 the value of the algorithm ", mlag.aDrniNeighborAdminGatewayAlgorithm))
+	if _, ok := validPortGatewayAlgorithms[mlag.DrniNeighborAdminGatewayAlgorithm]; !ok {
+		return errors.New(fmt.Sprintln("ERROR Invalid Neighbor Gateway Algorithm supplied must be in the format 00:80:C2:XX where XX is 1-5 the value of the algorithm ", mlag.DrniNeighborAdminGatewayAlgorithm))
 	}
 
-	if _, ok := validPortGatewayAlgorithms[mlag.aDrniNeighborAdminPortAlgorithm]; !ok {
-		return errors.New(fmt.Sprintln("ERROR Invalid Neighbor Port Algorithm supplied must be in the format 00:80:C2:XX where XX is 1-5 the value of the algorithm ", mlag.aDrniNeighborAdminPortAlgorithm))
+	if _, ok := validPortGatewayAlgorithms[mlag.DrniNeighborAdminPortAlgorithm]; !ok {
+		return errors.New(fmt.Sprintln("ERROR Invalid Neighbor Port Algorithm supplied must be in the format 00:80:C2:XX where XX is 1-5 the value of the algorithm ", mlag.DrniNeighborAdminPortAlgorithm))
 	}
 
 	validEncapStrings := map[string]bool{
@@ -116,22 +128,22 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 		"00:80:C2:02": true, // shared by tag
 	}
 
-	if _, ok := validEncapStrings[mlag.aDrniEncapMethod]; !ok {
-		return errors.New(fmt.Sprintln("ERROR Invalid Encap Method supplied must be in the format 00:80:C2:XX where XX is 0-2 the value of the encap method ", mlag.aDrniEncapMethod))
+	if _, ok := validEncapStrings[mlag.DrniEncapMethod]; !ok {
+		return errors.New(fmt.Sprintln("ERROR Invalid Encap Method supplied must be in the format 00:80:C2:XX where XX is 0-2 the value of the encap method ", mlag.DrniEncapMethod))
 	}
 
-	if mlag.aDrniPortConversationControl {
-		return errors.New(fmt.Sprintln("ERROR Invalid Port Conversation Control is always false as the Home Gateway Vector is controlled by protocol ", mlag.aDrniPortConversationControl))
+	if mlag.DrniPortConversationControl {
+		return errors.New(fmt.Sprintln("ERROR Invalid Port Conversation Control is always false as the Home Gateway Vector is controlled by protocol ", mlag.DrniPortConversationControl))
 	}
 
-	_, err = net.ParseMAC(mlag.aDrniIntraPortalPortProtocolDA)
+	_, err = net.ParseMAC(mlag.DrniIntraPortalPortProtocolDA)
 	if err != nil {
-		return errors.New(fmt.Sprintln("ERROR Invalid Port Protocol DA invalid format must be 00:00:00:00:00:00 rcvd: ", mlag.aDrniIntraPortalPortProtocolDA))
+		return errors.New(fmt.Sprintln("ERROR Invalid Port Protocol DA invalid format must be 00:00:00:00:00:00 rcvd: ", mlag.DrniIntraPortalPortProtocolDA))
 	}
 
 	// only going to support this address
-	if mlag.aDrniIntraPortalPortProtocolDA != "01:80:C2:00:00:03" {
-		return errors.New(fmt.Sprintln("ERROR Invalid Port Protocol DA only support 01:80:C2:00:00:03 rcvd: ", mlag.aDrniIntraPortalPortProtocolDA))
+	if mlag.DrniIntraPortalPortProtocolDA != "01:80:C2:00:00:03" {
+		return errors.New(fmt.Sprintln("ERROR Invalid Port Protocol DA only support 01:80:C2:00:00:03 rcvd: ", mlag.DrniIntraPortalPortProtocolDA))
 	}
 
 	return nil
@@ -143,13 +155,6 @@ func CreateDistributedRelay(cfg *DistrubtedRelayConfig) {
 	// aggregator must exist for the protocol to really make sense
 	if dr != nil {
 		AttachAggregatorToDistributedRelay(int(dr.DrniAggregator))
-		if dr.a != nil {
-			dr.BEGIN(false)
-			// start the IPP links
-			for _, ipp := range dr.Ipplinks {
-				ipp.BEGIN(false)
-			}
-		}
 	}
 }
 
@@ -224,8 +229,6 @@ func DetachAggregatorFromDistributedRelay(aggId int) {
 						dr.PrevAggregatorPriority)
 				}
 			}
-			// re-init state machine
-			dr.Stop()
 			dr.a = nil
 		}
 	}

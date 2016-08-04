@@ -26,13 +26,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"git.apache.org/thrift.git/lib/go/thrift"
-	"l2/lacp/protocol/lacp"
+	"l2/lacp/asicdMgr"
 	"l2/lacp/protocol/utils"
 	"l2/lacp/rpc"
-	"lacpd"
-	"net"
+	"l2/lacp/server"
+	"utils/asicdClient"
+	"utils/commonDefs"
 	"utils/keepalive"
 	"utils/logging"
 )
@@ -51,7 +50,7 @@ func main() {
 	clientInfoFile := path + "clients.json"
 
 	logger, _ := logging.NewLogger("lacpd", "LA", true)
-	utils.SetLaLogger(loggger)
+	utils.SetLaLogger(logger)
 	laServer := server.NewLAServer(logger)
 
 	// lets setup north bound notifications

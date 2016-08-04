@@ -400,6 +400,7 @@ func (p *LaAggPort) LacpPartnerCdMachineMain() {
 	// Build the State machine for Lacp Receive Machine according to
 	// 802.1ax Section 6.4.17 Churn Detection machine
 	cdm := LacpPartnerCdMachineFSMBuild(p)
+	p.wg.Add(1)
 
 	// set the inital State
 	cdm.Machine.Start(cdm.PrevState())

@@ -24,6 +24,7 @@
 package drcp
 
 import (
+	//"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
@@ -133,36 +134,38 @@ type DistributedRelayFunction struct {
 
 func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	dr := &DistributedRelay{
-		DrniId:                                 uint32(cfg.aDrniPortalSystemNumber),
-		DrniName:                               cfg.aDrniName,
-		DrniPortalPriority:                     cfg.aDrniPortalPriority,
-		DrniThreeSystemPortal:                  cfg.aDrniThreePortalSystem,
-		DrniPortalSystemNumber:                 cfg.aDrniPortalSystemNumber,
-		DrniIntraPortalLinkList:                cfg.aDrniIntraPortalLinkList,
-		DrniAggregator:                         int32(cfg.aDrniAggregator),
-		DrniConvAdminGateway:                   cfg.aDrniConvAdminGateway,
-		DrniNeighborAdminConvGatewayListDigest: cfg.aDrniNeighborAdminConvGatewayListDigest,
-		DrniNeighborAdminConvPortListDigest:    cfg.aDrniNeighborAdminConvPortListDigest,
-		DrniPortConversationControl:            cfg.aDrniPortConversationControl,
+		DrniId:                                 uint32(cfg.DrniPortalSystemNumber),
+		DrniName:                               cfg.DrniName,
+		DrniPortalPriority:                     cfg.DrniPortalPriority,
+		DrniThreeSystemPortal:                  cfg.DrniThreePortalSystem,
+		DrniPortalSystemNumber:                 cfg.DrniPortalSystemNumber,
+		DrniIntraPortalLinkList:                cfg.DrniIntraPortalLinkList,
+		DrniAggregator:                         int32(cfg.DrniAggregator),
+		DrniConvAdminGateway:                   cfg.DrniConvAdminGateway,
+		DrniNeighborAdminConvGatewayListDigest: cfg.DrniNeighborAdminConvGatewayListDigest,
+		DrniNeighborAdminConvPortListDigest:    cfg.DrniNeighborAdminConvPortListDigest,
+		DrniPortConversationControl:            cfg.DrniPortConversationControl,
 		drEvtResponseChan:                      make(chan string),
+		DrniIPLEncapMap:                        make(map[uint32]uint32),
+		DrniNetEncapMap:                        make(map[uint32]uint32),
 	}
-	dr.DrniPortalAddr, _ = net.ParseMAC(cfg.aDrniPortalAddress)
+	dr.DrniPortalAddr, _ = net.ParseMAC(cfg.DrniPortalAddress)
 
 	// string format in bits "00000000"
 	for i, j := 0, uint32(7); i < 8; i, j = i+1, j-1 {
-		val, _ := strconv.Atoi(cfg.aDrniNeighborAdminDRCPState[i : i+1])
+		val, _ := strconv.Atoi(cfg.DrniNeighborAdminDRCPState[i : i+1])
 		dr.DrniNeighborAdminDRCPState |= uint8(val << j)
 	}
 
 	for i := 0; i < 16; i++ {
-		dr.DrniNeighborAdminConvGatewayListDigest[i] = cfg.aDrniNeighborAdminConvGatewayListDigest[i]
-		dr.DrniNeighborAdminConvPortListDigest[i] = cfg.aDrniNeighborAdminConvPortListDigest[i]
+		dr.DrniNeighborAdminConvGatewayListDigest[i] = cfg.DrniNeighborAdminConvGatewayListDigest[i]
+		dr.DrniNeighborAdminConvPortListDigest[i] = cfg.DrniNeighborAdminConvPortListDigest[i]
 	}
 	// format "00:00:00:00"
-	encapmethod := strings.Split(cfg.aDrniEncapMethod, ":")
-	gatewayalgorithm := strings.Split(cfg.aDrniGatewayAlgorithm, ":")
-	neighborgatewayalgorithm := strings.Split(cfg.aDrniNeighborAdminGatewayAlgorithm, ":")
-	neighborportalgorithm := strings.Split(cfg.aDrniNeighborAdminPortAlgorithm, ":")
+	encapmethod := strings.Split(cfg.DrniEncapMethod, ":")
+	gatewayalgorithm := strings.Split(cfg.DrniGatewayAlgorithm, ":")
+	neighborgatewayalgorithm := strings.Split(cfg.DrniNeighborAdminGatewayAlgorithm, ":")
+	neighborportalgorithm := strings.Split(cfg.DrniNeighborAdminPortAlgorithm, ":")
 	var val int64
 	for i := 0; i < 4; i++ {
 		val, _ = strconv.ParseInt(encapmethod[i], 16, 8)
@@ -175,14 +178,14 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		dr.DrniNeighborAdminPortAlgorithm[i] = uint8(val)
 	}
 
-	for i, data := range cfg.aDrniIPLEncapMap {
+	for i, data := range cfg.DrniIPLEncapMap {
 		dr.DrniIPLEncapMap[uint32(i)] = data
 	}
-	for i, data := range cfg.aDrniNetEncapMap {
+	for i, data := range cfg.DrniNetEncapMap {
 		dr.DrniNetEncapMap[uint32(i)] = data
 	}
 
-	netMac, _ := net.ParseMAC(cfg.aDrniIntraPortalPortProtocolDA)
+	netMac, _ := net.ParseMAC(cfg.DrniIntraPortalPortProtocolDA)
 	dr.DrniPortalPortProtocolIDA = netMac
 
 	// add to the global db's
@@ -190,8 +193,10 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	DistributedRelayDBList = append(DistributedRelayDBList, dr)
 
 	for _, ippid := range dr.DrniIntraPortalLinkList {
-		ipp := NewDRCPIpp(ippid, dr)
-		dr.Ipplinks = append(dr.Ipplinks, ipp)
+		if ippid > 0 {
+			ipp := NewDRCPIpp(ippid, dr)
+			dr.Ipplinks = append(dr.Ipplinks, ipp)
+		}
 	}
 	return dr
 }
@@ -270,6 +275,16 @@ func (dr *DistributedRelay) BEGIN(restart bool) {
 	// call the begin event for each
 	// distribute the port disable event to various machines
 	dr.DistributeMachineEvents(mEvtChan, evt, true)
+}
+
+func (dr *DistributedRelay) waitgroupadd(m string) {
+	//fmt.Println("Calling wait group add", m)
+	dr.wg.Add(1)
+}
+
+func (dr *DistributedRelay) waitgroupstop(m string) {
+	//fmt.Println("Calling wait group stop", m)
+	dr.wg.Done()
 }
 
 func (dr *DistributedRelay) Stop() {

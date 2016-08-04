@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"l2/lacp/protocol/drcp"
 	"l2/lacp/protocol/lacp"
+	"l2/lacp/protocol/utils"
 	"utils/commonDefs"
 	"utils/logging"
 )
@@ -30,7 +31,7 @@ const (
 )
 
 type LAConfig struct {
-	Msgtype LAConfigMsgType
+	Msgtype LaConfigMsgType
 	Msgdata interface{}
 }
 
@@ -40,7 +41,7 @@ type LAServer struct {
 	AsicdSubSocketCh chan commonDefs.AsicdNotifyMsg
 }
 
-func NewLAServer(logger *logging.Writer) *STPServer {
+func NewLAServer(logger *logging.Writer) *LAServer {
 	return &LAServer{
 		logger:           logger,
 		ConfigCh:         make(chan LAConfig),
@@ -81,7 +82,7 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		s.logger.Info("CONFIG: Create Link Aggregation Group / Port Channel")
 		config := conf.Msgdata.(*lacp.LaAggConfig)
 		lacp.CreateLaAgg(config)
-		drcp.AttachCreatedAggregatorToDistributedRelay(config.Id)
+		drcp.AttachAggregatorToDistributedRelay(config.Id)
 
 	case LAConfigMsgDeleteLaPortChannel:
 		s.logger.Info("CONFIG: Delete Link Aggregation Group / Port Channel")
@@ -92,7 +93,7 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 	case LAConfigMsgUpdateLaPortChannelLagHash:
 		s.logger.Info("CONFIG: Link Aggregation Group / Port Channel Lag Hash Mode")
 		config := conf.Msgdata.(*lacp.LaAggConfig)
-		lacp.SetLaAggHashMode(config.Id, conf.HashMode)
+		lacp.SetLaAggHashMode(config.Id, config.HashMode)
 
 	case LAConfigMsgUpdateLaPortChannelSystemIdMac:
 		s.logger.Info("CONFIG: Link Aggregation Group / Port Channel SystemId MAC")
@@ -101,7 +102,7 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		if lacp.LaFindAggById(config.Id, &a) {
 			// configured ports
 			for _, pId := range a.PortNumList {
-				lacp.SetLaAggPortSystemInfo(uint16(pId), conf.Lacp.SystemIdMac, conf.Lacp.SystemPriority)
+				lacp.SetLaAggPortSystemInfo(uint16(pId), config.Lacp.SystemIdMac, config.Lacp.SystemPriority)
 			}
 		}
 
@@ -121,9 +122,9 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		config := conf.Msgdata.(*lacp.LaAggConfig)
 		var a *lacp.LaAggregator
 		var p *lacp.LaAggPort
-		if lacp.LaFindAggById(conf.Id, &a) {
+		if lacp.LaFindAggById(config.Id, &a) {
 
-			if conf.Type == lacp.LaAggTypeSTATIC {
+			if config.Type == lacp.LaAggTypeSTATIC {
 				// configured ports
 				for _, pId := range a.PortNumList {
 					if lacp.LaFindPortById(uint16(pId), &p) {
@@ -175,11 +176,11 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 	case LAConfigMsgDeleteDistributedRelay:
 		s.logger.Info("CONFIG: Delete Distributed Relay")
 		config := conf.Msgdata.(*drcp.DistrubtedRelayConfig)
-		drcp.DeleteDistributedRelay(config)
+		drcp.DeleteDistributedRelay(config.GetKey())
 	}
 }
 
-func processLinkDownEvent(linkId int) {
+func (s *LAServer) processLinkDownEvent(linkId int) {
 	s.logger.Info(fmt.Sprintln("LA EVT: Link Down", linkId))
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(linkId), &p) {
@@ -188,7 +189,7 @@ func processLinkDownEvent(linkId int) {
 	}
 }
 
-func processLinkUpEvent(linkId int) {
+func (s *LAServer) processLinkUpEvent(linkId int) {
 	s.logger.Info(fmt.Sprintln("LA EVT: Link Up", linkId))
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(linkId), &p) {
@@ -201,11 +202,11 @@ func (s *LAServer) processAsicdNotification(msg commonDefs.AsicdNotifyMsg) {
 	switch msg.(type) {
 	case commonDefs.L2IntfStateNotifyMsg:
 		l2Msg := msg.(commonDefs.L2IntfStateNotifyMsg)
-		s.logger.Info("Msg linkstatus = %d msg port = %d\n", l2Msg.IfState, l2Msg.IfIndex)
+		s.logger.Info(fmt.Sprintf("Msg linkstatus = %d msg port = %d\n", l2Msg.IfState, l2Msg.IfIndex))
 		if l2Msg.IfState == asicdCommonDefs.INTF_STATE_DOWN {
-			processLinkDownEvent(asicdCommonDefs.GetIntfIdFromIfIndex(l2Msg.IfIndex)) //asicd always sends out link State events for PHY ports
+			s.processLinkDownEvent(asicdCommonDefs.GetIntfIdFromIfIndex(l2Msg.IfIndex)) //asicd always sends out link State events for PHY ports
 		} else {
-			processLinkUpEvent(asicdCommonDefs.GetIntfIdFromIfIndex(l2Msg.IfIndex))
+			s.processLinkUpEvent(asicdCommonDefs.GetIntfIdFromIfIndex(l2Msg.IfIndex))
 		}
 	}
 }

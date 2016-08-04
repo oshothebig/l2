@@ -174,7 +174,8 @@ func (dr *DistributedRelay) DrcpPsMachineMain() {
 	// Build the State machine for  DRCP Portal System Machine according to
 	// 802.1ax-2014 Section 9.4.16 Portal System Machine
 	psm := DrcpPsMachineFSMBuild(dr)
-	dr.wg.Add(1)
+	//dr.wg.Add(1)
+	dr.waitgroupadd("PSM")
 
 	// set the inital State
 	psm.Machine.Start(psm.PrevState())
@@ -183,7 +184,8 @@ func (dr *DistributedRelay) DrcpPsMachineMain() {
 	// that the PsMachine should handle.
 	go func(m *PsMachine) {
 		m.DrcpPsmLog("Machine Start")
-		defer m.dr.wg.Done()
+		//defer m.dr.wg.Done()
+		defer m.dr.waitgroupstop("PSM")
 		for {
 			select {
 			case event, ok := <-m.PsmEvents:

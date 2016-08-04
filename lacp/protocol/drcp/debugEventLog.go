@@ -26,48 +26,49 @@ package drcp
 
 import (
 	"l2/lacp/protocol/utils"
+	"strings"
 )
 
 func (dr *DistributedRelay) LaDrLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"DR", msg}, ":"))
 }
 
 func (p *DRCPIpp) LaIppLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"DR IPP", msg}, ":"))
 }
 
 func (rxm *RxMachine) DrcpRxmLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"RXM", msg}, ":"))
 }
 
 func (ptxm *PtxMachine) DrcpPtxmLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"PTXM", msg}, ":"))
 }
 
 func (psm *PsMachine) DrcpPsmLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"PSM", msg}, ":"))
 }
 
 func (gm *GMachine) DrcpGmLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"GM", msg}, ":"))
 }
 
 func (am *AMachine) DrcpAmLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"AM", msg}, ":"))
 }
 
 func (txm *TxMachine) DrcpTxmLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"TXM", msg}, ":"))
 }
 
 func (nism *NetIplShareMachine) DrcpNetIplSharemLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"NETIPLSHARE", msg}, ":"))
 }
 
 func (iam *IAMachine) DrcpIAmLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"IAM", msg}, ":"))
 }
 
 func (igm *IGMachine) DrcpIGmLog(msg string) {
-	utils.GlobalLogger.Info(msg)
+	utils.GlobalLogger.Info(strings.Join([]string{"IGM", msg}, ":"))
 }

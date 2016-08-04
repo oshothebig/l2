@@ -218,6 +218,7 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 	for _, client := range utils.GetAsicDPluginList() {
 		ipp.OperState = client.GetPortLinkStatus(int32(ipp.Id))
 		ipp.IppPortEnabled = ipp.OperState
+		fmt.Println("Initial IPP Link State", ipp.Name, ipp.IppPortEnabled)
 	}
 
 	handle, err := pcap.OpenLive(ipp.Name, 65536, false, 50*time.Millisecond)

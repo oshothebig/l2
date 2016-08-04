@@ -24,6 +24,11 @@
 // init
 package utils
 
+import (
+	"fmt"
+)
+
 func init() {
+	fmt.Println("Creating PortConfigMap")
 	PortConfigMap = make(map[int32]PortConfig)
 }

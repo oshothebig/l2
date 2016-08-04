@@ -159,10 +159,9 @@ func (rxm *RxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // State transition to INITIALIZE
 func (rxm *RxMachine) DrcpRxMachineInitialize(m fsm.Machine, data interface{}) fsm.State {
 	p := rxm.p
-	drcpPduInfo := data.(*layers.DRCP)
 
 	// Record default params
-	rxm.recordDefaultDRCPDU(drcpPduInfo)
+	rxm.recordDefaultDRCPDU()
 
 	p.DRFNeighborOperDRCPState.ClearState(layers.DRCPStateIPPActivity)
 	// next State
@@ -217,10 +216,9 @@ func (rxm *RxMachine) DrcpRxMachineDiscard(m fsm.Machine, data interface{}) fsm.
 func (rxm *RxMachine) DrcpRxMachineDefaulted(m fsm.Machine, data interface{}) fsm.State {
 	p := rxm.p
 	dr := p.dr
-	drcpPduInfo := data.(*layers.DRCP)
 
 	dr.DRFHomeOperDRCPState.SetState(layers.DRCPStateExpired)
-	rxm.recordDefaultDRCPDU(drcpPduInfo)
+	rxm.recordDefaultDRCPDU()
 	p.reportToManagement()
 
 	return RxmStateDefaulted
@@ -370,12 +368,14 @@ func (p *DRCPIpp) DrcpRxMachineMain() {
 					m.DrcpRxmLog("Machine End")
 					return
 				}
-			case rx := <-m.RxmPktRxEvent:
-				m.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDRCPDURx, rx.pdu)
+			case rx, ok := <-m.RxmPktRxEvent:
+				if ok {
+					m.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDRCPDURx, rx.pdu)
 
-				// respond to caller if necessary so that we don't have a deadlock
-				if rx.responseChan != nil {
-					utils.SendResponse(RxMachineModuleStr, rx.responseChan)
+					// respond to caller if necessary so that we don't have a deadlock
+					if rx.responseChan != nil {
+						utils.SendResponse(RxMachineModuleStr, rx.responseChan)
+					}
 				}
 			}
 		}
@@ -545,7 +545,7 @@ func (rxm *RxMachine) updateNTT() {
 // This function sets the current Neighbor Portal System's operational
 // parameter values to the default parameter values provided by the
 // administrator as follows
-func (rxm *RxMachine) recordDefaultDRCPDU(drcpPduInfo *layers.DRCP) {
+func (rxm *RxMachine) recordDefaultDRCPDU() {
 	p := rxm.p
 	dr := p.dr
 
