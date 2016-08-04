@@ -30,24 +30,63 @@ import (
 	"strconv"
 )
 
-/*  helper function to convert Mandatory TLV's (chassisID, portID, TTL) from byte
+/*  helper function to convert TLV's (chassisID, portID, TTL) from byte
  *  format to string
  */
-func (svr *LLDPServer) PopulateMandatoryTLV(ifIndex int32, entry *config.IntfState) bool {
+func (svr *LLDPServer) PopulateTLV(ifIndex int32, entry *config.IntfState) bool {
 	gblInfo, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
 		debug.Logger.Err(fmt.Sprintln("Entry not found for", ifIndex))
 		return exists
 	}
+	gblInfo.RxLock.RLock()
+	defer gblInfo.RxLock.RUnlock()
 	entry.LocalPort = gblInfo.Port.Name
 	if gblInfo.RxInfo.RxFrame != nil {
 		entry.PeerMac = gblInfo.GetChassisIdInfo()
 		entry.Port = gblInfo.GetPortIdInfo()
 		entry.HoldTime = strconv.Itoa(int(gblInfo.RxInfo.RxFrame.TTL))
 	}
+
+	if gblInfo.RxInfo.RxLinkInfo != nil {
+		entry.SystemCapabilities = gblInfo.GetSystemCap()
+		entry.EnabledCapabilities = gblInfo.GetEnabledCap()
+	}
+
 	entry.IfIndex = gblInfo.Port.IfIndex
 	entry.Enable = gblInfo.enable
 	return exists
+}
+
+/*  Server get bulk for lldp up intfs
+ */
+func (svr *LLDPServer) GetIntfs(idx, cnt int) (int, int, []config.Intf) {
+	var nextIdx int
+	var count int
+
+	if svr.lldpIntfStateSlice == nil {
+		debug.Logger.Info("No neighbor learned")
+		return 0, 0, nil
+	}
+	length := len(svr.lldpIntfStateSlice)
+	result := make([]config.Intf, cnt)
+	var i, j int
+	for i, j = 0, idx; i < cnt && j < length; {
+		key := svr.lldpIntfStateSlice[j]
+		gblInfo, exists := svr.lldpGblInfo[key]
+		if exists {
+			result[i].IfIndex = gblInfo.Port.IfIndex
+			result[i].Enable = gblInfo.enable
+			i++
+			j++
+		}
+	}
+	if j == length {
+		nextIdx = 0
+	}
+	count = i
+
+	return nextIdx, count, result
 }
 
 /*  Server get bulk for lldp up intf state's
@@ -68,7 +107,7 @@ func (svr *LLDPServer) GetIntfStates(idx, cnt int) (int, int, []config.IntfState
 
 	for i, j = 0, idx; i < cnt && j < length; j++ {
 		key := svr.lldpUpIntfStateSlice[j]
-		succes := svr.PopulateMandatoryTLV(key, &result[i])
+		succes := svr.PopulateTLV(key, &result[i])
 		if !succes {
 			result = nil
 			return 0, 0, nil
@@ -81,4 +120,15 @@ func (svr *LLDPServer) GetIntfStates(idx, cnt int) (int, int, []config.IntfState
 	}
 	count = i
 	return nextIdx, count, result
+}
+
+/*  Server get lldp interface state per interface
+ */
+func (svr *LLDPServer) GetIntfState(ifIndex int32) *config.IntfState {
+	entry := config.IntfState{}
+	success := svr.PopulateTLV(ifIndex, &entry)
+	if success {
+		return &entry
+	}
+	return nil
 }
