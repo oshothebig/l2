@@ -265,7 +265,7 @@ type LaAggPort struct {
 	LinkOperStatus bool
 
 	// administrative values for State described in 6.4.2.3
-	actorAdmin   LacpPortInfo
+	ActorAdmin   LacpPortInfo
 	ActorOper    LacpPortInfo
 	partnerAdmin LacpPortInfo
 	PartnerOper  LacpPortInfo
@@ -389,7 +389,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	var sysId LacpSystem
 	if LaFindAggByKey(config.Key, &a) {
 		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
+		sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
 		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
@@ -423,15 +423,15 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 
 	// default actor admin
 	//fmt.Println(config.sysId, gLacpSysGlobalInfo[config.sysId])
-	p.actorAdmin.State = sgi.ActorStateDefaultParams.State
-	p.actorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.actor_System))
-	p.actorAdmin.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
-	p.actorAdmin.Key = p.Key
-	p.actorAdmin.port = p.PortNum
-	p.actorAdmin.Port_pri = p.portPriority
+	p.ActorAdmin.State = sgi.ActorStateDefaultParams.State
+	p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.Actor_System))
+	p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
+	p.ActorAdmin.Key = p.Key
+	p.ActorAdmin.port = p.PortNum
+	p.ActorAdmin.Port_pri = p.portPriority
 
 	// default actor oper same as admin
-	p.ActorOper = p.actorAdmin
+	p.ActorOper = p.ActorAdmin
 
 	// default partner admin
 	p.partnerAdmin.State = sgi.PartnerStateDefaultParams.State
@@ -527,7 +527,7 @@ func (p *LaAggPort) Stop() {
 	var sysId LacpSystem
 	if LaFindAggById(p.AggId, &a) {
 		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
+		sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
 		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
 
@@ -886,13 +886,13 @@ func (p *LaAggPort) LaAggPortLacpDisable() {
 	var sysId LacpSystem
 	if LaFindAggById(p.AggId, &a) {
 		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
+		sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
 		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
 
 	// port is no longer controlling lacp State
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
-	p.actorAdmin.State = sgi.ActorStateDefaultParams.State
+	p.ActorAdmin.State = sgi.ActorStateDefaultParams.State
 	p.ActorOper.State = sgi.ActorStateDefaultParams.State
 }
 
@@ -910,13 +910,13 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 	p.lacpEnabled = true
 
 	// port can be added to aggregator
-	LacpStateSet(&p.actorAdmin.State, LacpStateAggregationBit)
+	LacpStateSet(&p.ActorAdmin.State, LacpStateAggregationBit)
 
 	// Activity mode
 	if mode == LacpModeActive {
-		LacpStateSet(&p.actorAdmin.State, LacpStateActivityBit)
+		LacpStateSet(&p.ActorAdmin.State, LacpStateActivityBit)
 	} else {
-		LacpStateClear(&p.actorAdmin.State, LacpStateActivityBit)
+		LacpStateClear(&p.ActorAdmin.State, LacpStateActivityBit)
 	}
 
 	if p.PortEnabled &&
@@ -960,8 +960,8 @@ func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16
 	mEvtChan := make([]chan utils.MachineEvent, 0)
 	evt := make([]utils.MachineEvent, 0)
 
-	p.actorAdmin.System.actor_System = sysIdMac
-	p.actorAdmin.System.Actor_System_priority = sysPrio
+	p.ActorAdmin.System.Actor_System = sysIdMac
+	p.ActorAdmin.System.Actor_System_priority = sysPrio
 
 	p.aggSelected = LacpAggUnSelected
 
@@ -1008,13 +1008,13 @@ func LacpCopyLacpPortInfo(fromPortInfoPtr *LacpPortInfo, toPortInfoPtr *LacpPort
 	toPortInfoPtr.port = fromPortInfoPtr.port
 	toPortInfoPtr.Port_pri = fromPortInfoPtr.Port_pri
 	toPortInfoPtr.State = fromPortInfoPtr.State
-	toPortInfoPtr.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(fromPortInfoPtr.System.actor_System))
+	toPortInfoPtr.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(fromPortInfoPtr.System.Actor_System))
 	toPortInfoPtr.System.LacpSystemActorSystemPrioritySet(fromPortInfoPtr.System.Actor_System_priority)
 }
 
 func LacpLacpPktPortInfoIsEqual(aPortInfoPtr *layers.LACPPortInfo, bPortInfoPtr *LacpPortInfo, StateBits uint8) bool {
 
-	return aPortInfoPtr.System.SystemId == bPortInfoPtr.System.actor_System &&
+	return aPortInfoPtr.System.SystemId == bPortInfoPtr.System.Actor_System &&
 		aPortInfoPtr.System.SystemPriority == bPortInfoPtr.System.Actor_System_priority &&
 		aPortInfoPtr.Port == bPortInfoPtr.port &&
 		aPortInfoPtr.PortPri == bPortInfoPtr.Port_pri &&
@@ -1027,7 +1027,7 @@ func LacpLacpPktPortInfoIsEqual(aPortInfoPtr *layers.LACPPortInfo, bPortInfoPtr 
 // about the State bits that is being compared against
 func LacpLacpPortInfoIsEqual(aPortInfoPtr *LacpPortInfo, bPortInfoPtr *LacpPortInfo, StateBits uint8) bool {
 
-	return aPortInfoPtr.System.actor_System == bPortInfoPtr.System.actor_System &&
+	return aPortInfoPtr.System.Actor_System == bPortInfoPtr.System.Actor_System &&
 		aPortInfoPtr.System.Actor_System_priority == bPortInfoPtr.System.Actor_System_priority &&
 		aPortInfoPtr.port == bPortInfoPtr.port &&
 		aPortInfoPtr.Port_pri == bPortInfoPtr.Port_pri &&

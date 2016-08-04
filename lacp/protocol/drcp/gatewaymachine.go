@@ -20,15 +20,18 @@
 // |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
-// 802.1ax-2014 Section 9.4.15 DRCPDU Periodic Transmission machine
-// rxmachine.go
+// 802.1ax-2014 Section 9.4.17 DRNI Gateway and Aggregator machine
+// gatewaymachine.go
 package drcp
 
 import (
-	"github.com/google/gopacket/layers"
+	//"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
-	"sort"
-	"time"
+	"strconv"
+	"strings"
+	"utils/fsm"
+	//"sort"
+	//"time"
 )
 
 const GMachineModuleStr = "DRNI Gateway Machine"
@@ -83,14 +86,14 @@ func (gm *GMachine) Stop() {
 }
 
 // NewDrcpGMachine will create a new instance of the GMachine
-func NewDrcpGMachine(port *DRCPIpp, conversationIdtype int) *GMachine {
+func NewDrcpGMachine(dr *DistributedRelay) *GMachine {
 	gm := &GMachine{
 		dr:            dr,
 		PreviousState: GmStateNone,
-		GmEvents:      make(chan MachineEvent, 10),
+		GmEvents:      make(chan utils.MachineEvent, 10),
 	}
 
-	dr.GMachineFsm[conversationIdtype] = gm
+	dr.GMachineFsm = gm
 
 	return gm
 }
@@ -147,7 +150,7 @@ func (gm *GMachine) DrcpGMachinePSGatewayUpdate(m fsm.Machine, data interface{})
 	return GmStateDRNIGatewayUpdate
 }
 
-func DrcpGMachineFSMBuild(p *DRCPIpp) *GMachine {
+func DrcpGMachineFSMBuild(dr *DistributedRelay) *GMachine {
 
 	GMachineStrStateMapCreate()
 
@@ -156,7 +159,7 @@ func DrcpGMachineFSMBuild(p *DRCPIpp) *GMachine {
 	// Instantiate a new GMachine
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the initalize State
-	gm := NewDrcpGMachine(p)
+	gm := NewDrcpGMachine(dr)
 
 	//BEGIN -> DRNI GATEWAY INITIALIZE
 	rules.AddRule(GmStateNone, GmEventBegin, gm.DrcpGMachineDRNIGatewayInitialize)
@@ -172,20 +175,20 @@ func DrcpGMachineFSMBuild(p *DRCPIpp) *GMachine {
 	rules.AddRule(GmStateDRNIGatewayUpdate, GmEventNotIppAllGatewayUpdate, gm.DrcpGMachinePSGatewayUpdate)
 
 	// Create a new FSM and apply the rules
-	rxm.Apply(&rules)
+	gm.Apply(&rules)
 
-	return rxm
+	return gm
 }
 
 // DrcpGMachineMain:  802.1ax-2014 Figure 9-26
 // Creation of DRNI Gateway State Machine state transitions and callbacks
 // and create go routine to pend on events
-func (p *DRCPIpp) DrcpGMachineMain() {
+func (dr *DistributedRelay) DrcpGMachineMain() {
 
 	// Build the State machine for  DRNI Gateway Machine according to
 	// 802.1ax-2014 Section 9.4.17 DRNI Gateway and Aggregator machines
-	gm := DrcpGMachineFSMBuild(p)
-	p.wg.Add(1)
+	gm := DrcpGMachineFSMBuild(dr)
+	dr.wg.Add(1)
 
 	// set the inital State
 	gm.Machine.Start(gm.PrevState())
@@ -194,13 +197,13 @@ func (p *DRCPIpp) DrcpGMachineMain() {
 	// that the GMachine should handle.
 	go func(m *GMachine) {
 		m.DrcpGmLog("Machine Start")
-		defer m.p.wg.Done()
+		defer m.dr.wg.Done()
 		for {
 			select {
 			case event, ok := <-m.GmEvents:
 				if ok {
-					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
-					p := m.p
+					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
+					dr := m.dr
 					// post state processing
 					if rv == nil &&
 						dr.GatewayConversationUpdate {
@@ -213,7 +216,7 @@ func (p *DRCPIpp) DrcpGMachineMain() {
 					}
 
 					if rv != nil {
-						m.DrcpGmLog(strings.Join([]string{error.Error(rv), event.src, GmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+						m.DrcpGmLog(strings.Join([]string{error.Error(rv), event.Src, GmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
 				}
 
@@ -252,7 +255,7 @@ func (gm *GMachine) IppAllGatewayUpdateCheck() bool {
 func (gm *GMachine) initializeDRNIGatewayConversation() {
 	dr := gm.dr
 
-	for i := 0; i < MAX_GATEWAY_CONVERSATION; i++ {
+	for i := 0; i < MAX_CONVERSATION_IDS; i++ {
 		dr.DrniPortalSystemGatewayConversation[i] = false
 	}
 }
@@ -280,13 +283,33 @@ func (gm *GMachine) setIPPGatewayUpdate() {
 // Drni_Portal_System_State[] as follows
 func (gm *GMachine) setGatewayConversation() {
 	dr := gm.dr
-	for i := 0; i < 4096; i++ {
+	for i := 0; i < MAX_CONVERSATION_IDS; i++ {
 		// TODO
 		// For every indexed Gateway Conversation ID, a Portal System Number is identified by
 		// choosing the highest priority Portal System Number in the list of Portal System Numbers
 		// provided by aDrniConvAdminGateway[] when only the Portal Systems having that Gateway
 		// Conversation ID enabled in the Gateway Vectors of the Drni_Portal_System_State[] variable,
 		// are included.
+		for idx, psysid := range dr.DrniConvAdminGateway[i] {
+			if idx == 0 {
+				continue
+			}
+			if dr.DrniPortalSystemState[psysid].OpState {
+
+				// highest priority should be that of
+				dr.DrniGatewayConversation[i] = dr.DrniConvAdminGateway[i][psysid]
+				break
+				/*
+							OpState bool
+					// indexed by the received Home_Gateway_Sequence in
+					// increasing sequence number order
+					GatewayVector []NeighborGatewayVector
+					PortIdList    []uint32
+				*/
+			} else {
+
+			}
+		}
 	}
 }
 

@@ -206,12 +206,12 @@ func SaveLaAggConfig(ac *LaAggConfig) {
 	if LaFindAggByName(ac.Name, &a) {
 		netMac, _ := net.ParseMAC(ac.Lacp.SystemIdMac)
 		sysId := LacpSystem{
-			actor_System:          convertNetHwAddressToSysIdKey(netMac),
+			Actor_System:          convertNetHwAddressToSysIdKey(netMac),
 			Actor_System_priority: ac.Lacp.SystemPriority,
 		}
 		a.AggName = ac.Name
 		a.AggId = ac.Id
-		a.AggMacAddr = sysId.actor_System
+		a.AggMacAddr = sysId.Actor_System
 		a.AggPriority = ac.Lacp.SystemPriority
 		a.ActorAdminKey = ac.Key
 		a.AggType = ac.Type
@@ -249,9 +249,9 @@ func CreateLaAgg(agg *LaAggConfig) {
 		*/
 		index := 0
 		var p *LaAggPort
-		a.LacpAggLog(fmt.Sprintln("looking for ports with actorAdminKey", a.ActorAdminKey))
+		a.LacpAggLog(fmt.Sprintln("looking for ports with ActorAdminKey", a.ActorAdminKey))
 		if mac, err := net.ParseMAC(a.Config.SystemIdMac); err == nil {
-			if sgi := LacpSysGlobalInfoByIdGet(LacpSystem{actor_System: convertNetHwAddressToSysIdKey(mac),
+			if sgi := LacpSysGlobalInfoByIdGet(LacpSystem{Actor_System: convertNetHwAddressToSysIdKey(mac),
 				Actor_System_priority: a.Config.SystemPriority}); sgi != nil {
 				for index != -1 {
 					if LaFindPortByKey(a.ActorAdminKey, &index, &p) {
@@ -315,27 +315,27 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 			if port.Mode != LacpModeOn {
 				p.lacpEnabled = true
 				// make the port aggregatable
-				LacpStateSet(&p.actorAdmin.State, LacpStateAggregationBit)
+				LacpStateSet(&p.ActorAdmin.State, LacpStateAggregationBit)
 				// set the activity State
 				if port.Mode == LacpModeActive {
-					LacpStateSet(&p.actorAdmin.State, LacpStateActivityBit)
+					LacpStateSet(&p.ActorAdmin.State, LacpStateActivityBit)
 				} else {
-					LacpStateClear(&p.actorAdmin.State, LacpStateActivityBit)
+					LacpStateClear(&p.ActorAdmin.State, LacpStateActivityBit)
 				}
 			} else {
 				// port is not aggregatible
-				LacpStateClear(&p.actorAdmin.State, LacpStateAggregationBit)
-				LacpStateClear(&p.actorAdmin.State, LacpStateActivityBit)
+				LacpStateClear(&p.ActorAdmin.State, LacpStateAggregationBit)
+				LacpStateClear(&p.ActorAdmin.State, LacpStateActivityBit)
 				p.lacpEnabled = false
 			}
 
 			if port.Timeout == LacpShortTimeoutTime {
-				LacpStateSet(&p.actorAdmin.State, LacpStateTimeoutBit)
+				LacpStateSet(&p.ActorAdmin.State, LacpStateTimeoutBit)
 				// set the oper state to be that of the admin until
 				// the fist packet has been received
 				LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
 			} else {
-				LacpStateClear(&p.actorAdmin.State, LacpStateTimeoutBit)
+				LacpStateClear(&p.ActorAdmin.State, LacpStateTimeoutBit)
 				// set the oper state to be that of the admin until
 				// the fist packet has been received
 				LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
@@ -453,7 +453,7 @@ func SetLaAggPortLacpMode(pId uint16, mode int) {
 			p.LaAggPortLacpEnabled(mode)
 		} else if mode != prevMode {
 			if mode == LacpModeActive {
-				LacpStateSet(&p.actorAdmin.State, LacpStateActivityBit)
+				LacpStateSet(&p.ActorAdmin.State, LacpStateActivityBit)
 				// must also set the operational State
 				LacpStateSet(&p.ActorOper.State, LacpStateActivityBit)
 
@@ -463,7 +463,7 @@ func SetLaAggPortLacpMode(pId uint16, mode int) {
 					Src: PortConfigModuleStr}
 
 			} else {
-				LacpStateClear(&p.actorAdmin.State, LacpStateActivityBit)
+				LacpStateClear(&p.ActorAdmin.State, LacpStateActivityBit)
 				// must also set the operational State
 				LacpStateClear(&p.ActorOper.State, LacpStateActivityBit)
 				// we are now passive, is the peer passive as well?
@@ -501,11 +501,11 @@ func SetLaAggPortLacpPeriod(pId uint16, period time.Duration) {
 
 		// lets set the period
 		if period == LacpFastPeriodicTime {
-			LacpStateSet(&p.actorAdmin.State, LacpStateTimeoutBit)
+			LacpStateSet(&p.ActorAdmin.State, LacpStateTimeoutBit)
 			// must also set the operational State
 			LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
 		} else {
-			LacpStateClear(&p.actorAdmin.State, LacpStateTimeoutBit)
+			LacpStateClear(&p.ActorAdmin.State, LacpStateTimeoutBit)
 			// must also set the operational State
 			LacpStateClear(&p.ActorOper.State, LacpStateTimeoutBit)
 		}
@@ -569,14 +569,14 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 		p.aggSelected == LacpAggUnSelected &&
 		!LaAggPortNumListPortIdExist(Key, pId) {
 
-		p.LaPortLog(fmt.Sprintf("Adding LaAggPort %d to LaAgg %d", pId, a.ActorAdminKeys))
+		p.LaPortLog(fmt.Sprintf("Adding LaAggPort %d to LaAgg %d", pId, a.ActorAdminKey))
 		// add port to port number list
 		a.PortNumList = append(a.PortNumList, p.PortNum)
 		// add reference to aggId
 		p.AggId = a.AggId
 
 		// attach the port to the aggregator
-		//LacpStateSet(&p.actorAdmin.State, LacpStateAggregationBit)
+		//LacpStateSet(&p.ActorAdmin.State, LacpStateAggregationBit)
 
 		// Port is now aggregatible
 		//LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
@@ -597,7 +597,7 @@ func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 		LaAggPortNumListPortIdExist(Key, pId) {
 		p.LaPortLog(fmt.Sprintln("deleting port from agg portList", pId, a.PortNumList))
 
-		LacpStateClear(&p.actorAdmin.State, LacpStateAggregationBit)
+		LacpStateClear(&p.ActorAdmin.State, LacpStateAggregationBit)
 
 		// disable the port
 		p.LaAggPortDisable()

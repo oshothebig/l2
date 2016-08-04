@@ -149,13 +149,15 @@ type LaAggregator struct {
 	//Aggregator_MAC_address
 	AggMacAddr               [6]uint8 // AggActorSystmID
 	AggPriority              uint16   // AggActorSystemPriority
-	PortAlgorithm            [3]uint8 // AggPortAlgorithm
+	PortAlgorithm            [4]uint8 // AggPortAlgorithm
 	PartnerDWC               bool
 	AggConversationAdminLink [4096]uint16
+
+	// TODO need to fill in the parameters for DR's use
 	// Partner_System
-	partnerSystemId [6]uint8
+	PartnerSystemId [6]uint8
 	// Partner_System_Priority
-	partnerSystemPriority int
+	PartnerSystemPriority int
 	// Partner_Oper_Aggregator_Key
 	PartnerOperKey int
 
@@ -193,6 +195,13 @@ type LaAggregator struct {
 	// Ports in Distributed State
 	DistributedPortNumList []string
 
+	// Distributed Relay attribute
+	// TODO This variable is updated by the updateConvesationPortList function,
+	// which is always invoked when a new aAggConversationAdminLink[] (7.3.1.1.35) or new
+	// aAggPortLinkNumberID (7.3.2.1.27) operator command is issued
+	// Port priority will be 1:1 with the port value
+	ConversationPortList [4096][]uint16
+
 	// For now this value assumes the value of the linux modes
 	// 0 - L2
 	// 1 - L2+L3
@@ -205,7 +214,7 @@ type LaAggregator struct {
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	netMac, _ := net.ParseMAC(ac.Lacp.SystemIdMac)
 	sysId := LacpSystem{
-		actor_System:          convertNetHwAddressToSysIdKey(netMac),
+		Actor_System:          convertNetHwAddressToSysIdKey(netMac),
 		Actor_System_priority: ac.Lacp.SystemPriority,
 	}
 	sgi := LacpSysGlobalInfoByIdGet(sysId)
@@ -213,7 +222,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		AggName:                ac.Name,
 		AggId:                  ac.Id,
 		AdminState:             ac.Enabled,
-		AggMacAddr:             sysId.actor_System,
+		AggMacAddr:             sysId.Actor_System,
 		AggPriority:            ac.Lacp.SystemPriority,
 		PortAlgorithm:          [4]uint8{0x00, 0x80, 0xC2, 0x01},
 		PartnerDWC:             false,
@@ -221,7 +230,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		AggType:                ac.Type,
 		AggMinLinks:            ac.MinLinks,
 		Config:                 ac.Lacp,
-		partnerSystemId:        [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		PartnerSystemId:        [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		ready:                  true,
 		PortNumList:            make([]uint16, 0),
 		DistributedPortNumList: make([]string, 0),
@@ -345,7 +354,7 @@ func (a *LaAggregator) DeleteLaAgg() {
 				sgi.AggList = append(sgi.AggList[:i], sgi.AggList[i+1:]...)
 				a.AggId = 0
 				a.ActorAdminKey = 0
-				a.partnerSystemId = [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+				a.PartnerSystemId = [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 				a.ready = false
 				break
 			}

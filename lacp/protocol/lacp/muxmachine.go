@@ -242,7 +242,7 @@ func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm
 	// or this is the the first
 	// or lacp is not enabled
 	if LaFindAggById(p.AggId, &a) {
-		if a.ready || LacpModeGet(p.actorAdmin.State, p.lacpEnabled) == LacpModeOn {
+		if a.ready || LacpModeGet(p.ActorAdmin.State, p.lacpEnabled) == LacpModeOn {
 			skipWaitWhileTimer = true
 			a.ready = false
 		}
@@ -521,7 +521,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 	p.wg.Add(1)
 
 	// TODO: Hw only supports mux coupling, this should be a param file for lacp
-	//if LacpSysGlobalInfoGet(LacpSystem{actor_System: p.AggAttached.Config.SystemIdMac,
+	//if LacpSysGlobalInfoGet(LacpSystem{Actor_System: p.AggAttached.Config.SystemIdMac,
 	//	Actor_System_priority: p.AggAttached.Config.SystemPriority}).muxCoupling {
 	//	muxm.PrevStateSet(LacpMuxmStateCNone)
 	//}

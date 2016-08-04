@@ -26,6 +26,7 @@ const (
 	LAConfigMsgUpdateLaAggPortAdminState
 	LAConfigMsgCreateDistributedRelay
 	LAConfigMsgDeleteDistributedRelay
+	LAConfigMsgAggregatorCreated
 )
 
 type LAConfig struct {
@@ -80,10 +81,12 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		s.logger.Info("CONFIG: Create Link Aggregation Group / Port Channel")
 		config := conf.Msgdata.(*lacp.LaAggConfig)
 		lacp.CreateLaAgg(config)
+		drcp.AttachCreatedAggregatorToDistributedRelay(config.Id)
 
 	case LAConfigMsgDeleteLaPortChannel:
 		s.logger.Info("CONFIG: Delete Link Aggregation Group / Port Channel")
 		config := conf.Msgdata.(*lacp.LaAggConfig)
+		drcp.DetachAggregatorFromDistributedRelay(config.Id)
 		lacp.DeleteLaAgg(config.Id)
 
 	case LAConfigMsgUpdateLaPortChannelLagHash:
@@ -163,6 +166,16 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		s.logger.Info("CONFIG: Delete Link Aggregation Port")
 		config := conf.Msgdata.(*lacp.LaAggPortConfig)
 		lacp.DeleteLaAggPort(config.Id)
+
+	case LAConfigMsgCreateDistributedRelay:
+		s.logger.Info("CONFIG: Create Distributed Relay")
+		config := conf.Msgdata.(*drcp.DistrubtedRelayConfig)
+		drcp.CreateDistributedRelay(config)
+
+	case LAConfigMsgDeleteDistributedRelay:
+		s.logger.Info("CONFIG: Delete Distributed Relay")
+		config := conf.Msgdata.(*drcp.DistrubtedRelayConfig)
+		drcp.DeleteDistributedRelay(config)
 	}
 }
 

@@ -39,7 +39,7 @@ func init() {
 	// aggregation configs.
 	LaSystemIdDefault = LacpSystem{
 		Actor_System_priority: 0,
-		actor_System:          [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		Actor_System:          [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 	}
 	LacpSysGlobalInfoInit(LaSystemIdDefault)
 }

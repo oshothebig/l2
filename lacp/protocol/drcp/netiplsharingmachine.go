@@ -27,12 +27,9 @@
 package drcp
 
 import (
-	"fmt"
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
-	"time"
 	"utils/fsm"
 )
 
@@ -47,7 +44,7 @@ const (
 
 var NetIplSharemStateStrMap map[fsm.State]string
 
-func NetIplSharerMachineStrStateMapCreate() {
+func NetIplShareMachineStrStateMapCreate() {
 
 	NetIplSharemStateStrMap = make(map[fsm.State]string)
 	NetIplSharemStateStrMap[NetIplSharemStateNone] = "None"
@@ -94,14 +91,14 @@ func (nism *NetIplShareMachine) Stop() {
 
 // NewDrcpTxMachine will create a new instance of the TxMachine
 func NewDrcpNetIplShareMachine(port *DRCPIpp) *NetIplShareMachine {
-	nism := &TxMachine{
+	nism := &NetIplShareMachine{
 		p:                  port,
 		PreviousState:      NetIplSharemStateNone,
 		NetIplSharemEvents: make(chan utils.MachineEvent, 1000)}
 
 	port.NetIplShareMachineFsm = nism
 
-	return txm
+	return nism
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -116,7 +113,7 @@ func (nism *NetIplShareMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	nism.Machine.Curr = &utils.StateEvent{
 		StrStateMap: NetIplSharemStateStrMap,
 		LogEna:      false,
-		Logger:      txm.DrcpNetIplSharemLog,
+		Logger:      nism.DrcpNetIplSharemLog,
 		Owner:       NetIplShareMachineModuleStr,
 	}
 
@@ -151,7 +148,7 @@ func (nism *NetIplShareMachine) DrcpNetIplShareMachineManipulatedFramesSent(m fs
 }
 
 // DrcpNetIplShareMachineFSMBuild will build the State machine with callbacks
-func DrcpNetIplShareMachineFSMBuild(p *DRCPIpp) *TxMachine {
+func DrcpNetIplShareMachineFSMBuild(p *DRCPIpp) *NetIplShareMachine {
 
 	rules := fsm.Ruleset{}
 
@@ -181,9 +178,9 @@ func DrcpNetIplShareMachineFSMBuild(p *DRCPIpp) *TxMachine {
 	rules.AddRule(NetIplSharemStateManipulatedFramesSent, NetIplSharemEventNotCCEncTagShared, nism.DrcpNetIplShareMachineNoManipulatedFramesSent)
 
 	// Create a new FSM and apply the rules
-	txm.Apply(&rules)
+	nism.Apply(&rules)
 
-	return txm
+	return nism
 }
 
 // NetIplShareMachineMain:  802.1ax-2014 Section 9.4.20 Network/IPL sharing machine
@@ -197,7 +194,7 @@ func (p *DRCPIpp) NetIplShareMachineMain() {
 	p.wg.Add(1)
 
 	// set the inital State
-	nism.Machine.Start(txm.PrevState())
+	nism.Machine.Start(nism.PrevState())
 
 	// lets create a go routing which will wait for the specific events
 	// that the NetIplShareMachine should handle.
@@ -206,8 +203,8 @@ func (p *DRCPIpp) NetIplShareMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event, ok := <-m.TxmEvents:
-
+			case event, ok := <-m.NetIplSharemEvents:
+				var rv error
 				if ok {
 					//m.LacpTxmLog(fmt.Sprintf("Event rx %d %s %s", event.E, event.Src, TxmStateStrMap[m.Machine.Curr.CurrentState()]))
 					// special case, another machine has a need to
@@ -216,9 +213,9 @@ func (p *DRCPIpp) NetIplShareMachineMain() {
 						p.NTTDRCPDU = true
 					}
 
-					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
+					rv = m.Machine.ProcessEvent(event.Src, event.E, nil)
 					if rv == nil {
-						m.processPortStates()
+						m.processPostStates()
 					}
 				}
 				if event.ResponseChan != nil {
@@ -229,7 +226,7 @@ func (p *DRCPIpp) NetIplShareMachineMain() {
 
 				}
 				if !ok {
-					p.DrcpNetIplSharemLog("Machine End")
+					m.DrcpNetIplSharemLog("Machine End")
 					return
 				}
 			}
@@ -242,26 +239,26 @@ func (nism *NetIplShareMachine) processPostStates() {
 	p := nism.p
 	if nism.Machine.Curr.CurrentState() == NetIplSharemStateNoManipulatedFramesSent {
 		if p.CCTimeShared {
-			rv := m.Machine.ProcessEvent(NetIplShareMachineModuleStr, NetIplSharemEventCCTimeShare, nil)
+			rv := nism.Machine.ProcessEvent(NetIplShareMachineModuleStr, NetIplSharemEventCCTimeShare, nil)
 			if rv == nil {
 				nism.processPostStates()
 			}
 		} else if p.CCEncTagShared {
-			rv := m.Machine.ProcessEvent(NetIplShareMachineModuleStr, NetIplSharemEventCCEncTagShared, nil)
+			rv := nism.Machine.ProcessEvent(NetIplShareMachineModuleStr, NetIplSharemEventCCEncTagShared, nil)
 			if rv == nil {
 				nism.processPostStates()
 			}
 		}
 	} else if nism.Machine.Curr.CurrentState() == NetIplSharemStateTimeShareMethod {
 		if !p.CCTimeShared {
-			rv := m.Machine.ProcessEvent(NetIplShareMachineModuleStr, NetIplSharemEventCCTimeShare, nil)
+			rv := nism.Machine.ProcessEvent(NetIplShareMachineModuleStr, NetIplSharemEventCCTimeShare, nil)
 			if rv == nil {
 				nism.processPostStates()
 			}
 		}
 	} else if nism.Machine.Curr.CurrentState() == NetIplSharemStateManipulatedFramesSent {
 		if !p.CCEncTagShared {
-			rv := m.Machine.ProcessEvent(NetIplShareMachineModuleStr, NetIplSharemEventNotCCEncTagShared, nil)
+			rv := nism.Machine.ProcessEvent(NetIplShareMachineModuleStr, NetIplSharemEventNotCCEncTagShared, nil)
 			if rv == nil {
 				nism.processPostStates()
 			}

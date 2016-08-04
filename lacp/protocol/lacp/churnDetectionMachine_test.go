@@ -51,9 +51,9 @@ func ChurnDetectionStateMachineSetup() {
 	OnlyForTestSetup()
 	// must be called to initialize the global
 	//LaSystemActor := LacpSystem{Actor_System_priority: 128,
-	//	actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
+	//	Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
 	//LaSystemPeer := LacpSystem{Actor_System_priority: 128,
-	//	actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
+	//	Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	p1conf := &LaAggPortConfig{
 		Id:      LaAggChurnPortActor,

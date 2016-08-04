@@ -32,6 +32,10 @@ func (dr *DistributedRelay) LaDrLog(msg string) {
 	utils.GlobalLogger.Info(msg)
 }
 
+func (p *DRCPIpp) LaIppLog(msg string) {
+	utils.GlobalLogger.Info(msg)
+}
+
 func (rxm *RxMachine) DrcpRxmLog(msg string) {
 	utils.GlobalLogger.Info(msg)
 }
@@ -57,5 +61,13 @@ func (txm *TxMachine) DrcpTxmLog(msg string) {
 }
 
 func (nism *NetIplShareMachine) DrcpNetIplSharemLog(msg string) {
+	utils.GlobalLogger.Info(msg)
+}
+
+func (iam *IAMachine) DrcpIAmLog(msg string) {
+	utils.GlobalLogger.Info(msg)
+}
+
+func (igm *IGMachine) DrcpIGmLog(msg string) {
 	utils.GlobalLogger.Info(msg)
 }

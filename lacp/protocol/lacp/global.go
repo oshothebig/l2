@@ -121,7 +121,7 @@ func LacpSysGlobalInfoInit(sysId LacpSystem) *LacpSysGlobalInfo {
 
 		gLacpSysGlobalInfoList = append(gLacpSysGlobalInfoList, gLacpSysGlobalInfo[sysKey])
 
-		gLacpSysGlobalInfo[sysKey].SystemDefaultParams.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sysId.actor_System))
+		gLacpSysGlobalInfo[sysKey].SystemDefaultParams.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sysId.Actor_System))
 
 		// Partner is brought up as aggregatible
 		LacpStateSet(&gLacpSysGlobalInfo[sysKey].PartnerStateDefaultParams.State, LacpStateAggregatibleUp)
@@ -178,7 +178,7 @@ func LaSysGlobalTxCallbackListGet(p *LaAggPort) []TxCallback {
 	var sysId LacpSystem
 	if LaFindAggById(p.AggId, &a) {
 		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-		sysId.actor_System = convertNetHwAddressToSysIdKey(mac)
+		sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
 		sysId.Actor_System_priority = a.Config.SystemPriority
 	}
 	if s, sok := gLacpSysGlobalInfo[sysId]; sok {

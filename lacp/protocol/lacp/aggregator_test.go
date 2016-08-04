@@ -54,7 +54,7 @@ func TestCreateDeleteLaAggregatorNoMembers(t *testing.T) {
 	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 
 	LacpSysGlobalInfoInit(sysId)
 
@@ -89,7 +89,7 @@ func TestCreateDeleteLaAggregatorWithMembers(t *testing.T) {
 	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 
 	LacpSysGlobalInfoInit(sysId)
 
@@ -125,7 +125,7 @@ func TestCreateDeleteFindByAggName(t *testing.T) {
 	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 
 	LacpSysGlobalInfoInit(sysId)
 
@@ -183,7 +183,7 @@ func TestCreateDeleteFindById(t *testing.T) {
 	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 
 	LacpSysGlobalInfoInit(sysId)
 
@@ -241,7 +241,7 @@ func TestCreateDeleteFindByKey(t *testing.T) {
 	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 
 	LacpSysGlobalInfoInit(sysId)
 
@@ -300,7 +300,7 @@ func TestCreateDeleteFindLacpPortMember(t *testing.T) {
 	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 
 	LacpSysGlobalInfoInit(sysId)
 
@@ -365,7 +365,7 @@ func TestDuplicateAdd(t *testing.T) {
 	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 
 	LacpSysGlobalInfoInit(sysId)
 
@@ -407,7 +407,7 @@ func TestScaleAggCreate(t *testing.T) {
 	OnlyForTestSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 
 	LacpSysGlobalInfoInit(sysId)
 

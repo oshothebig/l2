@@ -35,3 +35,7 @@ func SetAsicDPlugin(clientif asicdClient.AsicdClientIntf) {
 func GetAsicDPluginList() []asicdClient.AsicdClientIntf {
 	return ClientIntfs
 }
+
+func DeleteAllAsicDPlugins() {
+	ClientIntfs = nil
+}

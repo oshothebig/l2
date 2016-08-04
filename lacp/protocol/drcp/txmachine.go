@@ -32,7 +32,6 @@ import (
 	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
-	"time"
 	"utils/fsm"
 )
 
@@ -156,20 +155,27 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				AggPriority:    dr.DrniAggregatorPriority,
 				AggId:          dr.DrniAggregatorId,
 				PortalPriority: dr.DrniPortalPriority,
-				PortalAddr:     dr.DrniPortalAddr,
+				PortalAddr: [6]uint8{
+					dr.DrniPortalAddr[0],
+					dr.DrniPortalAddr[1],
+					dr.DrniPortalAddr[2],
+					dr.DrniPortalAddr[3],
+					dr.DrniPortalAddr[4],
+					dr.DrniPortalAddr[5],
+				},
 			}
-			drcp.PortalInfo.TlvTypeLength.SetTlv(layers.DRCPTLVTypePortalInfo)
-			drcp.PortalInfo.TlvTypeLength.SetLength(layers.DRCPTLVPortalInfoLength)
+			drcp.PortalInfo.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypePortalInfo))
+			drcp.PortalInfo.TlvTypeLength.SetLength(uint16(layers.DRCPTLVPortalInfoLength))
 			pktLength += uint32(layers.DRCPTLVPortalInfoLength) + uint32(layers.DRCPTlvAndLengthSize)
 
 			drcp.PortalConfigInfo = layers.DRCPPortalConfigurationInfoTlv{
 				OperAggKey:       dr.DRFHomeOperAggregatorKey,
-				PortAlgorithm:    dr.DRVHomePortAlgorithm,
+				PortAlgorithm:    dr.DRFHomePortAlgorithm,
 				GatewayAlgorithm: dr.DRFHomeGatewayAlgorithm,
 			}
 			drcp.PortalConfigInfo.TopologyState.SetState(layers.DRCPTopologyStatePortalSystemNum, dr.DrniPortalSystemNumber)
-			drcp.PortalConfigInfo.TlvTypeLength.SetTlv(layers.DRCPTLVTypePortalConfigInfo)
-			drcp.PortalConfigInfo.TlvTypeLength.SetLength(layers.DRCPTLVPortalConfigurationInfoLength)
+			drcp.PortalConfigInfo.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypePortalConfigInfo))
+			drcp.PortalConfigInfo.TlvTypeLength.SetLength(uint16(layers.DRCPTLVPortalConfigurationInfoLength))
 			// TODO set Port Digest and Gateway Digest
 			pktLength += uint32(layers.DRCPTLVPortalConfigurationInfoLength) + uint32(layers.DRCPTlvAndLengthSize)
 
@@ -177,24 +183,36 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				p.PortConversationTransmit &&
 				dr.DrniCommonMethods {
 				if !dr.DrniThreeSystemPortal {
-					drcp.DRCP2PortConversationVectorTlv.TlvTypeLength.SetTlv(layers.DRCPTLV2PPortConversationVector)
-					drcp.DRCP2PortConversationVectorTlv.TlvTypeLength.SetLength(layers.DRCPTLV2PPortConversationVectorLength)
+					drcp.TwoPortalPortConversationVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLV2PPortConversationVector))
+					drcp.TwoPortalPortConversationVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLV2PPortConversationVectorLength))
 					pktLength += uint32(layers.DRCPTLV2PPortConversationVectorLength) + uint32(layers.DRCPTlvAndLengthSize)
 
 					// lets only send the port conversation vector
-					for i, j := 0, 0; i < 512; i, j = i+1, j+4 {
+					for i, j := 0, 0; i < 512; i, j = i+1, j+8 {
 
 						if dr.DrniPortalSystemPortConversation[j] {
-							drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 3
+							drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 7
 						}
 						if dr.DrniPortalSystemPortConversation[j+1] {
-							drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 2
+							drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 6
 						}
 						if dr.DrniPortalSystemPortConversation[j+2] {
-							drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 1
+							drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 5
 						}
 						if dr.DrniPortalSystemPortConversation[j+3] {
-							drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 0
+							drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 4
+						}
+						if dr.DrniPortalSystemPortConversation[j+4] {
+							drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 3
+						}
+						if dr.DrniPortalSystemPortConversation[j+5] {
+							drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 2
+						}
+						if dr.DrniPortalSystemPortConversation[j+6] {
+							drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 1
+						}
+						if dr.DrniPortalSystemPortConversation[j+7] {
+							drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 0
 						}
 					}
 				} else {
@@ -205,46 +223,70 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				!dr.DrniCommonMethods {
 				if pkt == 0 {
 					if !dr.DrniThreeSystemPortal {
-						drcp.DRCP2PGatewayConversationVectorTlv.TlvTypeLength.SetTlv(layers.DRCPTLV2PGatewayConversationVector)
-						drcp.DRCP2PGatewayConversationVectorTlv.TlvTypeLength.SetLength(layers.DRCPTLV2PGatewayConversationVectorLength)
+						drcp.TwoPortalGatewayConversationVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLV2PGatewayConversationVector))
+						drcp.TwoPortalGatewayConversationVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLV2PGatewayConversationVectorLength))
 						pktLength += uint32(layers.DRCPTLV2PGatewayConversationVectorLength) + uint32(layers.DRCPTlvAndLengthSize)
-						for i, j := 0, 0; i < 512; i, j = i+1, j+4 {
+						for i, j := 0, 0; i < 512; i, j = i+1, j+8 {
 
 							if dr.DrniPortalSystemGatewayConversation[j] {
-								drcp.DRCP2PGatewayConversationVectorTlv.Vector[i] = 1 << 3
+								drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 7
 							}
 							if dr.DrniPortalSystemGatewayConversation[j+1] {
-								drcp.DRCP2PGatewayConversationVectorTlv.Vector[i] = 1 << 2
+								drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 6
 							}
 							if dr.DrniPortalSystemGatewayConversation[j+2] {
-								drcp.DRCP2PGatewayConversationVectorTlv.Vector[i] = 1 << 1
+								drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 5
 							}
 							if dr.DrniPortalSystemGatewayConversation[j+3] {
-								drcp.DRCP2PGatewayConversationVectorTlv.Vector[i] = 1 << 0
+								drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 4
+							}
+							if dr.DrniPortalSystemGatewayConversation[j+4] {
+								drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 3
+							}
+							if dr.DrniPortalSystemGatewayConversation[j+5] {
+								drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 2
+							}
+							if dr.DrniPortalSystemGatewayConversation[j+6] {
+								drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 1
+							}
+							if dr.DrniPortalSystemGatewayConversation[j+7] {
+								drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 0
 							}
 						}
 					} else {
 						// TODO 3P Not supported
 					}
 				} else {
-					drcp.DRCP2PortConversationVectorTlv.TlvTypeLength.SetTlv(layers.DRCPTLV2PPortConversationVector)
-					drcp.DRCP2PortConversationVectorTlv.TlvTypeLength.SetLength(layers.DRCPTLV2PPortConversationVectorLength)
+					drcp.TwoPortalPortConversationVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLV2PPortConversationVector))
+					drcp.TwoPortalPortConversationVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLV2PPortConversationVectorLength))
 					pktLength += uint32(layers.DRCPTLV2PPortConversationVectorLength) + uint32(layers.DRCPTlvAndLengthSize)
 					// lets only send the port conversation vector
 					if !dr.DrniThreeSystemPortal {
-						for i, j := 0, 0; i < 512; i, j = i+1, j+4 {
+						for i, j := 0, 0; i < 512; i, j = i+1, j+8 {
 
 							if dr.DrniPortalSystemPortConversation[j] {
-								drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 3
+								drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 7
 							}
 							if dr.DrniPortalSystemPortConversation[j+1] {
-								drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 2
+								drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 6
 							}
 							if dr.DrniPortalSystemPortConversation[j+2] {
-								drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 1
+								drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 5
 							}
 							if dr.DrniPortalSystemPortConversation[j+3] {
-								drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 0
+								drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 4
+							}
+							if dr.DrniPortalSystemPortConversation[j+4] {
+								drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 3
+							}
+							if dr.DrniPortalSystemPortConversation[j+5] {
+								drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 2
+							}
+							if dr.DrniPortalSystemPortConversation[j+6] {
+								drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 1
+							}
+							if dr.DrniPortalSystemPortConversation[j+7] {
+								drcp.TwoPortalPortConversationVector.Vector[i] = 1 << 0
 							}
 						}
 					} else {
@@ -253,22 +295,34 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				}
 			} else if p.GatewayConversationTransmit {
 				if !dr.DrniThreeSystemPortal {
-					drcp.DRCP2PGatewayConversationVectorTlv.TlvTypeLength.SetTlv(layers.DRCPTLV2PGatewayConversationVector)
-					drcp.DRCP2PGatewayConversationVectorTlv.TlvTypeLength.SetLength(layers.DRCPTLV2PGatewayConversationVectorLength)
+					drcp.TwoPortalGatewayConversationVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLV2PGatewayConversationVector))
+					drcp.TwoPortalGatewayConversationVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLV2PGatewayConversationVectorLength))
 					pktLength += uint32(layers.DRCPTLV2PGatewayConversationVectorLength) + uint32(layers.DRCPTlvAndLengthSize)
-					for i, j := 0, 0; i < 512; i, j = i+1, j+4 {
+					for i, j := 0, 0; i < 512; i, j = i+1, j+8 {
 
 						if dr.DrniPortalSystemGatewayConversation[j] {
-							drcp.DRCP2PGatewayConversationVectorTlv.Vector[i] = 1 << 3
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 7
 						}
 						if dr.DrniPortalSystemGatewayConversation[j+1] {
-							drcp.DRCP2PGatewayConversationVectorTlv.Vector[i] = 1 << 2
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 6
 						}
 						if dr.DrniPortalSystemGatewayConversation[j+2] {
-							drcp.DRCP2PGatewayConversationVectorTlv.Vector[i] = 1 << 1
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 5
 						}
 						if dr.DrniPortalSystemGatewayConversation[j+3] {
-							drcp.DRCP2PGatewayConversationVectorTlv.Vector[i] = 1 << 0
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 4
+						}
+						if dr.DrniPortalSystemGatewayConversation[j+4] {
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 3
+						}
+						if dr.DrniPortalSystemGatewayConversation[j+5] {
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 2
+						}
+						if dr.DrniPortalSystemGatewayConversation[j+6] {
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 1
+						}
+						if dr.DrniPortalSystemGatewayConversation[j+7] {
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 0
 						}
 					}
 				} else {
@@ -276,54 +330,67 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				}
 			} else if p.PortConversationTransmit {
 				if !dr.DrniThreeSystemPortal {
-					drcp.DRCP2PortConversationVectorTlv.TlvTypeLength.SetTlv(layers.DRCPTLV2PPortConversationVector)
-					drcp.DRCP2PortConversationVectorTlv.TlvTypeLength.SetLength(layers.DRCPTLV2PPortConversationVectorLength)
+					drcp.TwoPortalGatewayConversationVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLV2PPortConversationVector))
+					drcp.TwoPortalGatewayConversationVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLV2PPortConversationVectorLength))
 					pktLength += uint32(layers.DRCPTLV2PPortConversationVectorLength) + uint32(layers.DRCPTlvAndLengthSize)
-					for i, j := 0, 0; i < 512; i, j = i+1, j+4 {
+					for i, j := 0, 0; i < 512; i, j = i+1, j+8 {
 
 						if dr.DrniPortalSystemPortConversation[j] {
-							drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 3
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 7
 						}
 						if dr.DrniPortalSystemPortConversation[j+1] {
-							drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 2
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 6
 						}
 						if dr.DrniPortalSystemPortConversation[j+2] {
-							drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 1
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 5
 						}
 						if dr.DrniPortalSystemPortConversation[j+3] {
-							drcp.DRCP2PortConversationVectorTlv.Vector[i] = 1 << 0
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 4
 						}
+						if dr.DrniPortalSystemPortConversation[j+4] {
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 3
+						}
+						if dr.DrniPortalSystemPortConversation[j+5] {
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 2
+						}
+						if dr.DrniPortalSystemPortConversation[j+6] {
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 1
+						}
+						if dr.DrniPortalSystemPortConversation[j+7] {
+							drcp.TwoPortalGatewayConversationVector.Vector[i] = 1 << 0
+						}
+
 					}
 				} else {
 					// TODO 3P Not supported
 				}
 			}
 
-			drcp.State.TlvTypeLength.SetTlv(layers.DRCPTLVTypeDRCPState)
-			drcp.State.TlvTypeLength.SetLength(layers.DRCPTLVStateLength)
-			drcp.State.State = p.DRFHomeOperDRCPState
+			drcp.State.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeDRCPState))
+			drcp.State.TlvTypeLength.SetLength(uint16(layers.DRCPTLVStateLength))
+			drcp.State.State = dr.DRFHomeOperDRCPState
 			pktLength += uint32(layers.DRCPTLVStateLength) + uint32(layers.DRCPTlvAndLengthSize)
 
 			drcp.HomePortsInfo = layers.DRCPHomePortsInfoTlv{
 				AdminAggKey:       dr.DRFHomeAdminAggregatorKey,
 				OperPartnerAggKey: dr.DRFHomeOperAggregatorKey,
 			}
-			drcp.HomePortsInfo.TlvTypeLength.SetTlv(layers.DRCPTLVTypeHomePortsInfo)
+			drcp.HomePortsInfo.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeHomePortsInfo))
 			// length is determine by the number of active ports + 6
-			homePortsInfoLength := DRCPTlvTypeLength(4)
-			if dr.a {
-				for _, actportstr := range a.DistributedPortNumList {
+			homePortsInfoLength := uint32(4)
+			if dr.a != nil {
+				for _, actportstr := range dr.a.DistributedPortNumList {
 					ifIndex := utils.GetIfIndexFromName(actportstr)
 					if ifIndex > 0 {
 						drcp.HomePortsInfo.ActiveHomePorts = append(drcp.HomePortsInfo.ActiveHomePorts, uint32(ifIndex))
 					}
 				}
 			}
-			homePortsInfoLength += len(drcp.HomePortsInfo.ActiveHomePorts)
-			drcp.HomePortsInfo.TlvTypeLength.SetLength(homePortsInfoLength)
+			homePortsInfoLength += uint32(len(drcp.HomePortsInfo.ActiveHomePorts))
+			drcp.HomePortsInfo.TlvTypeLength.SetLength(uint16(homePortsInfoLength))
 			pktLength += uint32(homePortsInfoLength) + uint32(layers.DRCPTlvAndLengthSize)
 
-			portMtu := utils.PortConfigMap[p.Id].Mtu
+			portMtu := uint32(utils.PortConfigMap[int32(p.Id)].Mtu)
 			if (p.HomeGatewayVectorTransmit ||
 				p.OtherGatewayVectorTransmit) &&
 				pktLength < portMtu {
@@ -342,25 +409,32 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 
 			if p.DRFHomeNetworkIPLSharingMethod != [4]uint8{} {
 
-				drcp.NetworkIPLMethod.TlvTypeLength.SetTlv(layers.DRCPTLVNetworkIPLSharingMethod)
-				drcp.NetworkIPLMethod.TlvTypeLength.SetLength(layers.DRCPTLVNetworkIPLSharingMethodLength)
+				drcp.NetworkIPLMethod.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVNetworkIPLSharingMethod))
+				drcp.NetworkIPLMethod.TlvTypeLength.SetLength(uint16(layers.DRCPTLVNetworkIPLSharingMethodLength))
 				drcp.NetworkIPLMethod.Method = p.DRFHomeNetworkIPLSharingMethod
-				pktLength += uint32(DRCPTLVNetworkIPLSharingMethodLength) + uint32(layers.DRCPTlvAndLengthSize)
+				pktLength += uint32(layers.DRCPTLVNetworkIPLSharingMethodLength) + uint32(layers.DRCPTlvAndLengthSize)
 
-				drcp.NetworkIPLEncapsulation.TlvTypeLength.SetTlv(layers.DRCPTLVNetworkIPLSharingEncapsulation)
-				drcp.NetworkIPLEncapsulation.TlvTypeLength.SetLength(layers.DRCPTLVNetworkIPLSharingEncapsulationLength)
+				drcp.NetworkIPLEncapsulation.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVNetworkIPLSharingEncapsulation))
+				drcp.NetworkIPLEncapsulation.TlvTypeLength.SetLength(uint16(layers.DRCPTLVNetworkIPLSharingEncapsulationLength))
 				for i := 0; i < 16; i++ {
 					drcp.NetworkIPLEncapsulation.IplEncapDigest[i] = p.DRFHomeNetworkIPLIPLEncapDigest[i]
 					drcp.NetworkIPLEncapsulation.NetEncapDigest[i] = p.DRFHomeNetworkIPLIPLNetEncapDigest[i]
 				}
-				pktLength += uint32(DRCPTLVNetworkIPLSharingEncapsulationLength) + uint32(layers.DRCPTlvAndLengthSize)
+				pktLength += uint32(layers.DRCPTLVNetworkIPLSharingEncapsulationLength) + uint32(layers.DRCPTlvAndLengthSize)
 
 			}
 
-			drcp.Terminator.TlvTypeLength.SetTlv(layers.DRCPTLVTypeTerminator)
-			drcp.Terminator.TlvTypeLength.SetLength(layers.DRCPTLVTerminatorLength)
+			drcp.Terminator.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeTerminator))
+			drcp.Terminator.TlvTypeLength.SetLength(uint16(layers.DRCPTLVTerminatorLength))
 
-			// TODO transmit the packet(s)
+			key := IppDbKey{
+				Name:   p.Name,
+				DrName: p.dr.DrniName,
+			}
+			// transmit the packet(s)
+			for _, txfunc := range DRGlobalSystem.TxCallbacks[key] {
+				txfunc(key, p.dr.DrniPortalPortProtocolIDA, drcp)
+			}
 		}
 	}
 	// Clear NTT
@@ -371,6 +445,7 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 // DrcpTxMachineOff will ensure that no packets are transmitted, typically means that
 // drcp has been disabled or a packet was just transmitted
 func (txm *TxMachine) DrcpTxMachineOff(m fsm.Machine, data interface{}) fsm.State {
+	p := txm.p
 	p.NTTDRCPDU = false
 	return TxmStateOff
 }
@@ -425,7 +500,7 @@ func (p *DRCPIpp) TxMachineMain() {
 		for {
 			select {
 			case event, ok := <-m.TxmEvents:
-
+				var rv error
 				if ok {
 					if event.E == TxmEventNtt {
 						p.NTTDRCPDU = true
@@ -433,7 +508,7 @@ func (p *DRCPIpp) TxMachineMain() {
 
 					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 					if rv == nil && m.Machine.Curr.CurrentState() == TxmStateOn {
-						rv := m.Machine.ProcessEvent(TxMachineModuleStr, TxmEventUnconditionalFallThrough, nil)
+						rv = m.Machine.ProcessEvent(TxMachineModuleStr, TxmEventUnconditionalFallThrough, nil)
 					}
 				}
 				if event.ResponseChan != nil {
@@ -444,7 +519,7 @@ func (p *DRCPIpp) TxMachineMain() {
 
 				}
 				if !ok {
-					p.DrcpTxmLog("Machine End")
+					m.DrcpTxmLog("Machine End")
 					return
 				}
 			}

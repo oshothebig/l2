@@ -98,7 +98,7 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -182,7 +182,7 @@ func TestLaAggPortCreateDifferentModes(t *testing.T) {
 	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	modeList := []int{LacpModeOn, LacpModeActive, LacpModePassive}
@@ -269,7 +269,7 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 
 	LacpSysGlobalInfoInit(sysId)
 
@@ -334,7 +334,7 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -384,7 +384,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -465,7 +465,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -545,7 +545,7 @@ func TestLaAggPortEnable(t *testing.T) {
 	ConfigSetup()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -632,9 +632,9 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 
 	// must be called to initialize the global
 	LaSystemActor := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
 	LaSystemPeer := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
 		port1:       LaAggPortActor,
@@ -796,9 +796,9 @@ func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 
 	// must be called to initialize the global
 	LaSystemActor := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
 	LaSystemPeer := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
 		port1:       LaAggPortActor,
@@ -1023,9 +1023,9 @@ func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
 
 	// must be called to initialize the global
 	LaSystemActor := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
 	LaSystemPeer := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
 		port1:       LaAggPortActor,
@@ -1250,9 +1250,9 @@ func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
 
 	// must be called to initialize the global
 	LaSystemActor := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
 	LaSystemPeer := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
 		port1:       LaAggPortActor,

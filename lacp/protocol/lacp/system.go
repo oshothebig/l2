@@ -34,11 +34,11 @@ type LacpSystem struct {
 	// System Priority
 	Actor_System_priority uint16
 	// MAC address component of the System Id
-	actor_System [6]uint8
+	Actor_System [6]uint8
 }
 
-func (s *LacpSystem) LacpSystemActorSystemIdSet(actor_System net.HardwareAddr) {
-	s.actor_System = convertNetHwAddressToSysIdKey(actor_System)
+func (s *LacpSystem) LacpSystemActorSystemIdSet(Actor_System net.HardwareAddr) {
+	s.Actor_System = convertNetHwAddressToSysIdKey(Actor_System)
 }
 
 func (s *LacpSystem) LacpSystemActorSystemPrioritySet(Actor_System_priority uint16) {
@@ -83,7 +83,7 @@ func LacpSystemIdGet(s LacpSystem) [8]uint8 {
 
 	var sysId [8]uint8
 
-	mac := s.actor_System
+	mac := s.Actor_System
 
 	sysId[0] = uint8(s.Actor_System_priority >> 8 & 0xff)
 	sysId[1] = uint8(s.Actor_System_priority & 0xff)

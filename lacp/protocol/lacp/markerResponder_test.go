@@ -43,9 +43,9 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 	LaAggPortPeerIf := "SIM2eth0"
 	// must be called to initialize the global
 	LaSystemActor := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x64}}
 	LaSystemPeer := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
 		port1:       LaAggPortActor,
@@ -177,7 +177,7 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 			Marker: layers.LAMPMarkerTlv{TlvType: layers.LAMPTLVMarkerInfo,
 				Length:                 layers.LAMPMarkerTlvLength,
 				RequesterPort:          LaAggPortActor,
-				RequesterSystem:        LaSystemActor.actor_System,
+				RequesterSystem:        LaSystemActor.Actor_System,
 				RequesterTransactionId: 10,
 			},
 			Terminator: layers.LAMPTerminatorTlv{},

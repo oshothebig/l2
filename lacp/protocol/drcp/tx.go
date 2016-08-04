@@ -34,20 +34,20 @@ import (
 
 // bridge will simulate communication between two channels
 type SimulationNeighborBridge struct {
-	port1      uint16
-	port2      uint16
+	port1      uint32
+	port2      uint32
 	rxIppPort1 chan gopacket.Packet
 	rxIppPort2 chan gopacket.Packet
 }
 
-func (bridge *SimulationNeighborBridge) TxViaGoChannel(port uint16, dmac net.HwAddress, pdu interface{}) {
+func (bridge *SimulationNeighborBridge) TxViaGoChannel(key IppDbKey, dmac net.HardwareAddr, pdu interface{}) {
 
 	var p *DRCPIpp
-	if LaDrcpFindIPPById(port, &p) {
+	if DRFindPortByKey(key, &p) {
 
 		// Set up all the layers' fields we can.
 		eth := layers.Ethernet{
-			SrcMAC:       net.HardwareAddr{0x00, uint8(p.PortNum & 0xff), 0x00, 0x01, 0x01, 0x01},
+			SrcMAC:       net.HardwareAddr{0x00, uint8(p.Id & 0xff), 0x00, 0x01, 0x01, 0x01},
 			DstMAC:       dmac,
 			EthernetType: layers.EthernetTypeDRCP,
 		}
@@ -61,12 +61,12 @@ func (bridge *SimulationNeighborBridge) TxViaGoChannel(port uint16, dmac net.HwA
 		case *layers.DRCP:
 			drcp := pdu.(*layers.DRCP)
 
-			gopacket.SerializeLayers(buf, opts, &eth, &slow, drcp)
+			gopacket.SerializeLayers(buf, opts, &eth, drcp)
 		}
 
 		pkt := gopacket.NewPacket(buf.Bytes(), layers.LinkTypeEthernet, gopacket.Default)
 
-		if port != bridge.port1 && bridge.rxIppPort1 != nil {
+		if p.Id != bridge.port1 && bridge.rxIppPort1 != nil {
 			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port1)
 			//fmt.Println("TX:", pkt)
 			bridge.rxIppPort1 <- pkt
@@ -75,15 +75,15 @@ func (bridge *SimulationNeighborBridge) TxViaGoChannel(port uint16, dmac net.HwA
 			bridge.rxIppPort2 <- pkt
 		}
 	} else {
-		utils.GlobalLogger.Err(fmt.Sprintf("Unable to find port %d in tx", port))
+		utils.GlobalLogger.Err(fmt.Sprintf("Unable to find port %d (%s) in tx", p.Id, p.Name))
 	}
 }
 
-func TxViaLinuxIf(port uint16, dmac net.HwAddress, pdu interface{}) {
-	var p *LaAggPort
-	if LaFindPortById(port, &p) {
+func TxViaLinuxIf(key IppDbKey, dmac net.HardwareAddr, pdu interface{}) {
+	var p *DRCPIpp
+	if DRFindPortByKey(key, &p) {
 
-		txIface, err := net.InterfaceByName(p.IntfNum)
+		txIface, err := net.InterfaceByName(p.Name)
 		if err == nil {
 			// conver the packet to a go packet
 			// Set up all the layers' fields we can.
@@ -103,7 +103,7 @@ func TxViaLinuxIf(port uint16, dmac net.HwAddress, pdu interface{}) {
 			switch pdu.(type) {
 			case *layers.DRCP:
 				drcp := pdu.(*layers.DRCP)
-				gopacket.SerializeLayers(buf, opts, &eth, &slow, lacp)
+				gopacket.SerializeLayers(buf, opts, &eth, drcp)
 			}
 
 			// Send one packet for every address.
@@ -111,9 +111,9 @@ func TxViaLinuxIf(port uint16, dmac net.HwAddress, pdu interface{}) {
 				utils.GlobalLogger.Err(fmt.Sprintf("%s\n", err))
 			}
 		} else {
-			utils.GlobalLogger.Err(fmt.Sprintln("ERROR could not find interface", p.IntfNum, err))
+			utils.GlobalLogger.Err(fmt.Sprintln("ERROR could not find IPP interface", p.Name, err))
 		}
 	} else {
-		utils.GlobalLogger.Err(fmt.Sprintf("Unable to find port %d in tx", port))
+		utils.GlobalLogger.Err(fmt.Sprintf("Unable to find port %d (%s) in tx", p.Id, p.Name))
 	}
 }

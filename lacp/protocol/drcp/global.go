@@ -21,45 +21,49 @@
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
 
-// timers
+//global.go
 package drcp
 
 import (
-	"time"
+	"fmt"
+	"l2/lacp/protocol/utils"
+	"net"
 )
 
-func (rxm *RxMachine) CurrentWhileTimerStart() {
-	if rxm.currentWhileTimer == nil {
-		rxm.currentWhileTimer = time.NewTimer(rxm.currentWhileTimerTimeout)
-	} else {
-		rxm.currentWhileTimer.Reset(rxm.currentWhileTimerTimeout)
+var DRGlobalSystem DRSystemInfo
+
+type TxCallback func(key IppDbKey, dmac net.HardwareAddr, data interface{})
+
+type DRSystemInfo struct {
+	// list of tx function which should be called for a given port
+	TxCallbacks map[IppDbKey][]TxCallback
+}
+
+func (g *DRSystemInfo) DRSystemGlobalRegisterTxCallback(intf IppDbKey, f TxCallback) {
+	g.TxCallbacks[intf] = append(g.TxCallbacks[intf], f)
+}
+
+func (g *DRSystemInfo) DRSystemGlobalDeRegisterTxCallback(intf IppDbKey) {
+	delete(g.TxCallbacks, intf)
+}
+
+func DRSystemGlobalTxCallbackListGet(p *DRCPIpp) []TxCallback {
+
+	key := IppDbKey{
+		Name:   p.Name,
+		DrName: p.dr.DrniName,
 	}
-}
 
-func (rxm *RxMachine) CurrentWhileTimerStop() {
-	if rxm.currentWhileTimer != nil {
-		rxm.currentWhileTimer.Stop()
+	if fList, pok := DRGlobalSystem.TxCallbacks[key]; pok {
+		return fList
 	}
-}
 
-func (rxm *RxMachine) CurrentWhileTimerTimeoutSet(timeout time.Duration) {
-	rxm.currentWhileTimerTimeout = timeout
-}
-
-func (ptxm *PtxMachine) PeriodicTimerStart() {
-	if ptxm.periodicTimer == nil {
-		ptxm.periodicTimer = time.NewTimer(ptxm.periodicTimerInterval)
-	} else {
-		ptxm.periodicTimer.Reset(ptxm.periodicTimerInterval)
+	// temporary function
+	x := func(key IppDbKey, dmac net.HardwareAddr, data interface{}) {
+		utils.GlobalLogger.Info(fmt.Sprintf("TX not registered for IPP port\n", key))
 	}
-}
 
-func (ptxm *PtxMachine) PeriodicTimerStop() {
-	if ptxm.periodicTimer != nil {
-		ptxm.periodicTimer.Stop()
-	}
-}
-
-func (ptxm *PtxMachine) PeriodicTimerIntervalSet(interval time.Duration) {
-	ptxm.periodicTimerInterval = interval
+	debugTxList := make([]TxCallback, 0)
+	debugTxList = append(debugTxList, x)
+	return debugTxList
 }

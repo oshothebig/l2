@@ -27,8 +27,9 @@ package drcp
 import (
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
-	"sort"
-	"time"
+	"strconv"
+	"strings"
+	"utils/fsm"
 )
 
 const PsMachineModuleStr = "Portal System Machine"
@@ -86,7 +87,7 @@ func NewDrcpPsMachine(dr *DistributedRelay) *PsMachine {
 	psm := &PsMachine{
 		dr:            dr,
 		PreviousState: PsmStateNone,
-		PsmEvents:     make(chan MachineEvent, 10),
+		PsmEvents:     make(chan utils.MachineEvent, 10),
 	}
 
 	dr.PsMachineFsm = psm
@@ -135,7 +136,7 @@ func (psm *PsMachine) DrcpPsMachinePortalSystemUpdate(m fsm.Machine, data interf
 	return PsmStatePortalSystemUpdate
 }
 
-func DrcpPsMachineFSMBuild(p *DRCPIpp) *PsMachine {
+func DrcpPsMachineFSMBuild(dr *DistributedRelay) *PsMachine {
 
 	PsMachineStrStateMapCreate()
 
@@ -144,7 +145,7 @@ func DrcpPsMachineFSMBuild(p *DRCPIpp) *PsMachine {
 	// Instantiate a new PsMachine
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the initalize State
-	psm := NewDrcpPsMachine(p)
+	psm := NewDrcpPsMachine(dr)
 
 	//BEGIN -> PORTAL SYSTEM INITITIALIZE
 	rules.AddRule(PsmStateNone, PsmEventBegin, psm.DrcpPsMachinePortalSystemInitialize)
@@ -160,20 +161,20 @@ func DrcpPsMachineFSMBuild(p *DRCPIpp) *PsMachine {
 	rules.AddRule(PsmStatePortalSystemUpdate, PsmEventChangeDRFPorts, psm.DrcpPsMachinePortalSystemUpdate)
 
 	// Create a new FSM and apply the rules
-	rxm.Apply(&rules)
+	psm.Apply(&rules)
 
-	return rxm
+	return psm
 }
 
 // DrcpPsMachineMain:  802.1ax-2014 Figure 9-25
 // Creation of Portal System Machine State transitions and callbacks
 // and create go routine to pend on events
-func (p *DRCPIpp) DrcpPsMachineMain() {
+func (dr *DistributedRelay) DrcpPsMachineMain() {
 
 	// Build the State machine for  DRCP Portal System Machine according to
 	// 802.1ax-2014 Section 9.4.16 Portal System Machine
-	psm := DrcpPsMachineFSMBuild(p)
-	p.wg.Add(1)
+	psm := DrcpPsMachineFSMBuild(dr)
+	dr.wg.Add(1)
 
 	// set the inital State
 	psm.Machine.Start(psm.PrevState())
@@ -182,24 +183,24 @@ func (p *DRCPIpp) DrcpPsMachineMain() {
 	// that the PsMachine should handle.
 	go func(m *PsMachine) {
 		m.DrcpPsmLog("Machine Start")
-		defer m.p.wg.Done()
+		defer m.dr.wg.Done()
 		for {
 			select {
 			case event, ok := <-m.PsmEvents:
 				if ok {
-					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 					if rv == nil {
-						p := m.p
+						dr := m.dr
 						// port state processing
-						if p.ChangePortal {
+						if dr.ChangePortal {
 							rv = m.Machine.ProcessEvent(PsMachineModuleStr, PsmEventChangePortal, nil)
-						} else if p.ChangeDRFPorts {
+						} else if dr.ChangeDRFPorts {
 							rv = m.Machine.ProcessEvent(PsMachineModuleStr, PsmEventChangeDRFPorts, nil)
 						}
 					}
 
 					if rv != nil {
-						m.DrcpGmLog(strings.Join([]string{error.Error(rv), event.src, PsmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+						m.DrcpPsmLog(strings.Join([]string{error.Error(rv), event.Src, PsmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
 				}
 
@@ -222,19 +223,23 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 	dr := psm.dr
 	a := dr.a
 
-	dr.DrniAggregatorPriority = a.AggSystemPriority
-	dr.DrniAggregatorID = a.AggMacAddr
+	dr.DrniAggregatorPriority = a.AggPriority
+	dr.DrniAggregatorId = a.AggMacAddr
 	dr.DrniPortalPriority = dr.DrniPortalPriority
 	dr.DrniPortalAddr = dr.DrniPortalAddr
 	dr.DRFPortalSystemNumber = dr.DrniPortalSystemNumber
-	dr.DRFHomeAdminAggregator = a.ActorAdminKey
+	dr.DRFHomeAdminAggregatorKey = a.ActorAdminKey
 	dr.DRFHomePortAlgorithm = a.PortAlgorithm
 	dr.DRFHomeGatewayAlgorithm = dr.DrniGatewayAlgorithm
 	dr.DRFHomeOperDRCPState = dr.DRFNeighborAdminDRCPState
+	dr.GatewayVectorDatabase = nil
+	// set during config do not want to clear this to a default because
+	// there is only one default
+	// dr.Ipplinks = nil
 	for i := 0; i < 3; i++ {
 		dr.DrniPortalSystemState[0].OpState = false
-		dr.GatewayVector = nil
-		dr.PortIdList = nil
+		// Don't want to clear this as it is set by config
+		//dr.DrniIntraPortalLinkList[i] = 0
 	}
 
 	// TOOD
@@ -251,26 +256,37 @@ func (psm *PsMachine) updateKey() {
 
 	if a != nil &&
 		a.PartnerDWC {
-		dr.DRFHomeOperAggregatorKey = ((dr.DRFHomeAdminAggregatorKey && 0x3fff) | 0x6000)
+		dr.DRFHomeOperAggregatorKey = ((dr.DRFHomeAdminAggregatorKey & 0x3fff) | 0x6000)
 	} else if dr.PSI &&
-		!p.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) {
-		dr.DRFHomeOperAggregatorKey = (dr.DRFHomeAdminAggregatorKey && 0x3fff)
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) {
+		dr.DRFHomeOperAggregatorKey = (dr.DRFHomeAdminAggregatorKey & 0x3fff)
 	} else {
 		// lets get the lowest admin key and set this to the
 		// operational key
-		if dr.DRFHomeAdminAggregatorKey != 0 &&
-			dr.DRFHomeAdminAggregatorKey < dr.DRFNeighborAdminAggregatorKey &&
-			dr.DRFHomeAdminAggregatorKey < dr.DRFOtherNeighborAdminAggregatoryKey {
-			dr.DRFHomeOperAggregatorKey = dr.DRFHomeAdminAggregatorKey
-		} else if dr.DRFNeighborAdminAggregatorKey != 0 &&
-			dr.DRFNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey &&
-			dr.DRFNeighborAdminAggregatorKey < dr.DRFOtherNeighborAdminAggregatoryKey {
-			dr.DRFHomeOperAggregatorKey = dr.DRFNeighborAdminAggregatorKey
-		} else if dr.DRFOtherNeighborAdminAggregatoryKey != 0 &&
-			dr.DRFOtherNeighborAdminAggregatoryKey < dr.DRFHomeAdminAggregatorKey &&
-			dr.DRFOtherNeighborAdminAggregatoryKey < dr.DRFNeighborAdminAggregatorKey {
-			dr.DRFHomeOperAggregatorKey = dr.DRFOtherNeighborAdminAggregatoryKey
+		var operKey uint16
+		for _, ipp := range dr.Ipplinks {
+
+			if dr.DRFHomeAdminAggregatorKey != 0 &&
+				dr.DRFHomeAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey &&
+				dr.DRFHomeAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey {
+				if operKey == 0 || dr.DRFHomeAdminAggregatorKey < operKey {
+					operKey = dr.DRFHomeAdminAggregatorKey
+				}
+			} else if ipp.DRFNeighborAdminAggregatorKey != 0 &&
+				ipp.DRFNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey &&
+				ipp.DRFNeighborAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey {
+				if operKey == 0 || ipp.DRFNeighborAdminAggregatorKey < operKey {
+					operKey = ipp.DRFNeighborAdminAggregatorKey
+				}
+			} else if ipp.DRFOtherNeighborAdminAggregatorKey != 0 &&
+				ipp.DRFOtherNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey &&
+				ipp.DRFOtherNeighborAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey {
+				if operKey == 0 || ipp.DRFOtherNeighborAdminAggregatorKey < operKey {
+					operKey = ipp.DRFOtherNeighborAdminAggregatorKey
+				}
+			}
 		}
+		dr.DRFHomeOperAggregatorKey = operKey
 	}
 }
 

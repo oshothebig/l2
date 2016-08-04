@@ -788,6 +788,6 @@ func (rxm *LacpRxMachine) CurrentWhileTimerValid() (time.Duration, bool) {
 func (rxm *LacpRxMachine) CheckPortMoved(PartnerOper *LacpPortInfo, pktActor *layers.LACPPortInfo) bool {
 	return rxm.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled &&
 		PartnerOper.port == pktActor.Port &&
-		reflect.DeepEqual(PartnerOper.System.actor_System, pktActor.System.SystemId) &&
+		reflect.DeepEqual(PartnerOper.System.Actor_System, pktActor.System.SystemId) &&
 		PartnerOper.System.Actor_System_priority == pktActor.System.SystemPriority
 }

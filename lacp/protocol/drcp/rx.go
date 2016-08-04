@@ -92,14 +92,14 @@ func IsControlFrame(pId uint16, packet gopacket.Packet) bool {
 	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
 	drcpLayer := packet.Layer(layers.LayerTypeDRCP)
 	if ethernetLayer == nil {
-		return false, false
+		return false
 	}
 
 	ethernet := ethernetLayer.(*layers.Ethernet)
 	drcpProtocolMACs := make([]net.HardwareAddr, 3)
-	drcpProtocolMACs = append(drcpProtocolMACs, net.HwardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x00})
-	drcpProtocolMACs = append(drcpProtocolMACs, net.HwardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x03})
-	drcpProtocolMACs = append(drcpProtocolMACs, net.HwardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E})
+	drcpProtocolMACs = append(drcpProtocolMACs, net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x00})
+	drcpProtocolMACs = append(drcpProtocolMACs, net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x03})
+	drcpProtocolMACs = append(drcpProtocolMACs, net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E})
 
 	isDrcpProtocolEtherType := ethernet.EthernetType == layers.EthernetTypeDRCP
 
@@ -107,7 +107,6 @@ func IsControlFrame(pId uint16, packet gopacket.Packet) bool {
 	if reflect.DeepEqual(ethernet.DstMAC, drcpProtocolMACs[0]) ||
 		reflect.DeepEqual(ethernet.DstMAC, drcpProtocolMACs[1]) ||
 		reflect.DeepEqual(ethernet.DstMAC, drcpProtocolMACs[2]) {
-		slow := slowProtocolLayer.(*layers.SlowProtocol)
 		if isDrcpProtocolEtherType &&
 			drcpLayer != nil {
 			drcp = true

@@ -21,17 +21,16 @@
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
 
-// config
+// config.go
 package drcp
 
 import (
 	"fmt"
 	//"sync"
 	"errors"
+	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
-	"strings"
-	"time"
 )
 
 const (
@@ -49,9 +48,9 @@ type DistrubtedRelayConfig struct {
 	aDrniPortalPriority                     uint16
 	aDrniThreePortalSystem                  bool
 	aDrniPortalSystemNumber                 uint8
-	aDrniIntraPortalLinkList                []uint32
+	aDrniIntraPortalLinkList                [3]uint32
 	aDrniAggregator                         uint32
-	aDrniConvAdminGateway                   []uint32
+	aDrniConvAdminGateway                   [4096][3]uint8
 	aDrniNeighborAdminConvGatewayListDigest [16]uint8
 	aDrniNeighborAdminConvPortListDigest    [16]uint8
 	aDrniGatewayAlgorithm                   string
@@ -59,8 +58,8 @@ type DistrubtedRelayConfig struct {
 	aDrniNeighborAdminPortAlgorithm         string
 	aDrniNeighborAdminDRCPState             string
 	aDrniEncapMethod                        string
-	aDrniIPLEncapMap                        []uint32
-	aDrniNetEncapMap                        []uint32
+	aDrniIPLEncapMap                        [16]uint32
+	aDrniNetEncapMap                        [16]uint32
 	aDrniPortConversationControl            bool
 	aDrniIntraPortalPortProtocolDA          string
 }
@@ -71,14 +70,14 @@ type DistrubtedRelayConfig struct {
 // will be translated to model values
 func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 
-	mac, ok := net.ParseMAC(mlag.aDrniPortalAddress)
-	if !ok {
+	_, err := net.ParseMAC(mlag.aDrniPortalAddress)
+	if err != nil {
 		return errors.New(fmt.Sprintln("ERROR Portal System MAC Supplied must be in the format of 00:00:00:00:00:00 rcvd:", mlag.aDrniPortalAddress))
 	}
 
-	for _, link := range mlag.aDrniIntraPortalLinkList {
-		if _, ok := utils.PortConfigMap[int32(link)]; !ok {
-			return errors.New(fmt.Sprintln("ERROR Invalid Intra Portal Link Port Id supplied", link))
+	for _, ippid := range mlag.aDrniIntraPortalLinkList {
+		if _, ok := utils.PortConfigMap[int32(ippid)]; !ok {
+			return errors.New(fmt.Sprintln("ERROR Invalid Intra Portal Link Port Id supplied", ippid))
 		}
 	}
 
@@ -108,7 +107,7 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 	}
 
 	if _, ok := validPortGatewayAlgorithms[mlag.aDrniNeighborAdminPortAlgorithm]; !ok {
-		return errors.New(fmt.Sprintln("ERROR Invalid Neighbor Port Algorithm supplied must be in the format 00:80:C2:XX where XX is 1-5 the value of the algorithm ", mlag.aDrniNeighborPortAlgorithm))
+		return errors.New(fmt.Sprintln("ERROR Invalid Neighbor Port Algorithm supplied must be in the format 00:80:C2:XX where XX is 1-5 the value of the algorithm ", mlag.aDrniNeighborAdminPortAlgorithm))
 	}
 
 	validEncapStrings := map[string]bool{
@@ -125,8 +124,8 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 		return errors.New(fmt.Sprintln("ERROR Invalid Port Conversation Control is always false as the Home Gateway Vector is controlled by protocol ", mlag.aDrniPortConversationControl))
 	}
 
-	netMac, ok := net.ParseMAC(mlag.aDrniIntraPortalPortProtocolDA)
-	if !ok {
+	_, err = net.ParseMAC(mlag.aDrniIntraPortalPortProtocolDA)
+	if err != nil {
 		return errors.New(fmt.Sprintln("ERROR Invalid Port Protocol DA invalid format must be 00:00:00:00:00:00 rcvd: ", mlag.aDrniIntraPortalPortProtocolDA))
 	}
 
@@ -141,13 +140,93 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 func CreateDistributedRelay(cfg *DistrubtedRelayConfig) {
 
 	dr := NewDistributedRelay(cfg)
+	// aggregator must exist for the protocol to really make sense
 	if dr != nil {
-		// start the links
-		for _, ipp := range dr.Ipplinks {
-			ipp.BEGIN()
+		AttachAggregatorToDistributedRelay(int(dr.DrniAggregator))
+		if dr.a != nil {
+			dr.BEGIN(false)
+			// start the IPP links
+			for _, ipp := range dr.Ipplinks {
+				ipp.BEGIN(false)
+			}
 		}
 	}
 }
 
-func DeleteDistributedRelay(drId int) {
+func DeleteDistributedRelay(name string) {
+
+	dr := DistributedRelayDB[name]
+	DetachAggregatorFromDistributedRelay(int(dr.DrniAggregator))
+	dr.DeleteDistributedRelay()
+}
+
+// AttachCreatedAggregator: will attach the aggregator and start the Distributed
+// relay protocol for the given dr if this agg is associated with a DR
+func AttachAggregatorToDistributedRelay(aggId int) {
+	for _, dr := range DistributedRelayDBList {
+		if dr.DrniAggregator == int32(aggId) &&
+			dr.a == nil {
+			var a *lacp.LaAggregator
+			if lacp.LaFindAggById(aggId, &a) {
+				dr.a = a
+
+				// lets update the aggregator parameters
+				// configured ports
+				for _, pId := range a.PortNumList {
+					var p *lacp.LaAggPort
+					if lacp.LaFindPortById(pId, &p) {
+						dr.PrevAggregatorId = p.ActorAdmin.System.Actor_System
+						dr.PrevAggregatorPriority = p.ActorAdmin.System.Actor_System_priority
+						// assign the new values to the aggregator
+						lacp.SetLaAggPortSystemInfo(
+							uint16(pId),
+							fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
+								dr.DrniPortalAddr[0],
+								dr.DrniPortalAddr[1],
+								dr.DrniPortalAddr[2],
+								dr.DrniPortalAddr[3],
+								dr.DrniPortalAddr[4],
+								dr.DrniPortalAddr[5]),
+							dr.DrniPortalPriority)
+					}
+				}
+
+				dr.BEGIN(false)
+				// start the IPP links
+				for _, ipp := range dr.Ipplinks {
+					ipp.BEGIN(false)
+				}
+			}
+		}
+	}
+}
+
+func DetachAggregatorFromDistributedRelay(aggId int) {
+	for _, dr := range DistributedRelayDBList {
+		if dr.DrniAggregator == int32(aggId) &&
+			dr.a != nil {
+			var a *lacp.LaAggregator
+			if lacp.LaFindAggById(aggId, &a) {
+				dr.a = a
+
+				// lets update the aggregator parameters
+				// configured ports
+				for _, pId := range a.PortNumList {
+					lacp.SetLaAggPortSystemInfo(
+						uint16(pId),
+						fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
+							dr.PrevAggregatorId[0],
+							dr.PrevAggregatorId[1],
+							dr.PrevAggregatorId[2],
+							dr.PrevAggregatorId[3],
+							dr.PrevAggregatorId[4],
+							dr.PrevAggregatorId[5]),
+						dr.PrevAggregatorPriority)
+				}
+			}
+			// re-init state machine
+			dr.Stop()
+			dr.a = nil
+		}
+	}
 }

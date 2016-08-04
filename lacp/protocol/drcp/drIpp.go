@@ -25,21 +25,24 @@ package drcp
 
 import (
 	"fmt"
+	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
+	"strings"
+	"sync"
 	"time"
 )
 
 // DRNI - Distributed Resilient Network Interconnect
 
-var DRCPIppDB map[string]*DRCPIpp
+var DRCPIppDB map[IppDbKey]*DRCPIpp
 var DRCPIppDBList []*DRCPIpp
 
-const (
-	MAX_CONVERSATION_IDS = 4096
-)
+type IppDbKey struct {
+	Name   string
+	DrName string
+}
 
 // 802.1ax-2014 7.4.2.1.1
 type DistributedRelayIPP struct {
@@ -64,7 +67,7 @@ type DistributedRelayIPPCounters struct {
 type DistributedRelayIPPDebug struct {
 	InfoId             uint32
 	DRCPRXState        string
-	LastRXTime         time.time
+	LastRXTime         time.Time
 	DifferPortalReason string
 }
 
@@ -96,14 +99,13 @@ type DRCPIntraPortal struct {
 	DRFHomeNetworkIPLIPLNetEncapDigest    Md5Digest
 	DRFHomeNetworkIPLSharingMethod        [4]uint8
 	// defines for state can be found in "github.com/google/gopacket/layers"
-	DRFHomeOperDRCPState                     layers.DRCPState
 	DRFNeighborAdminAggregatorKey            uint16
 	DRFNeighborAggregatorId                  [6]uint8
 	DRFNeighborAggregatorPriority            uint16
 	DRFNeighborConversationGatewayListDigest Md5Digest
-	DRFNeighborConversationPortList          Md5Digest
+	DRFNeighborConversationPortListDigest    Md5Digest
 	DRFNeighborGatewayAlgorithm              [4]uint8
-	DRFNeighborGatewayConversationMask       [MAX_GATEWAY_CONVERSATIONS]bool
+	DRFNeighborGatewayConversationMask       [MAX_CONVERSATION_IDS]bool
 	DRFNeighborGatewaySequence               uint16
 	DRFNeighborNetworkIPLIPLEncapDigest      Md5Digest
 	DRFNeighborNetworkIPLNetEncapDigest      Md5Digest
@@ -119,15 +121,15 @@ type DRCPIntraPortal struct {
 	DRFNeighborPortalSystemNumber            uint8
 	DRFNeighborState                         NeighborStateInfo
 	DRFOtherNeighborAdminAggregatorKey       uint16
-	DRFOtherNeighborGatewayConversationMask  [MAX_GATEWAY_CONVERSATIONS]bool
+	DRFOtherNeighborGatewayConversationMask  [MAX_CONVERSATION_IDS]bool
 	DRFOtherNeighborGatewaySequence          uint16
 	DRFOtherNeighborOperPartnerAggregatorKey uint16
 	DRFOtherNeighborState                    NeighborStateInfo
-	DRFRcvHomeGatewayConversationMask        [MAX_GATEWAY_CONVERSATIONS]bool
-	DRFRcvHomeGatewaySequence                uint16
-	DRFRcvNeighborGatewayConversationMask    [MAX_GATEWAY_CONVERSATIONS]bool
+	DRFRcvHomeGatewayConversationMask        [MAX_CONVERSATION_IDS]bool
+	DRFRcvHomeGatewaySequence                uint32
+	DRFRcvNeighborGatewayConversationMask    [MAX_CONVERSATION_IDS]bool
 	DRFRcvNeighborGatewaySequence            uint16
-	DRFRcvOtherGatewayConversationMask       [MAX_GATEWAY_CONVERSATIONS]bool
+	DRFRcvOtherGatewayConversationMask       [MAX_CONVERSATION_IDS]bool
 	DRFRcvOtherGatewaySequence               uint16
 	DrniNeighborCommonMethods                bool
 	DrniNeighborGatewayConversation          [1024]uint8
@@ -140,8 +142,8 @@ type DRCPIntraPortal struct {
 	DrniNeighborThreeSystemPortal        bool
 	EnabledTimeShared                    bool
 	EnabledEncTagShared                  bool
-	IppOtherGatewayConversation          [MAX_GATEWAY_CONVERSATIONS]uint32
-	IppOtherPortConversationPortalSystem [MAX_GATEWAY_CONVERSATIONS]uint32
+	IppOtherGatewayConversation          [MAX_CONVERSATION_IDS]uint32
+	IppOtherPortConversationPortalSystem [MAX_CONVERSATION_IDS]uint8
 	IppPortEnabled                       bool
 	IppPortalSystemState                 [3]NeighborStateInfo // this is probably wrong
 	MissingRcvGatewayConVector           bool
@@ -154,7 +156,6 @@ type DRCPIntraPortal struct {
 	DRCPEnabled                 bool
 	HomeGatewayVectorTransmit   bool
 	GatewayConversationTransmit bool
-	IppAllGatewayUpdate         bool
 	IppAllUpdate                bool
 	IppGatewayUpdate            bool
 	IppPortUpdate               bool
@@ -165,6 +166,7 @@ type DRCPIntraPortal struct {
 type DRCPIpp struct {
 	DistributedRelayIPP
 	DRCPIntraPortal
+	DistributedRelayIPPCounters
 	DistributedRelayIPPDebug
 
 	// reference to the distributed relay object
@@ -176,29 +178,45 @@ type DRCPIpp struct {
 	// handle used to tx packets to linux if
 	handle *pcap.Handle
 
+	// channel used to wait on response from distributed event send
+	ippEvtResponseChan chan string
+
 	// FSMs
 	RxMachineFsm          *RxMachine
 	PtxMachineFsm         *PtxMachine
 	TxMachineFsm          *TxMachine
 	NetIplShareMachineFsm *NetIplShareMachine
+	IAMachineFsm          *IAMachine
+	IGMachineFsm          *IGMachine
 }
 
 func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 
 	ipp := &DRCPIpp{
-		Name:        PortConfigMap[id].Name,
-		Id:          id,
-		AdminState:  true,
-		dr:          dr,
-		DRCPEnabled: true,
+		DistributedRelayIPP: DistributedRelayIPP{
+			Name:       utils.PortConfigMap[int32(id)].Name,
+			Id:         id,
+			AdminState: true,
+		},
+		DRCPIntraPortal: DRCPIntraPortal{
+			DRCPEnabled: true,
+		},
+		dr:                 dr,
+		ippEvtResponseChan: make(chan string),
 	}
 
-	DRCPIppDB[ipp.Name] = ipp
+	key := IppDbKey{
+		Name:   ipp.Name,
+		DrName: ipp.dr.DrniName,
+	}
+
+	// add port to port db
+	DRCPIppDB[key] = ipp
 	DRCPIppDBList = append(DRCPIppDBList, ipp)
 
 	// check the link status
 	for _, client := range utils.GetAsicDPluginList() {
-		ipp.OperState = client.GetPortLinkStatus(int32(ipp.id))
+		ipp.OperState = client.GetPortLinkStatus(int32(ipp.Id))
 		ipp.IppPortEnabled = ipp.OperState
 	}
 
@@ -206,21 +224,98 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 	if err != nil {
 		// failure here may be ok as this may be SIM
 		if !strings.Contains(ipp.Name, "SIM") {
-			fmt.Println("Error creating pcap OpenLive handle for port", ipp.Id, ipp.Name, err)
+			ipp.LaIppLog(fmt.Sprintf("Error creating pcap OpenLive handle for port", ipp.Id, ipp.Name, err))
 		}
-		return p
+		return ipp
 	}
 	fmt.Println("Creating Listener for intf", ipp.Name)
 	ipp.handle = handle
 	src := gopacket.NewPacketSource(ipp.handle, layers.LayerTypeEthernet)
 	in := src.Packets()
 	// start rx routine
-	DrRxMain(ipp.Id, in)
-	fmt.Println("Rx Main Started for ipp link port", ipp.Id)
+	DrRxMain(uint16(ipp.Id), in)
+	ipp.LaIppLog(fmt.Sprintf("Rx Main Started for ipp link port", ipp.Id))
 
 	// register the tx func
-	//sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, tx.TxViaLinuxIf)
+	DRGlobalSystem.DRSystemGlobalRegisterTxCallback(key, TxViaLinuxIf)
 
+	return ipp
+}
+
+//
+func (p *DRCPIpp) DeleteDRCPIpp() {
+	// stop all state machines
+	p.Stop()
+
+	// cleanup the global tables hosting the port
+	key := IppDbKey{
+		Name:   p.Name,
+		DrName: p.dr.DrniName,
+	}
+	// cleanup the tables
+	if _, ok := DRCPIppDB[key]; ok {
+		delete(DRCPIppDB, key)
+		for i, delipp := range DRCPIppDBList {
+			if delipp == p {
+				DRCPIppDBList = append(DRCPIppDBList[:i], DRCPIppDBList[i+1:]...)
+			}
+		}
+	}
+}
+
+// Stop the port services and state machines
+func (p *DRCPIpp) Stop() {
+
+	key := IppDbKey{
+		Name:   p.Name,
+		DrName: p.dr.DrniName,
+	}
+	// De-register the tx function
+	DRGlobalSystem.DRSystemGlobalDeRegisterTxCallback(key)
+
+	// close rx/tx processing
+	if p.handle != nil {
+		p.handle.Close()
+		p.LaIppLog(fmt.Sprintf("RX/TX handle closed for port", p.Id))
+
+	}
+
+	// Stop the State Machines
+
+	// Ptxm
+	if p.PtxMachineFsm != nil {
+		p.PtxMachineFsm.Stop()
+		p.PtxMachineFsm = nil
+	}
+	// Rxm
+	if p.RxMachineFsm != nil {
+		p.RxMachineFsm.Stop()
+		p.RxMachineFsm = nil
+	}
+	// Txm
+	if p.TxMachineFsm != nil {
+		p.TxMachineFsm.Stop()
+		p.TxMachineFsm = nil
+	}
+	// NetIplShare
+	if p.NetIplShareMachineFsm != nil {
+		p.NetIplShareMachineFsm.Stop()
+		p.NetIplShareMachineFsm = nil
+	}
+	// IAm
+	if p.IAMachineFsm != nil {
+		p.IAMachineFsm.Stop()
+		p.IAMachineFsm = nil
+	}
+	// IGm
+	if p.IGMachineFsm != nil {
+		p.IGMachineFsm.Stop()
+		p.IGMachineFsm = nil
+	}
+	// lets wait for all the State machines to have stopped
+	p.wg.Wait()
+
+	close(p.ippEvtResponseChan)
 }
 
 // BEGIN this will send the start event to the start the state machines
@@ -243,20 +338,17 @@ func (p *DRCPIpp) BEGIN(restart bool) {
 		// will send event to Mux machine
 		// thus machine must be up and
 		// running first
-		// Mux Machine
-		//p.LacpMuxMachineMain()
 		// Periodic Tx Machine
-		//p.LacpPtxMachineMain()
-		// Churn Detection Machine
-		//p.LacpActorCdMachineMain()
-		// Partner Churn Detection Machine
-		//p.LacpPartnerCdMachineMain()
-		// Rx Machine
-		//p.LacpRxMachineMain()
+		p.DrcpPtxMachineMain()
+		// Net/IPL Sharing Machine
+		p.NetIplShareMachineMain()
+		// IPP Aggregator machine
+		p.DrcpIAMachineMain()
+		// IPP Gateway Machine
+		p.DrcpIGMachineMain()
 		// Tx Machine
-		//p.LacpTxMachineMain()
-		// Marker Responder
-		//p.LampMarkerResponderMain()
+		p.TxMachineMain()
+		// Rx Machine
 		p.DrcpRxMachineMain()
 	}
 
@@ -267,10 +359,11 @@ func (p *DRCPIpp) BEGIN(restart bool) {
 	// create the wg as part of a BEGIN process
 	// 1) Rx Machine
 	// 2) Tx Machine
-	// 3) Mux Machine
-	// 4) Periodic Tx Machine
-	// 5) Churn Detection Machine * 2
-	// 6) Marker Responder
+	// 3) Periodic Tx Machine
+	// 4) Net/IPL Sharing Machine
+	// 5) IPP Aggregator Machine
+	// 6) IPP Gateway Machine
+
 	// Rxm
 	if p.RxMachineFsm != nil {
 		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
@@ -278,90 +371,55 @@ func (p *DRCPIpp) BEGIN(restart bool) {
 			E:   RxmEventBegin,
 			Src: DRCPConfigModuleStr})
 	}
-	/*
-		if p.RxMachineFsm != nil {
-			mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
-			evt = append(evt, utils.MachineEvent{
-				E:   LacpRxmEventBegin,
-				Src: PortConfigModuleStr})
-			if !restart || !prevBegin {
-				p.wg.Add(1)
-			}
-		}
+	// Txm
+	if p.TxMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
+		evt = append(evt, utils.MachineEvent{
+			E:   TxmEventBegin,
+			Src: DRCPConfigModuleStr})
+	}
+	// Ptxm
+	if p.PtxMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
+		evt = append(evt, utils.MachineEvent{
+			E:   PtxmEventBegin,
+			Src: DRCPConfigModuleStr})
+	}
+	// NetIplShare
+	if p.NetIplShareMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.NetIplShareMachineFsm.NetIplSharemEvents)
+		evt = append(evt, utils.MachineEvent{
+			E:   NetIplSharemEventBegin,
+			Src: DRCPConfigModuleStr})
+	}
+	// IAm
+	if p.IAMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.IAMachineFsm.IAmEvents)
+		evt = append(evt, utils.MachineEvent{
+			E:   IAmEventBegin,
+			Src: DRCPConfigModuleStr})
+	}
+	// IGm
+	if p.IGMachineFsm != nil {
+		mEvtChan = append(mEvtChan, p.IGMachineFsm.IGmEvents)
+		evt = append(evt, utils.MachineEvent{
+			E:   IGmEventBegin,
+			Src: DRCPConfigModuleStr})
+	}
 
-		// Ptxm
-		if p.PtxMachineFsm != nil {
-			mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
-			evt = append(evt, utils.MachineEvent{
-				E:   LacpPtxmEventBegin,
-				Src: PortConfigModuleStr})
-			if !restart || !prevBegin {
-				p.wg.Add(1)
-			}
-		}
-		// Cdm
-		if p.CdMachineFsm != nil {
-			mEvtChan = append(mEvtChan, p.CdMachineFsm.CdmEvents)
-			evt = append(evt, utils.MachineEvent{
-				E:   LacpCdmEventBegin,
-				Src: PortConfigModuleStr})
-			if !restart || !prevBegin {
-				p.wg.Add(1)
-			}
-		}
-		// Cdm
-		if p.PCdMachineFsm != nil {
-			mEvtChan = append(mEvtChan, p.PCdMachineFsm.CdmEvents)
-			evt = append(evt, utils.MachineEvent{
-				E:   LacpCdmEventBegin,
-				Src: PortConfigModuleStr})
-			if !restart || !prevBegin {
-				p.wg.Add(1)
-			}
-		}
-		// Muxm
-		if p.MuxMachineFsm != nil {
-			mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-			evt = append(evt, utils.MachineEvent{
-				E:   LacpMuxmEventBegin,
-				Src: PortConfigModuleStr})
-			if !restart || !prevBegin {
-				p.wg.Add(1)
-			}
-		}
-		// Txm
-		if p.TxMachineFsm != nil {
-			mEvtChan = append(mEvtChan, p.TxMachineFsm.TxmEvents)
-			evt = append(evt, utils.MachineEvent{
-				E:   LacpTxmEventBegin,
-				Src: PortConfigModuleStr})
-			if !restart || !prevBegin {
-				p.wg.Add(1)
-			}
-		}
-		// Marker Responder
-		if p.MarkerResponderFsm != nil {
-			mEvtChan = append(mEvtChan, p.MarkerResponderFsm.LampMarkerResponderEvents)
-			evt = append(evt, utils.MachineEvent{
-				E:   LampMarkerResponderEventBegin,
-				Src: PortConfigModuleStr})
-			if !restart || !prevBegin {
-				p.wg.Add(1)
-			}
-		}
-		// call the begin event for each
-		// distribute the port disable event to various machines
-		p.DistributeMachineEvents(mEvtChan, evt, true)
-	*/
+	// call the begin event for each
+	// distribute the port disable event to various machines
+	p.DistributeMachineEvents(mEvtChan, evt, true)
+
 }
 
 // DistributeMachineEvents will distribute the events in parrallel
 // to each machine
-func (dr *DRCPIpp) DistributeMachineEvents(mec []chan utils.MachineEvent, e []utils.MachineEvent, waitForResponse bool) {
+func (p *DRCPIpp) DistributeMachineEvents(mec []chan utils.MachineEvent, e []utils.MachineEvent, waitForResponse bool) {
 
 	length := len(mec)
 	if len(mec) != len(e) {
-		dr.LaDrLog("LADR: Distributing of events failed")
+		p.LaIppLog("LADR: Distributing of events failed")
 		return
 	}
 
@@ -369,7 +427,7 @@ func (dr *DRCPIpp) DistributeMachineEvents(mec []chan utils.MachineEvent, e []ut
 	for j := 0; j < length; j++ {
 		go func(port *DRCPIpp, w bool, idx int, machineEventChannel []chan utils.MachineEvent, event []utils.MachineEvent) {
 			if w {
-				event[idx].ResponseChan = p.portChan
+				event[idx].ResponseChan = p.ippEvtResponseChan
 			}
 			event[idx].Src = DRCPConfigModuleStr
 			machineEventChannel[idx] <- event[idx]
@@ -381,9 +439,9 @@ func (dr *DRCPIpp) DistributeMachineEvents(mec []chan utils.MachineEvent, e []ut
 		// lets wait for all the machines to respond
 		for {
 			select {
-			case mStr := <-dr.drEvtResponseChan:
+			case mStr := <-p.ippEvtResponseChan:
 				i++
-				dr.LaDrLog(strings.Join([]string{"LADR:", mStr, "response received"}, " "))
+				p.LaIppLog(strings.Join([]string{"LADRIPP:", mStr, "response received"}, " "))
 				//fmt.Println("LAPORT: Waiting for response Delayed", length, "curr", i, time.Now())
 				if i >= length {
 					// 10/24/15 fixed hack by sending response after Machine.ProcessEvent
@@ -404,52 +462,30 @@ func (dr *DRCPIpp) DistributeMachineEvents(mec []chan utils.MachineEvent, e []ut
 	}
 }
 
+// NotifyNTTDRCPUDChange
+func (p *DRCPIpp) NotifyNTTDRCPUDChange(src string, oldval, newval bool) {
+	if oldval != newval &&
+		newval {
+		p.TxMachineFsm.TxmEvents <- utils.MachineEvent{
+			E:   TxmEventNtt,
+			Src: src,
+		}
+	}
+}
+
 // ReportToManagement send events for various reason to infor management of something
 // is wrong.
-func (p *DRCPIpp) ReportToManagement() {
+func (p *DRCPIpp) reportToManagement() {
 
-	p.Logger.Info(fmt.Sprintln("Report Failure to Management: %s", p.DifferPortalReason))
+	p.LaIppLog(fmt.Sprintln("Report Failure to Management: %s", p.DifferPortalReason))
 	// TODO send event
 }
 
-// updateNeighborVector will update the vector, indexed by the received
-// Home_Gateway_Sequence in increasing sequence number order
-func (n NeighborStateInfo) updateNeighborVector(sequence uint32, vector []bool) {
-
-	if len(p.DRFNeighborState.GatewayVector) > 0 {
-		for i, seqVector := range n.GatewayVector {
-			if seqVector.Sequence == sequence {
-				// overwrite the sequence
-				n.GatewayVector[i] = NeighborGatewayVector{
-					Sequence: sequence,
-					Vector:   vector,
-				}
-			} else if seqVector.Sequence > sequence {
-				// insert sequence/vecotor before between i and i -1
-				n.GatewayVector = append(n.GatewayVector, NeighborGatewayVector{})
-				copy(n.GatewayVector[i:], n.GatewayVector[i+1:])
-				n.GatewayVector[i-1] = NeighborGatewayVector{
-					Sequence: sequence,
-					Vector:   vector,
-				}
-			}
-		}
-	} else {
-		n.GatewayVector = append(n.GatewayVector, NeighborGatewayVector{
-			Sequence: sequence,
-			Vector:   vector})
+// DRFindPortByKey find ipp port by key
+func DRFindPortByKey(key IppDbKey, p **DRCPIpp) bool {
+	if ipp, ok := DRCPIppDB[key]; ok {
+		*p = ipp
+		return true
 	}
-}
-
-// getNeighborVectorGatwaySequenceIndex get the index for the entry whos
-// sequence number is equal.
-func (n NeighborStateInfo) getNeighborVectorGatwaySequenceIndex(sequence uint32, vector []bool) int32 {
-	if len(n.GatewayVector) > 0 {
-		for i, seqVector := range n.GatewayVector {
-			if seqVector.Sequence == sequence {
-				return i
-			}
-		}
-	}
-	return -1
+	return false
 }

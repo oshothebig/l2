@@ -27,8 +27,10 @@ package drcp
 import (
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
-	"sort"
+	"strconv"
+	"strings"
 	"time"
+	"utils/fsm"
 )
 
 const PtxMachineModuleStr = "DRCP PTX Machine"
@@ -96,12 +98,12 @@ func (ptxm *PtxMachine) Stop() {
 
 }
 
-// NewDrcpPTxMachine will create a new instance of the LacpRxMachine
+// NewDrcpPTxMachine will create a new instance of the PtxMachine
 func NewDrcpPTxMachine(port *DRCPIpp) *PtxMachine {
 	ptxm := &PtxMachine{
 		p:             port,
 		PreviousState: PtxmStateNone,
-		RxmEvents:     make(chan MachineEvent, 10),
+		PtxmEvents:    make(chan utils.MachineEvent, 10),
 	}
 
 	port.PtxMachineFsm = ptxm
@@ -135,7 +137,7 @@ func (ptxm *PtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // DrcpPtxMachineNoPeriodic function to be called after
 // State transition to NO_PERIODIC
 func (ptxm *PtxMachine) DrcpPtxMachineNoPeriodic(m fsm.Machine, data interface{}) fsm.State {
-	prxm.PeriodicTimerStop()
+	ptxm.PeriodicTimerStop()
 	// next State
 	return PtxmStateNoPeriodic
 }
@@ -143,8 +145,8 @@ func (ptxm *PtxMachine) DrcpPtxMachineNoPeriodic(m fsm.Machine, data interface{}
 // DrcpPtxMachineFastPeriodic function to be called after
 // State transition to FAST_PERIODIC
 func (ptxm *PtxMachine) DrcpPtxMachineFastPeriodic(m fsm.Machine, data interface{}) fsm.State {
-	prxm.PeriodicTimerIntervalSet(DrniFastPeriodicTime)
-	prxm.PeriodicTimerStart()
+	ptxm.PeriodicTimerIntervalSet(DrniFastPeriodicTime)
+	ptxm.PeriodicTimerStart()
 	// next State
 	return PtxmStateFastPeriodic
 }
@@ -152,8 +154,8 @@ func (ptxm *PtxMachine) DrcpPtxMachineFastPeriodic(m fsm.Machine, data interface
 // DrcpPtxMachineSlowPeriodic function to be called after
 // State transition to SLOW_PERIODIC
 func (ptxm *PtxMachine) DrcpPtxMachineSlowPeriodic(m fsm.Machine, data interface{}) fsm.State {
-	prxm.PeriodicTimerIntervalSet(DrniSlowPeriodictime)
-	prxm.PeriodicTimerStart()
+	ptxm.PeriodicTimerIntervalSet(DrniSlowPeriodictime)
+	ptxm.PeriodicTimerStart()
 	// next State
 	return PtxmStateSlowPeriodic
 }
@@ -164,7 +166,7 @@ func (ptxm *PtxMachine) DrcpPtxMachinePeriodicTx(m fsm.Machine, data interface{}
 
 	p := ptxm.p
 
-	defer ptxm.NotifyNTTDRCPUDChange(p.NTTDRCPDU, true)
+	defer p.NotifyNTTDRCPUDChange(PtxMachineModuleStr, p.NTTDRCPDU, true)
 	p.NTTDRCPDU = true
 
 	// next State
@@ -215,9 +217,9 @@ func DrcpPtxMachineFSMBuild(p *DRCPIpp) *PtxMachine {
 	rules.AddRule(PtxmStateFastPeriodic, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout, ptxm.DrcpPtxMachineSlowPeriodic)
 
 	// Create a new FSM and apply the rules
-	rxm.Apply(&rules)
+	ptxm.Apply(&rules)
 
-	return rxm
+	return ptxm
 }
 
 // DrcpPtxMachineMain:  802.1ax-2014 Figure 9-24
@@ -245,7 +247,7 @@ func (p *DRCPIpp) DrcpPtxMachineMain() {
 				m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRCPPeriodicTimerExpired, nil)
 
 				if m.Machine.Curr.CurrentState() == PtxmStatePeriodicTx {
-					if p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) == layers.DRCPLongTimeout {
+					if !p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) {
 						m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout, nil)
 					} else {
 						m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualShortTimeout, nil)
@@ -254,7 +256,7 @@ func (p *DRCPIpp) DrcpPtxMachineMain() {
 
 			case event, ok := <-m.PtxmEvents:
 				if ok {
-					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 					if rv == nil {
 						p := m.p
 						/* continue State transition */
@@ -264,17 +266,17 @@ func (p *DRCPIpp) DrcpPtxMachineMain() {
 						// post processing
 						if rv == nil {
 							if m.Machine.Curr.CurrentState() == PtxmStateFastPeriodic &&
-								p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) == layers.DRCPLongTimeout {
+								!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) {
 								rv = m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout, nil)
 							}
 							if rv == nil &&
 								m.Machine.Curr.CurrentState() == PtxmStateSlowPeriodic &&
-								p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) == layers.DRCPShortTimeout {
+								p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) {
 								rv = m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualShortTimeout, nil)
 							}
 							if rv == nil &&
 								m.Machine.Curr.CurrentState() == PtxmStatePeriodicTx {
-								if p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) == layers.DRCPLongTimeout {
+								if !p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) {
 									rv = m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout, nil)
 								} else {
 									rv = m.Machine.ProcessEvent(PtxMachineModuleStr, PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualShortTimeout, nil)
@@ -284,7 +286,7 @@ func (p *DRCPIpp) DrcpPtxMachineMain() {
 					}
 
 					if rv != nil {
-						m.DrcpPtxmLog(strings.Join([]string{error.Error(rv), event.src, PtxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+						m.DrcpPtxmLog(strings.Join([]string{error.Error(rv), event.Src, PtxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
 				}
 
@@ -299,13 +301,4 @@ func (p *DRCPIpp) DrcpPtxMachineMain() {
 			}
 		}
 	}(ptxm)
-}
-
-// NotifyNTTDRCPUDChange
-func (ptxm PtxMachine) NotifyNTTDRCPUDChange(oldval, newval bool) {
-	p := ptxm.p
-	if oldval != newval &&
-		p.NTTDRCPDU {
-		// TODO send event to other state machine
-	}
 }

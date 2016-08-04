@@ -43,7 +43,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	var portchan chan string
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{
@@ -320,7 +320,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 
 	// lets adjust the ActorOper timeout State
 	// TODO Assume a method was called to adjust this
-	LacpStateSet(&p.actorAdmin.State, LacpStateTimeoutBit)
+	LacpStateSet(&p.ActorAdmin.State, LacpStateTimeoutBit)
 	LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
 
 	//slow := &layers.SlowProtocol{
@@ -342,7 +342,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
 			Length: layers.LACPPartnerTlvLength,
 			Info: layers.LACPPortInfo{
-				System: layers.LACPSystem{SystemId: p.ActorOper.System.actor_System,
+				System: layers.LACPSystem{SystemId: p.ActorOper.System.Actor_System,
 					SystemPriority: p.ActorOper.System.Actor_System_priority},
 				Key:     p.Key,
 				PortPri: p.portPriority,
@@ -417,7 +417,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
 			Length: layers.LACPPartnerTlvLength,
 			Info: layers.LACPPortInfo{
-				System: layers.LACPSystem{SystemId: p.ActorOper.System.actor_System,
+				System: layers.LACPSystem{SystemId: p.ActorOper.System.Actor_System,
 					SystemPriority: p.ActorOper.System.Actor_System_priority},
 				Key:     p.Key,
 				PortPri: p.portPriority,
@@ -464,7 +464,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		Partner: layers.LACPInfoTlv{TlvType: layers.LACPTLVPartnerInfo,
 			Length: layers.LACPPartnerTlvLength,
 			Info: layers.LACPPortInfo{
-				System: layers.LACPSystem{SystemId: p.ActorOper.System.actor_System,
+				System: layers.LACPSystem{SystemId: p.ActorOper.System.Actor_System,
 					SystemPriority: p.ActorOper.System.Actor_System_priority},
 				Key:     p.Key,
 				PortPri: p.portPriority,
@@ -514,7 +514,7 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 	// must be called to initialize the global
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
-		actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
+		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
 	LacpSysGlobalInfoInit(sysId)
 
 	pconf := &LaAggPortConfig{

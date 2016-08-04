@@ -20,18 +20,21 @@
 // |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
-// 802.1ax-2014 Section 9.4.15 DRCPDU Periodic Transmission machine
+// 802.1ax-2014 Section 9.4.17 DRNI Gateway and Aggregator machines
 // rxmachine.go
 package drcp
 
 import (
-	"github.com/google/gopacket/layers"
+	"utils/fsm"
+	//"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
-	"sort"
-	"time"
+	//"sort"
+	//"time"
+	"strconv"
+	"strings"
 )
 
-const GMachineModuleStr = "DRNI Aggregator Machine"
+const AMachineModuleStr = "DRNI Aggregator Machine"
 
 // drxm States
 const (
@@ -89,7 +92,7 @@ func NewDrcpAMachine(dr *DistributedRelay) *AMachine {
 	am := &AMachine{
 		dr:            dr,
 		PreviousState: AmStateNone,
-		AmEvents:      make(chan MachineEvent, 10),
+		AmEvents:      make(chan utils.MachineEvent, 10),
 	}
 
 	dr.AMachineFsm = am
@@ -128,7 +131,7 @@ func (am *AMachine) DrcpAMachineDRNIPortInitialize(m fsm.Machine, data interface
 
 // DrcpAMachineDRNIPortUpdate function to be called after
 // State transition to DRNI_PORT_UPDATE
-func (am *AMachine) DrcpGMachineDRNIPortUpdate(m fsm.Machine, data interface{}) fsm.State {
+func (am *AMachine) DrcpAMachineDRNIPortUpdate(m fsm.Machine, data interface{}) fsm.State {
 	dr := am.dr
 
 	dr.PortConversationUpdate = false
@@ -149,7 +152,7 @@ func (am *AMachine) DrcpAMachinePSPortUpdate(m fsm.Machine, data interface{}) fs
 	return AmStateDRNIPortUpdate
 }
 
-func DrcpAMachineFSMBuild(p *DRCPIpp) *AMachine {
+func DrcpAMachineFSMBuild(dr *DistributedRelay) *AMachine {
 
 	AMachineStrStateMapCreate()
 
@@ -158,7 +161,7 @@ func DrcpAMachineFSMBuild(p *DRCPIpp) *AMachine {
 	// Instantiate a new AMachine
 	// Initial State will be a psuedo State known as "begin" so that
 	// we can transition to the initalize State
-	gm := NewDrcpAMachine(p)
+	am := NewDrcpAMachine(dr)
 
 	//BEGIN -> DRNI PORT INITIALIZE
 	rules.AddRule(AmStateNone, AmEventBegin, am.DrcpAMachineDRNIPortInitialize)
@@ -174,20 +177,20 @@ func DrcpAMachineFSMBuild(p *DRCPIpp) *AMachine {
 	rules.AddRule(AmStateDRNIPortUpdate, AmEventNotIppAllPortUpdate, am.DrcpAMachinePSPortUpdate)
 
 	// Create a new FSM and apply the rules
-	rxm.Apply(&rules)
+	am.Apply(&rules)
 
-	return rxm
+	return am
 }
 
 // DrcpAMachineMain:  802.1ax-2014 Figure 9-26
 // Creation of DRNI Aggregator State Machine state transitions and callbacks
 // and create go routine to pend on events
-func (p *DRCPIpp) DrcpAMachineMain() {
+func (dr *DistributedRelay) DrcpAMachineMain() {
 
 	// Build the State machine for  DRNI Aggregator Machine according to
 	// 802.1ax-2014 Section 9.4.17 DRNI Gateway and Aggregator machines
-	am := DrcpAMachineFSMBuild(p)
-	p.wg.Add(1)
+	am := DrcpAMachineFSMBuild(dr)
+	dr.wg.Add(1)
 
 	// set the inital State
 	am.Machine.Start(am.PrevState())
@@ -196,12 +199,12 @@ func (p *DRCPIpp) DrcpAMachineMain() {
 	// that the AMachine should handle.
 	go func(m *AMachine) {
 		m.DrcpAmLog("Machine Start")
-		defer m.p.wg.Done()
+		defer m.dr.wg.Done()
 		for {
 			select {
 			case event, ok := <-m.AmEvents:
 				if ok {
-					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 					dr := m.dr
 					// post state processing
 					if rv == nil &&
@@ -210,12 +213,12 @@ func (p *DRCPIpp) DrcpAMachineMain() {
 					}
 					if rv == nil &&
 						m.Machine.Curr.CurrentState() == AmStateDRNIPortUpdate &&
-						!dr.IppAllPortUpdateCheck() {
+						!m.IppAllPortUpdateCheck() {
 						rv = m.Machine.ProcessEvent(AMachineModuleStr, AmEventNotIppAllPortUpdate, nil)
 					}
 
 					if rv != nil {
-						m.DrcpAmLog(strings.Join([]string{error.Error(rv), event.src, AmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.e))}, ":"))
+						m.DrcpAmLog(strings.Join([]string{error.Error(rv), event.Src, AmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
 				}
 
@@ -224,7 +227,7 @@ func (p *DRCPIpp) DrcpAMachineMain() {
 					utils.SendResponse(AMachineModuleStr, event.ResponseChan)
 				}
 				if !ok {
-					m.DrcpGmLog("Machine End")
+					m.DrcpAmLog("Machine End")
 					return
 				}
 			}
@@ -254,7 +257,7 @@ func (am *AMachine) IppAllPortUpdateCheck() bool {
 func (am *AMachine) initializeDRNIPortConversation() {
 	dr := am.dr
 
-	for i := 0; i < MAX_GATEWAY_CONVERSATION; i++ {
+	for i := 0; i < MAX_CONVERSATION_IDS; i++ {
 		dr.DrniPortalSystemPortConversation[i] = false
 	}
 }
@@ -267,7 +270,7 @@ func (am *AMachine) updatePortalState() {
 // setIPPPortUpdate This function sets the IppPortUpdate on every IPP on this Portal System to TRUE.
 func (am *AMachine) setIPPPortUpdate() {
 	dr := am.dr
-	for _, ipplink := range dr.DrniIntraPortalLinkList {
+	for _, ippid := range dr.DrniIntraPortalLinkList {
 		for _, ipp := range DRCPIppDBList {
 			if ipp.Id == ippid {
 				ipp.IppPortUpdate = true
@@ -279,14 +282,15 @@ func (am *AMachine) setIPPPortUpdate() {
 // setPortConversation This function sets Drni_Port_Conversation to the values computed from
 // Conversation_PortList[] and the current Drni_Portal_System_State[] as follows
 func (am *AMachine) setPortConversation() {
-	dr := am.dr
-	for i := 0; i < 4096; i++ {
+	//dr := am.dr
+	for i := 0; i < MAX_CONVERSATION_IDS; i++ {
 		// TODO
 		// For every indexed Gateway Conversation ID, a Portal System Number is identified by
 		// choosing the highest priority Portal System Number in the list of Portal System Numbers
 		// provided by aDrniConvAdminGateway[] when only the Portal Systems having that Gateway
 		// Conversation ID enabled in the Gateway Vectors of the Drni_Portal_System_State[] variable,
 		// are included.
+
 	}
 }
 

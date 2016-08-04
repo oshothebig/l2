@@ -27,6 +27,7 @@ package utils
 import (
 	"asicd/asicdCommonDefs"
 	"fmt"
+	"models/objects"
 	"net"
 	"utils/dbutils"
 )
@@ -85,16 +86,16 @@ func ConstructPortConfigMap() {
 	dbHdl := dbutils.NewDBUtil(GetLaLogger())
 	err := dbHdl.Connect()
 	if err != nil {
-		GlobalLogger.Info("Failed to open connection to read Port Info from the DB with error %s", err)
-		return err
+		GlobalLogger.Info(fmt.Sprintf("Failed to open connection to read Port Info from the DB with error %s", err))
+		return
 	}
 	defer dbHdl.Disconnect()
 
 	var dbObj objects.Port
 	objList, err := dbObj.GetAllObjFromDb(dbHdl)
 	if err != nil {
-		fmt.Println("DB Query failed when retrieving Port objects")
-		return err
+		fmt.Println(fmt.Sprintf("DB Query failed when retrieving Port objects", err))
+		return
 	}
 	for idx := 0; idx < len(objList); idx++ {
 		dbObject := objList[idx].(objects.Port)
