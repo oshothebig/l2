@@ -296,6 +296,13 @@ func (gblInfo *LLDPGlobalInfo) GetEnabledCap() string {
 	return strings.TrimSuffix(retVal, ", ")
 }
 
+/*  Get Peer Host Name information
+ *
+ */
+func (gblInfo *LLDPGlobalInfo) GetPeerHostName() string {
+	return gblInfo.RxInfo.RxLinkInfo.SysName
+}
+
 /*  dump received lldp frame and other TX information
  */
 func (gblInfo LLDPGlobalInfo) DumpFrame() {

@@ -146,7 +146,8 @@ func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(state config.Intf
 	entry := lldpd.NewLLDPIntfState()
 	entry.LocalPort = state.LocalPort
 	entry.PeerMac = state.PeerMac
-	entry.Port = state.Port
+	entry.PeerPort = state.PeerPort
+	entry.PeerHostName = state.PeerHostName
 	entry.HoldTime = state.HoldTime
 	entry.Enable = state.Enable
 	entry.IfIndex = state.IfIndex
