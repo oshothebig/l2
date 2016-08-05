@@ -44,13 +44,14 @@ func (svr *LLDPServer) PopulateTLV(ifIndex int32, entry *config.IntfState) bool 
 	entry.LocalPort = gblInfo.Port.Name
 	if gblInfo.RxInfo.RxFrame != nil {
 		entry.PeerMac = gblInfo.GetChassisIdInfo()
-		entry.Port = gblInfo.GetPortIdInfo()
+		entry.PeerPort = gblInfo.GetPortIdInfo()
 		entry.HoldTime = strconv.Itoa(int(gblInfo.RxInfo.RxFrame.TTL))
 	}
 
 	if gblInfo.RxInfo.RxLinkInfo != nil {
 		entry.SystemCapabilities = gblInfo.GetSystemCap()
 		entry.EnabledCapabilities = gblInfo.GetEnabledCap()
+		entry.PeerHostName = gblInfo.GetPeerHostName()
 	}
 
 	entry.IfIndex = gblInfo.Port.IfIndex
