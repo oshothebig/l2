@@ -51,7 +51,8 @@ type IntfState struct {
 	Enable              bool
 	LocalPort           string
 	PeerMac             string
-	Port                string
+	PeerPort            string
+	PeerHostName        string
 	HoldTime            string
 	SystemCapabilities  string
 	EnabledCapabilities string
