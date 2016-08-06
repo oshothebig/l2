@@ -907,13 +907,19 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 	if !portAlgorithmEqual {
 		p.DifferPortalReason += "Port Algorithm, "
 	}
-	if !conversationPortListDigestEqual {
-		//fmt.Println("PortListDigest:", p.DRFNeighborConversationPortListDigest, dr.DRFHomeConversationPortListDigest)
-		p.DifferPortalReason += "Converstaion Port List Digest, "
-	}
-	if !conversationGatewayListDigestEqual {
-		//fmt.Println("GatewayListDigest:", p.DRFNeighborConversationGatewayListDigest, dr.DRFHomeConversationGatewayListDigest)
-		p.DifferPortalReason += "Conversation Gateway List Digest, "
+
+	// Sharing by time would mean according to Annex G:
+	// There is no agreement on symmetric Port Conversation IDs across the DRNI
+	// So, lets ignore the check in this case
+	if dr.DrniEncapMethod != ENCAP_METHOD_SHARING_BY_TIME {
+		if !conversationPortListDigestEqual {
+			//fmt.Println("PortListDigest:", p.DRFNeighborConversationPortListDigest, dr.DRFHomeConversationPortListDigest)
+			p.DifferPortalReason += "Converstaion Port List Digest, "
+		}
+		if !conversationGatewayListDigestEqual {
+			//fmt.Println("GatewayListDigest:", p.DRFNeighborConversationGatewayListDigest, dr.DRFHomeConversationGatewayListDigest)
+			p.DifferPortalReason += "Conversation Gateway List Digest, "
+		}
 	}
 }
 

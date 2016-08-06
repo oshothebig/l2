@@ -52,6 +52,13 @@ var GATEWAY_ALGORITHM_ISID GatewayAlgorithm = GatewayAlgorithm{0x00, 0x80, 0xC2,
 var GATEWAY_ALGORITHM_TE_SID GatewayAlgorithm = GatewayAlgorithm{0x00, 0x80, 0xC2, 0x04}
 var GATEWAY_ALGORITHM_ECMP_FLOW_HASH GatewayAlgorithm = GatewayAlgorithm{0x00, 0x80, 0xC2, 0x05}
 
+var ENCAP_METHOD_SEPARATE_LINKS [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x00}
+var ENCAP_METHOD_SHARING_BY_TIME [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x01}
+var ENCAP_METHOD_SHARING_BY_TAG [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x02}
+var ENCAP_METHOD_SHARING_BY_ITAG [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x03}
+var ENCAP_METHOD_SHARING_BY_BTAG [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x04}
+var ENCAP_METHOD_SHARING_BY_PSEUDOWIRE [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x05}
+
 type GatewayAlgorithm [4]uint8
 type EncapMethod [4]uint8
 type Md5Digest [16]uint8

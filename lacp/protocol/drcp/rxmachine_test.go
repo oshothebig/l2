@@ -267,8 +267,8 @@ func TestRxMachineRxValidDRCPDUNeighborPkt(t *testing.T) {
 	// create packet which will be sent for this test
 	drcp := OnlyForRxMachineCreateValidDRCPPacket()
 
-	dr.DRFHomeConversationPortListDigest = drcp.PortalConfigInfo.PortDigest
-	dr.DRFHomeConversationGatewayListDigest = drcp.PortalConfigInfo.GatewayDigest
+	//dr.DRFHomeConversationPortListDigest = drcp.PortalConfigInfo.PortDigest
+	//dr.DRFHomeConversationGatewayListDigest = drcp.PortalConfigInfo.GatewayDigest
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
