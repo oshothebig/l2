@@ -199,6 +199,7 @@ func AttachAggregatorToDistributedRelay(aggId int) {
 				dr.BEGIN(false)
 				// start the IPP links
 				for _, ipp := range dr.Ipplinks {
+					ipp.DRCPEnabled = true
 					ipp.BEGIN(false)
 				}
 			}
@@ -212,7 +213,6 @@ func DetachAggregatorFromDistributedRelay(aggId int) {
 			dr.a != nil {
 			var a *lacp.LaAggregator
 			if lacp.LaFindAggById(aggId, &a) {
-				dr.a = a
 
 				// lets update the aggregator parameters
 				// configured ports

@@ -25,6 +25,7 @@
 package drcp
 
 import (
+	//"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"sort"
@@ -147,7 +148,7 @@ func (rxm *RxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	rxm.Machine.Rules = r
 	rxm.Machine.Curr = &utils.StateEvent{
 		StrStateMap: RxmStateStrMap,
-		LogEna:      false,
+		LogEna:      true,
 		Logger:      rxm.DrcpRxmLog,
 		Owner:       RxMachineModuleStr,
 	}
@@ -298,7 +299,10 @@ func DrcpRxMachineFSMBuild(p *DRCPIpp) *RxMachine {
 	rules.AddRule(RxmStateCurrent, RxmEventDRCPDURx, rxm.DrcpRxMachinePortalCheck)
 	rules.AddRule(RxmStateDefaulted, RxmEventDRCPDURx, rxm.DrcpRxMachinePortalCheck)
 
-	// NOT DIFFER PORTAL -> DISCARD
+	// NOT DIFFER PORTAL -> COMPATIBILITY CHECK
+	rules.AddRule(RxmStatePortalCheck, RxmEventNotDifferPortal, rxm.DrcpRxMachineCompatibilityCheck)
+
+	// DIFFER PORTAL -> DISCARD
 	rules.AddRule(RxmStatePortalCheck, RxmEventDifferPortal, rxm.DrcpRxMachineDiscard)
 
 	// NOT DIFFER CONF PORTAL -> CURRENT
@@ -352,7 +356,7 @@ func (p *DRCPIpp) DrcpRxMachineMain() {
 					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 					if rv == nil {
 						/* continue State transition */
-						m.processPostStates()
+						m.processPostStates(nil)
 					}
 
 					if rv != nil {
@@ -370,7 +374,11 @@ func (p *DRCPIpp) DrcpRxMachineMain() {
 				}
 			case rx, ok := <-m.RxmPktRxEvent:
 				if ok {
-					m.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDRCPDURx, rx.pdu)
+					rv := m.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDRCPDURx, rx.pdu)
+					if rv == nil {
+						/* continue State transition */
+						m.processPostStates(rx.pdu)
+					}
 
 					// respond to caller if necessary so that we don't have a deadlock
 					if rx.responseChan != nil {
@@ -405,11 +413,11 @@ func (rxm *RxMachine) NotifyDRCPStateTimeoutChange(oldval, newval bool) {
 
 // processPostStates will check local params to see if any conditions
 // are met in order to transition to next state
-func (rxm *RxMachine) processPostStates() {
+func (rxm *RxMachine) processPostStates(drcpPduInfo *layers.DRCP) {
 	rxm.processPostStateInitialize()
 	rxm.processPostStateExpired()
-	rxm.processPostStatePortalCheck()
-	rxm.processPostStateCompatibilityCheck()
+	rxm.processPostStatePortalCheck(drcpPduInfo)
+	rxm.processPostStateCompatibilityCheck(drcpPduInfo)
 	rxm.processPostStateDiscard()
 	rxm.processPostStateCurrent()
 	rxm.processPostStateDefaulted()
@@ -425,7 +433,7 @@ func (rxm *RxMachine) processPostStateInitialize() {
 		if rv != nil {
 			rxm.DrcpRxmLog(strings.Join([]string{error.Error(rv), RxMachineModuleStr, RxmStateStrMap[rxm.Machine.Curr.CurrentState()], strconv.Itoa(int(RxmEventIPPPortEnabledAndDRCPEnabled))}, ":"))
 		} else {
-			rxm.processPostStates()
+			rxm.processPostStates(nil)
 		}
 	}
 }
@@ -438,22 +446,22 @@ func (rxm *RxMachine) processPostStateExpired() {
 
 // processPostStatePortalCheck will check local params to see if any conditions
 // are met in order to transition to next state
-func (rxm *RxMachine) processPostStatePortalCheck() {
+func (rxm *RxMachine) processPostStatePortalCheck(drcpPduInfo *layers.DRCP) {
 	p := rxm.p
 	if rxm.Machine.Curr.CurrentState() == RxmStatePortalCheck {
 		if p.DifferPortal {
-			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDifferPortal, nil)
+			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDifferPortal, drcpPduInfo)
 			if rv != nil {
 				rxm.DrcpRxmLog(strings.Join([]string{error.Error(rv), RxMachineModuleStr, RxmStateStrMap[rxm.Machine.Curr.CurrentState()], strconv.Itoa(int(RxmEventDifferPortal))}, ":"))
 			} else {
-				rxm.processPostStates()
+				rxm.processPostStates(drcpPduInfo)
 			}
 		} else {
-			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventNotDifferPortal, nil)
+			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventNotDifferPortal, drcpPduInfo)
 			if rv != nil {
 				rxm.DrcpRxmLog(strings.Join([]string{error.Error(rv), RxMachineModuleStr, RxmStateStrMap[rxm.Machine.Curr.CurrentState()], strconv.Itoa(int(RxmEventNotDifferPortal))}, ":"))
 			} else {
-				rxm.processPostStates()
+				rxm.processPostStates(drcpPduInfo)
 			}
 		}
 	}
@@ -461,22 +469,22 @@ func (rxm *RxMachine) processPostStatePortalCheck() {
 
 // processPostStateCompatibilityCheck will check local params to see if any conditions
 // are met in order to transition to next state
-func (rxm *RxMachine) processPostStateCompatibilityCheck() {
+func (rxm *RxMachine) processPostStateCompatibilityCheck(drcpPduInfo *layers.DRCP) {
 	p := rxm.p
 	if rxm.Machine.Curr.CurrentState() == RxmStateCompatibilityCheck {
 		if p.DifferConfPortal {
-			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDifferConfPortal, nil)
+			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventDifferConfPortal, drcpPduInfo)
 			if rv != nil {
 				rxm.DrcpRxmLog(strings.Join([]string{error.Error(rv), RxMachineModuleStr, RxmStateStrMap[rxm.Machine.Curr.CurrentState()], strconv.Itoa(int(RxmEventDifferConfPortal))}, ":"))
 			} else {
-				rxm.processPostStates()
+				rxm.processPostStates(drcpPduInfo)
 			}
 		} else {
-			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventNotDifferConfPortal, nil)
+			rv := rxm.Machine.ProcessEvent(RxMachineModuleStr, RxmEventNotDifferConfPortal, drcpPduInfo)
 			if rv != nil {
 				rxm.DrcpRxmLog(strings.Join([]string{error.Error(rv), RxMachineModuleStr, RxmStateStrMap[rxm.Machine.Curr.CurrentState()], strconv.Itoa(int(RxmEventNotDifferConfPortal))}, ":"))
 			} else {
-				rxm.processPostStates()
+				rxm.processPostStates(drcpPduInfo)
 			}
 		}
 	}
@@ -527,6 +535,20 @@ func (rxm *RxMachine) NotifyGatewayConversationUpdate(oldval, newval bool) {
 	}
 }
 
+func (rxm *RxMachine) NotifyPortConversationUpdate(oldval, newval bool) {
+	p := rxm.p
+	dr := p.dr
+	if (dr.AMachineFsm.Machine.Curr.CurrentState() == AmStateDRNIPortInitialize ||
+		dr.AMachineFsm.Machine.Curr.CurrentState() == AmStateDRNIPortUpdate ||
+		dr.AMachineFsm.Machine.Curr.CurrentState() == AmStatePsPortUpdate) &&
+		newval {
+		dr.AMachineFsm.AmEvents <- utils.MachineEvent{
+			E:   AmEventPortConversationUpdate,
+			Src: RxMachineModuleStr,
+		}
+	}
+}
+
 // updateNTT This function sets NTTDRCPDU to TRUE, if any of:
 func (rxm *RxMachine) updateNTT() {
 	p := rxm.p
@@ -548,18 +570,19 @@ func (rxm *RxMachine) updateNTT() {
 func (rxm *RxMachine) recordDefaultDRCPDU() {
 	p := rxm.p
 	dr := p.dr
+	a := dr.a
 
-	p.DRFNeighborPortAlgorithm = p.dr.DrniNeighborAdminPortAlgorithm
-	p.DRFNeighborGatewayAlgorithm = p.dr.DrniNeighborAdminGatewayAlgorithm
-	p.DRFNeighborConversationPortListDigest = p.dr.DRFNeighborAdminConversationPortListDigest
-	p.DRFNeighborConversationGatewayListDigest = p.dr.DRFNeighborAdminConversationGatewayListDigest
-	p.DRFNeighborOperDRCPState = p.dr.DRFNeighborAdminDRCPState
-	p.DRFNeighborAggregatorPriority = uint16(p.dr.a.PartnerSystemPriority)
-	p.DRFNeighborAggregatorId = p.dr.a.PartnerSystemId
-	p.DrniNeighborPortalPriority = uint16(p.dr.a.PartnerSystemPriority)
-	p.DrniNeighborPortalAddr = p.dr.a.PartnerSystemId
+	p.DRFNeighborPortAlgorithm = dr.DrniNeighborAdminPortAlgorithm
+	p.DRFNeighborGatewayAlgorithm = dr.DrniNeighborAdminGatewayAlgorithm
+	p.DRFNeighborConversationPortListDigest = dr.DRFNeighborAdminConversationPortListDigest
+	p.DRFNeighborConversationGatewayListDigest = dr.DRFNeighborAdminConversationGatewayListDigest
+	p.DRFNeighborOperDRCPState = dr.DRFNeighborAdminDRCPState
+	p.DRFNeighborAggregatorPriority = uint16(a.PartnerSystemPriority)
+	p.DRFNeighborAggregatorId = a.PartnerSystemId
+	p.DrniNeighborPortalPriority = uint16(a.PartnerSystemPriority)
+	p.DrniNeighborPortalAddr = a.PartnerSystemId
 	p.DRFNeighborPortalSystemNumber = p.DRFHomeConfNeighborPortalSystemNumber
-	p.DRFNeighborConfPortalSystemNumber = p.dr.DRFPortalSystemNumber
+	p.DRFNeighborConfPortalSystemNumber = dr.DRFPortalSystemNumber
 	p.DRFNeighborState.OpState = false
 	p.DRFNeighborState.GatewayVector = nil
 	p.DRFNeighborState.PortIdList = nil
@@ -600,20 +623,45 @@ func (rxm *RxMachine) recordDefaultDRCPDU() {
 func (rxm *RxMachine) recordPortalValues(drcpPduInfo *layers.DRCP) {
 	p := rxm.p
 
+	rxm.recordPortalValuesSavePortalInfo(drcpPduInfo)
+
+	rxm.recordPortalValuesCompareNeighborToPortal()
+
+	if p.DifferPortal {
+		// send the error to mgmt to correct the provisioning
+		p.reportToManagement()
+	}
+}
+
+// recordPortalValuesSavePortalInfo records the Neighbor’s Portal parameter
+// values carried in a received DRCPDU (9.4.3.2) from an IPP, as the current
+// operational parameter values for the immediate Neighbor Portal System on
+// this IPP,
+func (rxm *RxMachine) recordPortalValuesSavePortalInfo(drcpPduInfo *layers.DRCP) {
+	p := rxm.p
+
 	p.DRFNeighborAggregatorPriority = drcpPduInfo.PortalInfo.AggPriority
 	p.DRFNeighborAggregatorId = drcpPduInfo.PortalInfo.AggId
 	p.DrniNeighborPortalPriority = drcpPduInfo.PortalInfo.PortalPriority
 	p.DrniNeighborPortalAddr = drcpPduInfo.PortalInfo.PortalAddr
 
-	aggPrioEqual := p.DRFNeighborAggregatorPriority == p.dr.DrniAggregatorPriority
-	aggIdEqual := p.DRFNeighborAggregatorId == p.dr.DrniAggregatorId
-	portalPrioEqual := p.DrniNeighborPortalPriority == p.dr.DrniPortalPriority
-	portalAddrEqual := (p.DrniNeighborPortalAddr[0] == p.dr.DrniPortalAddr[0] &&
-		p.DrniNeighborPortalAddr[1] == p.dr.DrniPortalAddr[1] &&
-		p.DrniNeighborPortalAddr[2] == p.dr.DrniPortalAddr[2] &&
-		p.DrniNeighborPortalAddr[3] == p.dr.DrniPortalAddr[3] &&
-		p.DrniNeighborPortalAddr[4] == p.dr.DrniPortalAddr[4] &&
-		p.DrniNeighborPortalAddr[5] == p.dr.DrniPortalAddr[5])
+}
+
+// recordPortalValuesCompareNeighborToPortal compares the newly updated values
+// of the Neighbor Portal System to this Portal System’s expectations and if
+func (rxm *RxMachine) recordPortalValuesCompareNeighborToPortal() {
+	p := rxm.p
+	dr := p.dr
+
+	aggPrioEqual := p.DRFNeighborAggregatorPriority == dr.DrniAggregatorPriority
+	aggIdEqual := p.DRFNeighborAggregatorId == dr.DrniAggregatorId
+	portalPrioEqual := p.DrniNeighborPortalPriority == dr.DrniPortalPriority
+	portalAddrEqual := (p.DrniNeighborPortalAddr[0] == dr.DrniPortalAddr[0] &&
+		p.DrniNeighborPortalAddr[1] == dr.DrniPortalAddr[1] &&
+		p.DrniNeighborPortalAddr[2] == dr.DrniPortalAddr[2] &&
+		p.DrniNeighborPortalAddr[3] == dr.DrniPortalAddr[3] &&
+		p.DrniNeighborPortalAddr[4] == dr.DrniPortalAddr[4] &&
+		p.DrniNeighborPortalAddr[5] == dr.DrniPortalAddr[5])
 
 	if aggPrioEqual &&
 		aggIdEqual &&
@@ -624,9 +672,11 @@ func (rxm *RxMachine) recordPortalValues(drcpPduInfo *layers.DRCP) {
 		p.DifferPortal = true
 		p.DifferPortalReason = ""
 		if !aggPrioEqual {
+			//fmt.Println(p.DRFNeighborAggregatorPriority, dr.DrniAggregatorPriority)
 			p.DifferPortalReason += "Neighbor Aggregator Priority, "
 		}
 		if !aggIdEqual {
+			//fmt.Println(p.DRFNeighborAggregatorId, dr.DrniAggregatorId)
 			p.DifferPortalReason += "Neighbor Aggregator Id, "
 		}
 		if !portalPrioEqual {
@@ -635,8 +685,6 @@ func (rxm *RxMachine) recordPortalValues(drcpPduInfo *layers.DRCP) {
 		if !portalAddrEqual {
 			p.DifferPortalReason += "Neighbor Portal Addr, "
 		}
-		// send the error to mgmt to correct the provisioning
-		p.reportToManagement()
 	}
 }
 
@@ -651,26 +699,7 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 	dr := p.dr
 
 	// Save config from pkt
-	p.DRFNeighborPortalSystemNumber =
-		uint8(drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyStatePortalSystemNum))
-	p.DRFNeighborConfPortalSystemNumber =
-		uint8(drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyStateNeighborConfPortalSystemNumber))
-	p.DrniNeighborThreeSystemPortal =
-		drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyState3SystemPortal) == 1
-	p.DrniNeighborCommonMethods =
-		drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyStateCommonMethods) == 1
-	p.DrniNeighborONN =
-		drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyStateOtherNonNeighbor) == 1
-	p.DRFNeighborOperAggregatorKey =
-		drcpPduInfo.PortalConfigInfo.OperAggKey
-	p.DRFNeighborPortAlgorithm =
-		drcpPduInfo.PortalConfigInfo.PortAlgorithm
-	p.DRFNeighborConversationPortListDigest =
-		drcpPduInfo.PortalConfigInfo.PortDigest
-	p.DRFNeighborGatewayAlgorithm =
-		drcpPduInfo.PortalConfigInfo.GatewayAlgorithm
-	p.DRFNeighborConversationGatewayListDigest =
-		drcpPduInfo.PortalConfigInfo.GatewayDigest
+	rxm.recordPortalConfValuesSavePortalConfInfo(drcpPduInfo)
 
 	// which conversation vector is preset
 	TwoPGatewayConverationVectorPresent := drcpPduInfo.TwoPortalGatewayConversationVector.TlvTypeLength.GetTlv() == layers.DRCPTLV2PGatewayConversationVector
@@ -704,11 +733,11 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 	p.DifferPortalReason = ""
 	if !portalSystemNumEqual {
 		p.DifferConfPortalSystemNumber = true
-		p.DifferPortalReason += "Portal System Number"
+		p.DifferPortalReason += "Portal System Number, "
 	}
 	if !confPortalSystemNumEqual {
 		p.DifferConfPortalSystemNumber = true
-		p.DifferPortalReason += "Conf Portal System Number"
+		p.DifferPortalReason += "Conf Portal System Number, "
 	}
 	if operAggKeyEqual {
 		p.DifferConfPortal = false
@@ -717,17 +746,19 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 			dr.ChangePortal = true
 		}
 	} else {
+		//fmt.Println("OperAggKey:", p.DRFNeighborOperAggregatorKey&0x3fff, dr.DRFHomeOperAggregatorKey&0x3fff)
 		// The event post state procesing should catch this event change
 		p.DifferConfPortal = true
-		p.DifferPortalReason += "Oper Aggregator Key"
+		p.DifferPortalReason += "Oper Aggregator Key, "
 	}
 
 	if !threeSystemPortalEqual {
-		p.DifferPortalReason += "Three System Portal"
+		p.DifferPortalReason += "Three System Portal, "
 	}
 
 	if !gatewayAlgorithmEqual {
-		p.DifferPortalReason += "Gateway Algorithm"
+		//fmt.Println("GatewayAlg:", p.DRFNeighborGatewayAlgorithm, dr.DRFHomeGatewayAlgorithm)
+		p.DifferPortalReason += "Gateway Algorithm, "
 	}
 
 	if !p.DifferConfPortal &&
@@ -871,17 +902,49 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 		}
 	}
 	if !commonMethodsEqual {
-		p.DifferPortalReason += "Common Methods"
+		p.DifferPortalReason += "Common Methods, "
 	}
 	if !portAlgorithmEqual {
-		p.DifferPortalReason += "Port Algorithm"
+		p.DifferPortalReason += "Port Algorithm, "
 	}
 	if !conversationPortListDigestEqual {
-		p.DifferPortalReason += "Converstaion Port List Digest"
+		//fmt.Println("PortListDigest:", p.DRFNeighborConversationPortListDigest, dr.DRFHomeConversationPortListDigest)
+		p.DifferPortalReason += "Converstaion Port List Digest, "
 	}
 	if !conversationGatewayListDigestEqual {
-		p.DifferPortalReason += "Conversation Gateway List Digest"
+		//fmt.Println("GatewayListDigest:", p.DRFNeighborConversationGatewayListDigest, dr.DRFHomeConversationGatewayListDigest)
+		p.DifferPortalReason += "Conversation Gateway List Digest, "
 	}
+}
+
+// recordPortalConfValuesSavePortalConfInfo This function records the Neighbor
+// Portal System’s values carried in the Portal Configuration Information TLV
+// of a received DRCPDU (9.4.3.2) from an IPP, as the current operational
+// parameter values for the immediate Neighbor Portal System on this IPP as follows
+func (rxm *RxMachine) recordPortalConfValuesSavePortalConfInfo(drcpPduInfo *layers.DRCP) {
+	p := rxm.p
+
+	p.DRFNeighborPortalSystemNumber =
+		uint8(drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyStatePortalSystemNum))
+	p.DRFNeighborConfPortalSystemNumber =
+		uint8(drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyStateNeighborConfPortalSystemNumber))
+	p.DrniNeighborThreeSystemPortal =
+		drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyState3SystemPortal) == 1
+	p.DrniNeighborCommonMethods =
+		drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyStateCommonMethods) == 1
+	p.DrniNeighborONN =
+		drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyStateOtherNonNeighbor) == 1
+	p.DRFNeighborOperAggregatorKey =
+		drcpPduInfo.PortalConfigInfo.OperAggKey
+	p.DRFNeighborPortAlgorithm =
+		drcpPduInfo.PortalConfigInfo.PortAlgorithm
+	p.DRFNeighborConversationPortListDigest =
+		drcpPduInfo.PortalConfigInfo.PortDigest
+	p.DRFNeighborGatewayAlgorithm =
+		drcpPduInfo.PortalConfigInfo.GatewayAlgorithm
+	p.DRFNeighborConversationGatewayListDigest =
+		drcpPduInfo.PortalConfigInfo.GatewayDigest
+
 }
 
 // recordNeighborState: 802.1ax-2014 Section 9.4.11 Functions
@@ -1219,6 +1282,7 @@ func (rxm *RxMachine) comparePortIds() {
 	}
 
 	if portListDiffer {
+		defer rxm.NotifyPortConversationUpdate(p.dr.PortConversationUpdate, true)
 		p.dr.PortConversationUpdate = true
 		dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStatePortSync)
 		if p.MissingRcvPortConVector {
@@ -1232,8 +1296,10 @@ func (rxm *RxMachine) comparePortIds() {
 		}
 	} else {
 		if p.DifferPortDigest {
+			defer rxm.NotifyPortConversationUpdate(p.dr.PortConversationUpdate, true)
 			p.dr.PortConversationUpdate = true
 		} else if !dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
+			defer rxm.NotifyPortConversationUpdate(p.dr.PortConversationUpdate, true)
 			p.dr.PortConversationUpdate = true
 			dr.DRFHomeOperDRCPState.SetState(layers.DRCPStatePortSync)
 		} else {

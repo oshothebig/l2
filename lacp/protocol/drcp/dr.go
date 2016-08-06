@@ -50,8 +50,8 @@ type DistributedRelay struct {
 	DrniPortalAddr          net.HardwareAddr
 	DrniPortalPriority      uint16
 	DrniThreeSystemPortal   bool
-	DrniPortConversation    [MAX_CONVERSATION_IDS]uint8
-	DrniGatewayConversation [MAX_CONVERSATION_IDS]uint8
+	DrniPortConversation    [MAX_CONVERSATION_IDS][4]uint8
+	DrniGatewayConversation [MAX_CONVERSATION_IDS][4]uint8
 	// End also defined in 9.4.7
 
 	// save the origional values from the aggregator
@@ -132,22 +132,33 @@ type DistributedRelayFunction struct {
 	DrniPortalSystemPortConversation    [4096]bool
 }
 
+// DrFindByPortalAddr each portal address is unique within the system
+func DrFindByPortalAddr(portaladdr string, dr **DistributedRelay) bool {
+	for _, d := range DistributedRelayDBList {
+		if d.DrniPortalAddr.String() == portaladdr {
+			*dr = d
+			return true
+		}
+	}
+	return false
+}
+
+// NewDistributedRelay create a new instance of Distributed Relay and
+// the associated objects for the IPP ports
 func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	dr := &DistributedRelay{
-		DrniId:                                 uint32(cfg.DrniPortalSystemNumber),
-		DrniName:                               cfg.DrniName,
-		DrniPortalPriority:                     cfg.DrniPortalPriority,
-		DrniThreeSystemPortal:                  cfg.DrniThreePortalSystem,
-		DrniPortalSystemNumber:                 cfg.DrniPortalSystemNumber,
-		DrniIntraPortalLinkList:                cfg.DrniIntraPortalLinkList,
-		DrniAggregator:                         int32(cfg.DrniAggregator),
-		DrniConvAdminGateway:                   cfg.DrniConvAdminGateway,
-		DrniNeighborAdminConvGatewayListDigest: cfg.DrniNeighborAdminConvGatewayListDigest,
-		DrniNeighborAdminConvPortListDigest:    cfg.DrniNeighborAdminConvPortListDigest,
-		DrniPortConversationControl:            cfg.DrniPortConversationControl,
-		drEvtResponseChan:                      make(chan string),
-		DrniIPLEncapMap:                        make(map[uint32]uint32),
-		DrniNetEncapMap:                        make(map[uint32]uint32),
+		DrniId:                      uint32(cfg.DrniPortalSystemNumber),
+		DrniName:                    cfg.DrniName,
+		DrniPortalPriority:          cfg.DrniPortalPriority,
+		DrniThreeSystemPortal:       cfg.DrniThreePortalSystem,
+		DrniPortalSystemNumber:      cfg.DrniPortalSystemNumber,
+		DrniIntraPortalLinkList:     cfg.DrniIntraPortalLinkList,
+		DrniAggregator:              int32(cfg.DrniAggregator),
+		DrniConvAdminGateway:        cfg.DrniConvAdminGateway,
+		DrniPortConversationControl: cfg.DrniPortConversationControl,
+		drEvtResponseChan:           make(chan string),
+		DrniIPLEncapMap:             make(map[uint32]uint32),
+		DrniNetEncapMap:             make(map[uint32]uint32),
 	}
 	dr.DrniPortalAddr, _ = net.ParseMAC(cfg.DrniPortalAddress)
 
@@ -157,6 +168,7 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		dr.DrniNeighborAdminDRCPState |= uint8(val << j)
 	}
 
+	// This should be nil
 	for i := 0; i < 16; i++ {
 		dr.DrniNeighborAdminConvGatewayListDigest[i] = cfg.DrniNeighborAdminConvGatewayListDigest[i]
 		dr.DrniNeighborAdminConvPortListDigest[i] = cfg.DrniNeighborAdminConvPortListDigest[i]
@@ -168,13 +180,13 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	neighborportalgorithm := strings.Split(cfg.DrniNeighborAdminPortAlgorithm, ":")
 	var val int64
 	for i := 0; i < 4; i++ {
-		val, _ = strconv.ParseInt(encapmethod[i], 16, 8)
+		val, _ = strconv.ParseInt(encapmethod[i], 16, 16)
 		dr.DrniEncapMethod[i] = uint8(val)
-		val, _ = strconv.ParseInt(gatewayalgorithm[i], 16, 8)
+		val, _ = strconv.ParseInt(gatewayalgorithm[i], 16, 16)
 		dr.DrniGatewayAlgorithm[i] = uint8(val)
-		val, _ = strconv.ParseInt(neighborgatewayalgorithm[i], 16, 8)
+		val, _ = strconv.ParseInt(neighborgatewayalgorithm[i], 16, 16)
 		dr.DrniNeighborAdminGatewayAlgorithm[i] = uint8(val)
-		val, _ = strconv.ParseInt(neighborportalgorithm[i], 16, 8)
+		val, _ = strconv.ParseInt(neighborportalgorithm[i], 16, 16)
 		dr.DrniNeighborAdminPortAlgorithm[i] = uint8(val)
 	}
 
@@ -195,12 +207,16 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	for _, ippid := range dr.DrniIntraPortalLinkList {
 		if ippid > 0 {
 			ipp := NewDRCPIpp(ippid, dr)
+			// disabled until an aggregator has been attached
+			ipp.DRCPEnabled = false
 			dr.Ipplinks = append(dr.Ipplinks, ipp)
 		}
 	}
 	return dr
 }
 
+// DeleteDistriutedRelay will delete the distributed relay along with
+// the associated IPP links and de-associate from the Aggregator
 func (dr *DistributedRelay) DeleteDistributedRelay() {
 	dr.Stop()
 
@@ -220,6 +236,8 @@ func (dr *DistributedRelay) DeleteDistributedRelay() {
 	}
 }
 
+// BEGIN will start/build all the Distributed Relay State Machines and
+// send the begin event
 func (dr *DistributedRelay) BEGIN(restart bool) {
 
 	mEvtChan := make([]chan utils.MachineEvent, 0)

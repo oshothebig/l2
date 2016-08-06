@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"l2/lacp/protocol/utils"
 	"net"
 	"reflect"
 )
@@ -39,14 +40,12 @@ const RxModuleStr = "Rx Module"
 // LaRxMain will process incomming packets from
 // a socket as of 10/22/15 packets recevied from
 // channel
-func DrRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
+func DrRxMain(pId uint16, portaladdr string, rxPktChan chan gopacket.Packet) {
 	// can be used by test interface
-	go func(portId uint16, rx chan gopacket.Packet) {
+	go func(portId uint16, pa string, rx chan gopacket.Packet) {
 		rxMainPort := portId
 		rxMainChan := rx
-		// TODO add logic to either wait on a socket or wait on a channel,
-		// maybe both?  Can spawn a seperate go thread to wait on a socket
-		// and send the packet to this thread
+		rxMainDrPortalAddr := pa
 		for {
 			select {
 			case packet, ok := <-rxMainChan:
@@ -66,15 +65,9 @@ func DrRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 								// lacp data
 								drcp := drcpLayer.(*layers.DRCP)
 
-								ProcessDrcpFrame(rxMainPort, drcp)
+								ProcessDrcpFrame(rxMainPort, rxMainDrPortalAddr, drcp)
 							}
-						} else {
-							fmt.Println("Discard Packet not an drcp frame")
-							// discard packet
 						}
-					} else {
-						// discard packet
-						fmt.Println("Discarding Packet not drcp", packet)
 					}
 				} else {
 					return
@@ -83,7 +76,7 @@ func DrRxMain(pId uint16, rxPktChan chan gopacket.Packet) {
 		}
 
 		fmt.Println("RX go routine end")
-	}(pId, rxPktChan)
+	}(pId, portaladdr, rxPktChan)
 }
 
 func IsControlFrame(pId uint16, packet gopacket.Packet) bool {
@@ -110,50 +103,40 @@ func IsControlFrame(pId uint16, packet gopacket.Packet) bool {
 		if isDrcpProtocolEtherType &&
 			drcpLayer != nil {
 			drcp = true
-		} /*else {
-
-			// Error cases for stats
-			if LaFindPortById(pId, &p) {
-				// 802.1ax-2014 7.3.3.1.5
-				// TODO Will need a way to know if a packet is picked up by
-				// another protocol for valid subtypes
-				// NOT handling 50 counters per second rate
-				if (!isSlowProtocolMAC &&
-					isSlowProtocolEtherType) ||
-					(isSlowProtocolMAC &&
-						!isSlowProtocolEtherType) {
-					p.LacpCounter.AggPortStatsUnknownRx += 1
-				}
-			}
-		}*/
-	} /*else {
-		if LaFindPortById(pId, &p) {
-			// 802.1ax-2014 7.3.3.1.6
-			if isSlowProtocolMAC &&
-				isSlowProtocolEtherType {
-				p.LacpCounter.AggPortStatsIllegalRx += 1
-			}
 		}
-	}*/
+	}
 
 	return drcp
 }
 
 // ProcessDrcpFrame will lookup the cooresponding port from which the
 // packet arrived and forward the packet to the Rx Machine for processing
-func ProcessDrcpFrame(pId uint16, drcp *layers.DRCP) {
-	/* TODO need lookup for correct DR IPL port
-	var p *LaAggPort
-
-	//fmt.Println(lacp)
-	// lets find the port via the info in the packet
-	if LaFindPortById(pId, &p) {
-		//fmt.Println(lacp)
-		p.RxMachineFsm.RxmPktRxEvent <- RxDrcpPdu{
-			pdu: drcp,
-			src: RxModuleStr}
-	} else {
-		fmt.Println("DRCP: Unable to find port", pId)
+func ProcessDrcpFrame(pId uint16, pa string, drcp *layers.DRCP) {
+	netAddr := net.HardwareAddr{
+		drcp.PortalInfo.PortalAddr[0],
+		drcp.PortalInfo.PortalAddr[1],
+		drcp.PortalInfo.PortalAddr[2],
+		drcp.PortalInfo.PortalAddr[3],
+		drcp.PortalInfo.PortalAddr[4],
+		drcp.PortalInfo.PortalAddr[5],
 	}
-	*/
+
+	if pa != netAddr.String() {
+		// not meant for this portal disregarding
+		return
+	}
+
+	var dr *DistributedRelay
+	if DrFindByPortalAddr(netAddr.String(), &dr) {
+		for _, ipp := range dr.Ipplinks {
+			if ipp.Id == uint32(pId) {
+				ipp.RxMachineFsm.RxmPktRxEvent <- RxDrcpPdu{
+					pdu: drcp,
+					src: RxModuleStr,
+				}
+				return
+			}
+		}
+		utils.GlobalLogger.Warning(fmt.Sprintf("RX: Received DRCP Packet on invalid Port %s with Portal Addr %s", pId, pa))
+	}
 }

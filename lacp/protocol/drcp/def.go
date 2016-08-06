@@ -25,6 +25,9 @@
 package drcp
 
 import (
+	"bytes"
+	"crypto/md5"
+	"encoding/binary"
 	"time"
 )
 
@@ -52,3 +55,41 @@ var GATEWAY_ALGORITHM_ECMP_FLOW_HASH GatewayAlgorithm = GatewayAlgorithm{0x00, 0
 type GatewayAlgorithm [4]uint8
 type EncapMethod [4]uint8
 type Md5Digest [16]uint8
+
+func (d Md5Digest) calculatePortDigest(portList [][]uint16) Md5Digest {
+	hash := md5.New()
+	if portList != nil {
+		for i, ports := range portList {
+			buf := new(bytes.Buffer)
+			data := ports
+			data = append(data, uint16(i))
+			// network byte order
+			binary.Write(buf, binary.BigEndian, data)
+			hash.Write(buf.Bytes())
+		}
+	}
+
+	digest := hash.Sum(nil)
+	for i, _ := range digest {
+		d[i] = digest[i]
+	}
+	return d
+}
+
+func (d Md5Digest) calculateGatewayDigest(gatewayList [][]uint8) Md5Digest {
+	hash := md5.New()
+	if gatewayList != nil {
+		for _, sysnums := range gatewayList {
+			buf := new(bytes.Buffer)
+			// network byte order
+			binary.Write(buf, binary.BigEndian, sysnums)
+			hash.Write(buf.Bytes())
+		}
+	}
+
+	digest := hash.Sum(nil)
+	for i, _ := range digest {
+		d[i] = digest[i]
+	}
+	return d
+}

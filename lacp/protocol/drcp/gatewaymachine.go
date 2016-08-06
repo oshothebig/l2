@@ -299,7 +299,7 @@ func (gm *GMachine) setGatewayConversation() {
 			if dr.DrniPortalSystemState[psysid].OpState {
 
 				// highest priority should be that of
-				dr.DrniGatewayConversation[i] = dr.DrniConvAdminGateway[i][psysid]
+				//dr.DrniGatewayConversation[i] = dr.DrniConvAdminGateway[i][psysid]
 				break
 				/*
 							OpState bool

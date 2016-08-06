@@ -32,11 +32,13 @@ import (
 	"utils/logging"
 )
 
-const ipplink1 int32 = 3
+// first two bytes are priority but in case of ipp this is the neighbor system number
+const ipplink1 int32 = 0x00020003
 const aggport1 int32 = 1
 const aggport2 int32 = 2
 
-const ipplink2 int32 = 4
+// first two bytes are priority but in case of ipp this is the neighbor system number
+const ipplink2 int32 = 0x00010004
 const aggport3 int32 = 5
 const aggport4 int32 = 6
 
@@ -128,7 +130,7 @@ func ConfigTestTeardwon() {
 	delete(utils.PortConfigMap, aggport4)
 }
 
-func TestDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T) {
+func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T) {
 
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
@@ -195,15 +197,16 @@ func TestDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T) {
 		// IPL should be disabled thus state should be in initialized state
 		if ipp.RxMachineFsm == nil ||
 			ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateExpired {
-			t.Error("ERROR BEGIN Initial Receive Machine state is not correct", ipp.RxMachineFsm.Machine.Curr.CurrentState())
+			t.Error("ERROR BEGIN Initial Receive Machine state is not correct", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 		}
+		// port is enabled and drcp is enabled thus we should be in fast periodic state
 		if ipp.PtxMachineFsm == nil ||
-			ipp.PtxMachineFsm.Machine.Curr.CurrentState() != PtxmStateSlowPeriodic {
-			t.Error("ERROR BEGIN Initial Periodic Tx Machine state is not correct", ipp.PtxMachineFsm.Machine.Curr.CurrentState())
+			ipp.PtxMachineFsm.Machine.Curr.CurrentState() != PtxmStateFastPeriodic {
+			t.Error("ERROR BEGIN Initial Periodic Tx Machine state is not correct", PtxmStateStrMap[ipp.PtxMachineFsm.Machine.Curr.CurrentState()])
 		}
 		if ipp.TxMachineFsm == nil ||
 			ipp.TxMachineFsm.Machine.Curr.CurrentState() != TxmStateOff {
-			t.Error("ERROR BEGIN Initial Tx Machine state is not correct", ipp.TxMachineFsm.Machine.Curr.CurrentState())
+			t.Error("ERROR BEGIN Initial Tx Machine state is not correct", TxmStateStrMap[ipp.TxMachineFsm.Machine.Curr.CurrentState()])
 		}
 		if ipp.NetIplShareMachineFsm == nil ||
 			ipp.NetIplShareMachineFsm.Machine.Curr.CurrentState() != NetIplSharemStateNoManipulatedFramesSent {
@@ -211,14 +214,493 @@ func TestDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T) {
 		}
 		if ipp.IAMachineFsm == nil ||
 			ipp.IAMachineFsm.Machine.Curr.CurrentState() != IAmStateIPPPortInitialize {
-			t.Error("ERROR BEGIN Initial IPP Aggregator state is not correct", ipp.IAMachineFsm.Machine.Curr.CurrentState())
+			t.Error("ERROR BEGIN Initial IPP Aggregator state is not correct", IAmStateStrMap[ipp.IAMachineFsm.Machine.Curr.CurrentState()])
 		}
 		if ipp.IGMachineFsm == nil ||
 			ipp.IGMachineFsm.Machine.Curr.CurrentState() != IGmStateIPPGatewayInitialize {
-			t.Error("ERROR BEGIN Initial IPP Gateway Machine state is not correct", ipp.IGMachineFsm.Machine.Curr.CurrentState())
+			t.Error("ERROR BEGIN Initial IPP Gateway Machine state is not correct", GmStateStrMap[ipp.IGMachineFsm.Machine.Curr.CurrentState()])
 		}
 	}
 	DeleteDistributedRelay(cfg.DrniName)
+
+	if len(DistributedRelayDB) != 0 ||
+		len(DistributedRelayDBList) != 0 {
+		t.Error("ERROR Distributed Relay DB was not cleaned up")
+	}
+	if len(DRCPIppDB) != 0 ||
+		len(DRCPIppDBList) != 0 {
+		t.Error("ERROR IPP DB was not cleaned up")
+	}
+
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigDistributedRelayInValidCreateDRNoAgg(t *testing.T) {
+
+	ConfigTestSetup()
+	//a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)},
+		DrniAggregator:                    200,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+	// map vlan 100 to this system
+	// in real system this should be filled in by vlan membership
+	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err != nil {
+		t.Error("Parameter check failed for what was expected to be a valid config", err)
+	}
+
+	CreateDistributedRelay(cfg)
+
+	// configuration is incomplete because lag has not been created as part of this
+	if len(DistributedRelayDB) == 0 ||
+		len(DistributedRelayDBList) == 0 {
+		t.Error("ERROR Distributed Relay Object was not added to global DB's")
+	}
+	dr, ok := DistributedRelayDB[cfg.DrniName]
+	if !ok {
+		t.Error("ERROR Distributed Relay Object was not found in global DB's")
+	}
+
+	// check the inital state of each of the state machines
+	if dr.a != nil {
+		t.Error("ERROR Agg does not exist no associated should exist")
+	}
+	if dr.PsMachineFsm != nil {
+		t.Error("ERROR BEGIN Initial Portal System Machine state was created, provisioning incomplete")
+	}
+	if dr.GMachineFsm != nil {
+		t.Error("ERROR BEGIN Initial Gateway Machine state was created, provisioning incomplete")
+	}
+	if dr.AMachineFsm != nil {
+		t.Error("ERROR BEGIN Initial Aggregator System Machine state was created, provisioning incomplete")
+	}
+
+	for _, ipp := range dr.Ipplinks {
+		if ipp.DRCPEnabled {
+			t.Error("ERROR Why is the IPL IPP link DRCP enabled")
+		}
+	}
+
+	DeleteDistributedRelay(cfg.DrniName)
+
+	if len(DistributedRelayDB) != 0 ||
+		len(DistributedRelayDBList) != 0 {
+		t.Error("ERROR Distributed Relay DB was not cleaned up")
+	}
+	if len(DRCPIppDB) != 0 ||
+		len(DRCPIppDBList) != 0 {
+		t.Error("ERROR IPP DB was not cleaned up")
+	}
+
+	ConfigTestTeardwon()
+}
+
+func TestConfigInvalidPortalAddressString(t *testing.T) {
+	ConfigTestSetup()
+	a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE", // invalid!!!
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)},
+		DrniAggregator:                    100,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail for bad Portal Address")
+	}
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigInvalidThreePortalSystemSet(t *testing.T) {
+	ConfigTestSetup()
+	a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             true, // invalid not supported
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)},
+		DrniAggregator:                    100,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail setting 3P system")
+	}
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigInvalidPortalSytemNumber(t *testing.T) {
+	ConfigTestSetup()
+	a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            0, // invalid in 2P system
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)},
+		DrniAggregator:                    100,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail portal system number 0")
+	}
+	// invalid in 2P system
+	cfg.DrniPortalSystemNumber = 3
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail portal system number 3")
+	}
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigInvalidIntraPortalLink(t *testing.T) {
+	ConfigTestSetup()
+	a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{}, // no link supplied is invalid
+		DrniAggregator:                    100,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail IPP link not supplied")
+	}
+	// invalid ipp link
+	cfg.DrniIntraPortalLinkList[0] = 300
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail invalid port")
+	}
+
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigInvalidGatewayAlgorithm(t *testing.T) {
+	ConfigTestSetup()
+	a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)}, // no link supplied is invalid
+		DrniAggregator:                    100,
+		DrniGatewayAlgorithm:              "00:88:C2:01", // invalid string
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Gateway Algorithm")
+	}
+
+	cfg.DrniGatewayAlgorithm = ""
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Gateway Algorithm empty string")
+	}
+
+	cfg.DrniGatewayAlgorithm = "00:80:C2"
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Gateway Algorithm wrong format to short missing actual type byte")
+	}
+
+	cfg.DrniGatewayAlgorithm = "00-80-C2-02"
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Gateway Algorithm separator")
+	}
+
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigInvalidNeighborGatewayAlgorithm(t *testing.T) {
+	ConfigTestSetup()
+	a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)}, // no link supplied is invalid
+		DrniAggregator:                    100,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "01:80:C2:01", // invalid string
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm")
+	}
+
+	cfg.DrniNeighborAdminGatewayAlgorithm = ""
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm empty string")
+	}
+
+	cfg.DrniNeighborAdminGatewayAlgorithm = "00:80:C2"
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm wrong format to short missing actual type byte")
+	}
+
+	cfg.DrniNeighborAdminGatewayAlgorithm = "00-80-C2-02"
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm separator")
+	}
+
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigInvalidNeighborPortAlgorithm(t *testing.T) {
+	ConfigTestSetup()
+	a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)}, // no link supplied is invalid
+		DrniAggregator:                    100,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "10:80:C2:01", // invalid string
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm")
+	}
+
+	cfg.DrniNeighborAdminPortAlgorithm = ""
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm empty string")
+	}
+
+	cfg.DrniNeighborAdminPortAlgorithm = "00:80:C2"
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm wrong format to short missing actual type byte")
+	}
+
+	cfg.DrniNeighborAdminPortAlgorithm = "00-80-C2-02"
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm separator")
+	}
+
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigInvalidEncapMethod(t *testing.T) {
+	ConfigTestSetup()
+	a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)}, // no link supplied is invalid
+		DrniAggregator:                    100,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "22:80:C2:01", // invalid string
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Encap Method")
+	}
+
+	cfg.DrniEncapMethod = ""
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Encap Method empty string")
+	}
+
+	cfg.DrniEncapMethod = "00:80:C2"
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Encap Method wrong format to short missing actual type byte")
+	}
+
+	cfg.DrniEncapMethod = "00-80-C2-02"
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Encap Method separator")
+	}
+
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigInvalidPortConversationControl(t *testing.T) {
+	ConfigTestSetup()
+	a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)}, // no link supplied is invalid
+		DrniAggregator:                    100,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       true,                // invalid assuming protocol will take care of conversation always
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Port Conversaton Control")
+	}
+
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigInvalidPortalPortProtocolDA(t *testing.T) {
+	ConfigTestSetup()
+	a := OnlyForTestSetupCreateAggGroup(100)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)}, // no link supplied is invalid
+		DrniAggregator:                    100,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01", // invalid string
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C0:00:00:03", // invalid
+	}
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail invalid Portal Port Potocol DA")
+	}
+
+	cfg.DrniIntraPortalPortProtocolDA = "01-80-C2-00-00-11"
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Portal Port Potocol DA different format")
+	}
+
+	cfg.DrniIntraPortalPortProtocolDA = "80-C2-00-00-11"
+	err = DistrubtedRelayConfigParamCheck(cfg)
+	if err == nil {
+		t.Error("Parameter check did not fail Invalid Portal Port Potocol DA not enough bytes")
+	}
+
 	lacp.DeleteLaAgg(a.AggId)
 	ConfigTestTeardwon()
 }

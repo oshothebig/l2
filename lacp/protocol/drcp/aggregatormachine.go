@@ -266,7 +266,72 @@ func (am *AMachine) initializeDRNIPortConversation() {
 
 // updatePortalState This function updates the Drni_Portal_System_State[] as follows
 func (am *AMachine) updatePortalState() {
-	// TODO need to understand the logic better
+	dr := am.dr
+	// TODO need for the following case when more than a single IPL is supported
+	// f any of the other Portal System’s state information is available from two IPPs in this Portal
+	// System, then
+
+	// update the local portal info
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber] = dr.DRFHomeState
+
+	// single IPP case
+	for _, ipp := range dr.Ipplinks {
+		if ipp.DRFNeighborState.OpState {
+			dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFNeighborState.OpState
+			for _, seqvector := range ipp.DRFNeighborState.GatewayVector {
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector, seqvector)
+			}
+			for _, port := range ipp.DRFNeighborState.PortIdList {
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList, port)
+			}
+		} else if ipp.DRFOtherNeighborState.OpState {
+			ipp.DrniNeighborONN = true
+			dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFOtherNeighborState.OpState
+			for _, seqvector := range ipp.DRFOtherNeighborState.GatewayVector {
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector, seqvector)
+			}
+			for _, port := range ipp.DRFOtherNeighborState.PortIdList {
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList, port)
+			}
+		}
+	}
+	// clear unset portals (ignore first index)
+	for i, stateinfo := range dr.DrniPortalSystemState {
+		if i != 0 && !stateinfo.OpState {
+			dr.DrniPortalSystemState[i].GatewayVector = nil
+			dr.DrniPortalSystemState[i].PortIdList = nil
+		}
+	}
+	// TODO revisit logic as this may be incorrect
+	// should only be one ipp
+	for _, ipp := range dr.Ipplinks {
+		for i := uint8(1); i <= MAX_PORTAL_SYSTEM_IDS; i++ {
+			if i != dr.DRFPortalSystemNumber {
+				if !ipp.DRFNeighborState.OpState {
+					ipp.DRFNeighborState.OpState = dr.DrniPortalSystemState[i].OpState
+					for _, seqvector := range dr.DrniPortalSystemState[i].GatewayVector {
+						ipp.DRFNeighborState.GatewayVector = append(ipp.DRFNeighborState.GatewayVector, seqvector)
+					}
+					for _, port := range dr.DrniPortalSystemState[i].PortIdList {
+						ipp.DRFNeighborState.PortIdList = append(ipp.DRFNeighborState.PortIdList, port)
+					}
+				}
+			}
+		}
+	}
+
+	// update ipp_portal_system_state
+	// TODO If any other Portal System’s state information is available from two IPPs, then
+
+	// TODO single ipl
+	// what does not make sense to me is it calls for the entries to be added one after the other
+	// but at the same time indexed by portal system number
+	for _, ipp := range dr.Ipplinks {
+		ipp.IppPortalSystemState = nil
+		if ipp.DRFNeighborState.OpState {
+			ipp.IppPortalSystemState = append(ipp.IppPortalSystemState, ipp.DRFNeighborState)
+		}
+	}
 }
 
 // setIPPPortUpdate This function sets the IppPortUpdate on every IPP on this Portal System to TRUE.
@@ -292,26 +357,38 @@ func (am *AMachine) setPortConversation() {
 		// provided by aDrniConvAdminGateway[] when only the Portal Systems having that Gateway
 		// Conversation ID enabled in the Gateway Vectors of the Drni_Portal_System_State[] variable,
 		// are included.
+		//dr.a.ConversationPortList
 
 	}
 }
 
-// updatePortalSystemGatewayConversation This function sets Drni_Portal_System_Gateway_Conversation as follows
+// updatePortalSystemPortConversation This function sets Drni_Portal_System_Port_Conversation as follows
 func (am *AMachine) updatePortalSystemPortConversation() {
-	/* TODO revisit to see if need to set on all ports
 	dr := am.dr
-	if p.DifferGatewayDigest &&
-		!dr.DrniThreeSystemPortal {
-		for i := 0; i < 512; i++ {
-			dr.DrniPortalSystemGatewayConversation[i] = p.DrniNeighborGatewayConversation[i]>>3&0x1 == 1
-			dr.DrniPortalSystemGatewayConversation[i+1] = p.DrniNeighborGatewayConversation[i]>>2&0x1 == 1
-			dr.DrniPortalSystemGatewayConversation[i+2] = p.DrniNeighborGatewayConversation[i]>>1&0x1 == 1
-			dr.DrniPortalSystemGatewayConversation[i+3] = p.DrniNeighborGatewayConversation[i]>>0&0x1 == 1
-		}
-	} else {
-		for i := 0; i < 4096; i++ {
-			// TODO what is the mapping of conversation id to system portal id
+
+	for _, ipp := range dr.Ipplinks {
+		if ipp.DifferPortDigest &&
+			!dr.DrniThreeSystemPortal {
+			for i := 0; i < 512; i++ {
+				dr.DrniPortalSystemPortConversation[i] = ipp.DrniNeighborPortConversation[i]>>7&0x1 == 1
+				dr.DrniPortalSystemPortConversation[i+1] = ipp.DrniNeighborPortConversation[i]>>6&0x1 == 1
+				dr.DrniPortalSystemPortConversation[i+2] = ipp.DrniNeighborPortConversation[i]>>5&0x1 == 1
+				dr.DrniPortalSystemPortConversation[i+3] = ipp.DrniNeighborPortConversation[i]>>4&0x1 == 1
+				dr.DrniPortalSystemPortConversation[i+4] = ipp.DrniNeighborPortConversation[i]>>3&0x1 == 1
+				dr.DrniPortalSystemPortConversation[i+5] = ipp.DrniNeighborPortConversation[i]>>2&0x1 == 1
+				dr.DrniPortalSystemPortConversation[i+6] = ipp.DrniNeighborPortConversation[i]>>1&0x1 == 1
+				dr.DrniPortalSystemPortConversation[i+7] = ipp.DrniNeighborPortConversation[i]>>0&0x1 == 1
+			}
+		} else {
+
+			// TODO not sure this a applicable as OTHER should always be false
+			// This function sets the Drni_Portal_System_Port_Conversation to the result of the logical
+			// AND operation between, the Boolean vector constructed from the
+			// Drni_Port_Conversation, by setting to FALSE all the indexed Port Conversation ID
+			// entries that are associated with other Portal Systems in the Portal, and the Boolean vector
+			// constructed from the Ipp_Other_Port_Conversation_Portal_System, by setting to FALSE
+			// all the indexed Port Conversation ID entries that are associated with other Portal Systems
+			// in the Portal.
 		}
 	}
-	*/
 }

@@ -25,6 +25,7 @@
 package drcp
 
 import (
+	//"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"strconv"
@@ -225,6 +226,11 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 	dr := psm.dr
 	a := dr.a
 
+	//fmt.Println("AggPriorityDefault:", a.AggPriority)
+	//fmt.Println("AggIdDefault:", a.AggMacAddr)
+	//fmt.Println("AdminKey:", a.ActorAdminKey)
+	//fmt.Println("PortAlgorithm:", a.PortAlgorithm)
+
 	dr.DrniAggregatorPriority = a.AggPriority
 	dr.DrniAggregatorId = a.AggMacAddr
 	dr.DrniPortalPriority = dr.DrniPortalPriority
@@ -244,7 +250,7 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 		//dr.DrniIntraPortalLinkList[i] = 0
 	}
 
-	// TOOD
+	// TODO
 	//dr.DRFHomeConversationPortListDigest
 	//dr.DRFHomeConversationGatewayListDigest
 
@@ -255,7 +261,7 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 func (psm *PsMachine) updateKey() {
 	dr := psm.dr
 	a := dr.a
-
+	//fmt.Println("updateKey: calling method")
 	if a != nil &&
 		a.PartnerDWC {
 		dr.DRFHomeOperAggregatorKey = ((dr.DRFHomeAdminAggregatorKey & 0x3fff) | 0x6000)
@@ -269,26 +275,26 @@ func (psm *PsMachine) updateKey() {
 		for _, ipp := range dr.Ipplinks {
 
 			if dr.DRFHomeAdminAggregatorKey != 0 &&
-				dr.DRFHomeAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey &&
-				dr.DRFHomeAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey {
+				(dr.DRFHomeAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) &&
+				(dr.DRFHomeAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
 				if operKey == 0 || dr.DRFHomeAdminAggregatorKey < operKey {
 					operKey = dr.DRFHomeAdminAggregatorKey
 				}
 			} else if ipp.DRFNeighborAdminAggregatorKey != 0 &&
-				ipp.DRFNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey &&
-				ipp.DRFNeighborAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey {
+				(ipp.DRFNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
+				(ipp.DRFNeighborAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
 				if operKey == 0 || ipp.DRFNeighborAdminAggregatorKey < operKey {
 					operKey = ipp.DRFNeighborAdminAggregatorKey
 				}
 			} else if ipp.DRFOtherNeighborAdminAggregatorKey != 0 &&
-				ipp.DRFOtherNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey &&
-				ipp.DRFOtherNeighborAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey {
+				(ipp.DRFOtherNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
+				(ipp.DRFOtherNeighborAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) {
 				if operKey == 0 || ipp.DRFOtherNeighborAdminAggregatorKey < operKey {
 					operKey = ipp.DRFOtherNeighborAdminAggregatorKey
 				}
 			}
+			dr.DRFHomeOperAggregatorKey = operKey
 		}
-		dr.DRFHomeOperAggregatorKey = operKey
 	}
 }
 

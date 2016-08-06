@@ -145,7 +145,7 @@ type DRCPIntraPortal struct {
 	IppOtherGatewayConversation          [MAX_CONVERSATION_IDS]uint32
 	IppOtherPortConversationPortalSystem [MAX_CONVERSATION_IDS]uint8
 	IppPortEnabled                       bool
-	IppPortalSystemState                 [3]NeighborStateInfo // this is probably wrong
+	IppPortalSystemState                 []NeighborStateInfo // this is probably wrong
 	MissingRcvGatewayConVector           bool
 	MissingRcvPortConVector              bool
 	NTTDRCPDU                            bool
@@ -199,7 +199,10 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 			AdminState: true,
 		},
 		DRCPIntraPortal: DRCPIntraPortal{
-			DRCPEnabled: true,
+			DRCPEnabled:          true,
+			IppPortalSystemState: make([]NeighborStateInfo, 0),
+			// neighbor system id contained in the port id
+			DRFHomeConfNeighborPortalSystemNumber: uint8(id >> 16 & 0x3),
 		},
 		dr:                 dr,
 		ippEvtResponseChan: make(chan string),
@@ -234,7 +237,7 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 	src := gopacket.NewPacketSource(ipp.handle, layers.LayerTypeEthernet)
 	in := src.Packets()
 	// start rx routine
-	DrRxMain(uint16(ipp.Id), in)
+	DrRxMain(uint16(ipp.Id), ipp.dr.DrniPortalAddr.String(), in)
 	ipp.LaIppLog(fmt.Sprintf("Rx Main Started for ipp link port", ipp.Id))
 
 	// register the tx func
@@ -478,7 +481,7 @@ func (p *DRCPIpp) NotifyNTTDRCPUDChange(src string, oldval, newval bool) {
 // is wrong.
 func (p *DRCPIpp) reportToManagement() {
 
-	p.LaIppLog(fmt.Sprintln("Report Failure to Management: %s", p.DifferPortalReason))
+	p.LaIppLog(fmt.Sprintln("Report Failure to Management:", p.DifferPortalReason))
 	// TODO send event
 }
 
