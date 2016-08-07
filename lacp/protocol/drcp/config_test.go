@@ -177,8 +177,8 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 		t.Error("ERROR BEGIN was called before an Agg has been attached")
 	}
 	if dr.PsMachineFsm == nil ||
-		dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemInitialize {
-		t.Error("ERROR BEGIN Initial Portal System Machine state is not correct", dr.PsMachineFsm.Machine.Curr.CurrentState())
+		dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate {
+		t.Error("ERROR BEGIN Initial Portal System Machine state is not correct", PsmStateStrMap[dr.PsMachineFsm.Machine.Curr.CurrentState()])
 	}
 	if dr.GMachineFsm == nil ||
 		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayInitialize {

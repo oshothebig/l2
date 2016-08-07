@@ -25,7 +25,7 @@
 package drcp
 
 import (
-	//"fmt"
+	"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"sort"
@@ -160,10 +160,17 @@ func (rxm *RxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // State transition to INITIALIZE
 func (rxm *RxMachine) DrcpRxMachineInitialize(m fsm.Machine, data interface{}) fsm.State {
 	p := rxm.p
+	dr := p.dr
 
 	// Record default params
 	rxm.recordDefaultDRCPDU()
 
+	// should not be set but lets be complete according to definition of ChangePortal
+	isset := p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity)
+	if isset {
+		defer rxm.NotifyChangePortalChanged(dr.ChangePortal, true)
+		dr.ChangePortal = true
+	}
 	p.DRFNeighborOperDRCPState.ClearState(layers.DRCPStateIPPActivity)
 	// next State
 	return RxmStateInitialize
@@ -173,7 +180,14 @@ func (rxm *RxMachine) DrcpRxMachineInitialize(m fsm.Machine, data interface{}) f
 // State transition to EXPIRED
 func (rxm *RxMachine) DrcpRxMachineExpired(m fsm.Machine, data interface{}) fsm.State {
 	p := rxm.p
+	dr := p.dr
 
+	// should not be set but lets be complete according to definition of ChangePortal
+	isset := p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity)
+	if isset {
+		defer rxm.NotifyChangePortalChanged(dr.ChangePortal, true)
+		dr.ChangePortal = true
+	}
 	p.DRFNeighborOperDRCPState.ClearState(layers.DRCPStateIPPActivity)
 	defer rxm.NotifyDRCPStateTimeoutChange(p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout), true)
 	// short timeout
@@ -238,8 +252,10 @@ func (rxm *RxMachine) DrcpRxMachineCurrent(m fsm.Machine, data interface{}) fsm.
 
 	// 1 short , 0 long
 	if dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) {
+		fmt.Println("Setting SHORT Timeout")
 		rxm.CurrentWhileTimerTimeoutSet(DrniShortTimeoutTime)
 	} else {
+		fmt.Println("Setting LONG Timeout")
 		rxm.CurrentWhileTimerTimeoutSet(DrniLongTimeoutTime)
 	}
 
@@ -511,9 +527,7 @@ func (rxm *RxMachine) processPostStateDefaulted() {
 func (rxm *RxMachine) NotifyChangePortalChanged(oldval, newval bool) {
 	p := rxm.p
 	dr := p.dr
-	if (dr.PsMachineFsm.Machine.Curr.CurrentState() == PsmStatePortalSystemInitialize ||
-		dr.PsMachineFsm.Machine.Curr.CurrentState() == PsmStatePortalSystemUpdate) &&
-		newval {
+	if newval {
 		dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
 			E:   PsmEventChangePortal,
 			Src: RxMachineModuleStr,
@@ -612,6 +626,10 @@ func (rxm *RxMachine) recordDefaultDRCPDU() {
 	}
 	p.CCTimeShared = false
 	p.CCEncTagShared = false
+
+	defer rxm.NotifyChangePortalChanged(dr.ChangePortal, true)
+	dr.ChangePortal = true
+
 }
 
 // recordPortalValues: 802.1ax-2014 Section 9.4.11 Functions
@@ -965,6 +983,13 @@ func (rxm *RxMachine) recordPortalConfValuesSavePortalConfInfo(drcpPduInfo *laye
 func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 	p := rxm.p
 	dr := p.dr
+
+	// lets be complete according to definition of ChangePortal
+	isset := p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity)
+	if isset {
+		defer rxm.NotifyChangePortalChanged(dr.ChangePortal, true)
+		dr.ChangePortal = true
+	}
 
 	// Ipp Activity
 	p.DRFNeighborOperDRCPState.SetState(layers.DRCPStateIPPActivity)

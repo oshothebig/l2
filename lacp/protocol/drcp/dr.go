@@ -24,7 +24,7 @@
 package drcp
 
 import (
-	//"fmt"
+	"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
@@ -167,6 +167,7 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		val, _ := strconv.Atoi(cfg.DrniNeighborAdminDRCPState[i : i+1])
 		dr.DrniNeighborAdminDRCPState |= uint8(val << j)
 	}
+	fmt.Println("ADMIN DRCP STATE:", dr.DrniNeighborAdminDRCPState, 1<<layers.DRCPStateDRCPTimeout)
 
 	// This should be nil
 	for i := 0; i < 16; i++ {

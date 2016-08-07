@@ -25,7 +25,7 @@
 package drcp
 
 import (
-	//"fmt"
+	"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"strconv"
@@ -240,6 +240,8 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 	dr.DRFHomePortAlgorithm = a.PortAlgorithm
 	dr.DRFHomeGatewayAlgorithm = dr.DrniGatewayAlgorithm
 	dr.DRFHomeOperDRCPState = dr.DRFNeighborAdminDRCPState
+	fmt.Println("PSM: OPER DRCP STATE", dr.DRFHomeOperDRCPState)
+
 	dr.GatewayVectorDatabase = nil
 	// set during config do not want to clear this to a default because
 	// there is only one default
@@ -251,6 +253,13 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 	}
 
 	// TODO
+	// Because we only support Sharing by Time we don't
+	// need to worry about how the other system is
+	// provisioned thus we only need to worry about filling
+	// in the priority list for our system.
+	//
+	// This should be updated with the valid 'conversation ids'
+	//
 	//dr.DRFHomeConversationPortListDigest
 	//dr.DRFHomeConversationGatewayListDigest
 
