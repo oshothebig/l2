@@ -25,7 +25,7 @@
 package drcp
 
 import (
-	"fmt"
+	//"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"sort"
@@ -252,10 +252,8 @@ func (rxm *RxMachine) DrcpRxMachineCurrent(m fsm.Machine, data interface{}) fsm.
 
 	// 1 short , 0 long
 	if dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) {
-		fmt.Println("Setting SHORT Timeout")
 		rxm.CurrentWhileTimerTimeoutSet(DrniShortTimeoutTime)
 	} else {
-		fmt.Println("Setting LONG Timeout")
 		rxm.CurrentWhileTimerTimeoutSet(DrniLongTimeoutTime)
 	}
 

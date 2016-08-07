@@ -24,7 +24,7 @@
 package drcp
 
 import (
-	"fmt"
+	//"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
@@ -166,8 +166,8 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	for i, j := 0, uint32(7); i < 8; i, j = i+1, j-1 {
 		val, _ := strconv.Atoi(cfg.DrniNeighborAdminDRCPState[i : i+1])
 		dr.DrniNeighborAdminDRCPState |= uint8(val << j)
+		dr.DRFNeighborAdminDRCPState |= layers.DRCPState(val << j)
 	}
-	fmt.Println("ADMIN DRCP STATE:", dr.DrniNeighborAdminDRCPState, 1<<layers.DRCPStateDRCPTimeout)
 
 	// This should be nil
 	for i := 0; i < 16; i++ {
@@ -187,8 +187,10 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		dr.DrniGatewayAlgorithm[i] = uint8(val)
 		val, _ = strconv.ParseInt(neighborgatewayalgorithm[i], 16, 16)
 		dr.DrniNeighborAdminGatewayAlgorithm[i] = uint8(val)
+		dr.DRFNeighborAdminGatewayAlgorithm[i] = uint8(val)
 		val, _ = strconv.ParseInt(neighborportalgorithm[i], 16, 16)
 		dr.DrniNeighborAdminPortAlgorithm[i] = uint8(val)
+		dr.DRFNeighborAdminPortAlgorithm[i] = uint8(val)
 	}
 
 	for i, data := range cfg.DrniIPLEncapMap {

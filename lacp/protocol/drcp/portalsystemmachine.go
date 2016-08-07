@@ -25,7 +25,7 @@
 package drcp
 
 import (
-	"fmt"
+	//"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"strconv"
@@ -240,7 +240,6 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 	dr.DRFHomePortAlgorithm = a.PortAlgorithm
 	dr.DRFHomeGatewayAlgorithm = dr.DrniGatewayAlgorithm
 	dr.DRFHomeOperDRCPState = dr.DRFNeighborAdminDRCPState
-	fmt.Println("PSM: OPER DRCP STATE", dr.DRFHomeOperDRCPState)
 
 	dr.GatewayVectorDatabase = nil
 	// set during config do not want to clear this to a default because
