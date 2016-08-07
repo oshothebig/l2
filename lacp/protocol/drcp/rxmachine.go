@@ -607,11 +607,6 @@ func (rxm *RxMachine) recordDefaultDRCPDU() {
 	p.DRFOtherNeighborOperPartnerAggregatorKey = 0
 	if dr.DrniThreeSystemPortal {
 		// TODO may need to chage this logic when 3P system supported
-		/*
-			for i := 0; i < 1024; i++ {
-				p.DrniNeighborGatewayConversation[i] = p.DRFHomeConfNeighborPortalSystemNumber
-				p.DrniNeighborPortConversation[i] = p.DRFHomeConfNeighborPortalSystemNumber
-			}*/
 	} else {
 
 		for i := 0; i < 1024; i++ {
@@ -1237,15 +1232,15 @@ func (rxm *RxMachine) compareGatewayOperGatewayVector() {
 	dr := p.dr
 
 	operOrVectorDiffer := false
-	for i := 0; i < 3 && !operOrVectorDiffer; i++ {
+	for i := 1; i <= MAX_PORTAL_SYSTEM_IDS && !operOrVectorDiffer; i++ {
 		if dr.DrniPortalSystemState[i].OpState != p.DrniNeighborState[i].OpState {
 			operOrVectorDiffer = true
-		} else {
+		} else if dr.DrniPortalSystemState[i].OpState {
 			if len(dr.DrniPortalSystemState[i].GatewayVector) != len(p.DrniNeighborState[i].GatewayVector) {
 				operOrVectorDiffer = true
 			} else {
 				for j, val := range dr.DrniPortalSystemState[i].GatewayVector {
-					for k := 0; i < MAX_CONVERSATION_IDS && !operOrVectorDiffer; k++ {
+					for k := 0; k < MAX_CONVERSATION_IDS && !operOrVectorDiffer; k++ {
 						if val.Vector[k] != p.DrniNeighborState[i].GatewayVector[j].Vector[k] {
 							operOrVectorDiffer = true
 						}
@@ -1295,7 +1290,7 @@ func (rxm *RxMachine) comparePortIds() {
 	dr := p.dr
 	portListDiffer := false
 
-	for i := 0; i < 3 && !portListDiffer; i++ {
+	for i := 1; i <= MAX_PORTAL_SYSTEM_IDS && !portListDiffer; i++ {
 		if len(dr.DrniPortalSystemState[i].PortIdList) == len(p.DrniNeighborState[i].PortIdList) {
 			// make sure the lists are sorted
 			sort.Sort(sortPortList(dr.DrniPortalSystemState[i].PortIdList))

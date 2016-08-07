@@ -984,3 +984,128 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferThreeSystemPortalDiff(t *te
 	lacp.DeleteLaAgg(a.AggId)
 	RxMachineTestTeardwon()
 }
+
+func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferNeighborPortalSystemNumDiff(t *testing.T) {
+
+	RxMachineTestSetup()
+	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)},
+		DrniAggregator:                    uint32(a.AggId),
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+	// map vlan 100 to this system
+	// in real system this should be filled in by vlan membership
+	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err != nil {
+		t.Error("Parameter check failed for what was expected to be a valid config", err)
+	}
+	// just create instance not starting any state machines
+	dr := NewDistributedRelay(cfg)
+	dr.a = a
+
+	// lets get the IPP
+	ipp := dr.Ipplinks[0]
+
+	// rx machine sends event to each of these machines according to figure 9-22
+	DrcpAMachineFSMBuild(dr)
+	DrcpGMachineFSMBuild(dr)
+	DrcpPsMachineFSMBuild(dr)
+	DrcpTxMachineFSMBuild(ipp)
+	DrcpPtxMachineFSMBuild(ipp)
+
+	// start RX MAIN
+	ipp.DrcpRxMachineMain()
+	// enable because aggregator was attached above
+	ipp.DRCPEnabled = true
+
+	responseChan := make(chan string)
+
+	// Psm is expected to be in update state
+	// initialize will set the dr default values
+	// which will be matched against received packets
+	dr.PsMachineFsm.DrcpPsMachinePortalSystemInitialize(*dr.PsMachineFsm.Machine, nil)
+
+	ipp.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            RxmEventBegin,
+		Src:          "RX MACHINE TEST",
+		ResponseChan: responseChan,
+	}
+
+	<-responseChan
+
+	// create packet
+	drcp := OnlyForRxMachineCreateValidDRCPPacket()
+
+	// TEST:
+	// Check Portal System and Neighbor Portal System Number differ
+	// Neighbor set as part of IPP Id
+	drcp.PortalConfigInfo.TopologyState.SetState(layers.DRCPTopologyStatePortalSystemNum, 1)
+	drcp.PortalConfigInfo.TopologyState.SetState(layers.DRCPTopologyStateNeighborConfPortalSystemNumber, 2)
+
+	ipp.RxMachineFsm.RxmPktRxEvent <- RxDrcpPdu{
+		pdu:          drcp,
+		src:          "RX MACHINE TEST",
+		responseChan: responseChan,
+	}
+
+	<-responseChan
+
+	// Neighbor Admin values not correct, thus should discard as
+	// neighbor info is not known yet
+	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateCurrent {
+		t.Error("ERROR Rx Machine is not in expected state from first received PDU actual:", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
+	}
+	// lets check some settings on the ipp
+	if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) {
+		t.Error("ERROR Neighbor_Oper_DRCP_State IPP_Activity was set when it should be cleared", ipp.DRFNeighborOperDRCPState)
+	}
+	if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateDRCPTimeout) {
+		t.Error("ERROR Neighbor_Oper_DRCP_State DRCP Timeout was set to LONG when it should be SHORT", ipp.DRFNeighborOperDRCPState)
+	}
+	// only the upper two bits of operaggkey is different this does not mean that the rx fails
+	if !ipp.DifferConfPortalSystemNumber {
+		t.Error("ERROR DifferConfPortalSystemNumber is not set as it should be")
+	}
+	if !strings.Contains(ipp.DifferPortalReason, "Portal System Number") {
+		t.Error("ERROR Portal Difference Detected", ipp.DifferPortalReason)
+	}
+
+	eventReceived := false
+	go func(dr *DistributedRelay, evrx *bool) {
+		for i := 0; i < 10 && !*evrx; i++ {
+			time.Sleep(time.Second * 1)
+		}
+		if !eventReceived {
+			dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
+				E:   fsm.Event(0),
+				Src: "RX MACHINE: FORCE TEST FAIL",
+			}
+		}
+	}(dr, &eventReceived)
+	// event sent from recordDefaultDRCPDU
+	evt := <-dr.PsMachineFsm.PsmEvents
+	if evt.E != PsmEventChangePortal {
+		t.Error("ERROR Invalid event received", evt.E)
+	}
+
+	eventReceived = true
+
+	ipp.RxMachineFsm.Stop()
+	lacp.DeleteLaAgg(a.AggId)
+	RxMachineTestTeardwon()
+}

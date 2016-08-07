@@ -137,7 +137,7 @@ type DRCPIntraPortal struct {
 	DrniNeighborONN                          bool
 	DrniNeighborPortalAddr                   [6]uint8
 	DrniNeighborPortalPriority               uint16
-	DrniNeighborState                        [3]NeighborStateInfo
+	DrniNeighborState                        [4]NeighborStateInfo
 	// This should always be false as we will not support 3 portal system initially
 	DrniNeighborThreeSystemPortal        bool
 	EnabledTimeShared                    bool
