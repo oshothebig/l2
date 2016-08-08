@@ -29,6 +29,7 @@ import (
 	"net"
 	"testing"
 	asicdmock "utils/asicdClient/mock"
+	"utils/commonDefs"
 	"utils/logging"
 )
 
@@ -44,6 +45,24 @@ const aggport4 int32 = 6
 
 type MyTestMock struct {
 	asicdmock.MockAsicdClientMgr
+}
+
+func (m *MyTestMock) GetBulkVlan(curMark, count int) (*commonDefs.VlanGetInfo, error) {
+
+	getinfo := &commonDefs.VlanGetInfo{
+		StartIdx: 1,
+		EndIdx:   1,
+		Count:    1,
+		More:     false,
+		VlanList: make([]commonDefs.Vlan, 1),
+	}
+
+	getinfo.VlanList[0] = commonDefs.Vlan{
+		VlanId:           100,
+		IfIndexList:      []int32{aggport1, aggport2},
+		UntagIfIndexList: []int32{aggport1, aggport2},
+	}
+	return getinfo, nil
 }
 
 func OnlyForTestSetup() {

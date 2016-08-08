@@ -24,10 +24,14 @@
 package drcp
 
 import (
+	"bytes"
+	"crypto/md5"
+	"encoding/binary"
 	//"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -36,6 +40,20 @@ import (
 
 var DistributedRelayDB map[string]*DistributedRelay
 var DistributedRelayDBList []*DistributedRelay
+
+// holds the current conversation map values
+var ConversationIdMap [MAX_CONVERSATION_IDS]ConvIdTypeValue
+
+type ConvIdTypeValue struct {
+	valid      bool
+	idtype     GatewayAlgorithm
+	isid       uint32
+	cvlan      uint16
+	svlan      uint16
+	bvid       uint16
+	psuedowire uint32
+	portList   []int32
+}
 
 // 802.1ax-2014 7.4.1.1
 type DistributedRelay struct {
@@ -143,6 +161,97 @@ func DrFindByPortalAddr(portaladdr string, dr **DistributedRelay) bool {
 	return false
 }
 
+// GetAllCVIDConversations: Fill in the mapping of vlan -> conversation id which is 1:1
+func (dr *DistributedRelay) GetAllCVIDConversations() {
+	curMark := 0
+	count := 100
+	more := true
+	for more {
+		for _, client := range utils.GetAsicDPluginList() {
+
+			bulkVlanInfo, _ := client.GetBulkVlan(curMark, count)
+			if bulkVlanInfo != nil {
+				objCnt := int(bulkVlanInfo.Count)
+				more = bool(bulkVlanInfo.More)
+				curMark = int(bulkVlanInfo.EndIdx)
+				for i := 0; i < objCnt; i++ {
+					vlan := bulkVlanInfo.VlanList[i].VlanId
+
+					ent := ConversationIdMap[uint16(vlan)]
+					ent.valid = true
+					ent.idtype = GATEWAY_ALGORITHM_CVID
+					ent.cvlan = uint16(vlan)
+					// TODO should look at tagged list as well?
+					if ent.portList == nil {
+						ent.portList = make([]int32, 0)
+					}
+					untaggedIfIndexList := bulkVlanInfo.VlanList[i].UntagIfIndexList
+					for _, ifindex := range untaggedIfIndexList {
+						ent.portList = append(ent.portList, ifindex)
+					}
+					ConversationIdMap[uint16(vlan)] = ent
+				}
+			}
+		}
+	}
+}
+
+// setTimeSharingGatwewayDigest, when the port and gateway algorithm
+// is set to time sharing then it should be noted that the gateway
+// and port algorithm digest
+// currently we only support Vlan based
+// to start each
+// algorithm is as follows:
+// Conversations are not bound to a lag link but rather a portal system,
+// thus all down traffic will either go to the local aggregator ports
+// or IPL if the destination is a remote portal network port (which is not
+// an aggregator port).  All up traffic is only destined to another
+// aggregator or other network links either in hte local system or accross
+// the IPL to the neighbor system.
+// If all local aggregator ports are down then the neighbor system must
+// forward frames out the aggregator as well as any network links to
+// which the frame is destined for
+func (dr *DistributedRelay) setTimeSharingPortAndGatwewayDigest() {
+	// algorithm assumes 2P system only
+	if dr.DrniGatewayAlgorithm == GATEWAY_ALGORITHM_CVID {
+		dr.GetAllCVIDConversations()
+		if !dr.DrniThreeSystemPortal {
+			dr.setAdminConvGatewayAndNeighborGatewayListDigest()
+		}
+	}
+}
+
+// setAdminConvGatewayAndNeighborGatewayListDigest will set the predetermined
+// algorithm as the gateway.  Every even vlan will have its gateway in system
+// 2 and every odd vlan will have its gateway in system 1
+func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
+	ghash := md5.New()
+	for cid, conv := range ConversationIdMap {
+		if conv.valid {
+			if math.Mod(float64(conv.cvlan), 2) == 0 {
+				dr.DrniConvAdminGateway[cid] = [3]uint8{2, 1}
+			} else {
+				dr.DrniConvAdminGateway[cid] = [3]uint8{1, 2}
+			}
+
+			buf := new(bytes.Buffer)
+			// network byte order
+			binary.Write(buf, binary.BigEndian, []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
+			ghash.Write(buf.Bytes())
+		} else {
+			buf := new(bytes.Buffer)
+			// network byte order
+			binary.Write(buf, binary.BigEndian, []uint8{uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
+			ghash.Write(buf.Bytes())
+		}
+	}
+	for i, val := range ghash.Sum(nil) {
+		dr.DrniNeighborAdminConvGatewayListDigest[i] = val
+		dr.DRFNeighborAdminConversationGatewayListDigest[i] = val
+		dr.DRFHomeConversationGatewayListDigest[i] = val
+	}
+}
+
 // NewDistributedRelay create a new instance of Distributed Relay and
 // the associated objects for the IPP ports
 func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
@@ -171,27 +280,30 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 
 	// This should be nil
 	for i := 0; i < 16; i++ {
-		dr.DrniNeighborAdminConvGatewayListDigest[i] = cfg.DrniNeighborAdminConvGatewayListDigest[i]
 		dr.DrniNeighborAdminConvPortListDigest[i] = cfg.DrniNeighborAdminConvPortListDigest[i]
 	}
 	// format "00:00:00:00"
 	encapmethod := strings.Split(cfg.DrniEncapMethod, ":")
 	gatewayalgorithm := strings.Split(cfg.DrniGatewayAlgorithm, ":")
 	neighborgatewayalgorithm := strings.Split(cfg.DrniNeighborAdminGatewayAlgorithm, ":")
-	neighborportalgorithm := strings.Split(cfg.DrniNeighborAdminPortAlgorithm, ":")
-	var val int64
-	for i := 0; i < 4; i++ {
-		val, _ = strconv.ParseInt(encapmethod[i], 16, 16)
-		dr.DrniEncapMethod[i] = uint8(val)
-		val, _ = strconv.ParseInt(gatewayalgorithm[i], 16, 16)
-		dr.DrniGatewayAlgorithm[i] = uint8(val)
-		val, _ = strconv.ParseInt(neighborgatewayalgorithm[i], 16, 16)
-		dr.DrniNeighborAdminGatewayAlgorithm[i] = uint8(val)
-		dr.DRFNeighborAdminGatewayAlgorithm[i] = uint8(val)
-		val, _ = strconv.ParseInt(neighborportalgorithm[i], 16, 16)
-		dr.DrniNeighborAdminPortAlgorithm[i] = uint8(val)
-		dr.DRFNeighborAdminPortAlgorithm[i] = uint8(val)
-	}
+	//neighborportalgorithm := strings.Split(cfg.DrniNeighborAdminPortAlgorithm, ":")
+	var val1, val2, val3, val4 int64
+	val1, _ = strconv.ParseInt(encapmethod[0], 16, 16)
+	val2, _ = strconv.ParseInt(encapmethod[1], 16, 16)
+	val3, _ = strconv.ParseInt(encapmethod[2], 16, 16)
+	val4, _ = strconv.ParseInt(encapmethod[3], 16, 16)
+	dr.DrniEncapMethod = [4]uint8{uint8(val1), uint8(val2), uint8(val3), uint8(val4)}
+	val1, _ = strconv.ParseInt(gatewayalgorithm[0], 16, 16)
+	val2, _ = strconv.ParseInt(gatewayalgorithm[1], 16, 16)
+	val3, _ = strconv.ParseInt(gatewayalgorithm[2], 16, 16)
+	val4, _ = strconv.ParseInt(gatewayalgorithm[3], 16, 16)
+	dr.DrniGatewayAlgorithm = [4]uint8{uint8(val1), uint8(val2), uint8(val3), uint8(val4)}
+	val1, _ = strconv.ParseInt(neighborgatewayalgorithm[0], 16, 16)
+	val2, _ = strconv.ParseInt(neighborgatewayalgorithm[1], 16, 16)
+	val3, _ = strconv.ParseInt(neighborgatewayalgorithm[2], 16, 16)
+	val4, _ = strconv.ParseInt(neighborgatewayalgorithm[3], 16, 16)
+	dr.DrniNeighborAdminGatewayAlgorithm = [4]uint8{uint8(val1), uint8(val2), uint8(val3), uint8(val4)}
+	dr.DRFNeighborAdminGatewayAlgorithm = [4]uint8{uint8(val1), uint8(val2), uint8(val3), uint8(val4)}
 
 	for i, data := range cfg.DrniIPLEncapMap {
 		dr.DrniIPLEncapMap[uint32(i)] = data
@@ -202,6 +314,9 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 
 	netMac, _ := net.ParseMAC(cfg.DrniIntraPortalPortProtocolDA)
 	dr.DrniPortalPortProtocolIDA = netMac
+
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// add to the global db's
 	DistributedRelayDB[dr.DrniName] = dr

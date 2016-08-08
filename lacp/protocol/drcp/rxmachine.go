@@ -782,7 +782,7 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 
 	} else if !p.DifferConfPortal &&
 		(threeSystemPortalEqual && gatewayAlgorithmEqual) {
-		// TODO when 3P system is supported
+
 		if conversationGatewayListDigestEqual {
 			p.DifferGatewayDigest = false
 			p.GatewayConversationTransmit = false
@@ -833,7 +833,7 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 		}
 	} else if !p.DifferConfPortal &&
 		threeSystemPortalEqual &&
-		!portAlgorithmEqual {
+		portAlgorithmEqual {
 		if conversationPortListDigestEqual {
 			p.DifferPortDigest = false
 			p.PortConversationTransmit = false
@@ -921,17 +921,25 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 
 	// Sharing by time would mean according to Annex G:
 	// There is no agreement on symmetric Port Conversation IDs across the DRNI
-	// So, lets ignore the check in this case
-	if dr.DrniEncapMethod != ENCAP_METHOD_SHARING_BY_TIME {
-		if !conversationPortListDigestEqual {
-			//fmt.Println("PortListDigest:", p.DRFNeighborConversationPortListDigest, dr.DRFHomeConversationPortListDigest)
-			p.DifferPortalReason += "Converstaion Port List Digest, "
-		}
-		if !conversationGatewayListDigestEqual {
-			//fmt.Println("GatewayListDigest:", p.DRFNeighborConversationGatewayListDigest, dr.DRFHomeConversationGatewayListDigest)
-			p.DifferPortalReason += "Conversation Gateway List Digest, "
-		}
+	// So, lets ignore the check in this case for the ports
+	// Instead of ignoring lets just always send nil digest as it is not
+	// being used, thus if someone sends anything different it will fail
+	//if dr.DrniEncapMethod != ENCAP_METHOD_SHARING_BY_TIME {
+	if !conversationPortListDigestEqual {
+		//fmt.Println("PortListDigest:", p.DRFNeighborConversationPortListDigest, dr.DRFHomeConversationPortListDigest)
+		p.DifferPortalReason += "Converstaion Port List Digest, "
 	}
+	//}
+
+	// There is an agreement for ownership of Gateway
+	// CVID:
+	// Odd VID owned by portal 1
+	// Even VID owned by portal 2
+	if !conversationGatewayListDigestEqual {
+		//fmt.Println("GatewayListDigest:", p.DRFNeighborConversationGatewayListDigest, dr.DRFHomeConversationGatewayListDigest)
+		p.DifferPortalReason += "Conversation Gateway List Digest, "
+	}
+
 }
 
 // recordPortalConfValuesSavePortalConfInfo This function records the Neighbor
