@@ -60,7 +60,7 @@ func (p *SystemPlugin) PublishEvent(info config.EventInfo) {
 		txEvt.EventId = events.NeighborRemoved
 
 	}
-	err = eventUtils.PublishEvents(txEvt)
+	err = eventUtils.PublishEvents(&txEvt)
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Publishining Event for", info.IfIndex, "event Type", eventType,
 			"failed with error:", err))
