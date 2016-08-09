@@ -853,29 +853,13 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 			} else if !TwoPPortConversationVectorPresent &&
 				!ThreePPortConversationVectorPresent &&
 				p.DrniNeighborCommonMethods == p.dr.DrniCommonMethods &&
-				p.dr.DrniCommonMethods {
-				/*
-					The above if statement is meant to satisyf the following
-					statement, however logicaly it does not make sense
-					so will have to debug this case later to figure out what
-					the logic should be
-
-					LOGIC for this section does not make sense below based on the actions that are performed as they
-					are covered above
-					!TwoPPortConversationVectorPresent &&
-					!ThreePPortConversationVectorPresent &&
-					commonMethodsEqual &&
-					p.dr.DrniCommonMethods {
-					 Otherwise if no Port Conversation Vector TLVs (9.4.3.3.4, 9.4.3.3.5, 9.4.3.3.6) are
-					present in the received DRCPDU, Drni_Neighbor_Common_Methods ==
-					Drni_Common_Methods == TRUE OR the Port Conversation Vector TLVs
-					(9.4.3.3.4, 9.4.3.3.5, 9.4.3.3.6) associated with the expected number of Portal
-					Systems in the Portal are present in the received DRCPDU then;
-				*/
-				if !p.dr.DrniThreeSystemPortal {
+				p.dr.DrniCommonMethods &&
+				TwoPGatewayConverationVectorPresent &&
+				ThreePGatewayConversationVectorPresent {
+				if !dr.DrniThreeSystemPortal {
 					for i := 0; i < 512; i++ {
 						// boolean vector
-						p.DrniNeighborPortConversation[i] = drcpPduInfo.TwoPortalPortConversationVector.Vector[i]
+						p.DrniNeighborPortConversation[i] = drcpPduInfo.TwoPortalGatewayConversationVector.Vector[i]
 					}
 				} else {
 					// TODO when 3P system supported

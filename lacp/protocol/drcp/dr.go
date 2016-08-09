@@ -146,8 +146,8 @@ type DistributedRelayFunction struct {
 	PSI                   bool
 
 	// 9.3.3.2
-	DrniPortalSystemGatewayConversation [4096]bool
-	DrniPortalSystemPortConversation    [4096]bool
+	DrniPortalSystemGatewayConversation [MAX_CONVERSATION_IDS]bool
+	DrniPortalSystemPortConversation    [MAX_CONVERSATION_IDS]bool
 }
 
 // DrFindByPortalAddr each portal address is unique within the system

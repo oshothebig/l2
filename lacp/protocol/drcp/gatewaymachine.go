@@ -317,20 +317,30 @@ func (gm *GMachine) setGatewayConversation() {
 
 // updatePortalSystemGatewayConversation This function sets Drni_Portal_System_Gateway_Conversation as follows
 func (gm *GMachine) updatePortalSystemGatewayConversation() {
-	/* TODO need to understand this better to apply the port
 	dr := gm.dr
-	if p.DifferGatewayDigest &&
-		!dr.DrniThreeSystemPortal {
-		for i := 0; i < 512; i++ {
-			dr.DrniPortalSystemGatewayConversation[i] = p.DrniNeighborGatewayConversation[i]>>3&0x1 == 1
-			dr.DrniPortalSystemGatewayConversation[i+1] = p.DrniNeighborGatewayConversation[i]>>2&0x1 == 1
-			dr.DrniPortalSystemGatewayConversation[i+2] = p.DrniNeighborGatewayConversation[i]>>1&0x1 == 1
-			dr.DrniPortalSystemGatewayConversation[i+3] = p.DrniNeighborGatewayConversation[i]>>0&0x1 == 1
-		}
-	} else {
-		for i := 0; i < 4096; i++ {
-			// TODO what is the mapping of conversation id to system portal id
+
+	for _, ipp := range dr.Ipplinks {
+		if ipp.DifferGatewayDigest &&
+			!dr.DrniThreeSystemPortal {
+			for i := 0; i < 512; i++ {
+				dr.DrniPortalSystemGatewayConversation[i] = ipp.DrniNeighborGatewayConversation[i]>>7&0x1 == 1
+				dr.DrniPortalSystemGatewayConversation[i+1] = ipp.DrniNeighborGatewayConversation[i]>>6&0x1 == 1
+				dr.DrniPortalSystemGatewayConversation[i+2] = ipp.DrniNeighborGatewayConversation[i]>>5&0x1 == 1
+				dr.DrniPortalSystemGatewayConversation[i+3] = ipp.DrniNeighborGatewayConversation[i]>>4&0x1 == 1
+				dr.DrniPortalSystemGatewayConversation[i+4] = ipp.DrniNeighborGatewayConversation[i]>>3&0x1 == 1
+				dr.DrniPortalSystemGatewayConversation[i+5] = ipp.DrniNeighborGatewayConversation[i]>>2&0x1 == 1
+				dr.DrniPortalSystemGatewayConversation[i+6] = ipp.DrniNeighborGatewayConversation[i]>>1&0x1 == 1
+				dr.DrniPortalSystemGatewayConversation[i+7] = ipp.DrniNeighborGatewayConversation[i]>>0&0x1 == 1
+			}
+		} else {
+			// TODO when 3P supported
+			// his function sets the Drni_Portal_System_Gateway_Conversation to the result of the
+			// logical AND operation between, the Boolean vector constructed from the
+			// Drni_Gateway_Conversation, by setting to FALSE all the indexed Gateway
+			// Conversation ID entries that are associated with other Portal Systems in the Portal, and the
+			// Boolean vectors constructed from all IPPs Ipp_Other_Gateway_Conversation, by setting
+			// to FALSE all the indexed Gateway Conversation ID entries that are associated with other
+			// Portal Systems in the Portal
 		}
 	}
-	*/
 }

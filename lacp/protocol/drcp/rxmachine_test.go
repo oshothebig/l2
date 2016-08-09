@@ -143,7 +143,7 @@ func OnlyForRxMachineCreateValidDRCPPacket() *layers.DRCP {
 		HomeGatewayVector: layers.DRCPHomeGatewayVectorTlv{
 			TlvTypeLength: layers.DRCPTLVTypeHomeGatewayVector | layers.DRCPTLVHomeGatewayVectorLength_2,
 			Sequence:      1,
-			Vector:        make([]uint8, 4096),
+			Vector:        make([]uint8, 512),
 		},
 		//NeighborGatewayVector: DRCPNeighborGatewayVectorTlv{
 		//	TlvTypeLength: layers.DRCPTLVTypeNeighborGatewayVector | layers.DRCPTLVNeighborGatewayVectorLength,

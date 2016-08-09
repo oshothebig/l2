@@ -118,6 +118,7 @@ func (igm *IGMachine) DrcpIGMachineIPPGatewayInitialize(m fsm.Machine, data inte
 	igm.initializeIPPGatewayConversation()
 	p.IppGatewayUpdate = false
 
+	defer igm.NotifyIppAllGatewayUpdate()
 	return IGmStateIPPGatewayInitialize
 }
 
@@ -130,6 +131,7 @@ func (igm *IGMachine) DrcpIGMachineIPPGatewayUpdate(m fsm.Machine, data interfac
 	igm.updateIPPGatewayConversationDirection()
 	p.IppGatewayUpdate = false
 
+	defer igm.NotifyIppAllGatewayUpdate()
 	// next State
 	return IGmStateIPPGatewayUpdate
 }
@@ -279,4 +281,26 @@ func (igm *IGMachine) setIPPGatewayConversation() {
 // updateIPPGatewayConversationDirection This function computes a value for Ipp_Gateway_Conversation_Direction as follows
 func (igm *IGMachine) updateIPPGatewayConversationDirection() {
 	// TODO need to understand the logic better
+}
+
+// NotifyIppAllGatewayUpdate this should be called each time IppGatewayUpdate is changed
+// to false so that the gateway machine can be informed
+func (igm *IGMachine) NotifyIppAllGatewayUpdate() {
+	p := igm.p
+	dr := p.dr
+
+	allgatewayupdate := false
+	for _, ipp := range dr.Ipplinks {
+		if ipp.IppGatewayUpdate {
+			allgatewayupdate = true
+		}
+	}
+	if !allgatewayupdate && dr.IppAllGatewayUpdate {
+		dr.IppAllGatewayUpdate = false
+		dr.GMachineFsm.GmEvents <- utils.MachineEvent{
+			E:   GmEventNotIppAllGatewayUpdate,
+			Src: IGMachineModuleStr,
+		}
+	}
+
 }
