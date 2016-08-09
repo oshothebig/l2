@@ -44,17 +44,23 @@ func (p *SystemPlugin) PublishEvent(info config.EventInfo) {
 			EnabledCapabilities: entry.EnabledCapabilities,
 		}
 	*/
+	txEvt := eventUtils.TxEvent{
+		Key:            evtKey,
+		AdditionalInfo: "",
+		AdditionalData: nil,
+	}
 	debug.Logger.Info(fmt.Sprintln("Publishing event Type:", eventType, "--->", evtKey))
 	var err error
 	switch eventType {
 	case config.Learned:
-		err = eventUtils.PublishEvents(events.NeighborLearned, evtKey, "")
+		txEvt.EventId = events.NeighborLearned
 	case config.Updated:
-		err = eventUtils.PublishEvents(events.NeighborUpdated, evtKey, "")
+		txEvt.EventId = events.NeighborUpdated
 	case config.Removed:
-		err = eventUtils.PublishEvents(events.NeighborRemoved, evtKey, "")
+		txEvt.EventId = events.NeighborRemoved
 
 	}
+	err = eventUtils.PublishEvents(txEvt)
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Publishining Event for", info.IfIndex, "event Type", eventType,
 			"failed with error:", err))
