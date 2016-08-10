@@ -260,7 +260,7 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 	// This should be updated with the valid 'conversation ids'
 	//
 	//dr.DRFHomeConversationPortListDigest
-	//dr.DRFHomeConversationGatewayListDigest
+	//dr.DRFHomeConversationGatewayListDigest = dr.
 
 }
 

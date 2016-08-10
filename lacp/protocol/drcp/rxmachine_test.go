@@ -54,34 +54,35 @@ import (
 func OnlyForRxMachineTestSetup() {
 	logger, _ := logging.NewLogger("lacpd", "TEST", false)
 	utils.SetLaLogger(logger)
+	utils.DeleteAllAsicDPlugins()
 	utils.SetAsicDPlugin(&MyTestMock{})
+	// fill in conversations
+	GetAllCVIDConversations()
 }
 
 func OnlyForRxMachineTestTeardown() {
 
 	utils.SetLaLogger(nil)
 	utils.DeleteAllAsicDPlugins()
+	ConversationIdMap[100].Valid = false
+	ConversationIdMap[100].PortList = nil
+	ConversationIdMap[100].Cvlan = 0
+	ConversationIdMap[100].Refcnt = 0
+	ConversationIdMap[100].Idtype = [4]uint8{}
 }
 
 func OnlyForRxMachineCreateValidDRCPPacket() *layers.DRCP {
 
 	phash := md5.New()
-	/*
-		for i := 0; i < MAX_CONVERSATION_IDS; i++ {
 
-			if i != 100 {
-				buf := new(bytes.Buffer)
-				// network byte order
-				binary.Write(buf, binary.BigEndian, []uint16{0x0000})
-				phash.Write(buf.Bytes())
-			} else {
-				buf := new(bytes.Buffer)
-				// network byte order
-				binary.Write(buf, binary.BigEndian, []uint16{uint16(aggport3), uint16(aggport4)})
-				phash.Write(buf.Bytes())
-			}
-		}
-	*/
+	for i := 0; i < MAX_CONVERSATION_IDS; i++ {
+		buf := new(bytes.Buffer)
+		// network byte order
+		binary.Write(buf, binary.BigEndian, []uint16{uint16(i)})
+		phash.Write(buf.Bytes())
+
+	}
+
 	ghash := md5.New()
 	for i := float64(0); i < MAX_CONVERSATION_IDS; i++ {
 
@@ -94,7 +95,7 @@ func OnlyForRxMachineCreateValidDRCPPacket() *layers.DRCP {
 		} else {
 			buf := new(bytes.Buffer)
 			// network byte order
-			binary.Write(buf, binary.BigEndian, []uint8{uint8(uint16(i) >> 8 & 0xff), uint8(uint16(i) & 0xff)})
+			binary.Write(buf, binary.BigEndian, []uint16{uint16(i)})
 			ghash.Write(buf.Bytes())
 
 		}
@@ -264,6 +265,8 @@ func TestRxMachineRxValidDRCPDUNeighborPkt(t *testing.T) {
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// create packet which will be sent for this test
 	drcp := OnlyForRxMachineCreateValidDRCPPacket()
@@ -384,6 +387,8 @@ func TestRxMachineRxValidDRCPDUNeighborPktThenTimeout(t *testing.T) {
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// create packet which will be sent for this test
 	drcp := OnlyForRxMachineCreateValidDRCPPacket()
@@ -533,6 +538,8 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorPriority(t *testi
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -632,6 +639,8 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorAddr(t *testing.T
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -731,6 +740,8 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferOperAggregatorKey(t *testin
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -883,6 +894,8 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferThreeSystemPortalDiff(t *te
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -1027,6 +1040,8 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferNeighborPortalSystemNumDiff
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -1152,6 +1167,8 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayAlgorithmDiff(t *tes
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -1248,6 +1265,8 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortAlgorithmDiff(t *testin
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -1344,6 +1363,8 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayDigestDiff(t *testin
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -1399,9 +1420,109 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayDigestDiff(t *testin
 	}
 	// gateway digest is different
 	if !ipp.DifferGatewayDigest {
-		t.Error("ERROR DifferGatewayDigest is set as it should not be")
+		t.Error("ERROR DifferGatewayDigest is not set as it should be")
 	}
 	if !strings.Contains(ipp.DifferPortalReason, "Conversation Gateway List Digest") {
+		t.Error("ERROR Portal Difference Detected", ipp.DifferPortalReason)
+	}
+
+	ipp.RxMachineFsm.Stop()
+	lacp.DeleteLaAgg(a.AggId)
+	RxMachineTestTeardwon()
+}
+
+func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortDigestDiff(t *testing.T) {
+
+	RxMachineTestSetup()
+	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)},
+		DrniAggregator:                    uint32(a.AggId),
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+	// map vlan 100 to this system
+	// in real system this should be filled in by vlan membership
+	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err != nil {
+		t.Error("Parameter check failed for what was expected to be a valid config", err)
+	}
+	// just create instance not starting any state machines
+	dr := NewDistributedRelay(cfg)
+	dr.a = a
+	// set gateway info and digest
+	dr.setTimeSharingPortAndGatwewayDigest()
+
+	// lets get the IPP
+	ipp := dr.Ipplinks[0]
+
+	// rx machine sends event to each of these machines according to figure 9-22
+	DrcpAMachineFSMBuild(dr)
+	DrcpGMachineFSMBuild(dr)
+	DrcpPsMachineFSMBuild(dr)
+	DrcpTxMachineFSMBuild(ipp)
+	DrcpPtxMachineFSMBuild(ipp)
+
+	// start RX MAIN
+	ipp.DrcpRxMachineMain()
+	// enable because aggregator was attached above
+	ipp.DRCPEnabled = true
+
+	responseChan := make(chan string)
+
+	// Psm is expected to be in update state
+	// initialize will set the dr default values
+	// which will be matched against received packets
+	dr.PsMachineFsm.DrcpPsMachinePortalSystemInitialize(*dr.PsMachineFsm.Machine, nil)
+
+	ipp.RxMachineFsm.RxmEvents <- utils.MachineEvent{
+		E:            RxmEventBegin,
+		Src:          "RX MACHINE TEST",
+		ResponseChan: responseChan,
+	}
+
+	<-responseChan
+
+	// create packet
+	drcp := OnlyForRxMachineCreateValidDRCPPacket()
+
+	// TEST:
+	// Comparison differ
+	drcp.PortalConfigInfo.PortDigest = [16]uint8{
+		10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+	}
+
+	ipp.RxMachineFsm.RxmPktRxEvent <- RxDrcpPdu{
+		pdu:          drcp,
+		src:          "RX MACHINE TEST",
+		responseChan: responseChan,
+	}
+
+	<-responseChan
+
+	// Neighbor Admin values not correct, thus should discard as
+	// neighbor info is not known yet
+	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateCurrent {
+		t.Error("ERROR Rx Machine is not in expected state from first received PDU actual:", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
+	}
+	// gateway digest is different
+	if !ipp.DifferPortDigest {
+		t.Error("ERROR DifferPortDigest is not set as it should be")
+	}
+	if !strings.Contains(ipp.DifferPortalReason, "Conversation Port List Digest") {
 		t.Error("ERROR Portal Difference Detected", ipp.DifferPortalReason)
 	}
 

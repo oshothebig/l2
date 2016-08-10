@@ -45,6 +45,7 @@ const (
 	DrniLongTimeoutTime  time.Duration = 3 * DrniSlowPeriodictime
 )
 
+var GATEWAY_ALGORITHM_NULL GatewayAlgorithm = GatewayAlgorithm{}
 var GATEWAY_ALGORITHM_RESERVED GatewayAlgorithm = GatewayAlgorithm{0x00, 0x80, 0xC2, 0x00}
 var GATEWAY_ALGORITHM_CVID GatewayAlgorithm = GatewayAlgorithm{0x00, 0x80, 0xC2, 0x01}
 var GATEWAY_ALGORITHM_SVID GatewayAlgorithm = GatewayAlgorithm{0x00, 0x80, 0xC2, 0x02}

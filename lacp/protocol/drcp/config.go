@@ -64,6 +64,26 @@ type DistrubtedRelayConfig struct {
 	DrniIntraPortalPortProtocolDA          string
 }
 
+// Conversations are typically related to the various service types to which
+// traffic is associated with.  If portList is empty is is assumed to be Gateway
+// Algorithm, otherwise it is a Port Algorithm
+// 802.1 AX-2014 8.1
+// Therefore, a Conversation Identifier (or Conversation ID) is defined as a value in the range 0 through 4095.
+// By administrative means, every possible conversation is assigned to a single Conversation ID value for each
+// supported Conversation ID type. More than one conversation can be assigned to a Conversation ID. It is not
+// necessary that every Conversation ID value have any conversations assigned to it. In this standard, several
+// types of Conversation ID are specified for different uses.
+type DRConversationConfig struct {
+	DrniName   string
+	Idtype     GatewayAlgorithm
+	Isid       uint32
+	Cvlan      uint16
+	Svlan      uint16
+	Bvid       uint16
+	Psuedowire uint32
+	PortList   []int32
+}
+
 func (d *DistrubtedRelayConfig) GetKey() string {
 	return d.DrniName
 }
@@ -149,6 +169,8 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 	return nil
 }
 
+// CreateDistributedRelay will create the distributed relay then attach
+// the Aggregator to the Distributed Relay
 func CreateDistributedRelay(cfg *DistrubtedRelayConfig) {
 
 	dr := NewDistributedRelay(cfg)
@@ -158,14 +180,18 @@ func CreateDistributedRelay(cfg *DistrubtedRelayConfig) {
 	}
 }
 
+// DeleteDistributedRelay will detach the distributed relay from the aggregator
+// and delete the distributed relay instance
 func DeleteDistributedRelay(name string) {
 
-	dr := DistributedRelayDB[name]
-	DetachAggregatorFromDistributedRelay(int(dr.DrniAggregator))
-	dr.DeleteDistributedRelay()
+	dr, ok := DistributedRelayDB[name]
+	if ok {
+		DetachAggregatorFromDistributedRelay(int(dr.DrniAggregator))
+		dr.DeleteDistributedRelay()
+	}
 }
 
-// AttachCreatedAggregator: will attach the aggregator and start the Distributed
+// AttachAggregatorToDistributedRelay: will attach the aggregator and start the Distributed
 // relay protocol for the given dr if this agg is associated with a DR
 func AttachAggregatorToDistributedRelay(aggId int) {
 	for _, dr := range DistributedRelayDBList {
@@ -174,6 +200,9 @@ func AttachAggregatorToDistributedRelay(aggId int) {
 			var a *lacp.LaAggregator
 			if lacp.LaFindAggById(aggId, &a) {
 				dr.a = a
+
+				// set port and gateway info and digest
+				dr.setTimeSharingPortAndGatwewayDigest()
 
 				// lets update the aggregator parameters
 				// configured ports
@@ -207,6 +236,8 @@ func AttachAggregatorToDistributedRelay(aggId int) {
 	}
 }
 
+// DetachCreatedAggregatorFromDistributedRelay: will detach the aggregator and stop the Distributed
+// relay protocol for the given dr if since this aggregator is no longer attached
 func DetachAggregatorFromDistributedRelay(aggId int) {
 	for _, dr := range DistributedRelayDBList {
 		if dr.DrniAggregator == int32(aggId) &&

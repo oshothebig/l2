@@ -68,13 +68,21 @@ func (m *MyTestMock) GetBulkVlan(curMark, count int) (*commonDefs.VlanGetInfo, e
 func OnlyForTestSetup() {
 	logger, _ := logging.NewLogger("lacpd", "TEST", false)
 	utils.SetLaLogger(logger)
+	utils.DeleteAllAsicDPlugins()
 	utils.SetAsicDPlugin(&MyTestMock{})
+	// fill in conversations
+	GetAllCVIDConversations()
 }
 
 func OnlyForTestTeardown() {
 
 	utils.SetLaLogger(nil)
 	utils.DeleteAllAsicDPlugins()
+	ConversationIdMap[100].Valid = false
+	ConversationIdMap[100].PortList = nil
+	ConversationIdMap[100].Cvlan = 0
+	ConversationIdMap[100].Refcnt = 0
+	ConversationIdMap[100].Idtype = [4]uint8{}
 }
 
 func OnlyForTestSetupCreateAggGroup(aggId uint32) *lacp.LaAggregator {

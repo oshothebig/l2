@@ -41,20 +41,6 @@ import (
 var DistributedRelayDB map[string]*DistributedRelay
 var DistributedRelayDBList []*DistributedRelay
 
-// holds the current conversation map values
-var ConversationIdMap [MAX_CONVERSATION_IDS]ConvIdTypeValue
-
-type ConvIdTypeValue struct {
-	valid      bool
-	idtype     GatewayAlgorithm
-	isid       uint32
-	cvlan      uint16
-	svlan      uint16
-	bvid       uint16
-	psuedowire uint32
-	portList   []int32
-}
-
 // 802.1ax-2014 7.4.1.1
 type DistributedRelay struct {
 	DistributedRelayFunction
@@ -68,7 +54,7 @@ type DistributedRelay struct {
 	DrniPortalAddr          net.HardwareAddr
 	DrniPortalPriority      uint16
 	DrniThreeSystemPortal   bool
-	DrniPortConversation    [MAX_CONVERSATION_IDS][4]uint8
+	DrniPortConversation    [MAX_CONVERSATION_IDS][4]uint16
 	DrniGatewayConversation [MAX_CONVERSATION_IDS][4]uint8
 	// End also defined in 9.4.7
 
@@ -161,39 +147,32 @@ func DrFindByPortalAddr(portaladdr string, dr **DistributedRelay) bool {
 	return false
 }
 
-// GetAllCVIDConversations: Fill in the mapping of vlan -> conversation id which is 1:1
-func (dr *DistributedRelay) GetAllCVIDConversations() {
-	curMark := 0
-	count := 100
-	more := true
-	for more {
-		for _, client := range utils.GetAsicDPluginList() {
+// DrFindByAggregator will find the DR based on the Aggregator that it is
+// associated with
+func DrFindByAggregator(DrniAggregator int32, dr **DistributedRelay) bool {
+	for _, d := range DistributedRelayDBList {
+		if d.DrniAggregator == DrniAggregator {
+			*dr = d
+			return true
+		}
+	}
+	return false
+}
 
-			bulkVlanInfo, _ := client.GetBulkVlan(curMark, count)
-			if bulkVlanInfo != nil {
-				objCnt := int(bulkVlanInfo.Count)
-				more = bool(bulkVlanInfo.More)
-				curMark = int(bulkVlanInfo.EndIdx)
-				for i := 0; i < objCnt; i++ {
-					vlan := bulkVlanInfo.VlanList[i].VlanId
-
-					ent := ConversationIdMap[uint16(vlan)]
-					ent.valid = true
-					ent.idtype = GATEWAY_ALGORITHM_CVID
-					ent.cvlan = uint16(vlan)
-					// TODO should look at tagged list as well?
-					if ent.portList == nil {
-						ent.portList = make([]int32, 0)
-					}
-					untaggedIfIndexList := bulkVlanInfo.VlanList[i].UntagIfIndexList
-					for _, ifindex := range untaggedIfIndexList {
-						ent.portList = append(ent.portList, ifindex)
-					}
-					ConversationIdMap[uint16(vlan)] = ent
+// isPortInConversation will check of the provided portList intersected with
+// the aggregator port list is greater than zero
+func (dr *DistributedRelay) isAggPortInConverstaion(portList []int32) bool {
+	a := dr.a
+	if a != nil {
+		for _, ifindex := range a.PortNumList {
+			for _, pifindex := range portList {
+				if int32(ifindex) == pifindex {
+					return true
 				}
 			}
 		}
 	}
+	return false
 }
 
 // setTimeSharingGatwewayDigest, when the port and gateway algorithm
@@ -214,9 +193,9 @@ func (dr *DistributedRelay) GetAllCVIDConversations() {
 func (dr *DistributedRelay) setTimeSharingPortAndGatwewayDigest() {
 	// algorithm assumes 2P system only
 	if dr.DrniGatewayAlgorithm == GATEWAY_ALGORITHM_CVID {
-		dr.GetAllCVIDConversations()
 		if !dr.DrniThreeSystemPortal {
 			dr.setAdminConvGatewayAndNeighborGatewayListDigest()
+			dr.setAdminConvPortAndNeighborPortListDigest()
 		}
 	}
 }
@@ -225,10 +204,15 @@ func (dr *DistributedRelay) setTimeSharingPortAndGatwewayDigest() {
 // algorithm as the gateway.  Every even vlan will have its gateway in system
 // 2 and every odd vlan will have its gateway in system 1
 func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
+	isNewConversation := false
 	ghash := md5.New()
 	for cid, conv := range ConversationIdMap {
-		if conv.valid {
-			if math.Mod(float64(conv.cvlan), 2) == 0 {
+		if conv.Valid && dr.isAggPortInConverstaion(conv.PortList) {
+			// mark this call as new so that we can update the state machines
+			if dr.DrniConvAdminGateway[cid] == [3]uint8{} {
+				isNewConversation = true
+			}
+			if math.Mod(float64(conv.Cvlan), 2) == 0 {
 				dr.DrniConvAdminGateway[cid] = [3]uint8{2, 1}
 			} else {
 				dr.DrniConvAdminGateway[cid] = [3]uint8{1, 2}
@@ -241,14 +225,50 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 		} else {
 			buf := new(bytes.Buffer)
 			// network byte order
-			binary.Write(buf, binary.BigEndian, []uint8{uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
+			binary.Write(buf, binary.BigEndian, []uint16{uint16(cid)})
 			ghash.Write(buf.Bytes())
+
+			if dr.DrniConvAdminGateway[cid] != [3]uint8{} {
+				isNewConversation = true
+			}
+
+			dr.DrniConvAdminGateway[cid] = [3]uint8{}
 		}
 	}
 	for i, val := range ghash.Sum(nil) {
 		dr.DrniNeighborAdminConvGatewayListDigest[i] = val
 		dr.DRFNeighborAdminConversationGatewayListDigest[i] = val
 		dr.DRFHomeConversationGatewayListDigest[i] = val
+	}
+
+	// always send regardless of state because all states expect this event
+	if isNewConversation &&
+		dr.GMachineFsm != nil {
+		dr.GatewayConversationUpdate = true
+		dr.GMachineFsm.GmEvents <- utils.MachineEvent{
+			E:   GmEventGatewayConversationUpdate,
+			Src: DRCPConfigModuleStr,
+		}
+	}
+}
+
+// setAdminConvGatewayAndNeighborGatewayListDigest will set the predetermined
+// algorithm as the gateway.  Port Digest is not used as the port conversation
+// is determined by hw hashing algorithm, thus setting no priority port list
+// against the digest.
+func (dr *DistributedRelay) setAdminConvPortAndNeighborPortListDigest() {
+	phash := md5.New()
+	for cid, _ := range ConversationIdMap {
+		buf := new(bytes.Buffer)
+		// network byte order
+		binary.Write(buf, binary.BigEndian, []uint16{uint16(cid)})
+		phash.Write(buf.Bytes())
+	}
+
+	for i, val := range phash.Sum(nil) {
+		dr.DrniNeighborAdminConvPortListDigest[i] = val
+		dr.DRFNeighborAdminConversationPortListDigest[i] = val
+		dr.DRFHomeConversationPortListDigest[i] = val
 	}
 }
 
@@ -315,8 +335,7 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	netMac, _ := net.ParseMAC(cfg.DrniIntraPortalPortProtocolDA)
 	dr.DrniPortalPortProtocolIDA = netMac
 
-	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	AttachAggregatorToDistributedRelay(int(dr.DrniAggregator))
 
 	// add to the global db's
 	DistributedRelayDB[dr.DrniName] = dr
