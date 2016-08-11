@@ -93,9 +93,8 @@ type LacpTxMachine struct {
 	txGuardTimer *time.Timer
 
 	// machine specific events
-	TxmEvents          chan utils.MachineEvent
-	TxmKillSignalEvent chan bool
-	TxmLogEnableEvent  chan bool
+	TxmEvents         chan utils.MachineEvent
+	TxmLogEnableEvent chan bool
 }
 
 // PrevState will get the previous State from the State transitions
@@ -108,24 +107,20 @@ func (txm *LacpTxMachine) PrevStateSet(s fsm.State) { txm.PreviousState = s }
 func (txm *LacpTxMachine) Stop() {
 	txm.TxGuardTimerStop()
 
-	txm.TxmKillSignalEvent <- true
-
 	close(txm.TxmEvents)
-	close(txm.TxmKillSignalEvent)
 	close(txm.TxmLogEnableEvent)
 }
 
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpTxMachine(port *LaAggPort) *LacpTxMachine {
 	txm := &LacpTxMachine{
-		p:                  port,
-		txPending:          0,
-		txPkts:             0,
-		ntt:                false,
-		PreviousState:      LacpTxmStateNone,
-		TxmEvents:          make(chan utils.MachineEvent, 1000),
-		TxmKillSignalEvent: make(chan bool),
-		TxmLogEnableEvent:  make(chan bool)}
+		p:                 port,
+		txPending:         0,
+		txPkts:            0,
+		ntt:               false,
+		PreviousState:     LacpTxmStateNone,
+		TxmEvents:         make(chan utils.MachineEvent, 1000),
+		TxmLogEnableEvent: make(chan bool)}
 
 	port.TxMachineFsm = txm
 
@@ -354,38 +349,39 @@ func (p *LaAggPort) LacpTxMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.TxmKillSignalEvent:
-				m.LacpTxmLog("Machine End")
-				return
 
-			case event := <-m.TxmEvents:
+			case event, ok := <-m.TxmEvents:
+				if ok {
+					//m.LacpTxmLog(fmt.Sprintf("Event rx %d %s %s", event.E, event.Src, TxmStateStrMap[m.Machine.Curr.CurrentState()]))
+					// special case, another machine has a need to
+					// transmit a packet
+					if event.E == LacpTxmEventNtt {
+						m.ntt = true
+					}
 
-				//m.LacpTxmLog(fmt.Sprintf("Event rx %d %s %s", event.E, event.Src, TxmStateStrMap[m.Machine.Curr.CurrentState()]))
-				// special case, another machine has a need to
-				// transmit a packet
-				if event.E == LacpTxmEventNtt {
-					m.ntt = true
-				}
+					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 
-				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
+					if rv != nil {
+						m.LacpTxmLog(strings.Join([]string{error.Error(rv), event.Src, TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
+					} else {
+						if m.Machine.Curr.CurrentState() == LacpTxmStateGuardTimerExpire &&
+							m.txPending > 0 && m.txPkts == 0 {
 
-				if rv != nil {
-					m.LacpTxmLog(strings.Join([]string{error.Error(rv), event.Src, TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
-				} else {
-					if m.Machine.Curr.CurrentState() == LacpTxmStateGuardTimerExpire &&
-						m.txPending > 0 && m.txPkts == 0 {
-
-						for m.txPending > 0 && m.txPkts < 3 {
-							m.txPending--
-							m.ntt = true
-							m.LacpTxmLog(fmt.Sprintf("Forcing NTT processing from expire pending pkts %d\n", m.txPending))
-							m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
+							for m.txPending > 0 && m.txPkts < 3 {
+								m.txPending--
+								m.ntt = true
+								m.LacpTxmLog(fmt.Sprintf("Forcing NTT processing from expire pending pkts %d\n", m.txPending))
+								m.Machine.ProcessEvent(TxMachineModuleStr, LacpTxmEventNtt, nil)
+							}
 						}
 					}
-				}
 
-				if event.ResponseChan != nil {
-					utils.SendResponse(TxMachineModuleStr, event.ResponseChan)
+					if event.ResponseChan != nil {
+						utils.SendResponse(TxMachineModuleStr, event.ResponseChan)
+					}
+				} else {
+					m.LacpTxmLog("Machine End")
+					return
 				}
 			case ena := <-m.TxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)

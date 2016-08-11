@@ -91,7 +91,6 @@ type LacpCdMachine struct {
 
 	// machine specific events
 	CdmEvents            chan utils.MachineEvent
-	CdmKillSignalEvent   chan bool
 	CdmLogEnableEvent    chan bool
 	churnCountTimestamp  time.Time
 	pchurnCountTimestamp time.Time
@@ -107,11 +106,7 @@ type LacpPartnerCdMachine struct {
 
 func (cdm *LacpCdMachine) Stop() {
 
-	// stop the go routine
-	cdm.CdmKillSignalEvent <- true
-
 	close(cdm.CdmEvents)
-	close(cdm.CdmKillSignalEvent)
 	close(cdm.CdmLogEnableEvent)
 }
 
@@ -127,7 +122,6 @@ func NewLacpActorCdMachine(port *LaAggPort) *LacpActorCdMachine {
 			PreviousState:      LacpCdmStateNone,
 			churnTimerInterval: LacpChurnDetectionTime,
 			CdmEvents:          make(chan utils.MachineEvent, 10),
-			CdmKillSignalEvent: make(chan bool),
 			CdmLogEnableEvent:  make(chan bool)}}
 
 	port.CdMachineFsm = cdm
@@ -143,7 +137,6 @@ func NewLacpPartnerCdMachine(port *LaAggPort) *LacpPartnerCdMachine {
 			PreviousState:      LacpCdmStateNone,
 			churnTimerInterval: LacpChurnDetectionTime,
 			CdmEvents:          make(chan utils.MachineEvent, 10),
-			CdmKillSignalEvent: make(chan bool),
 			CdmLogEnableEvent:  make(chan bool)}}
 
 	port.PCdMachineFsm = cdm
@@ -353,37 +346,38 @@ func (p *LaAggPort) LacpActorCdMachineMain() {
 		for {
 			m.p.AggPortDebug.AggPortDebugActorChurnState = int(m.Machine.Curr.CurrentState())
 			select {
-			case <-m.CdmKillSignalEvent:
-				m.LacpCdmLog("Machine End")
-				return
 
 			case <-m.churnTimer.C:
 				rv := m.Machine.ProcessEvent(CdMachineModuleStr, LacpCdmEventActorChurnTimerExpired, nil)
 				if rv != nil {
 					m.LacpCdmLog(strings.Join([]string{error.Error(rv), CdMachineModuleStr, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(LacpCdmEventActorChurnTimerExpired))}, ":"))
 				}
-			case event := <-m.CdmEvents:
+			case event, ok := <-m.CdmEvents:
+				if ok {
+					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 
-				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
+					if rv == nil &&
+						m.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn &&
+						!LacpStateIsSet(m.p.ActorOper.State, LacpStateSyncBit) {
+						rv = m.Machine.ProcessEvent(CdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOff, nil)
+					}
+					if rv == nil &&
+						(m.Machine.Curr.CurrentState() == LacpCdmStateActorChurnMonitor ||
+							m.Machine.Curr.CurrentState() == LacpCdmStateActorChurn) &&
+						LacpStateIsSet(m.p.ActorOper.State, LacpStateSyncBit) {
+						rv = m.Machine.ProcessEvent(CdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOn, nil)
+					}
 
-				if rv == nil &&
-					m.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn &&
-					!LacpStateIsSet(m.p.ActorOper.State, LacpStateSyncBit) {
-					rv = m.Machine.ProcessEvent(CdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOff, nil)
-				}
-				if rv == nil &&
-					(m.Machine.Curr.CurrentState() == LacpCdmStateActorChurnMonitor ||
-						m.Machine.Curr.CurrentState() == LacpCdmStateActorChurn) &&
-					LacpStateIsSet(m.p.ActorOper.State, LacpStateSyncBit) {
-					rv = m.Machine.ProcessEvent(CdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOn, nil)
-				}
+					if rv != nil {
+						m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.Src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
+					}
 
-				if rv != nil {
-					m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.Src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
-				}
-
-				if event.ResponseChan != nil {
-					utils.SendResponse(CdMachineModuleStr, event.ResponseChan)
+					if event.ResponseChan != nil {
+						utils.SendResponse(CdMachineModuleStr, event.ResponseChan)
+					}
+				} else {
+					m.LacpCdmLog("Machine End")
+					return
 				}
 			case ena := <-m.CdmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
@@ -413,37 +407,37 @@ func (p *LaAggPort) LacpPartnerCdMachineMain() {
 		for {
 			m.p.AggPortDebug.AggPortDebugPartnerChurnState = int(m.Machine.Curr.CurrentState())
 			select {
-			case <-m.CdmKillSignalEvent:
-				m.LacpCdmLog("Machine End")
-				return
-
 			case <-m.churnTimer.C:
 				rv := m.Machine.ProcessEvent(PCdMachineModuleStr, LacpCdmEventPartnerChurnTimerExpired, nil)
 				if rv != nil {
 					m.LacpCdmLog(strings.Join([]string{error.Error(rv), PCdMachineModuleStr, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(LacpCdmEventPartnerChurnTimerExpired))}, ":"))
 				}
-			case event := <-m.CdmEvents:
+			case event, ok := <-m.CdmEvents:
+				if ok {
+					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 
-				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
+					if rv == nil &&
+						m.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn &&
+						!LacpStateIsSet(m.p.PartnerOper.State, LacpStateSyncBit) {
+						rv = m.Machine.ProcessEvent(PCdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOff, nil)
+					}
+					if rv == nil &&
+						(m.Machine.Curr.CurrentState() == LacpCdmStateActorChurnMonitor ||
+							m.Machine.Curr.CurrentState() == LacpCdmStateActorChurn) &&
+						LacpStateIsSet(m.p.PartnerOper.State, LacpStateSyncBit) {
+						rv = m.Machine.ProcessEvent(PCdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOn, nil)
+					}
 
-				if rv == nil &&
-					m.Machine.Curr.CurrentState() == LacpCdmStateNoActorChurn &&
-					!LacpStateIsSet(m.p.PartnerOper.State, LacpStateSyncBit) {
-					rv = m.Machine.ProcessEvent(PCdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOff, nil)
-				}
-				if rv == nil &&
-					(m.Machine.Curr.CurrentState() == LacpCdmStateActorChurnMonitor ||
-						m.Machine.Curr.CurrentState() == LacpCdmStateActorChurn) &&
-					LacpStateIsSet(m.p.PartnerOper.State, LacpStateSyncBit) {
-					rv = m.Machine.ProcessEvent(PCdMachineModuleStr, LacpCdmEventActorOperPortStateSyncOn, nil)
-				}
+					if rv != nil {
+						m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.Src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
+					}
 
-				if rv != nil {
-					m.LacpCdmLog(strings.Join([]string{error.Error(rv), event.Src, CdmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
-				}
-
-				if event.ResponseChan != nil {
-					utils.SendResponse(PCdMachineModuleStr, event.ResponseChan)
+					if event.ResponseChan != nil {
+						utils.SendResponse(PCdMachineModuleStr, event.ResponseChan)
+					}
+				} else {
+					m.LacpCdmLog("Machine End")
+					return
 				}
 			case ena := <-m.CdmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)

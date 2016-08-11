@@ -258,13 +258,71 @@ func (gm *GMachine) initializeDRNIGatewayConversation() {
 	dr := gm.dr
 
 	for i := 0; i < MAX_CONVERSATION_IDS; i++ {
-		dr.DrniPortalSystemGatewayConversation[i] = false
+		dr.DrniGatewayConversation[i] = nil
 	}
 }
 
 // updatePortalState This function updates the Drni_Portal_System_State[] as follows
 func (gm *GMachine) updatePortalState() {
-	// TODO need to understand the logic better
+
+	dr := gm.dr
+
+	// The information for this Portal System, DRF_Home_State, indexed by the Portal System
+	// Number, is included in Drni_Portal_System_State[].
+	for _, seqvector := range dr.DRFHomeState.GatewayVector {
+		dr.DrniPortalSystemState[dr.DRFPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
+	}
+	for _, ipp := range dr.Ipplinks {
+		if len(dr.Ipplinks) == 2 {
+			// TODO when 3P system supported
+			// For that Portal System, only the Portal System state information provided by the
+			// DRF_Neighbor_State on the IPP having the other Portal System as a Neighbor Portal
+			// System will be included in Drni_Portal_System_State[], indexed by the Portal System
+			// Number
+		} else {
+			if ipp.DRFNeighborState.OpState {
+				for _, seqvector := range ipp.DRFNeighborState.GatewayVector {
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
+					ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = make([]GatewayVectorEntry, 2)
+					ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
+					for _, seqvector2 := range dr.DRFHomeState.GatewayVector {
+						ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector2.Sequence, seqvector2.Vector)
+					}
+				}
+			} else {
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
+			}
+
+			if ipp.DRFOtherNeighborState.OpState {
+				for _, seqvector := range ipp.DRFOtherNeighborState.GatewayVector {
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
+				}
+				ipp.ONN = true
+			} else {
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
+			}
+
+			dr.DrniPortalSystemState[3].OpState = false
+			dr.DrniPortalSystemState[3].GatewayVector = nil
+			dr.DrniPortalSystemState[3].PortIdList = nil
+			ipp.IppPortalSystemState[3].OpState = false
+			ipp.IppPortalSystemState[3].GatewayVector = nil
+			ipp.IppPortalSystemState[3].PortIdList = nil
+		}
+	}
+	dr.DrniPortalSystemState[0].OpState = false
+	dr.DrniPortalSystemState[0].GatewayVector = nil
+	dr.DrniPortalSystemState[0].PortIdList = nil
 }
 
 // setIPPGatewayUpdate This function sets the IppGatewayUpdate on every IPP on this
@@ -274,6 +332,14 @@ func (gm *GMachine) setIPPGatewayUpdate() {
 	for _, ippid := range dr.DrniIntraPortalLinkList {
 		for _, ipp := range DRCPIppDBList {
 			if ipp.Id == ippid {
+
+				// inform the ipp gateway machine
+				if !ipp.IppGatewayUpdate {
+					ipp.IGMachineFsm.IGmEvents <- utils.MachineEvent{
+						E:   IGmEventGatewayUpdate,
+						Src: GMachineModuleStr,
+					}
+				}
 				ipp.IppGatewayUpdate = true
 			}
 		}
@@ -286,30 +352,24 @@ func (gm *GMachine) setIPPGatewayUpdate() {
 func (gm *GMachine) setGatewayConversation() {
 	dr := gm.dr
 	for i := 0; i < MAX_CONVERSATION_IDS; i++ {
-		// TODO
 		// For every indexed Gateway Conversation ID, a Portal System Number is identified by
 		// choosing the highest priority Portal System Number in the list of Portal System Numbers
 		// provided by aDrniConvAdminGateway[] when only the Portal Systems having that Gateway
 		// Conversation ID enabled in the Gateway Vectors of the Drni_Portal_System_State[] variable,
 		// are included.
-		for idx, psysid := range dr.DrniConvAdminGateway[i] {
-			if idx == 0 {
+		dr.DrniGatewayConversation[i] = nil
+		for _, portalsystemnumber := range dr.DrniConvAdminGateway[i] {
+			if portalsystemnumber == 0 {
 				continue
 			}
-			if dr.DrniPortalSystemState[psysid].OpState {
+			if dr.DrniPortalSystemState[portalsystemnumber].OpState {
 
-				// highest priority should be that of
-				//dr.DrniGatewayConversation[i] = dr.DrniConvAdminGateway[i][psysid]
-				break
-				/*
-							OpState bool
-					// indexed by the received Home_Gateway_Sequence in
-					// increasing sequence number order
-					GatewayVector []NeighborGatewayVector
-					PortIdList    []uint32
-				*/
-			} else {
+				if dr.DrniGatewayConversation[i] == nil {
+					dr.DrniGatewayConversation[i] = make([]uint8, 0)
+				}
 
+				// highest priority should be first and subsequent to follow
+				dr.DrniGatewayConversation[i] = append(dr.DrniGatewayConversation[i], portalsystemnumber)
 			}
 		}
 	}

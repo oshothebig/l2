@@ -40,6 +40,28 @@ type MyTestMock2 struct {
 	asicdmock.MockAsicdClientMgr
 }
 
+func SliceEqual(a []uint8, b []uint8) bool {
+
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (m *MyTestMock2) GetBulkVlan(curMark, count int) (*commonDefs.VlanGetInfo, error) {
 
 	return nil, nil
@@ -209,7 +231,7 @@ func TestConversationIdVlanMembershipCreateNoPorts(t *testing.T) {
 	}
 
 	// admin gateway should be empty
-	if dr.DrniConvAdminGateway[100] != [3]uint8{} {
+	if dr.DrniConvAdminGateway[100] != nil {
 		t.Error("ERRRO DrniConvAdminGateway values have been set", dr.DrniConvAdminGateway[100])
 	}
 
@@ -282,7 +304,7 @@ func TestConversationIdVlanMembershipCreateNoPortsThenAddDelPort(t *testing.T) {
 	}
 
 	// admin gateway should be empty
-	if dr.DrniConvAdminGateway[100] != [3]uint8{} {
+	if dr.DrniConvAdminGateway[100] != nil {
 		t.Error("ERRRO DrniConvAdminGateway values have been set")
 	}
 
@@ -295,7 +317,7 @@ func TestConversationIdVlanMembershipCreateNoPortsThenAddDelPort(t *testing.T) {
 	}
 
 	// admin gateway should be empty
-	if dr.DrniConvAdminGateway[100] != [3]uint8{2, 1} {
+	if !SliceEqual(dr.DrniConvAdminGateway[100], []uint8{2, 1}) {
 		t.Error("ERRRO DrniConvAdminGateway values have not been set as expected", dr.DrniConvAdminGateway[100])
 	}
 
@@ -328,7 +350,7 @@ func TestConversationIdVlanMembershipCreateNoPortsThenAddDelPort(t *testing.T) {
 	}
 
 	// admin gateway should be empty
-	if dr.DrniConvAdminGateway[100] != [3]uint8{} {
+	if dr.DrniConvAdminGateway[100] != nil {
 		t.Error("ERRRO DrniConvAdminGateway values have not been cleared as expected")
 	}
 
@@ -341,7 +363,7 @@ func TestConversationIdVlanMembershipCreateNoPortsThenAddDelPort(t *testing.T) {
 	}
 
 	// admin gateway should be empty
-	if dr.DrniConvAdminGateway[100] != [3]uint8{} {
+	if dr.DrniConvAdminGateway[100] != nil {
 		t.Error("ERRRO DrniConvAdminGateway values have not been set as expected")
 	}
 
@@ -415,7 +437,7 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 	}
 
 	// admin gateway should be empty
-	if dr.DrniConvAdminGateway[100] != [3]uint8{2, 1} {
+	if !SliceEqual(dr.DrniConvAdminGateway[100], []uint8{2, 1}) {
 		t.Error("ERRRO DrniConvAdminGateway values have not been set as expected", dr.DrniConvAdminGateway[100])
 	}
 
@@ -448,7 +470,7 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 	}
 
 	// admin gateway should be empty
-	if dr.DrniConvAdminGateway[100] != [3]uint8{} {
+	if dr.DrniConvAdminGateway[100] != nil {
 		t.Error("ERRRO DrniConvAdminGateway values have not been cleared as expected")
 	}
 

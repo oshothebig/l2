@@ -120,20 +120,15 @@ type LacpMuxMachine struct {
 	waitWhileTimer *time.Timer
 
 	// machine specific events
-	MuxmEvents          chan utils.MachineEvent
-	MuxmKillSignalEvent chan bool
-	MuxmLogEnableEvent  chan bool
+	MuxmEvents         chan utils.MachineEvent
+	MuxmLogEnableEvent chan bool
 
 	actorSyncTransitionTimestamp time.Time
 }
 
 func (muxm *LacpMuxMachine) Stop() {
 
-	// stop the go routine
-	muxm.MuxmKillSignalEvent <- true
-
 	close(muxm.MuxmEvents)
-	close(muxm.MuxmKillSignalEvent)
 	close(muxm.MuxmLogEnableEvent)
 }
 
@@ -150,7 +145,6 @@ func NewLacpMuxMachine(port *LaAggPort) *LacpMuxMachine {
 		waitWhileTimerTimeout: LacpAggregateWaitTime,
 		PreviousState:         LacpMuxmStateNone,
 		MuxmEvents:            make(chan utils.MachineEvent, 10),
-		MuxmKillSignalEvent:   make(chan bool),
 		MuxmLogEnableEvent:    make(chan bool)}
 
 	port.MuxMachineFsm = muxm
@@ -537,9 +531,6 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 			// save the current machine state
 			p.AggPortDebug.AggPortDebugMuxState = int(m.Machine.Curr.CurrentState())
 			select {
-			case <-m.MuxmKillSignalEvent:
-				m.LacpMuxmLog("Machine End")
-				return
 
 			case <-m.waitWhileTimer.C:
 				m.LacpMuxmLog("MUXM: Wait While Timer Expired")
@@ -549,94 +540,99 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 					m.LacpMuxmWaitingEvaluateSelected(false)
 				}
 
-			case event := <-m.MuxmEvents:
+			case event, ok := <-m.MuxmEvents:
 
-				p := m.p
-				//m.LacpMuxmLog(fmt.Sprintf("Event received %d src %s", event.E, event.Src))
-				eventStr := strings.Join([]string{"from", event.Src, MuxmEventStrMap[int(event.E)]}, " ")
+				if ok {
+					p := m.p
+					//m.LacpMuxmLog(fmt.Sprintf("Event received %d src %s", event.E, event.Src))
+					eventStr := strings.Join([]string{"from", event.Src, MuxmEventStrMap[int(event.E)]}, " ")
 
-				// process the event
-				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
+					// process the event
+					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 
-				if rv != nil {
-					m.LacpMuxmLog(strings.Join([]string{error.Error(rv), event.Src, MuxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
-				} else {
+					if rv != nil {
+						m.LacpMuxmLog(strings.Join([]string{error.Error(rv), event.Src, MuxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
+					} else {
 
-					// continuation events
-					if m.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
-						m.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
-						// if port is attached then we know that provisioning found
-						// a valid agg thus port should be attached.
-						if p.AggAttached != nil &&
-							p.PortEnabled &&
-							p.lacpEnabled {
-							// change the selection to be Selected
-							p.aggSelected = LacpAggSelected
-							//muxm.LacpMuxmLog("Setting Actor Aggregation Bit")
-							LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
+						// continuation events
+						if m.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
+							m.Machine.Curr.CurrentState() == LacpMuxmStateCDetached {
+							// if port is attached then we know that provisioning found
+							// a valid agg thus port should be attached.
+							if p.AggAttached != nil &&
+								p.PortEnabled &&
+								p.lacpEnabled {
+								// change the selection to be Selected
+								p.aggSelected = LacpAggSelected
+								//muxm.LacpMuxmLog("Setting Actor Aggregation Bit")
+								LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
+
+								eventStr = strings.Join([]string{eventStr,
+									"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelected]}, " ")
+
+								m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelected, nil)
+								event.E = LacpMuxmEventSelectedEqualSelected
+							}
+						}
+						if event.E == LacpMuxmEventSelectedEqualSelected &&
+							(m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
+								m.Machine.Curr.CurrentState() == LacpMuxmStateCWaiting) &&
+							!m.waitWhileTimerRunning {
+							// special case we may have a delayed event which will do a fast transition to next State
+							// Attached, trigger is the fact that the timer is not running
+							m.LacpMuxmWaitingEvaluateSelected(true)
+						}
+						if (m.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
+							m.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
+							p.aggSelected == LacpAggSelected &&
+							LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
 
 							eventStr = strings.Join([]string{eventStr,
-								"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelected]}, " ")
+								"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedAndPartnerSync]}, " ")
 
-							m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelected, nil)
-							event.E = LacpMuxmEventSelectedEqualSelected
+							m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedAndPartnerSync, nil)
+						}
+						if m.Machine.Curr.CurrentState() == LacpMuxmStateCollecting &&
+							p.aggSelected == LacpAggSelected &&
+							LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) &&
+							LacpStateIsSet(p.PartnerOper.State, LacpStateCollectingBit) {
+
+							eventStr = strings.Join([]string{eventStr,
+								"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting]}, " ")
+							m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting, nil)
+						}
+						if event.E == LacpMuxmEventSelectedEqualUnselected &&
+							(m.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
+								m.Machine.Curr.CurrentState() != LacpMuxmStateCDetached) {
+							// Unselected State will cause a downward transition to detached State
+							State := m.Machine.Curr.CurrentState()
+							endState := fsm.State(LacpMuxmStateDetached)
+							if m.Machine.Curr.CurrentState() > LacpMuxmStateDistributing {
+								endState = LacpMuxmStateCDetached
+							}
+							eventStr = strings.Join([]string{eventStr,
+								"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualUnselected]}, " ")
+
+							for ; State > endState; State-- {
+
+								m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualUnselected, nil)
+							}
 						}
 					}
-					if event.E == LacpMuxmEventSelectedEqualSelected &&
-						(m.Machine.Curr.CurrentState() == LacpMuxmStateWaiting ||
-							m.Machine.Curr.CurrentState() == LacpMuxmStateCWaiting) &&
-						!m.waitWhileTimerRunning {
-						// special case we may have a delayed event which will do a fast transition to next State
-						// Attached, trigger is the fact that the timer is not running
-						m.LacpMuxmWaitingEvaluateSelected(true)
+
+					if len(eventStr) > 255 {
+						fmt.Println("WARNING string to long for MuxReason:", eventStr)
+						fmt.Println(eventStr)
 					}
-					if (m.Machine.Curr.CurrentState() == LacpMuxmStateAttached ||
-						m.Machine.Curr.CurrentState() == LacpMuxmStateCAttached) &&
-						p.aggSelected == LacpAggSelected &&
-						LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) {
+					p.AggPortDebug.AggPortDebugMuxReason = eventStr
 
-						eventStr = strings.Join([]string{eventStr,
-							"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedAndPartnerSync]}, " ")
-
-						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedAndPartnerSync, nil)
+					if event.ResponseChan != nil {
+						//m.LacpMuxmLog("Sending response")
+						utils.SendResponse(MuxMachineModuleStr, event.ResponseChan)
 					}
-					if m.Machine.Curr.CurrentState() == LacpMuxmStateCollecting &&
-						p.aggSelected == LacpAggSelected &&
-						LacpStateIsSet(p.PartnerOper.State, LacpStateSyncBit) &&
-						LacpStateIsSet(p.PartnerOper.State, LacpStateCollectingBit) {
-
-						eventStr = strings.Join([]string{eventStr,
-							"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting]}, " ")
-						m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualSelectedPartnerSyncCollecting, nil)
-					}
-					if event.E == LacpMuxmEventSelectedEqualUnselected &&
-						(m.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
-							m.Machine.Curr.CurrentState() != LacpMuxmStateCDetached) {
-						// Unselected State will cause a downward transition to detached State
-						State := m.Machine.Curr.CurrentState()
-						endState := fsm.State(LacpMuxmStateDetached)
-						if m.Machine.Curr.CurrentState() > LacpMuxmStateDistributing {
-							endState = LacpMuxmStateCDetached
-						}
-						eventStr = strings.Join([]string{eventStr,
-							"and\nfrom", MuxMachineModuleStr, MuxmEventStrMap[LacpMuxmEventSelectedEqualUnselected]}, " ")
-
-						for ; State > endState; State-- {
-
-							m.Machine.ProcessEvent(MuxMachineModuleStr, LacpMuxmEventSelectedEqualUnselected, nil)
-						}
-					}
-				}
-
-				if len(eventStr) > 255 {
-					fmt.Println("WARNING string to long for MuxReason:", eventStr)
-					fmt.Println(eventStr)
-				}
-				p.AggPortDebug.AggPortDebugMuxReason = eventStr
-
-				if event.ResponseChan != nil {
-					//m.LacpMuxmLog("Sending response")
-					utils.SendResponse(MuxMachineModuleStr, event.ResponseChan)
+				} else {
+					m.LacpMuxmLog("Machine End")
+					return
 				}
 
 			case ena := <-m.MuxmLogEnableEvent:

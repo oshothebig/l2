@@ -82,8 +82,6 @@ type LacpPtxMachine struct {
 
 	// machine specific events
 	PtxmEvents chan utils.MachineEvent
-	// stop go routine
-	PtxmKillSignalEvent chan bool
 	// enable logging
 	PtxmLogEnableEvent chan bool
 }
@@ -96,10 +94,8 @@ func (ptxm *LacpPtxMachine) PrevStateSet(s fsm.State) { ptxm.PreviousState = s }
 func (ptxm *LacpPtxMachine) Stop() {
 
 	ptxm.PeriodicTimerStop()
-	ptxm.PtxmKillSignalEvent <- true
 
 	close(ptxm.PtxmEvents)
-	close(ptxm.PtxmKillSignalEvent)
 	close(ptxm.PtxmLogEnableEvent)
 }
 
@@ -110,7 +106,6 @@ func NewLacpPtxMachine(port *LaAggPort) *LacpPtxMachine {
 		PreviousState:           LacpPtxmStateNone,
 		PeriodicTxTimerInterval: LacpSlowPeriodicTime,
 		PtxmEvents:              make(chan utils.MachineEvent, 10),
-		PtxmKillSignalEvent:     make(chan bool),
 		PtxmLogEnableEvent:      make(chan bool)}
 
 	port.PtxMachineFsm = ptxm
@@ -250,9 +245,6 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.PtxmKillSignalEvent:
-				m.LacpPtxmLog("Machine End")
-				return
 			case <-m.periodicTxTimer.C:
 				//m.LacpPtxmLog("Timer expired current State")
 				//m.LacpPtxmLog(PtxmStateStrMap[m.Machine.Curr.CurrentState()])
@@ -266,31 +258,37 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 					}
 				}
 
-			case event := <-m.PtxmEvents:
-				tmpLogEna := false
-				if !m.Machine.Curr.IsLoggerEna() {
-					tmpLogEna = true
-					m.Machine.Curr.EnableLogging(true)
-				}
-				m.Machine.ProcessEvent(event.Src, event.E, nil)
-				/* special case */
-				if m.LacpPtxIsNoPeriodicExitCondition() {
-					m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventUnconditionalFallthrough, nil)
-				} else if m.Machine.Curr.CurrentState() == LacpPtxmStatePeriodicTx {
-					if LacpStateIsSet(m.p.PartnerOper.State, LacpStateTimeoutBit) {
-						m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPartnerOperStateTimeoutShort, nil)
-					} else {
-						m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPartnerOperStateTimeoutLong, nil)
+			case event, ok := <-m.PtxmEvents:
+
+				if ok {
+					tmpLogEna := false
+					if !m.Machine.Curr.IsLoggerEna() {
+						tmpLogEna = true
+						m.Machine.Curr.EnableLogging(true)
 					}
-				}
+					m.Machine.ProcessEvent(event.Src, event.E, nil)
+					/* special case */
+					if m.LacpPtxIsNoPeriodicExitCondition() {
+						m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventUnconditionalFallthrough, nil)
+					} else if m.Machine.Curr.CurrentState() == LacpPtxmStatePeriodicTx {
+						if LacpStateIsSet(m.p.PartnerOper.State, LacpStateTimeoutBit) {
+							m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPartnerOperStateTimeoutShort, nil)
+						} else {
+							m.Machine.ProcessEvent(PtxMachineModuleStr, LacpPtxmEventPartnerOperStateTimeoutLong, nil)
+						}
+					}
 
-				if event.ResponseChan != nil {
-					utils.SendResponse(PtxMachineModuleStr, event.ResponseChan)
-				}
+					if event.ResponseChan != nil {
+						utils.SendResponse(PtxMachineModuleStr, event.ResponseChan)
+					}
 
-				if tmpLogEna == true {
-					m.Machine.Curr.EnableLogging(false)
-					tmpLogEna = false
+					if tmpLogEna == true {
+						m.Machine.Curr.EnableLogging(false)
+						tmpLogEna = false
+					}
+				} else {
+					m.LacpPtxmLog("Machine End")
+					return
 				}
 
 			case ena := <-m.PtxmLogEnableEvent:

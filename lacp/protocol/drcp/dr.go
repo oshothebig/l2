@@ -55,7 +55,7 @@ type DistributedRelay struct {
 	DrniPortalPriority      uint16
 	DrniThreeSystemPortal   bool
 	DrniPortConversation    [MAX_CONVERSATION_IDS][4]uint16
-	DrniGatewayConversation [MAX_CONVERSATION_IDS][4]uint8
+	DrniGatewayConversation [MAX_CONVERSATION_IDS][]uint8
 	// End also defined in 9.4.7
 
 	// save the origional values from the aggregator
@@ -65,7 +65,7 @@ type DistributedRelay struct {
 	DrniPortalSystemNumber  uint8                 // 1-3
 	DrniIntraPortalLinkList [MAX_IPP_LINKS]uint32 // ifindex
 	DrniAggregator          int32
-	DrniConvAdminGateway    [MAX_CONVERSATION_IDS][MAX_PORTAL_SYSTEM_IDS]uint8
+	DrniConvAdminGateway    [MAX_CONVERSATION_IDS][]uint8
 	// conversation id -> gateway
 	DrniNeighborAdminConvGatewayListDigest Md5Digest
 	DrniNeighborAdminConvPortListDigest    Md5Digest
@@ -80,7 +80,7 @@ type DistributedRelay struct {
 	DrniPortConversationControl            bool
 	DrniPortalPortProtocolIDA              net.HardwareAddr
 
-	GatewayVectorDatabase []NeighborGatewayVector
+	GatewayVectorDatabase []GatewayVectorEntry
 
 	// 9.4.10
 	PortConversationUpdate    bool
@@ -110,7 +110,7 @@ type DistributedRelayFunction struct {
 	ChangePortal                                  bool
 	DrniCommonMethods                             bool
 	DrniConversationGatewayList                   [MAX_CONVERSATION_IDS]uint32
-	DrniPortalSystemState                         [4]NeighborStateInfo
+	DrniPortalSystemState                         [4]StateVectorInfo
 	DRFHomeAdminAggregatorKey                     uint16
 	DRFHomeConversationGatewayListDigest          Md5Digest
 	DRFHomeConversationPortListDigest             Md5Digest
@@ -120,7 +120,7 @@ type DistributedRelayFunction struct {
 	DRFHomePortAlgorithm                          [4]uint8
 	DRFHomeOperAggregatorKey                      uint16
 	DRFHomeOperPartnerAggregatorKey               uint16
-	DRFHomeState                                  NeighborStateInfo
+	DRFHomeState                                  StateVectorInfo
 	DRFNeighborAdminConversationGatewayListDigest Md5Digest
 	DRFNeighborAdminConversationPortListDigest    Md5Digest
 	DRFNeighborAdminDRCPState                     layers.DRCPState
@@ -209,13 +209,16 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 	for cid, conv := range ConversationIdMap {
 		if conv.Valid && dr.isAggPortInConverstaion(conv.PortList) {
 			// mark this call as new so that we can update the state machines
-			if dr.DrniConvAdminGateway[cid] == [3]uint8{} {
+			if dr.DrniConvAdminGateway[cid] == nil {
+				dr.DrniConvAdminGateway[cid] = make([]uint8, 0)
 				isNewConversation = true
 			}
 			if math.Mod(float64(conv.Cvlan), 2) == 0 {
-				dr.DrniConvAdminGateway[cid] = [3]uint8{2, 1}
+				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 2)
+				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 1)
 			} else {
-				dr.DrniConvAdminGateway[cid] = [3]uint8{1, 2}
+				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 1)
+				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 2)
 			}
 
 			buf := new(bytes.Buffer)
@@ -228,11 +231,11 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 			binary.Write(buf, binary.BigEndian, []uint16{uint16(cid)})
 			ghash.Write(buf.Bytes())
 
-			if dr.DrniConvAdminGateway[cid] != [3]uint8{} {
+			if dr.DrniConvAdminGateway[cid] != nil {
 				isNewConversation = true
 			}
 
-			dr.DrniConvAdminGateway[cid] = [3]uint8{}
+			dr.DrniConvAdminGateway[cid] = nil
 		}
 	}
 	for i, val := range ghash.Sum(nil) {
@@ -283,12 +286,22 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		DrniPortalSystemNumber:      cfg.DrniPortalSystemNumber,
 		DrniIntraPortalLinkList:     cfg.DrniIntraPortalLinkList,
 		DrniAggregator:              int32(cfg.DrniAggregator),
-		DrniConvAdminGateway:        cfg.DrniConvAdminGateway,
 		DrniPortConversationControl: cfg.DrniPortConversationControl,
 		drEvtResponseChan:           make(chan string),
 		DrniIPLEncapMap:             make(map[uint32]uint32),
 		DrniNetEncapMap:             make(map[uint32]uint32),
 	}
+	for cid, data := range cfg.DrniConvAdminGateway {
+		if data != [3]uint8{} {
+			dr.DrniConvAdminGateway[cid] = make([]uint8, 0)
+			for _, sysnum := range data {
+				if sysnum != 0 {
+					dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], sysnum)
+				}
+			}
+		}
+	}
+
 	dr.DrniPortalAddr, _ = net.ParseMAC(cfg.DrniPortalAddress)
 
 	// string format in bits "00000000"
@@ -509,55 +522,6 @@ func (dr *DistributedRelay) DistributeMachineEvents(mec []chan utils.MachineEven
 				}
 			}
 		}
-	}
-}
-
-// getNeighborVectorGatwaySequenceIndex get the index for the entry whos
-// sequence number is equal.
-func (dr *DistributedRelay) getNeighborVectorGatwaySequenceIndex(sequence uint32, vector []bool) int32 {
-	if len(dr.GatewayVectorDatabase) > 0 {
-		for i, seqVector := range dr.GatewayVectorDatabase {
-			if seqVector.Sequence == sequence {
-				return int32(i)
-			}
-		}
-	}
-	return -1
-}
-
-// updateNeighborVector will update the vector, indexed by the received
-// Home_Gateway_Sequence in increasing sequence number order
-func (dr *DistributedRelay) updateNeighborVector(sequence uint32, vector []bool) {
-
-	if len(dr.GatewayVectorDatabase) > 0 {
-		for i, seqVector := range dr.GatewayVectorDatabase {
-			if seqVector.Sequence == sequence {
-				// overwrite the sequence
-				dr.GatewayVectorDatabase[i] = NeighborGatewayVector{
-					Sequence: sequence,
-				}
-				for j, val := range vector {
-					dr.GatewayVectorDatabase[i].Vector[j] = val
-				}
-			} else if seqVector.Sequence > sequence {
-				// insert sequence/vecotor before between i and i -1
-				dr.GatewayVectorDatabase = append(dr.GatewayVectorDatabase, NeighborGatewayVector{})
-				copy(dr.GatewayVectorDatabase[i:], dr.GatewayVectorDatabase[i+1:])
-				dr.GatewayVectorDatabase[i-1] = NeighborGatewayVector{
-					Sequence: sequence,
-				}
-				for j, val := range vector {
-					dr.GatewayVectorDatabase[i-1].Vector[j] = val
-				}
-			}
-		}
-	} else {
-		tmp := NeighborGatewayVector{
-			Sequence: sequence}
-		for j, val := range vector {
-			tmp.Vector[j] = val
-		}
-		dr.GatewayVectorDatabase = append(dr.GatewayVectorDatabase, tmp)
 	}
 }
 

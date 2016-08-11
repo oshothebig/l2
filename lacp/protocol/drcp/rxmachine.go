@@ -1006,7 +1006,7 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 						vector[j+7] = drcpPduInfo.HomeGatewayVector.Vector[i]>>0&0x1 == 1
 						p.DRFRcvNeighborGatewayConversationMask[j+7] = drcpPduInfo.HomeGatewayVector.Vector[i]>>0&0x1 == 1
 					}
-					dr.updateNeighborVector(drcpPduInfo.HomeGatewayVector.Sequence, vector)
+					p.DrniNeighborState[neighborSystemNum].updateGatewayVector(drcpPduInfo.HomeGatewayVector.Sequence, vector)
 					// The OtherGatewayVectorTransmit on the other IPP, if it exists and is operational, is set to
 					// TRUE, which mean we need to get the other ipp
 					for _, ipp := range dr.Ipplinks {
@@ -1025,7 +1025,7 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 					// If the tuple (Home_Gateway_Sequence, Neighbor_Gateway_Vector) is stored as the first
 					// entry in the database, then
 					vector := make([]bool, MAX_CONVERSATION_IDS)
-					index := dr.getNeighborVectorGatwaySequenceIndex(drcpPduInfo.HomeGatewayVector.Sequence, vector)
+					index := p.DrniNeighborState[neighborSystemNum].getNeighborVectorGatwaySequenceIndex(drcpPduInfo.HomeGatewayVector.Sequence, vector)
 					if index == 0 {
 						for i := 0; i < MAX_CONVERSATION_IDS; i++ {
 							p.DRFRcvNeighborGatewayConversationMask[i] = p.DrniNeighborState[neighborSystemNum].GatewayVector[index].Vector[i]
@@ -1043,7 +1043,7 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 			p.DRFRcvHomeGatewayConversationMask = [MAX_CONVERSATION_IDS]bool{}
 		} else {
 			vector := make([]bool, MAX_CONVERSATION_IDS)
-			index := dr.getNeighborVectorGatwaySequenceIndex(drcpPduInfo.NeighborGatewayVector.Sequence, vector)
+			index := p.DrniNeighborState[neighborSystemNum].getNeighborVectorGatwaySequenceIndex(drcpPduInfo.NeighborGatewayVector.Sequence, vector)
 			if index != -1 {
 				for i := 0; i < MAX_CONVERSATION_IDS; i++ {
 					p.DRFRcvHomeGatewayConversationMask[i] = dr.GatewayVectorDatabase[index].Vector[i]
@@ -1057,7 +1057,7 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 						for i := 0; i < MAX_CONVERSATION_IDS; i++ {
 							vector[i] = dr.GatewayVectorDatabase[index].Vector[i]
 						}
-						dr.updateNeighborVector(drcpPduInfo.NeighborGatewayVector.Sequence+1,
+						p.DrniNeighborState[neighborSystemNum].updateGatewayVector(drcpPduInfo.NeighborGatewayVector.Sequence+1,
 							vector)
 					}
 				}
@@ -1086,11 +1086,11 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 						p.DRFRcvOtherGatewayConversationMask[j+7] = drcpPduInfo.OtherGatewayVector.Vector[j]>>0&0x1 == 1
 					}
 					if !p.DRNINeighborONN {
-						p.DrniNeighborState[neighborSystemNum].updateNeighborVector(drcpPduInfo.OtherGatewayVector.Sequence,
+						p.DrniNeighborState[neighborSystemNum].updateGatewayVector(drcpPduInfo.OtherGatewayVector.Sequence,
 							drcpPduInfo.OtherGatewayVecto.Vector)
 					}
 				} else {
-					index := dr.getNeighborVectorGatwaySequenceIndex(drcpPduInfo.OtherGatewayVector.Sequence,
+					index := p.DrniNeighborState[neighborSystemNum].getNeighborVectorGatwaySequenceIndex(drcpPduInfo.OtherGatewayVector.Sequence,
 						drcpPduInfo.NeighborGatewayVector.Vector)
 					if index != -1 {
 						p.DRFRcvOtherGatewayConversationMask = p.DRFRcvNeighborGatewayConversationMask[index]

@@ -71,16 +71,17 @@ type DistributedRelayIPPDebug struct {
 	DifferPortalReason string
 }
 
-type NeighborGatewayVector struct {
+type GatewayVectorEntry struct {
 	Sequence uint32
-	Vector   [MAX_CONVERSATION_IDS]bool
+	// MAX_CONVERSATION_IDS
+	Vector []bool
 }
 
-type NeighborStateInfo struct {
+type StateVectorInfo struct {
 	OpState bool
 	// indexed by the received Home_Gateway_Sequence in
 	// increasing sequence number order
-	GatewayVector []NeighborGatewayVector
+	GatewayVector []GatewayVectorEntry
 	PortIdList    []uint32
 }
 
@@ -119,12 +120,12 @@ type DRCPIntraPortal struct {
 	DRFNeighborPortAlgorithm          [4]uint8
 	// range 1..3
 	DRFNeighborPortalSystemNumber            uint8
-	DRFNeighborState                         NeighborStateInfo
+	DRFNeighborState                         StateVectorInfo
 	DRFOtherNeighborAdminAggregatorKey       uint16
 	DRFOtherNeighborGatewayConversationMask  [MAX_CONVERSATION_IDS]bool
 	DRFOtherNeighborGatewaySequence          uint16
 	DRFOtherNeighborOperPartnerAggregatorKey uint16
-	DRFOtherNeighborState                    NeighborStateInfo
+	DRFOtherNeighborState                    StateVectorInfo
 	DRFRcvHomeGatewayConversationMask        [MAX_CONVERSATION_IDS]bool
 	DRFRcvHomeGatewaySequence                uint32
 	DRFRcvNeighborGatewayConversationMask    [MAX_CONVERSATION_IDS]bool
@@ -137,7 +138,7 @@ type DRCPIntraPortal struct {
 	DrniNeighborONN                          bool
 	DrniNeighborPortalAddr                   [6]uint8
 	DrniNeighborPortalPriority               uint16
-	DrniNeighborState                        [4]NeighborStateInfo
+	DrniNeighborState                        [4]StateVectorInfo
 	// This should always be false as we will not support 3 portal system initially
 	DrniNeighborThreeSystemPortal        bool
 	EnabledTimeShared                    bool
@@ -145,7 +146,7 @@ type DRCPIntraPortal struct {
 	IppOtherGatewayConversation          [MAX_CONVERSATION_IDS]uint32
 	IppOtherPortConversationPortalSystem [MAX_CONVERSATION_IDS]uint8
 	IppPortEnabled                       bool
-	IppPortalSystemState                 []NeighborStateInfo // this is probably wrong
+	IppPortalSystemState                 []StateVectorInfo // this is probably wrong
 	MissingRcvGatewayConVector           bool
 	MissingRcvPortConVector              bool
 	NTTDRCPDU                            bool
@@ -200,7 +201,7 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 		},
 		DRCPIntraPortal: DRCPIntraPortal{
 			DRCPEnabled:          true,
-			IppPortalSystemState: make([]NeighborStateInfo, 0),
+			IppPortalSystemState: make([]StateVectorInfo, 0),
 			// neighbor system id contained in the port id
 			DRFHomeConfNeighborPortalSystemNumber: uint8(id >> 16 & 0x3),
 		},
@@ -417,6 +418,51 @@ func (p *DRCPIpp) BEGIN(restart bool) {
 
 }
 
+// DrIppLinkUp distribute link up event
+func (p *DRCPIpp) DrIppLinkUp() {
+
+	mEvtChan := make([]chan utils.MachineEvent, 0)
+	evt := make([]utils.MachineEvent, 0)
+
+	p.IppPortEnabled = true
+
+	if p.DRCPEnabled {
+		mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
+		evt = append(evt, utils.MachineEvent{
+			E:   RxmEventNotIPPPortEnabled,
+			Src: DRCPConfigModuleStr})
+
+		mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
+		evt = append(evt, utils.MachineEvent{
+			E:   IGmEventBegin,
+			Src: DRCPConfigModuleStr})
+
+	}
+	p.DistributeMachineEvents(mEvtChan, evt, false)
+
+}
+
+// DrIppLinkDown distributelink down event
+func (p *DRCPIpp) DrIppLinkDown() {
+	mEvtChan := make([]chan utils.MachineEvent, 0)
+	evt := make([]utils.MachineEvent, 0)
+
+	p.IppPortEnabled = false
+
+	mEvtChan = append(mEvtChan, p.RxMachineFsm.RxmEvents)
+	evt = append(evt, utils.MachineEvent{
+		E:   RxmEventNotIPPPortEnabled,
+		Src: DRCPConfigModuleStr})
+
+	mEvtChan = append(mEvtChan, p.PtxMachineFsm.PtxmEvents)
+	evt = append(evt, utils.MachineEvent{
+		E:   IGmEventBegin,
+		Src: DRCPConfigModuleStr})
+
+	p.DistributeMachineEvents(mEvtChan, evt, false)
+
+}
+
 // DistributeMachineEvents will distribute the events in parrallel
 // to each machine
 func (p *DRCPIpp) DistributeMachineEvents(mec []chan utils.MachineEvent, e []utils.MachineEvent, waitForResponse bool) {
@@ -492,4 +538,57 @@ func DRFindPortByKey(key IppDbKey, p **DRCPIpp) bool {
 		return true
 	}
 	return false
+}
+
+// updateGatewayVector will update the vector, indexed by the received
+// Home_Gateway_Sequence in increasing sequence number order
+func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) {
+
+	if len(nsi.GatewayVector) > 0 {
+		for i, seqVector := range nsi.GatewayVector {
+			if seqVector.Sequence == sequence {
+				// overwrite the sequence
+				nsi.GatewayVector[i] = GatewayVectorEntry{
+					Sequence: sequence,
+					Vector:   make([]bool, 4096),
+				}
+				for j, val := range vector {
+					nsi.GatewayVector[i].Vector[j] = val
+				}
+			} else if seqVector.Sequence > sequence {
+				// insert sequence/vecotor before between i and i -1
+				nsi.GatewayVector = append(nsi.GatewayVector, GatewayVectorEntry{Vector: make([]bool, 4096)})
+				copy(nsi.GatewayVector[i:], nsi.GatewayVector[i+1:])
+				nsi.GatewayVector[i-1] = GatewayVectorEntry{
+					Sequence: sequence,
+					Vector:   make([]bool, 4096),
+				}
+				for j, val := range vector {
+					nsi.GatewayVector[i-1].Vector[j] = val
+				}
+			}
+		}
+	} else {
+		tmp := GatewayVectorEntry{
+			Sequence: sequence,
+			Vector:   make([]bool, 4096),
+		}
+		for j, val := range vector {
+			tmp.Vector[j] = val
+		}
+		nsi.GatewayVector = append(nsi.GatewayVector, tmp)
+	}
+}
+
+// getNeighborVectorGatwaySequenceIndex get the index for the entry whos
+// sequence number is equal.
+func (nsi *StateVectorInfo) getNeighborVectorGatwaySequenceIndex(sequence uint32, vector []bool) int32 {
+	if len(nsi.GatewayVector) > 0 {
+		for i, seqVector := range nsi.GatewayVector {
+			if seqVector.Sequence == sequence {
+				return int32(i)
+			}
+		}
+	}
+	return -1
 }

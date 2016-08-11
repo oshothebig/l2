@@ -13,6 +13,9 @@ func initAsicdNotification() commonDefs.AsicdNotification {
 	nMap := make(commonDefs.AsicdNotification)
 	nMap = commonDefs.AsicdNotification{
 		commonDefs.NOTIFY_L2INTF_STATE_CHANGE: true,
+		commonDefs.NOTIFY_VLAN_CREATE:         true,
+		commonDefs.NOTIFY_VLAN_DELETE:         true,
+		commonDefs.NOTIFY_VLAN_UPDATE:         true,
 	}
 	return nMap
 }

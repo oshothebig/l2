@@ -146,11 +146,10 @@ func OnlyForRxMachineCreateValidDRCPPacket() *layers.DRCP {
 			Sequence:      1,
 			Vector:        make([]uint8, 512),
 		},
-		//NeighborGatewayVector: DRCPNeighborGatewayVectorTlv{
-		//	TlvTypeLength: layers.DRCPTLVTypeNeighborGatewayVector | layers.DRCPTLVNeighborGatewayVectorLength,
+		//NeighborGatewayVector: DRCPGatewaNeighborGatewayVector	//	TlvTypeLength: layers.DRCPTLVTypeGatewayVectorEntry | layers.DRCPTLVGatewayVectorEntryLength,
 		//	Sequence:      1,
 		//},
-		//TwoPortalGatewayConversationVector: DRCP2PGatewayConversationVectorTlv{},
+		//TwoPNeighborGatewayVectorsationVector: DRCP2PGatNeighborGatewayVectorctorTlv{},
 		//TwoPortalPortConversationVector:    DRCP2PPortConversationVectorTlv{},
 		NetworkIPLMethod: layers.DRCPNetworkIPLSharingMethodTlv{
 			TlvTypeLength: layers.DRCPTLVNetworkIPLSharingMethod | layers.DRCPTLVNetworkIPLSharingMethodLength,

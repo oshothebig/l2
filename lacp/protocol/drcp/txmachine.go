@@ -397,8 +397,7 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				// TODO WTF is the standard trying to say is supposed to happen here
 				// Only include it if it does not make the packet exceed the MTU?
 				/*HomeGatewayVector                     DRCPHomeGatewayVectorTlv
-				NeighborGatewayVector                 DRCPNeighborGatewayVectorTlv
-				OtherGatewayVector                    DRCPOtherGatewayVectorTlv
+				NeighborGatewayVector                 DRCPGatewaNeighborGatewayVector		OtherGatewayVector                    DRCPOtherGatewayVectorTlv
 				*/
 
 			} else if (p.HomeGatewayVectorTransmit ||

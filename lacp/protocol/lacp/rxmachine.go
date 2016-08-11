@@ -98,10 +98,9 @@ type LacpRxMachine struct {
 	currentWhileTimer *time.Timer
 
 	// machine specific events
-	RxmEvents          chan utils.MachineEvent
-	RxmPktRxEvent      chan LacpRxLacpPdu
-	RxmKillSignalEvent chan bool
-	RxmLogEnableEvent  chan bool
+	RxmEvents         chan utils.MachineEvent
+	RxmPktRxEvent     chan LacpRxLacpPdu
+	RxmLogEnableEvent chan bool
 }
 
 func (rxm *LacpRxMachine) PrevState() fsm.State { return rxm.PreviousState }
@@ -113,12 +112,8 @@ func (rxm *LacpRxMachine) PrevStateSet(s fsm.State) { rxm.PreviousState = s }
 func (rxm *LacpRxMachine) Stop() {
 	rxm.CurrentWhileTimerStop()
 
-	// stop the go routine
-	rxm.RxmKillSignalEvent <- true
-
 	close(rxm.RxmEvents)
 	close(rxm.RxmPktRxEvent)
-	close(rxm.RxmKillSignalEvent)
 	close(rxm.RxmLogEnableEvent)
 
 }
@@ -126,12 +121,11 @@ func (rxm *LacpRxMachine) Stop() {
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLacpRxMachine(port *LaAggPort) *LacpRxMachine {
 	rxm := &LacpRxMachine{
-		p:                  port,
-		PreviousState:      LacpRxmStateNone,
-		RxmEvents:          make(chan utils.MachineEvent, 10),
-		RxmPktRxEvent:      make(chan LacpRxLacpPdu, 1000),
-		RxmKillSignalEvent: make(chan bool),
-		RxmLogEnableEvent:  make(chan bool)}
+		p:                 port,
+		PreviousState:     LacpRxmStateNone,
+		RxmEvents:         make(chan utils.MachineEvent, 10),
+		RxmPktRxEvent:     make(chan LacpRxLacpPdu, 1000),
+		RxmLogEnableEvent: make(chan bool)}
 
 	port.RxMachineFsm = rxm
 
@@ -522,9 +516,6 @@ func (p *LaAggPort) LacpRxMachineMain() {
 			// lets set the current state
 			m.p.AggPortDebug.AggPortDebugRxState = int(m.Machine.Curr.CurrentState())
 			select {
-			case <-m.RxmKillSignalEvent:
-				m.LacpRxmLog("Machine End")
-				return
 
 			case <-m.currentWhileTimer.C:
 				// special case if we have pending packets in the queue
@@ -535,62 +526,69 @@ func (p *LaAggPort) LacpRxMachineMain() {
 					m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventCurrentWhileTimerExpired, nil)
 				}
 
-			case event := <-m.RxmEvents:
-				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
-				if rv == nil {
-					p := m.p
-					/* continue State transition */
-					if m.Machine.Curr.CurrentState() == LacpRxmStateInitialize {
-						rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventUnconditionalFallthrough, nil)
-					}
+			case event, ok := <-m.RxmEvents:
+				if ok {
+					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 					if rv == nil {
-						m.LacpRxmLog(fmt.Sprintln("Port Enabled, LacpEnabled, State", p.PortEnabled, p.lacpEnabled, m.Machine.Curr.CurrentState()))
-						if m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled {
-							if p.lacpEnabled == true &&
-								p.PortEnabled == true {
-								rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpEnabled, nil)
-							} else if p.lacpEnabled == false &&
-								p.PortEnabled == true {
-								rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpDisabled, nil)
-							} else if p.portMoved {
-								rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortMoved, nil)
+						p := m.p
+						/* continue State transition */
+						if m.Machine.Curr.CurrentState() == LacpRxmStateInitialize {
+							rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventUnconditionalFallthrough, nil)
+						}
+						if rv == nil {
+							m.LacpRxmLog(fmt.Sprintln("Port Enabled, LacpEnabled, State", p.PortEnabled, p.lacpEnabled, m.Machine.Curr.CurrentState()))
+							if m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled {
+								if p.lacpEnabled == true &&
+									p.PortEnabled == true {
+									rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpEnabled, nil)
+								} else if p.lacpEnabled == false &&
+									p.PortEnabled == true {
+									rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpDisabled, nil)
+								} else if p.portMoved {
+									rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortMoved, nil)
+								}
 							}
 						}
 					}
-				}
 
-				if rv != nil {
-					m.LacpRxmLog(strings.Join([]string{error.Error(rv), event.Src, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
-				}
+					if rv != nil {
+						m.LacpRxmLog(strings.Join([]string{error.Error(rv), event.Src, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
+					}
 
-				// respond to caller if necessary so that we don't have a deadlock
-				if event.ResponseChan != nil {
-					utils.SendResponse(RxMachineModuleStr, event.ResponseChan)
-				}
-			case rx := <-m.RxmPktRxEvent:
-				//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.PortNum, rx.src))
-				// lets check if the port has moved
-				p.LacpCounter.AggPortStatsLACPDUsRx += 1
-
-				// centisecond
-				p.AggPortDebug.AggPortDebugLastRxTime = (time.Now().Nanosecond() - LacpStartTime.Nanosecond()) / 10
-
-				if m.CheckPortMoved(&p.PartnerOper, &(rx.pdu.Actor.Info)) {
-					m.LacpRxmLog("port moved")
-					m.p.portMoved = true
-					m.Machine.ProcessEvent(RxModuleStr, LacpRxmEventPortMoved, nil)
+					// respond to caller if necessary so that we don't have a deadlock
+					if event.ResponseChan != nil {
+						utils.SendResponse(RxMachineModuleStr, event.ResponseChan)
+					}
 				} else {
-					// If you rx a packet must be in one
-					// of 3 States
-					// Expired/Defaulted/Current. each
-					// State will transition to current
-					// all other States should be ignored.
-					m.Machine.ProcessEvent(RxModuleStr, LacpRxmEventLacpPktRx, rx.pdu)
+					m.LacpRxmLog("Machine End")
+					return
 				}
+			case rx, ok := <-m.RxmPktRxEvent:
+				if ok {
+					//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.PortNum, rx.src))
+					// lets check if the port has moved
+					p.LacpCounter.AggPortStatsLACPDUsRx += 1
 
-				// respond to caller if necessary so that we don't have a deadlock
-				if rx.responseChan != nil {
-					utils.SendResponse(RxMachineModuleStr, rx.responseChan)
+					// centisecond
+					p.AggPortDebug.AggPortDebugLastRxTime = (time.Now().Nanosecond() - LacpStartTime.Nanosecond()) / 10
+
+					if m.CheckPortMoved(&p.PartnerOper, &(rx.pdu.Actor.Info)) {
+						m.LacpRxmLog("port moved")
+						m.p.portMoved = true
+						m.Machine.ProcessEvent(RxModuleStr, LacpRxmEventPortMoved, nil)
+					} else {
+						// If you rx a packet must be in one
+						// of 3 States
+						// Expired/Defaulted/Current. each
+						// State will transition to current
+						// all other States should be ignored.
+						m.Machine.ProcessEvent(RxModuleStr, LacpRxmEventLacpPktRx, rx.pdu)
+					}
+
+					// respond to caller if necessary so that we don't have a deadlock
+					if rx.responseChan != nil {
+						utils.SendResponse(RxMachineModuleStr, rx.responseChan)
+					}
 				}
 
 			case ena := <-m.RxmLogEnableEvent:

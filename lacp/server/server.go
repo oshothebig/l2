@@ -28,6 +28,9 @@ const (
 	LAConfigMsgCreateDistributedRelay
 	LAConfigMsgDeleteDistributedRelay
 	LAConfigMsgAggregatorCreated
+	LAConfigMsgCreateConversationId
+	LAConfigMsgUpdateConversationId
+	LAConfigMsgDeleteConversationId
 )
 
 type LAConfig struct {
@@ -51,6 +54,7 @@ func NewLAServer(logger *logging.Writer) *LAServer {
 
 func (server *LAServer) InitServer() {
 	utils.ConstructPortConfigMap()
+	drcp.GetAllCVIDConversations()
 }
 
 // StartSTPSConfigNotificationListener
@@ -177,6 +181,22 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		s.logger.Info("CONFIG: Delete Distributed Relay")
 		config := conf.Msgdata.(*drcp.DistrubtedRelayConfig)
 		drcp.DeleteDistributedRelay(config.GetKey())
+
+	case LAConfigMsgCreateConversationId:
+		s.logger.Info("CONFIG: Create Conversation Id")
+		config := conf.Msgdata.(*drcp.DRConversationConfig)
+		drcp.CreateConversationId(config)
+
+	case LAConfigMsgDeleteConversationId:
+		s.logger.Info("CONFIG: Delete Conversation Id")
+		config := conf.Msgdata.(*drcp.DRConversationConfig)
+		drcp.DeleteConversationId(config)
+
+	case LAConfigMsgUpdateConversationId:
+		s.logger.Info("CONFIG: Update Conversation Id")
+		config := conf.Msgdata.(*drcp.DRConversationConfig)
+		drcp.UpdateConversationId(config)
+
 	}
 }
 
@@ -186,6 +206,12 @@ func (s *LAServer) processLinkDownEvent(linkId int) {
 	if lacp.LaFindPortById(uint16(linkId), &p) {
 		p.LaAggPortDisable()
 		p.LinkOperStatus = false
+	} else {
+		for _, ipp := range drcp.DRCPIppDBList {
+			if ipp.Id == int32(linkId) {
+				go ipp.DrIppLinkDown()
+			}
+		}
 	}
 }
 
@@ -195,6 +221,50 @@ func (s *LAServer) processLinkUpEvent(linkId int) {
 	if lacp.LaFindPortById(uint16(linkId), &p) {
 		p.LaAggPortEnabled()
 		p.LinkOperStatus = true
+	} else {
+		for _, ipp := range drcp.DRCPIppDBList {
+			if ipp.Id == int32(linkId) {
+				go ipp.DrIppLinkUp()
+			}
+		}
+	}
+}
+
+func (s *LAServer) processVlanEvent(vlanMsg commonDefs.VlanNotifyMsg) {
+
+	// need to determine whether the message is a new vlan or if
+	// ports were updated are any of them part of any of the
+	// aggregators which exist
+	msgtype := LAConfigMsgUpdateConversationId
+	if vlanMsg.MsgType == commonDefs.NOTIFY_VLAN_CREATE {
+		msgtype = LAConfigMsgCreateConversationId
+	} else if vlanMsg.MsgType == commonDefs.NOTIFY_VLAN_DELETE {
+		msgtype := LAConfigMsgDeleteConversationId
+	}
+	var agg *lacp.LaAggregator
+	for lacp.LaGetAggNext(&agg) {
+		portList := vlanMsg.UntagPorts + vlanMsg.IfIndexList
+		for _, uifindex := range portList {
+			id := asicdCommonDefs.GetIntfIdFromIfIndex(uifindex)
+			for _, aggport := range agg.PortNumList {
+				if id == int(aggport) {
+					var dr *drcp.DistributedRelay
+					if drcp.DrFindByAggregator(int32(agg.AggId), &dr) {
+						// gateway message
+						cfg := drcp.DRConversationConfig{
+							DrniName: dr.DrniName,
+							Idtype:   drcp.GATEWAY_ALGORITHM_CVID,
+							Cvlan:    uint16(vlanMsg.VlanId),
+						}
+
+						s.ConfigCh <- LAConfig{
+							Msgtype: msgtype,
+							Msgdata: cfg,
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -208,5 +278,9 @@ func (s *LAServer) processAsicdNotification(msg commonDefs.AsicdNotifyMsg) {
 		} else {
 			s.processLinkUpEvent(asicdCommonDefs.GetIntfIdFromIfIndex(l2Msg.IfIndex))
 		}
+	case commonDefs.VlanNotifyMsg:
+		vlanMsg := msg.(commonDefs.VlanNotifyMsg)
+		s.logger.Info(fmt.Sprintln("Msg vlan = ", vlanMsg))
+		s.processVlanEvent(vlanMsg)
 	}
 }

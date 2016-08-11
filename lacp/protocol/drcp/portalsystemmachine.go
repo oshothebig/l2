@@ -27,6 +27,7 @@ package drcp
 import (
 	//"fmt"
 	"github.com/google/gopacket/layers"
+	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
@@ -310,4 +311,72 @@ func (psm *PsMachine) updateKey() {
 //state of the local ports as follows
 func (psm *PsMachine) updateDRFHomeState() {
 	// TODO need to understand the logic better
+	dr := psm.dr
+	a := dr.a
+
+	psm.setDRFHomeState()
+	allippactivitynotset := true
+	for _, ipp := range dr.Ipplinks {
+		if ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) {
+			allippactivitynotset = false
+		}
+	}
+	if allippactivitynotset {
+		dr.PSI = true
+	} else {
+		dr.PSI = false
+	}
+
+	if dr.PSI &&
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) {
+		for _, aggport := range a.PortNumList {
+			var p *lacp.LaAggPort
+			if lacp.LaFindPortById(aggport, &p) {
+				lacp.LacpStateClear(&p.ActorOper.State, lacp.LacpStateSyncBit)
+				if p.CdMachineFsm.Machine.Curr.CurrentState() == lacp.LacpCdmStateNoActorChurn {
+					p.CdMachineFsm.CdmEvents <- utils.MachineEvent{
+						E:   lacp.LacpCdmEventActorOperPortStateSyncOff,
+						Src: PsMachineModuleStr,
+					}
+				}
+			}
+		}
+	}
+}
+
+// IsLocalGatewayOperable TRUE indicates operable (i.e., the local DR
+// Function is able to relay traffic through its Gateway Port and at least one of its other Ports—
+// IPP(s) or Aggregator) and that connectivity through the local Gateway is enabled by the
+// operation of the network control protocol
+func (psm *PsMachine) setDRFHomeState() {
+	dr := psm.dr
+	a := dr.a
+	// TODO
+	// 1) ipp link is down
+	// 2) No agg ports are in distributed state
+	// 3) No conversations exist
+	for _, ipp := range dr.Ipplinks {
+		if (ipp.IppPortEnabled ||
+			a != nil &&
+				len(a.DistributedPortNumList) > 0) &&
+			!psm.IsGatewayConvNull() {
+			dr.DRFHomeOperDRCPState.SetState(layers.DRCPStateHomeGatewayBit)
+		} else {
+			dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStateHomeGatewayBit)
+		}
+	}
+}
+
+// IsGatewayConvNull will check that there are no conversations provisioned
+// on this system
+func (psm *PsMachine) IsGatewayConvNull() bool {
+	dr := psm.dr
+	conversationdoesnotexist := true
+	for _, gateway := range dr.DrniConvAdminGateway {
+		if gateway != nil {
+			conversationdoesnotexist = false
+			break
+		}
+	}
+	return conversationdoesnotexist
 }

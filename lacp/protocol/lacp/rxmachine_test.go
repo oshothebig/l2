@@ -70,7 +70,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 			p.RxMachineFsm.Machine.Curr.CurrentState())
 	}
 
-	p.BEGIN(false)
+	p.BEGIN(true)
 	portchan = p.PortChannelGet()
 
 	// port is initally disabled and lacp is disabled
@@ -534,7 +534,7 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 	// lets start the Rx Machine only
 	p.LacpRxMachineMain()
 
-	p.BEGIN(false)
+	p.BEGIN(true)
 
 	// turn timer off so that we do not accidentally transition States
 	p.RxMachineFsm.CurrentWhileTimerStop()

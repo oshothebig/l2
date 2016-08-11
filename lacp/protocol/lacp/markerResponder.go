@@ -76,10 +76,9 @@ type LampMarkerResponderMachine struct {
 	p *LaAggPort
 
 	// machine specific events
-	LampMarkerResponderEvents          chan utils.MachineEvent
-	LampMarkerResponderPktRxEvent      chan LampRxLampPdu
-	LampMarkerResponderKillSignalEvent chan bool
-	LampMarkerResponderLogEnableEvent  chan bool
+	LampMarkerResponderEvents         chan utils.MachineEvent
+	LampMarkerResponderPktRxEvent     chan LampRxLampPdu
+	LampMarkerResponderLogEnableEvent chan bool
 }
 
 func (mr *LampMarkerResponderMachine) PrevState() fsm.State { return mr.PreviousState }
@@ -90,12 +89,8 @@ func (mr *LampMarkerResponderMachine) PrevStateSet(s fsm.State) { mr.PreviousSta
 // Stop should clean up all resources
 func (mr *LampMarkerResponderMachine) Stop() {
 
-	// stop the go routine
-	mr.LampMarkerResponderKillSignalEvent <- true
-
 	close(mr.LampMarkerResponderEvents)
 	close(mr.LampMarkerResponderPktRxEvent)
-	close(mr.LampMarkerResponderKillSignalEvent)
 	close(mr.LampMarkerResponderLogEnableEvent)
 
 }
@@ -122,12 +117,11 @@ func (mr *LampMarkerResponderMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewLampMarkerResponder(port *LaAggPort) *LampMarkerResponderMachine {
 	mr := &LampMarkerResponderMachine{
-		p:                                  port,
-		PreviousState:                      LacpRxmStateNone,
-		LampMarkerResponderEvents:          make(chan utils.MachineEvent, 10),
-		LampMarkerResponderPktRxEvent:      make(chan LampRxLampPdu, 1000),
-		LampMarkerResponderKillSignalEvent: make(chan bool),
-		LampMarkerResponderLogEnableEvent:  make(chan bool)}
+		p:                                 port,
+		PreviousState:                     LacpRxmStateNone,
+		LampMarkerResponderEvents:         make(chan utils.MachineEvent, 10),
+		LampMarkerResponderPktRxEvent:     make(chan LampRxLampPdu, 1000),
+		LampMarkerResponderLogEnableEvent: make(chan bool)}
 
 	port.MarkerResponderFsm = mr
 
@@ -222,43 +216,46 @@ func (p *LaAggPort) LampMarkerResponderMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case <-m.LampMarkerResponderKillSignalEvent:
-				m.LampMarkerResponderLog("Machine End")
-				return
 
-			case event := <-m.LampMarkerResponderEvents:
-				rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
+			case event, ok := <-m.LampMarkerResponderEvents:
+				if ok {
+					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 
-				if rv != nil {
-					m.LampMarkerResponderLog(strings.Join([]string{error.Error(rv), event.Src, LampMarkerResponderStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
-				}
-
-				// respond to caller if necessary so that we don't have a deadlock
-				if event.ResponseChan != nil {
-					utils.SendResponse(RxMachineModuleStr, event.ResponseChan)
-				}
-			case rx := <-m.LampMarkerResponderPktRxEvent:
-				//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.PortNum, rx.src))
-				// lets check if the port has moved
-				p.LacpCounter.AggPortStatsMarkerPDUsRx += 1
-
-				rv := m.Machine.ProcessEvent(MarkerResponderModuleStr, LampMarkerResponderEventLampPktRx, rx.pdu)
-				if rv != nil {
-					m.LampMarkerResponderLog(strings.Join([]string{error.Error(rv), rx.src, LampMarkerResponderStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(LampMarkerResponderEventLampPktRx))}, ":"))
-				}
-				// processed the packet, now lets send a response
-				if m.Machine.Curr.CurrentState() == LampMarkerResponderStateRespondToMarker {
-					rv = m.Machine.ProcessEvent(MarkerResponderModuleStr, LampMarkerResponderEventIntentionalFallthrough, rx.pdu)
 					if rv != nil {
-						m.LampMarkerResponderLog(strings.Join([]string{error.Error(rv), MarkerResponderModuleStr, LampMarkerResponderStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(LampMarkerResponderEventIntentionalFallthrough))}, ":"))
+						m.LampMarkerResponderLog(strings.Join([]string{error.Error(rv), event.Src, LampMarkerResponderStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
+					}
+
+					// respond to caller if necessary so that we don't have a deadlock
+					if event.ResponseChan != nil {
+						utils.SendResponse(RxMachineModuleStr, event.ResponseChan)
+					}
+				} else {
+					m.LampMarkerResponderLog("Machine End")
+					return
+				}
+			case rx, ok := <-m.LampMarkerResponderPktRxEvent:
+				if ok {
+					//m.LacpRxmLog(fmt.Sprintf("RXM: received packet %d %s", m.p.PortNum, rx.src))
+					// lets check if the port has moved
+					p.LacpCounter.AggPortStatsMarkerPDUsRx += 1
+
+					rv := m.Machine.ProcessEvent(MarkerResponderModuleStr, LampMarkerResponderEventLampPktRx, rx.pdu)
+					if rv != nil {
+						m.LampMarkerResponderLog(strings.Join([]string{error.Error(rv), rx.src, LampMarkerResponderStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(LampMarkerResponderEventLampPktRx))}, ":"))
+					}
+					// processed the packet, now lets send a response
+					if m.Machine.Curr.CurrentState() == LampMarkerResponderStateRespondToMarker {
+						rv = m.Machine.ProcessEvent(MarkerResponderModuleStr, LampMarkerResponderEventIntentionalFallthrough, rx.pdu)
+						if rv != nil {
+							m.LampMarkerResponderLog(strings.Join([]string{error.Error(rv), MarkerResponderModuleStr, LampMarkerResponderStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(LampMarkerResponderEventIntentionalFallthrough))}, ":"))
+						}
+					}
+
+					// respond to caller if necessary so that we don't have a deadlock
+					if rx.responseChan != nil {
+						utils.SendResponse(RxMachineModuleStr, rx.responseChan)
 					}
 				}
-
-				// respond to caller if necessary so that we don't have a deadlock
-				if rx.responseChan != nil {
-					utils.SendResponse(RxMachineModuleStr, rx.responseChan)
-				}
-
 			case ena := <-m.LampMarkerResponderLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 

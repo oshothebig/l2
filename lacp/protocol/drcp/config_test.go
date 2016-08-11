@@ -342,7 +342,12 @@ func TestConfigDistributedRelayInValidCreateDRNoAgg(t *testing.T) {
 func TestConfigInvalidPortalAddressString(t *testing.T) {
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
+	/*
 
+
+
+
+	 */
 	cfg := &DistrubtedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE", // invalid!!!
