@@ -731,6 +731,7 @@ func (rxm *RxMachine) recordPortalConfValues(drcpPduInfo *layers.DRCP) {
 	portAlgorithmEqual := p.DRFNeighborPortAlgorithm == dr.DRFHomePortAlgorithm
 	conversationPortListDigestEqual := p.DRFNeighborConversationPortListDigest == dr.DRFHomeConversationPortListDigest
 	gatewayAlgorithmEqual := p.DRFNeighborGatewayAlgorithm == dr.DRFHomeGatewayAlgorithm
+	//fmt.Println("RX: GatewayListDigest:", p.DRFNeighborConversationGatewayListDigest, dr.DRFHomeConversationGatewayListDigest)
 	conversationGatewayListDigestEqual := p.DRFNeighborConversationGatewayListDigest == dr.DRFHomeConversationGatewayListDigest
 
 	// lets set this as it will be cleared later if the fields differ

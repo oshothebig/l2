@@ -222,6 +222,7 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 			}
 
 			buf := new(bytes.Buffer)
+			//fmt.Println("Adding to Gateway Digest:", conv.Cvlan, math.Mod(float64(conv.Cvlan), 2), []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
 			// network byte order
 			binary.Write(buf, binary.BigEndian, []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
 			ghash.Write(buf.Bytes())
@@ -291,17 +292,20 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		DrniIPLEncapMap:             make(map[uint32]uint32),
 		DrniNetEncapMap:             make(map[uint32]uint32),
 	}
-	for cid, data := range cfg.DrniConvAdminGateway {
-		if data != [3]uint8{} {
-			dr.DrniConvAdminGateway[cid] = make([]uint8, 0)
-			for _, sysnum := range data {
-				if sysnum != 0 {
-					dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], sysnum)
+	/*
+		Not allowing user to set we are goign to fill this in via
+		setTimeSharingPortAndGatwewayDigest
+		for cid, data := range cfg.DrniConvAdminGateway {
+			if data != [3]uint8{} {
+				dr.DrniConvAdminGateway[cid] = make([]uint8, 0)
+				for _, sysnum := range data {
+					if sysnum != 0 {
+						dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], sysnum)
+					}
 				}
 			}
 		}
-	}
-
+	*/
 	dr.DrniPortalAddr, _ = net.ParseMAC(cfg.DrniPortalAddress)
 
 	// string format in bits "00000000"
