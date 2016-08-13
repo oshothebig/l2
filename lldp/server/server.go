@@ -114,14 +114,15 @@ func (svr *LLDPServer) CloseAllPktHandlers() {
 /* Create global run time information for l2 port and then start rx/tx for that port if state is up
  */
 func (svr *LLDPServer) InitL2PortInfo(portInfo *config.PortInfo) {
-	gblInfo, _ := svr.lldpGblInfo[portInfo.IfIndex]
+	gblInfo, exists := svr.lldpGblInfo[portInfo.IfIndex]
 	gblInfo.InitRuntimeInfo(portInfo)
+	if !exists {
+		// on fresh start it will not exists but on restart it might
+		// default is set to true but LLDP Object is auto-discover and hence we will enable it manually
+		gblInfo.Enable()
+	}
 	svr.lldpGblInfo[portInfo.IfIndex] = gblInfo
 
-	// Only start rx/tx if, Globally LLDP is enabled, Interface LLDP is enabled and port is in UP state
-	if gblInfo.Port.OperState == LLDP_PORT_STATE_UP && !gblInfo.isDisabled() && svr.Global.Enable {
-		svr.StartRxTx(gblInfo.Port.IfIndex)
-	}
 	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.Port.IfIndex)
 }
 
@@ -147,7 +148,7 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 	// Get Port Information from Asic, only after reading from DB
 	portsInfo := svr.asicPlugin.GetPortsInfo()
 	for _, port := range portsInfo {
-		svr.InitL2PortInfo(port) // is it a bug for starting rx/tx before channel handler??
+		svr.InitL2PortInfo(port)
 	}
 
 	svr.asicPlugin.Start()
@@ -307,25 +308,28 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(ifIndex int32, state string) {
 
 /*  handle global lldp enable/disable, which will enable/disable lldp for all the ports
  */
-func (svr *LLDPServer) handleGlobalConfig() {
+func (svr *LLDPServer) handleGlobalConfig(restart bool) {
 	// iterate over all the entries in the gblInfo and change the state accordingly
 	for _, ifIndex := range svr.lldpIntfStateSlice {
 		gblInfo, found := svr.lldpGblInfo[ifIndex]
 		if !found {
-			debug.Logger.Err(fmt.Sprintln("No entry for ifIndex", ifIndex, "in runtime information"))
+			debug.Logger.Err("No entry for ifIndex", ifIndex, "in runtime information")
 			continue
 		}
-		if gblInfo.isDisabled() {
+		if gblInfo.isDisabled() || gblInfo.Port.OperState == LLDP_PORT_STATE_DOWN {
+			debug.Logger.Debug("Cannot start LLDP rx/tx for port", gblInfo.Port.Name,
+				"as its state is", gblInfo.Port.OperState, "enable is", gblInfo.isDisabled())
 			continue
 		}
 		switch svr.Global.Enable {
 		case true:
-			debug.Logger.Debug(fmt.Sprintln("Global Config Disable, enabling port rx tx for ifIndex",
-				ifIndex))
+			debug.Logger.Debug("Global Config Disable, enabling port rx tx for ifIndex", ifIndex)
 			svr.StartRxTx(ifIndex)
 		case false:
-			debug.Logger.Debug(fmt.Sprintln("Global Config Disable, disabling port rx tx for ifIndex",
-				ifIndex))
+			if restart {
+				continue
+			}
+			debug.Logger.Debug("Global Config Disable, disabling port rx tx for ifIndex", ifIndex)
 			// do not update the configuration enable/disable state...just stop packet handling
 			svr.StopRxTx(ifIndex)
 		}
@@ -380,6 +384,14 @@ func (svr *LLDPServer) SendFrame(ifIndex int32) {
  * LLDPInitGlobalDS api to see which all channels are getting initialized
  */
 func (svr *LLDPServer) ChannelHanlder() {
+	// Only start rx/tx if, Globally LLDP is enabled, Interface LLDP is enabled and port is in UP state
+	// move RX/TX to Channel Handler
+	// The below step is really important for us.
+	// On Re-Start if lldp global is enable then we will start rx/tx for those ports which are in up state
+	// and at the same time we will start the loop for signal handler
+	// @TODO: should this be moved to timer... like wait 1 second and then start the handleGlobalConfig??
+	svr.handleGlobalConfig(true)
+
 	for {
 		select {
 		case rcvdInfo, ok := <-svr.lldpRxPktCh:
@@ -434,7 +446,7 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 			svr.Global.Enable = gbl.Enable
 			svr.Global.Vrf = gbl.Vrf
-			svr.handleGlobalConfig()
+			svr.handleGlobalConfig(false)
 		case intf, ok := <-svr.IntfCfgCh: // Change in interface config
 			if !ok {
 				continue

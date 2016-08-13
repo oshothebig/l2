@@ -59,7 +59,7 @@ func (svr *LLDPServer) PopulateTLV(ifIndex int32, entry *config.IntfState) bool 
 	return exists
 }
 
-/*  Server get bulk for lldp up intfs
+/*  Server get bulk for lldp up intfs. This is used for Auto-Discovery
  */
 func (svr *LLDPServer) GetIntfs(idx, cnt int) (int, int, []config.Intf) {
 	var nextIdx int
