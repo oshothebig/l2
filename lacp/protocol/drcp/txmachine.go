@@ -378,11 +378,10 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 			drcp.HomePortsInfo.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeHomePortsInfo))
 			// length is determine by the number of active ports + 6
 			homePortsInfoLength := uint32(4)
-			if dr.a != nil {
-				for _, actportstr := range dr.a.DistributedPortNumList {
-					ifIndex := utils.GetIfIndexFromName(actportstr)
-					if ifIndex > 0 {
-						drcp.HomePortsInfo.ActiveHomePorts = append(drcp.HomePortsInfo.ActiveHomePorts, uint32(ifIndex))
+			if dr.a != nil && dr.DRAggregatorDistributedList != nil {
+				for _, ifindex := range dr.DRAggregatorDistributedList {
+					if ifindex > 0 {
+						drcp.HomePortsInfo.ActiveHomePorts = append(drcp.HomePortsInfo.ActiveHomePorts, uint32(ifindex))
 					}
 				}
 			}

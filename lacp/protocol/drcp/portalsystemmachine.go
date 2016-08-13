@@ -252,7 +252,6 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 		//dr.DrniIntraPortalLinkList[i] = 0
 	}
 
-	// TODO
 	// Because we only support Sharing by Time we don't
 	// need to worry about how the other system is
 	// provisioned thus we only need to worry about filling
@@ -261,7 +260,8 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 	// This should be updated with the valid 'conversation ids'
 	//
 	//dr.DRFHomeConversationPortListDigest
-	//dr.DRFHomeConversationGatewayListDigest = dr.
+	dr.setAdminConvPortAndNeighborPortListDigest()
+	dr.setAdminConvGatewayAndNeighborGatewayListDigest()
 
 }
 
@@ -329,6 +329,7 @@ func (psm *PsMachine) updateDRFHomeState() {
 
 	if dr.PSI &&
 		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) {
+		// LaAggregator processing
 		for _, aggport := range a.PortNumList {
 			var p *lacp.LaAggPort
 			if lacp.LaFindPortById(aggport, &p) {
@@ -344,7 +345,7 @@ func (psm *PsMachine) updateDRFHomeState() {
 	}
 }
 
-// IsLocalGatewayOperable TRUE indicates operable (i.e., the local DR
+// setDRFHomeState TRUE indicates operable (i.e., the local DR
 // Function is able to relay traffic through its Gateway Port and at least one of its other Ports—
 // IPP(s) or Aggregator) and that connectivity through the local Gateway is enabled by the
 // operation of the network control protocol
@@ -358,8 +359,9 @@ func (psm *PsMachine) setDRFHomeState() {
 	for _, ipp := range dr.Ipplinks {
 		if (ipp.IppPortEnabled ||
 			a != nil &&
-				len(a.DistributedPortNumList) > 0) &&
-			!psm.IsGatewayConvNull() {
+				(dr.DRAggregatorDistributedList != nil &&
+					len(dr.DRAggregatorDistributedList) > 0)) &&
+			!psm.isGatewayConvNull() {
 			dr.DRFHomeOperDRCPState.SetState(layers.DRCPStateHomeGatewayBit)
 		} else {
 			dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStateHomeGatewayBit)
@@ -369,7 +371,7 @@ func (psm *PsMachine) setDRFHomeState() {
 
 // IsGatewayConvNull will check that there are no conversations provisioned
 // on this system
-func (psm *PsMachine) IsGatewayConvNull() bool {
+func (psm *PsMachine) isGatewayConvNull() bool {
 	dr := psm.dr
 	conversationdoesnotexist := true
 	for _, gateway := range dr.DrniConvAdminGateway {

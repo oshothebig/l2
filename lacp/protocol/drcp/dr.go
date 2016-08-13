@@ -93,6 +93,13 @@ type DistributedRelay struct {
 
 	a *lacp.LaAggregator
 
+	// Local list to keep track of distributed port list
+	// Server will only indicate that a change has occured
+	// updateDRFHomeState will determine what actions
+	// to perform based on the differences between
+	// what DR and Aggregator distributed port list
+	DRAggregatorDistributedList []int32
+
 	// sync creation and deletion
 	wg sync.WaitGroup
 
@@ -162,9 +169,9 @@ func DrFindByAggregator(DrniAggregator int32, dr **DistributedRelay) bool {
 // isPortInConversation will check of the provided portList intersected with
 // the aggregator port list is greater than zero
 func (dr *DistributedRelay) isAggPortInConverstaion(portList []int32) bool {
-	a := dr.a
-	if a != nil {
-		for _, ifindex := range a.PortNumList {
+	if dr.DRAggregatorDistributedList != nil {
+
+		for _, ifindex := range dr.DRAggregatorDistributedList {
 			for _, pifindex := range portList {
 				if int32(ifindex) == pifindex {
 					return true
@@ -213,6 +220,14 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 				dr.DrniConvAdminGateway[cid] = make([]uint8, 0)
 				isNewConversation = true
 			}
+
+			// Fixed algorithm for 2P system
+			// Because we only support sharing by time we don't really care which
+			// system is the "owner" of the conversation because all conversations
+			// are free to be delivered on both systems based on bridging rules.
+			// Annex G:
+			//  A frame received over the IPL shall never be forwarded over the Aggregator Port.
+			//  A frame received over the IPL with a DA that was learned from the Aggregator Port shall be discarded.
 			if math.Mod(float64(conv.Cvlan), 2) == 0 {
 				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 2)
 				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 1)
@@ -222,7 +237,7 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 			}
 
 			buf := new(bytes.Buffer)
-			//fmt.Println("Adding to Gateway Digest:", conv.Cvlan, math.Mod(float64(conv.Cvlan), 2), []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
+			utils.GlobalLogger.Info("Adding to Gateway Digest:", conv.Cvlan, math.Mod(float64(conv.Cvlan), 2), []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
 			// network byte order
 			binary.Write(buf, binary.BigEndian, []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
 			ghash.Write(buf.Bytes())
@@ -247,10 +262,10 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 
 	// always send regardless of state because all states expect this event
 	if isNewConversation &&
-		dr.GMachineFsm != nil {
-		dr.GatewayConversationUpdate = true
-		dr.GMachineFsm.GmEvents <- utils.MachineEvent{
-			E:   GmEventGatewayConversationUpdate,
+		dr.PsMachineFsm != nil {
+		dr.ChangePortal = true
+		dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
+			E:   PsmEventChangePortal,
 			Src: DRCPConfigModuleStr,
 		}
 	}
@@ -315,10 +330,13 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		dr.DRFNeighborAdminDRCPState |= layers.DRCPState(val << j)
 	}
 
-	// This should be nil
-	for i := 0; i < 16; i++ {
-		dr.DrniNeighborAdminConvPortListDigest[i] = cfg.DrniNeighborAdminConvPortListDigest[i]
-	}
+	/*
+		Not allowing user to set we are goign to fill this in via
+		setTimeSharingPortAndGatwewayDigest
+		for i := 0; i < 16; i++ {
+			dr.DrniNeighborAdminConvPortListDigest[i] = cfg.DrniNeighborAdminConvPortListDigest[i]
+		}
+	*/
 	// format "00:00:00:00"
 	encapmethod := strings.Split(cfg.DrniEncapMethod, ":")
 	gatewayalgorithm := strings.Split(cfg.DrniGatewayAlgorithm, ":")
@@ -352,8 +370,6 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	netMac, _ := net.ParseMAC(cfg.DrniIntraPortalPortProtocolDA)
 	dr.DrniPortalPortProtocolIDA = netMac
 
-	AttachAggregatorToDistributedRelay(int(dr.DrniAggregator))
-
 	// add to the global db's
 	DistributedRelayDB[dr.DrniName] = dr
 	DistributedRelayDBList = append(DistributedRelayDBList, dr)
@@ -372,7 +388,11 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 // DeleteDistriutedRelay will delete the distributed relay along with
 // the associated IPP links and de-associate from the Aggregator
 func (dr *DistributedRelay) DeleteDistributedRelay() {
-	dr.Stop()
+
+	// detach was not called externally, so lets call it
+	if dr.a != nil {
+		DetachAggregatorFromDistributedRelay(int(dr.DrniAggregator))
+	}
 
 	for _, ipp := range dr.Ipplinks {
 		ipp.DeleteDRCPIpp()

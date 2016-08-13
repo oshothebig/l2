@@ -31,6 +31,8 @@ const (
 	LAConfigMsgCreateConversationId
 	LAConfigMsgUpdateConversationId
 	LAConfigMsgDeleteConversationId
+	// events based on port being in distributed state or not
+	LAConfigMsgLaPortChannelDistributedRelayPortListUpdate
 )
 
 type LAConfig struct {
@@ -197,6 +199,10 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		config := conf.Msgdata.(*drcp.DRConversationConfig)
 		drcp.UpdateConversationId(config)
 
+	case LAConfigMsgLaPortChannelDistributedRelayPortListUpdate:
+		s.logger.Info("CONFIG: Update DR AGG Port List")
+		config := conf.Msgdata.(*drcp.DRAggregatorPortListConfig)
+		drcp.DistributedRelayAggregatorPortListUpdate(config)
 	}
 }
 
@@ -208,7 +214,7 @@ func (s *LAServer) processLinkDownEvent(linkId int) {
 		p.LinkOperStatus = false
 	} else {
 		for _, ipp := range drcp.DRCPIppDBList {
-			if ipp.Id == int32(linkId) {
+			if int(ipp.Id) == linkId {
 				go ipp.DrIppLinkDown()
 			}
 		}
@@ -223,7 +229,7 @@ func (s *LAServer) processLinkUpEvent(linkId int) {
 		p.LinkOperStatus = true
 	} else {
 		for _, ipp := range drcp.DRCPIppDBList {
-			if ipp.Id == int32(linkId) {
+			if int(ipp.Id) == linkId {
 				go ipp.DrIppLinkUp()
 			}
 		}
@@ -239,11 +245,15 @@ func (s *LAServer) processVlanEvent(vlanMsg commonDefs.VlanNotifyMsg) {
 	if vlanMsg.MsgType == commonDefs.NOTIFY_VLAN_CREATE {
 		msgtype = LAConfigMsgCreateConversationId
 	} else if vlanMsg.MsgType == commonDefs.NOTIFY_VLAN_DELETE {
-		msgtype := LAConfigMsgDeleteConversationId
+		msgtype = LAConfigMsgDeleteConversationId
 	}
 	var agg *lacp.LaAggregator
 	for lacp.LaGetAggNext(&agg) {
-		portList := vlanMsg.UntagPorts + vlanMsg.IfIndexList
+		portList := vlanMsg.TagPorts
+		for _, p := range vlanMsg.UntagPorts {
+			portList = append(portList, p)
+		}
+
 		for _, uifindex := range portList {
 			id := asicdCommonDefs.GetIntfIdFromIfIndex(uifindex)
 			for _, aggport := range agg.PortNumList {
@@ -268,6 +278,37 @@ func (s *LAServer) processVlanEvent(vlanMsg commonDefs.VlanNotifyMsg) {
 	}
 }
 
+/*
+
+type LagNotifyMsg struct {
+	MsgType     uint8
+	LagName     string
+	IfIndex     int32
+	IfIndexList []int32
+}
+
+*/
+func (s *LAServer) processLAGEvent(lagMsg commonDefs.LagNotifyMsg) {
+
+	// Only care about port updates
+	if lagMsg.MsgType == commonDefs.NOTIFY_LAG_UPDATE {
+		s.logger.Info(fmt.Sprintln("Msg lag = ", lagMsg))
+		msgtype := LAConfigMsgLaPortChannelDistributedRelayPortListUpdate
+		aggId := asicdCommonDefs.GetIntfIdFromIfIndex(lagMsg.IfIndex)
+		cfg := drcp.DRAggregatorPortListConfig{
+			DrniAggregator: uint32(aggId),
+		}
+		for _, ifindex := range lagMsg.IfIndexList {
+			cfg.PortList = append(cfg.PortList, int32(asicdCommonDefs.GetIntfIdFromIfIndex(ifindex)))
+		}
+
+		s.ConfigCh <- LAConfig{
+			Msgtype: msgtype,
+			Msgdata: cfg,
+		}
+	}
+}
+
 func (s *LAServer) processAsicdNotification(msg commonDefs.AsicdNotifyMsg) {
 	switch msg.(type) {
 	case commonDefs.L2IntfStateNotifyMsg:
@@ -282,5 +323,9 @@ func (s *LAServer) processAsicdNotification(msg commonDefs.AsicdNotifyMsg) {
 		vlanMsg := msg.(commonDefs.VlanNotifyMsg)
 		s.logger.Info(fmt.Sprintln("Msg vlan = ", vlanMsg))
 		s.processVlanEvent(vlanMsg)
+
+	case commonDefs.LagNotifyMsg:
+		lagMsg := msg.(commonDefs.LagNotifyMsg)
+		s.processLAGEvent(lagMsg)
 	}
 }

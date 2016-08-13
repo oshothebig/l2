@@ -267,31 +267,34 @@ func (am *AMachine) initializeDRNIPortConversation() {
 // updatePortalState This function updates the Drni_Portal_System_State[] as follows
 func (am *AMachine) updatePortalState() {
 	dr := am.dr
-	// TODO need for the following case when more than a single IPL is supported
-	// f any of the other Portal System’s state information is available from two IPPs in this Portal
-	// System, then
 
 	// update the local portal info
 	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber] = dr.DRFHomeState
 
-	// single IPP case
-	for _, ipp := range dr.Ipplinks {
-		if ipp.DRFNeighborState.OpState {
-			dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFNeighborState.OpState
-			for _, seqvector := range ipp.DRFNeighborState.GatewayVector {
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector, seqvector)
-			}
-			for _, port := range ipp.DRFNeighborState.PortIdList {
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList, port)
-			}
-		} else if ipp.DRFOtherNeighborState.OpState {
-			ipp.DrniNeighborONN = true
-			dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFOtherNeighborState.OpState
-			for _, seqvector := range ipp.DRFOtherNeighborState.GatewayVector {
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector, seqvector)
-			}
-			for _, port := range ipp.DRFOtherNeighborState.PortIdList {
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList, port)
+	if len(dr.Ipplinks) > 1 {
+		// TODO need for the following case when more than a single IPL is supported
+		// if any of the other Portal System’s state information is available from two IPPs in this Portal
+		// System, then....
+	} else if len(dr.Ipplinks) == 1 {
+		// single IPP case
+		for _, ipp := range dr.Ipplinks {
+			if ipp.DRFNeighborState.OpState {
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFNeighborState.OpState
+				for _, seqvector := range ipp.DRFNeighborState.GatewayVector {
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector, seqvector)
+				}
+				for _, port := range ipp.DRFNeighborState.PortIdList {
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList, port)
+				}
+			} else if ipp.DRFOtherNeighborState.OpState {
+				ipp.DrniNeighborONN = true
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFOtherNeighborState.OpState
+				for _, seqvector := range ipp.DRFOtherNeighborState.GatewayVector {
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector, seqvector)
+				}
+				for _, port := range ipp.DRFOtherNeighborState.PortIdList {
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList, port)
+				}
 			}
 		}
 	}
@@ -322,14 +325,19 @@ func (am *AMachine) updatePortalState() {
 
 	// update ipp_portal_system_state
 	// TODO If any other Portal System’s state information is available from two IPPs, then
+	if len(dr.Ipplinks) > 1 {
 
-	// TODO single ipl
-	// what does not make sense to me is it calls for the entries to be added one after the other
-	// but at the same time indexed by portal system number
-	for _, ipp := range dr.Ipplinks {
-		ipp.IppPortalSystemState = nil
-		if ipp.DRFNeighborState.OpState {
-			ipp.IppPortalSystemState = append(ipp.IppPortalSystemState, ipp.DRFNeighborState)
+	} else if len(dr.Ipplinks) == 1 {
+		// single ipl
+		// Ipp portal state contains the neighbor state as first entry and if there
+		// are any other portals received on this IPP they will follow
+		for _, ipp := range dr.Ipplinks {
+			ipp.IppPortalSystemState = nil
+			if ipp.DRFNeighborState.OpState {
+				ipp.IppPortalSystemState = append(ipp.IppPortalSystemState, ipp.DRFNeighborState)
+				// TODO add the any other portal state info from received DRCP here
+				// Not being done today because should only be one other system in 2P config
+			}
 		}
 	}
 }
@@ -358,7 +366,6 @@ func (am *AMachine) setPortConversation() {
 		// Conversation ID enabled in the Gateway Vectors of the Drni_Portal_System_State[] variable,
 		// are included.
 		//dr.a.ConversationPortList
-
 	}
 }
 

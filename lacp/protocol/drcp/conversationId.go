@@ -66,10 +66,10 @@ func GetAllCVIDConversations() {
 					ent.Refcnt = 1
 					ent.Idtype = GATEWAY_ALGORITHM_CVID
 					ent.Cvlan = uint16(vlan)
-					// TODO should look at tagged list as well?
 					if ent.PortList == nil {
 						ent.PortList = make([]int32, 0)
 					}
+					// combine untagged and tagged ports
 					ent.PortList = bulkVlanInfo.VlanList[i].UntagIfIndexList
 					for _, ifindex := range bulkVlanInfo.VlanList[i].IfIndexList {
 						ent.PortList = append(ent.PortList, ifindex)
@@ -111,7 +111,6 @@ func CreateConversationId(cfg *DRConversationConfig) {
 				ConversationIdMap[uint16(cfg.Cvlan)] = ent
 
 			}
-
 			// update the local digests and converstaion lists
 			for _, dr := range DistributedRelayDBList {
 				if dr.DrniName == cfg.DrniName {
@@ -130,7 +129,8 @@ func DeleteConversationId(cfg *DRConversationConfig) {
 		if cfg.Cvlan < MAX_CONVERSATION_IDS && ConversationIdMap[cfg.Cvlan].Valid {
 			ent := ConversationIdMap[cfg.Cvlan]
 			if ent.Refcnt > 1 {
-				// TODO what should happen here?
+				// TODO FUTURE when you can map multiple conversations types
+				// to the same conversation id
 				ent.Refcnt--
 			} else {
 				ent.Valid = false

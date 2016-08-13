@@ -162,6 +162,10 @@ type DRCPIntraPortal struct {
 	IppPortUpdate               bool
 	OtherGatewayVectorTransmit  bool
 	PortConversationTransmit    bool
+
+	// 9.3.4.3
+	IppGatewayConversationPasses [MAX_CONVERSATION_IDS]bool
+	IppPortconversationPasses    [MAX_CONVERSATION_IDS]bool
 }
 
 type DRCPIpp struct {

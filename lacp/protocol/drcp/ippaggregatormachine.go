@@ -277,13 +277,14 @@ func (iam *IAMachine) setIPPPortConversation() {
 		// now lets save the values
 		p.DrniNeighborPortConversation = neighborConversationSystemNumbers
 	} else if !p.DifferPortDigest {
-		for i := 0; i < MAX_CONVERSATION_IDS; i++ {
-			//for _, port := range p.dr.a.ConversationPortList[i] {
-			//TODO Revisit logic here DrniNeighborState
-			//p.IppOtherPortConversationPortalSystem[i] = port
-			//	break
-			//}
-		}
+		// TODO Revisit logic here DrniNeighborState
+		//
+		// This function sets Ipp_Other_Port_Conversation_Portal_System to the values computed from
+		// Conversation_PortList[] and the Drni_Neighbor_State[] as follows:
+		// For every indexed Port Conversation ID, a Portal System Number is identified by choosing the
+		// highest priority Portal System Number in the list of Portal Systems Numbers provided by
+		// Conversation_PortList[] when only the operational Aggregation Ports, as provided by the
+		//associated Lists of the Drni_Neighbor_State[] variable, are included.
 	}
 }
 

@@ -195,6 +195,7 @@ func OnlyForRxMachineTestSetupCreateAggGroup(aggId uint32) *lacp.LaAggregator {
 
 	var a *lacp.LaAggregator
 	if lacp.LaFindAggById(a1conf.Id, &a) {
+		a.DistributedPortNumList = append(a.DistributedPortNumList, utils.PortConfigMap[aggport1].Name)
 		return a
 	}
 	return nil
@@ -264,6 +265,16 @@ func TestRxMachineRxValidDRCPDUNeighborPkt(t *testing.T) {
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -386,6 +397,16 @@ func TestRxMachineRxValidDRCPDUNeighborPktThenTimeout(t *testing.T) {
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -537,6 +558,16 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorPriority(t *testi
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -638,6 +669,16 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorAddr(t *testing.T
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -739,6 +780,16 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferOperAggregatorKey(t *testin
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -893,6 +944,16 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferThreeSystemPortalDiff(t *te
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -1039,6 +1100,16 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferNeighborPortalSystemNumDiff
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -1166,6 +1237,16 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayAlgorithmDiff(t *tes
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -1264,6 +1345,16 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortAlgorithmDiff(t *testin
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -1362,6 +1453,16 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayDigestDiff(t *testin
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -1462,6 +1563,16 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortDigestDiff(t *testing.T
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
+
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 

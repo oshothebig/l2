@@ -84,6 +84,11 @@ type DRConversationConfig struct {
 	PortList   []int32
 }
 
+type DRAggregatorPortListConfig struct {
+	DrniAggregator uint32
+	PortList       []int32
+}
+
 func (d *DistrubtedRelayConfig) GetKey() string {
 	return d.DrniName
 }
@@ -174,7 +179,6 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 func CreateDistributedRelay(cfg *DistrubtedRelayConfig) {
 
 	dr := NewDistributedRelay(cfg)
-	// aggregator must exist for the protocol to really make sense
 	if dr != nil {
 		AttachAggregatorToDistributedRelay(int(dr.DrniAggregator))
 	}
@@ -200,9 +204,11 @@ func AttachAggregatorToDistributedRelay(aggId int) {
 			var a *lacp.LaAggregator
 			if lacp.LaFindAggById(aggId, &a) {
 				dr.a = a
+				dr.LaDrLog(fmt.Sprintf("Attaching Agg %s %d to DR %s", a.AggName, a.AggId, dr.DrniName))
 
-				// set port and gateway info and digest
-				dr.setTimeSharingPortAndGatwewayDigest()
+				// TODO
+				// we may want to ensure that hte ports don't try and sync up until
+				// the DRCP machine says everything is in sync
 
 				// lets update the aggregator parameters
 				// configured ports
@@ -225,9 +231,26 @@ func AttachAggregatorToDistributedRelay(aggId int) {
 					}
 				}
 
+				// add the port to the local distributed list so that the digests can be
+				// calculated
+				dr.DRAggregatorDistributedList = make([]int32, 0)
+				for _, disport := range a.DistributedPortNumList {
+					var aggp *lacp.LaAggPort
+					foundPort := false
+					for lacp.LaGetPortNext(&aggp) && !foundPort {
+						if aggp.IntfNum == disport {
+							dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+						}
+					}
+				}
+
+				// set port and gateway info and digest
+				dr.setTimeSharingPortAndGatwewayDigest()
+
 				dr.BEGIN(false)
 				// start the IPP links
 				for _, ipp := range dr.Ipplinks {
+					dr.LaDrLog(fmt.Sprintf("Starting Ipp %s", ipp.Name))
 					ipp.DRCPEnabled = true
 					ipp.BEGIN(false)
 				}
@@ -260,7 +283,43 @@ func DetachAggregatorFromDistributedRelay(aggId int) {
 						dr.PrevAggregatorPriority)
 				}
 			}
+			dr.Stop()
 			dr.a = nil
+		}
+	}
+}
+
+// DistributedRelayAggregatorPortListUpdate inform the Portal System Machine
+// that the port list has changed.  It will then send the correct update
+// to gateway and aggregator machines
+func DistributedRelayAggregatorPortListUpdate(cfg *DRAggregatorPortListConfig) {
+	var dr *DistributedRelay
+	if DrFindByAggregator(int32(cfg.DrniAggregator), &dr) {
+
+		a := dr.a
+
+		if a != nil {
+			// fill in current distributed port list
+			dr.DRAggregatorDistributedList = make([]int32, 0)
+			// add the port to the local distributed list so that the digests can be
+			// calculated
+			for _, disport := range a.DistributedPortNumList {
+				var aggp *lacp.LaAggPort
+				foundPort := false
+				for lacp.LaGetPortNext(&aggp) && !foundPort {
+					if aggp.IntfNum == disport {
+						dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+					}
+				}
+			}
+
+			dr.ChangeDRFPorts = true
+			if dr.PsMachineFsm != nil {
+				dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
+					E:   PsmEventChangeDRFPorts,
+					Src: DRCPConfigModuleStr,
+				}
+			}
 		}
 	}
 }

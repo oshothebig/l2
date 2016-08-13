@@ -222,51 +222,52 @@ func (igm *IGMachine) initializeIPPGatewayConversation() {
 // setIPPGatewayConversation This function sets Ipp_Other_Gateway_Conversation as follows
 func (igm *IGMachine) setIPPGatewayConversation() {
 	p := igm.p
+	dr := p.dr
 
 	if p.DifferGatewayDigest &&
-		p.dr.DrniThreeSystemPortal {
+		dr.DrniThreeSystemPortal {
 		// TODO handle 3 portal system logic
 	} else if p.DifferGatewayDigest &&
-		!p.dr.DrniThreeSystemPortal {
+		!dr.DrniThreeSystemPortal {
 		var neighborConversationSystemNumbers [1024]uint8
 		for i, j := 0, 0; i < MAX_CONVERSATION_IDS; i, j = i+8, j+2 {
 			if (p.DrniNeighborGatewayConversation[i] >> 7 & 1) == 0 {
-				neighborConversationSystemNumbers[j] |= p.dr.DRFPortalSystemNumber << 6
+				neighborConversationSystemNumbers[j] |= dr.DRFPortalSystemNumber << 6
 			} else {
 				neighborConversationSystemNumbers[j] |= p.DRFHomeConfNeighborPortalSystemNumber << 6
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 6 & 1) == 0 {
-				neighborConversationSystemNumbers[j] |= p.dr.DRFPortalSystemNumber << 4
+				neighborConversationSystemNumbers[j] |= dr.DRFPortalSystemNumber << 4
 			} else {
 				neighborConversationSystemNumbers[j] |= p.DRFHomeConfNeighborPortalSystemNumber << 4
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 5 & 1) == 0 {
-				neighborConversationSystemNumbers[j] |= p.dr.DRFPortalSystemNumber << 2
+				neighborConversationSystemNumbers[j] |= dr.DRFPortalSystemNumber << 2
 			} else {
 				neighborConversationSystemNumbers[j] |= p.DRFHomeConfNeighborPortalSystemNumber << 2
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 4 & 1) == 0 {
-				neighborConversationSystemNumbers[j] |= p.dr.DRFPortalSystemNumber << 0
+				neighborConversationSystemNumbers[j] |= dr.DRFPortalSystemNumber << 0
 			} else {
 				neighborConversationSystemNumbers[j] |= p.DRFHomeConfNeighborPortalSystemNumber << 0
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 3 & 1) == 0 {
-				neighborConversationSystemNumbers[j+1] |= p.dr.DRFPortalSystemNumber << 6
+				neighborConversationSystemNumbers[j+1] |= dr.DRFPortalSystemNumber << 6
 			} else {
 				neighborConversationSystemNumbers[j+1] |= p.DRFHomeConfNeighborPortalSystemNumber << 6
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 2 & 1) == 0 {
-				neighborConversationSystemNumbers[j+1] |= p.dr.DRFPortalSystemNumber << 4
+				neighborConversationSystemNumbers[j+1] |= dr.DRFPortalSystemNumber << 4
 			} else {
 				neighborConversationSystemNumbers[j+1] |= p.DRFHomeConfNeighborPortalSystemNumber << 4
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 1 & 1) == 0 {
-				neighborConversationSystemNumbers[j+1] |= p.dr.DRFPortalSystemNumber << 2
+				neighborConversationSystemNumbers[j+1] |= dr.DRFPortalSystemNumber << 2
 			} else {
 				neighborConversationSystemNumbers[j+1] |= p.DRFHomeConfNeighborPortalSystemNumber << 2
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 0 & 1) == 0 {
-				neighborConversationSystemNumbers[j+1] |= p.dr.DRFPortalSystemNumber << 0
+				neighborConversationSystemNumbers[j+1] |= dr.DRFPortalSystemNumber << 0
 			} else {
 				neighborConversationSystemNumbers[j+1] |= p.DRFHomeConfNeighborPortalSystemNumber << 0
 			}
@@ -275,12 +276,56 @@ func (igm *IGMachine) setIPPGatewayConversation() {
 		p.DrniNeighborGatewayConversation = neighborConversationSystemNumbers
 	} else if !p.DifferGatewayDigest {
 		// TODO revisit logic
+		// This function sets Ipp_Other_Gateway_Conversation to the values computed from
+		// aDrniConvAdminGateway[] and the Drni_Neighbor_State[] as follows:
+		// For every indexed Gateway Conversation ID, a Portal System Number is identified by
+		// choosing the highest priority Portal System Number in the list of Portal System Numbers
+		// provided by aDrniConvAdminGateway[] when only the Portal Systems having that
+		// Gateway Conversation ID enabled in the Gateway Vectors of the Drni_Neighbor_State[]
+		// variable, are included
 	}
 }
 
 // updateIPPGatewayConversationDirection This function computes a value for Ipp_Gateway_Conversation_Direction as follows
 func (igm *IGMachine) updateIPPGatewayConversationDirection() {
-	// TODO need to understand the logic better
+	p := igm.p
+	dr := p.dr
+
+	// NOTE: logic below is not checking the following case because there is no other gateway
+	// in our supported implementation
+	//b) Drni_Gateway_Conversation and Ipp_Other_Gateway_Conversation are in agreement
+	//   as to which Portal System should get this Gateway Conversation ID.
+	//   In addition, if Drni_Gateway_Conversation and Ipp_Other_Gateway_Conversation are in
+	//   disagreement for any Gateway Conversation ID:
+	//   It sets DRF_HomIe_Oper_DRCP_State.Gateway_Sync to FALSE, and;
+	//   NTTDRCPDU to TRUE.
+
+	if !dr.DrniThreeSystemPortal {
+		for conid := 0; conid < MAX_CONVERSATION_IDS; conid++ {
+			if dr.DrniGatewayConversation[conid] != nil {
+				p.IppGatewayConversationPasses[conid] = false
+				// lets only check the first portal as this indicates
+				// which system according to the gateway conversation
+				// owns this conversation
+				if dr.DrniGatewayConversation[conid][0] != dr.DrniPortalSystemNumber {
+					if p.IppPortalSystemState != nil {
+						for _, statevector := range p.IppPortalSystemState {
+							if statevector.OpState {
+								if statevector.GatewayVector != nil {
+									for _, seqvector := range statevector.GatewayVector {
+										if seqvector.Vector != nil &&
+											seqvector.Vector[conid] {
+											p.IppGatewayConversationPasses[conid] = true
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 // NotifyIppAllGatewayUpdate this should be called each time IppGatewayUpdate is changed

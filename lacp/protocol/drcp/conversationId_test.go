@@ -25,6 +25,7 @@
 package drcp
 
 import (
+	//"fmt"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
@@ -80,7 +81,7 @@ func OnlyForConversationIdTestSetup() {
 		ConversationIdMap[i].Idtype = [4]uint8{}
 	}
 	// fill in conversations
-	GetAllCVIDConversations()
+	//GetAllCVIDConversations()
 }
 
 func OnlyForConversationIdTestTeardown() {
@@ -131,6 +132,7 @@ func OnlyForConversationIdTestSetupCreateAggGroup(aggId uint32) *lacp.LaAggregat
 
 	var a *lacp.LaAggregator
 	if lacp.LaFindAggById(a1conf.Id, &a) {
+		a.DistributedPortNumList = append(a.DistributedPortNumList, utils.PortConfigMap[aggport1].Name)
 		return a
 	}
 	return nil
@@ -197,6 +199,15 @@ func TestConversationIdVlanMembershipCreateNoPorts(t *testing.T) {
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -268,6 +279,15 @@ func TestConversationIdVlanMembershipCreateNoPortsThenAddDelPort(t *testing.T) {
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -327,18 +347,17 @@ func TestConversationIdVlanMembershipCreateNoPortsThenAddDelPort(t *testing.T) {
 			time.Sleep(time.Second * 1)
 		}
 		if !(*evrx) {
-			dr.GMachineFsm.GmEvents <- utils.MachineEvent{
+			dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
 				E:   fsm.Event(0),
 				Src: "CONVERSATION ID: FORCE TEST FAIL",
 			}
 		}
 	}(&eventReceived)
 
-	evt := <-dr.GMachineFsm.GmEvents
-	if evt.E != GmEventGatewayConversationUpdate {
-		t.Error("ERRRO Failed to received gateway update event")
+	evt := <-dr.PsMachineFsm.PsmEvents
+	if evt.E != PsmEventChangePortal {
+		t.Error("ERRRO Failed to received portal change event")
 	}
-
 	eventReceived = true
 
 	// Del agg port
@@ -400,6 +419,18 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	// add the port to the local distributed list so that the digests can be
+	// calculated
+	dr.DRAggregatorDistributedList = make([]int32, 0)
+	for _, disport := range a.DistributedPortNumList {
+		var aggp *lacp.LaAggPort
+		foundPort := false
+		for lacp.LaGetPortNext(&aggp) && !foundPort {
+			if aggp.IntfNum == disport {
+				dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
+			}
+		}
+	}
 	// set gateway info and digest
 	dr.setTimeSharingPortAndGatwewayDigest()
 
@@ -417,10 +448,16 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 	DrcpPtxMachineFSMBuild(ipp)
 	DrcpRxMachineFSMBuild(ipp)
 
-	dr.GMachineFsm.Machine.Curr.SetState(GmStatePsGatewayUpdate)
+	dr.PsMachineFsm.Machine.Curr.SetState(PsmStatePortalSystemInitialize)
 
 	// enable because aggregator was attached above
 	ipp.DRCPEnabled = true
+
+	//dr.DRFHomeConversationPortListDigest = drcp.PortalConfigInfo.PortDigest
+	//dr.DRFHomeConversationGatewayListDigest = drcp.PortalConfigInfo.GatewayDigest
+
+	// lets get the IPP
+	//ipp := dr.Ipplinks[0]
 
 	// SETUP create a vlan who does not have any port members
 	conversationCfg := &DRConversationConfig{
@@ -447,18 +484,17 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 			time.Sleep(time.Second * 1)
 		}
 		if !(*evrx) {
-			dr.GMachineFsm.GmEvents <- utils.MachineEvent{
+			dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
 				E:   fsm.Event(0),
 				Src: "CONVERSATION ID: FORCE TEST FAIL",
 			}
 		}
 	}(&eventReceived)
 
-	evt := <-dr.GMachineFsm.GmEvents
-	if evt.E != GmEventGatewayConversationUpdate {
-		t.Error("ERRRO Failed to received gateway update event")
+	evt := <-dr.PsMachineFsm.PsmEvents
+	if evt.E != PsmEventChangePortal {
+		t.Error("ERRRO Failed to received portal change event")
 	}
-
 	eventReceived = true
 
 	// Del vlan
@@ -480,19 +516,18 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 			time.Sleep(time.Second * 1)
 		}
 		if !(*evrx) {
-			dr.GMachineFsm.GmEvents <- utils.MachineEvent{
+			dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
 				E:   fsm.Event(0),
 				Src: "CONVERSATION ID: FORCE TEST FAIL",
 			}
 		}
 	}(&eventReceived)
 
-	evt = <-dr.GMachineFsm.GmEvents
-	if evt.E != GmEventGatewayConversationUpdate {
-		t.Error("ERRRO Failed to received gateway update event")
+	evt = <-dr.PsMachineFsm.PsmEvents
+	if evt.E != PsmEventChangePortal {
+		t.Error("ERRRO Failed to received portal change event")
 	}
 	eventReceived = true
-
 	lacp.DeleteLaAgg(a.AggId)
 	RxMachineTestTeardwon()
 }

@@ -120,6 +120,8 @@ func OnlyForTestSetupCreateAggGroup(aggId uint32) *lacp.LaAggregator {
 
 	var a *lacp.LaAggregator
 	if lacp.LaFindAggById(a1conf.Id, &a) {
+		a.DistributedPortNumList = append(a.DistributedPortNumList, utils.PortConfigMap[aggport1].Name)
+
 		return a
 	}
 	return nil
@@ -227,9 +229,8 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 			t.Error("ERROR BEGIN Initial Receive Machine state is not correct", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 		}
 		// port is enabled and drcp is enabled thus we should be in fast periodic state
-		if ipp.PtxMachineFsm == nil ||
-			ipp.PtxMachineFsm.Machine.Curr.CurrentState() != PtxmStateFastPeriodic {
-			t.Error("ERROR BEGIN Initial Periodic Tx Machine state is not correct", PtxmStateStrMap[ipp.PtxMachineFsm.Machine.Curr.CurrentState()])
+		if ipp.PtxMachineFsm == nil {
+			t.Error("ERROR BEGIN Initial Periodic Tx Machine state is not correct")
 		}
 		if ipp.TxMachineFsm == nil ||
 			ipp.TxMachineFsm.Machine.Curr.CurrentState() != TxmStateOff {
@@ -259,6 +260,137 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 		t.Error("ERROR IPP DB was not cleaned up")
 	}
 
+	lacp.DeleteLaAgg(a.AggId)
+	ConfigTestTeardwon()
+}
+
+func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
+
+	ConfigTestSetup()
+
+	cfg := &DistrubtedRelayConfig{
+		DrniName:                          "DR-1",
+		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
+		DrniPortalPriority:                128,
+		DrniThreePortalSystem:             false,
+		DrniPortalSystemNumber:            1,
+		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)},
+		DrniAggregator:                    200,
+		DrniGatewayAlgorithm:              "00:80:C2:01",
+		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
+		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
+		DrniNeighborAdminDRCPState:        "00000000",
+		DrniEncapMethod:                   "00:80:C2:01",
+		DrniPortConversationControl:       false,
+		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
+	}
+	// map vlan 100 to this system
+	// in real system this should be filled in by vlan membership
+	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
+
+	err := DistrubtedRelayConfigParamCheck(cfg)
+	if err != nil {
+		t.Error("Parameter check failed for what was expected to be a valid config", err)
+	}
+
+	CreateDistributedRelay(cfg)
+	// This should fail as agg has not been created yet
+	AttachAggregatorToDistributedRelay(200)
+
+	// configuration is incomplete because lag has not been created as part of this
+	if len(DistributedRelayDB) == 0 ||
+		len(DistributedRelayDBList) == 0 {
+		t.Error("ERROR Distributed Relay Object was not added to global DB's")
+	}
+	dr, ok := DistributedRelayDB[cfg.DrniName]
+	if !ok {
+		t.Error("ERROR Distributed Relay Object was not found in global DB's")
+	}
+
+	// check the inital state of each of the state machines
+	if dr.a != nil {
+		t.Error("ERROR Agg does not exist no associated should exist")
+	}
+	if dr.PsMachineFsm != nil {
+		t.Error("ERROR BEGIN Initial Portal System Machine state was created, provisioning incomplete")
+	}
+	if dr.GMachineFsm != nil {
+		t.Error("ERROR BEGIN Initial Gateway Machine state was created, provisioning incomplete")
+	}
+	if dr.AMachineFsm != nil {
+		t.Error("ERROR BEGIN Initial Aggregator System Machine state was created, provisioning incomplete")
+	}
+
+	for _, ipp := range dr.Ipplinks {
+		if ipp.DRCPEnabled {
+			t.Error("ERROR Why is the IPL IPP link DRCP enabled")
+		}
+	}
+
+	// TEST aggregator created after DR
+	a := OnlyForTestSetupCreateAggGroup(200)
+	AttachAggregatorToDistributedRelay(200)
+
+	// check the inital state of each of the state machines
+	if dr.a == nil {
+		t.Error("ERROR BEGIN was called before an Agg has been attached")
+	}
+	if dr.PsMachineFsm == nil ||
+		dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate {
+		t.Error("ERROR BEGIN Initial Portal System Machine state is not correct", PsmStateStrMap[dr.PsMachineFsm.Machine.Curr.CurrentState()])
+	}
+	if dr.GMachineFsm == nil ||
+		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayInitialize {
+		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", dr.GMachineFsm.Machine.Curr.CurrentState())
+	}
+	if dr.AMachineFsm == nil ||
+		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortInitialize {
+		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", dr.AMachineFsm.Machine.Curr.CurrentState())
+	}
+
+	if len(dr.Ipplinks) == 0 {
+		t.Error("ERROR Why did the IPL IPP link not get created")
+	}
+
+	for _, ipp := range dr.Ipplinks {
+		// IPL should be disabled thus state should be in initialized state
+		if ipp.RxMachineFsm == nil ||
+			ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateExpired {
+			t.Error("ERROR BEGIN Initial Receive Machine state is not correct", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
+		}
+		// port is enabled and drcp is enabled thus we should be in fast periodic state
+		if ipp.PtxMachineFsm == nil ||
+			ipp.PtxMachineFsm.Machine.Curr.CurrentState() != PtxmStateFastPeriodic {
+			t.Error("ERROR BEGIN Initial Periodic Tx Machine state is not correct", PtxmStateStrMap[ipp.PtxMachineFsm.Machine.Curr.CurrentState()])
+		}
+		if ipp.TxMachineFsm == nil ||
+			ipp.TxMachineFsm.Machine.Curr.CurrentState() != TxmStateOff {
+			t.Error("ERROR BEGIN Initial Tx Machine state is not correct", TxmStateStrMap[ipp.TxMachineFsm.Machine.Curr.CurrentState()])
+		}
+		if ipp.NetIplShareMachineFsm == nil ||
+			ipp.NetIplShareMachineFsm.Machine.Curr.CurrentState() != NetIplSharemStateNoManipulatedFramesSent {
+			t.Error("ERROR BEGIN Initial Net/IPL Sharing Machine state is not correct", ipp.NetIplShareMachineFsm.Machine.Curr.CurrentState())
+		}
+		if ipp.IAMachineFsm == nil ||
+			ipp.IAMachineFsm.Machine.Curr.CurrentState() != IAmStateIPPPortInitialize {
+			t.Error("ERROR BEGIN Initial IPP Aggregator state is not correct", IAmStateStrMap[ipp.IAMachineFsm.Machine.Curr.CurrentState()])
+		}
+		if ipp.IGMachineFsm == nil ||
+			ipp.IGMachineFsm.Machine.Curr.CurrentState() != IGmStateIPPGatewayInitialize {
+			t.Error("ERROR BEGIN Initial IPP Gateway Machine state is not correct", GmStateStrMap[ipp.IGMachineFsm.Machine.Curr.CurrentState()])
+		}
+	}
+
+	DeleteDistributedRelay(cfg.DrniName)
+
+	if len(DistributedRelayDB) != 0 ||
+		len(DistributedRelayDBList) != 0 {
+		t.Error("ERROR Distributed Relay DB was not cleaned up")
+	}
+	if len(DRCPIppDB) != 0 ||
+		len(DRCPIppDBList) != 0 {
+		t.Error("ERROR IPP DB was not cleaned up")
+	}
 	lacp.DeleteLaAgg(a.AggId)
 	ConfigTestTeardwon()
 }
@@ -307,7 +439,7 @@ func TestConfigDistributedRelayInValidCreateDRNoAgg(t *testing.T) {
 
 	// check the inital state of each of the state machines
 	if dr.a != nil {
-		t.Error("ERROR Agg does not exist no associated should exist")
+		t.Error("ERROR Agg exists no associated should exist")
 	}
 	if dr.PsMachineFsm != nil {
 		t.Error("ERROR BEGIN Initial Portal System Machine state was created, provisioning incomplete")
@@ -369,6 +501,7 @@ func TestConfigInvalidPortalAddressString(t *testing.T) {
 	if err == nil {
 		t.Error("Parameter check did not fail for bad Portal Address")
 	}
+
 	lacp.DeleteLaAgg(a.AggId)
 	ConfigTestTeardwon()
 }

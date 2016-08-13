@@ -16,6 +16,9 @@ func initAsicdNotification() commonDefs.AsicdNotification {
 		commonDefs.NOTIFY_VLAN_CREATE:         true,
 		commonDefs.NOTIFY_VLAN_DELETE:         true,
 		commonDefs.NOTIFY_VLAN_UPDATE:         true,
+		commonDefs.NOTIFY_LAG_CREATE:          true,
+		commonDefs.NOTIFY_LAG_DELETE:          true,
+		commonDefs.NOTIFY_LAG_UPDATE:          true,
 	}
 	return nMap
 }
