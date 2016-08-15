@@ -293,33 +293,31 @@ func (gm *GMachine) updatePortalState() {
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
-				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
-				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
-				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
+				ipp.IppPortalSystemState = nil
 			}
 
-			if ipp.DRFOtherNeighborState.OpState {
-				for _, seqvector := range ipp.DRFOtherNeighborState.GatewayVector {
-					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
+			/*
+				TODO: NOT supported
+				if ipp.DRFOtherNeighborState.OpState {
+					for _, seqvector := range ipp.DRFOtherNeighborState.GatewayVector {
+						dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
+					}
+					ipp.ONN = true
+				} else {
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
+					ipp.IppPortalSystemState = nil
 				}
-				ipp.ONN = true
-			} else {
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
-				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
-				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
-				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
-			}
 
-			dr.DrniPortalSystemState[3].OpState = false
-			dr.DrniPortalSystemState[3].GatewayVector = nil
-			dr.DrniPortalSystemState[3].PortIdList = nil
-			ipp.IppPortalSystemState[3].OpState = false
-			ipp.IppPortalSystemState[3].GatewayVector = nil
-			ipp.IppPortalSystemState[3].PortIdList = nil
+				dr.DrniPortalSystemState[3].OpState = false
+				dr.DrniPortalSystemState[3].GatewayVector = nil
+				dr.DrniPortalSystemState[3].PortIdList = nil
+				ipp.IppPortalSystemState = nil
+			*/
 		}
 	}
+	// always set to false since portal system number is never 0
 	dr.DrniPortalSystemState[0].OpState = false
 	dr.DrniPortalSystemState[0].GatewayVector = nil
 	dr.DrniPortalSystemState[0].PortIdList = nil
@@ -334,7 +332,8 @@ func (gm *GMachine) setIPPGatewayUpdate() {
 			if ipp.Id == ippid {
 
 				// inform the ipp gateway machine
-				if !ipp.IppGatewayUpdate {
+				if !ipp.IppGatewayUpdate &&
+					ipp.IGMachineFsm != nil {
 					ipp.IGMachineFsm.IGmEvents <- utils.MachineEvent{
 						E:   IGmEventGatewayUpdate,
 						Src: GMachineModuleStr,

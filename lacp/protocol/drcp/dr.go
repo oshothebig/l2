@@ -169,9 +169,10 @@ func DrFindByAggregator(DrniAggregator int32, dr **DistributedRelay) bool {
 // isPortInConversation will check of the provided portList intersected with
 // the aggregator port list is greater than zero
 func (dr *DistributedRelay) isAggPortInConverstaion(portList []int32) bool {
-	if dr.DRAggregatorDistributedList != nil {
+	a := dr.a
 
-		for _, ifindex := range dr.DRAggregatorDistributedList {
+	if a.PortNumList != nil {
+		for _, ifindex := range a.PortNumList {
 			for _, pifindex := range portList {
 				if int32(ifindex) == pifindex {
 					return true
@@ -223,11 +224,14 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 
 			// Fixed algorithm for 2P system
 			// Because we only support sharing by time we don't really care which
-			// system is the "owner" of the conversation because all conversations
+			// system is the "gateway" of the conversation because all conversations
 			// are free to be delivered on both systems based on bridging rules.
 			// Annex G:
 			//  A frame received over the IPL shall never be forwarded over the Aggregator Port.
 			//  A frame received over the IPL with a DA that was learned from the Aggregator Port shall be discarded.
+			//
+			// NOTE when other sharing methods are supported then this algorithm will
+			// need to be changed
 			if math.Mod(float64(conv.Cvlan), 2) == 0 {
 				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 2)
 				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 1)
@@ -347,7 +351,7 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	val2, _ = strconv.ParseInt(encapmethod[1], 16, 16)
 	val3, _ = strconv.ParseInt(encapmethod[2], 16, 16)
 	val4, _ = strconv.ParseInt(encapmethod[3], 16, 16)
-	dr.DrniEncapMethod = [4]uint8{uint8(val1), uint8(val2), uint8(val3), uint8(val4)}
+	dr.DrniEncapMethod = EncapMethod{uint8(val1), uint8(val2), uint8(val3), uint8(val4)}
 	val1, _ = strconv.ParseInt(gatewayalgorithm[0], 16, 16)
 	val2, _ = strconv.ParseInt(gatewayalgorithm[1], 16, 16)
 	val3, _ = strconv.ParseInt(gatewayalgorithm[2], 16, 16)

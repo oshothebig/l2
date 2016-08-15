@@ -306,7 +306,9 @@ func (igm *IGMachine) updateIPPGatewayConversationDirection() {
 				p.IppGatewayConversationPasses[conid] = false
 				// lets only check the first portal as this indicates
 				// which system according to the gateway conversation
-				// owns this conversation
+				// owns this conversation, however it should be noted
+				// that in the case of sharing by time both systems
+				// will own a conversation
 				if dr.DrniGatewayConversation[conid][0] != dr.DrniPortalSystemNumber {
 					if p.IppPortalSystemState != nil {
 						for _, statevector := range p.IppPortalSystemState {
@@ -325,6 +327,13 @@ func (igm *IGMachine) updateIPPGatewayConversationDirection() {
 				}
 			}
 		}
+		// TODO
+		// In addition, if Drni_Gateway_Conversation and Ipp_Other_Gateway_Conversation are in
+		// disagreement for any Gateway Conversation ID:
+		// It sets DRF_Home_Oper_DRCP_State.Gateway_Sync to FALSE, and;
+		// NTTDRCPDU to TRUE.
+		// Otherwise:
+		// DRF_Home_Oper_DRCP_State.Gateway_Sync and NTTDRCPDU are left unchanged.
 	}
 }
 
@@ -342,9 +351,11 @@ func (igm *IGMachine) NotifyIppAllGatewayUpdate() {
 	}
 	if !allgatewayupdate && dr.IppAllGatewayUpdate {
 		dr.IppAllGatewayUpdate = false
-		dr.GMachineFsm.GmEvents <- utils.MachineEvent{
-			E:   GmEventNotIppAllGatewayUpdate,
-			Src: IGMachineModuleStr,
+		if dr.GMachineFsm != nil {
+			dr.GMachineFsm.GmEvents <- utils.MachineEvent{
+				E:   GmEventNotIppAllGatewayUpdate,
+				Src: IGMachineModuleStr,
+			}
 		}
 	}
 

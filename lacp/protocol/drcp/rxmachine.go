@@ -411,15 +411,19 @@ func (rxm *RxMachine) NotifyDRCPStateTimeoutChange(oldval, newval bool) {
 	if oldval != newval {
 		//layers.DRCPShortTimeout
 		if newval {
-			p.PtxMachineFsm.PtxmEvents <- utils.MachineEvent{
-				E:   PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualShortTimeout,
-				Src: RxMachineModuleStr,
+			if p.PtxMachineFsm != nil {
+				p.PtxMachineFsm.PtxmEvents <- utils.MachineEvent{
+					E:   PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualShortTimeout,
+					Src: RxMachineModuleStr,
+				}
 			}
 		} else {
-			//layers.DRCPLongTimeout
-			p.PtxMachineFsm.PtxmEvents <- utils.MachineEvent{
-				E:   PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout,
-				Src: RxMachineModuleStr,
+			if p.PtxMachineFsm != nil {
+				//layers.DRCPLongTimeout
+				p.PtxMachineFsm.PtxmEvents <- utils.MachineEvent{
+					E:   PtxmEventDRFNeighborOPerDRCPStateTimeoutEqualLongTimeout,
+					Src: RxMachineModuleStr,
+				}
 			}
 		}
 	}
@@ -526,9 +530,11 @@ func (rxm *RxMachine) NotifyChangePortalChanged(oldval, newval bool) {
 	p := rxm.p
 	dr := p.dr
 	if newval {
-		dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
-			E:   PsmEventChangePortal,
-			Src: RxMachineModuleStr,
+		if dr.PsMachineFsm != nil {
+			dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
+				E:   PsmEventChangePortal,
+				Src: RxMachineModuleStr,
+			}
 		}
 	}
 }
@@ -536,7 +542,8 @@ func (rxm *RxMachine) NotifyChangePortalChanged(oldval, newval bool) {
 func (rxm *RxMachine) NotifyGatewayConversationUpdate(oldval, newval bool) {
 	p := rxm.p
 	dr := p.dr
-	if (dr.GMachineFsm.Machine.Curr.CurrentState() == GmStateDRNIGatewayInitialize ||
+	if (dr.GMachineFsm != nil &&
+		dr.GMachineFsm.Machine.Curr.CurrentState() == GmStateDRNIGatewayInitialize ||
 		dr.GMachineFsm.Machine.Curr.CurrentState() == GmStateDRNIGatewayUpdate ||
 		dr.GMachineFsm.Machine.Curr.CurrentState() == GmStatePsGatewayUpdate) &&
 		newval {
@@ -550,7 +557,8 @@ func (rxm *RxMachine) NotifyGatewayConversationUpdate(oldval, newval bool) {
 func (rxm *RxMachine) NotifyPortConversationUpdate(oldval, newval bool) {
 	p := rxm.p
 	dr := p.dr
-	if (dr.AMachineFsm.Machine.Curr.CurrentState() == AmStateDRNIPortInitialize ||
+	if (dr.AMachineFsm != nil &&
+		dr.AMachineFsm.Machine.Curr.CurrentState() == AmStateDRNIPortInitialize ||
 		dr.AMachineFsm.Machine.Curr.CurrentState() == AmStateDRNIPortUpdate ||
 		dr.AMachineFsm.Machine.Curr.CurrentState() == AmStatePsPortUpdate) &&
 		newval {

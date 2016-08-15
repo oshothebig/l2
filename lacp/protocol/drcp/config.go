@@ -218,7 +218,7 @@ func AttachAggregatorToDistributedRelay(aggId int) {
 						dr.PrevAggregatorId = p.ActorAdmin.System.Actor_System
 						dr.PrevAggregatorPriority = p.ActorAdmin.System.Actor_System_priority
 						// assign the new values to the aggregator
-						lacp.SetLaAggPortSystemInfo(
+						lacp.SetLaAggPortSystemInfoFromDistributedRelay(
 							uint16(pId),
 							fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
 								dr.DrniPortalAddr[0],
@@ -227,7 +227,9 @@ func AttachAggregatorToDistributedRelay(aggId int) {
 								dr.DrniPortalAddr[3],
 								dr.DrniPortalAddr[4],
 								dr.DrniPortalAddr[5]),
-							dr.DrniPortalPriority)
+							dr.DrniPortalPriority,
+							dr.DrniName,
+							false)
 					}
 				}
 

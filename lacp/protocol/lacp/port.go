@@ -285,6 +285,10 @@ type LaAggPort struct {
 	// GET
 	AggPortDebug AggPortDebugInformationObject
 
+	// Distributed Relay reference name
+	DrniName   string
+	DrniSynced bool
+
 	// on configuration changes need to inform all State
 	// machines and wait for a response
 	portChan chan string

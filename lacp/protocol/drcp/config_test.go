@@ -28,6 +28,7 @@ import (
 	"l2/lacp/protocol/utils"
 	"net"
 	"testing"
+	"time"
 	asicdmock "utils/asicdClient/mock"
 	"utils/commonDefs"
 	"utils/logging"
@@ -205,17 +206,40 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 	if dr.a == nil {
 		t.Error("ERROR BEGIN was called before an Agg has been attached")
 	}
+
+	waitChan := make(chan bool)
+	go func(wc *chan bool) {
+		for i := 0; i < 10 && (dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate); i++ {
+			time.Sleep(time.Millisecond * 10)
+		}
+		*wc <- true
+	}(&waitChan)
+
+	<-waitChan
+
+	// Rx machine sets the change portal which should inform the psm
 	if dr.PsMachineFsm == nil ||
-		dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate {
+		dr.PsMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate {
 		t.Error("ERROR BEGIN Initial Portal System Machine state is not correct", PsmStateStrMap[dr.PsMachineFsm.Machine.Curr.CurrentState()])
 	}
+
+	go func(wc *chan bool) {
+		for i := 0; i < 10 && dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate; i++ {
+			time.Sleep(time.Millisecond * 10)
+		}
+		*wc <- true
+	}(&waitChan)
+
+	<-waitChan
+
+	// Ps Machine updates the Gm based on the rx gateway update
 	if dr.GMachineFsm == nil ||
-		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayInitialize {
-		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", dr.GMachineFsm.Machine.Curr.CurrentState())
+		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate {
+		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", GmStateStrMap[dr.GMachineFsm.Machine.Curr.CurrentState()])
 	}
 	if dr.AMachineFsm == nil ||
 		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortInitialize {
-		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", dr.AMachineFsm.Machine.Curr.CurrentState())
+		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", AmStateStrMap[dr.AMachineFsm.Machine.Curr.CurrentState()])
 	}
 
 	if len(dr.Ipplinks) == 0 {
@@ -244,8 +268,18 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 			ipp.IAMachineFsm.Machine.Curr.CurrentState() != IAmStateIPPPortInitialize {
 			t.Error("ERROR BEGIN Initial IPP Aggregator state is not correct", IAmStateStrMap[ipp.IAMachineFsm.Machine.Curr.CurrentState()])
 		}
+
+		go func(wc *chan bool) {
+			for i := 0; i < 10 && ipp.IGMachineFsm.Machine.Curr.CurrentState() != IGmStateIPPGatewayUpdate; i++ {
+				time.Sleep(time.Millisecond * 10)
+			}
+			*wc <- true
+		}(&waitChan)
+
+		<-waitChan
+
 		if ipp.IGMachineFsm == nil ||
-			ipp.IGMachineFsm.Machine.Curr.CurrentState() != IGmStateIPPGatewayInitialize {
+			ipp.IGMachineFsm.Machine.Curr.CurrentState() != IGmStateIPPGatewayUpdate {
 			t.Error("ERROR BEGIN Initial IPP Gateway Machine state is not correct", GmStateStrMap[ipp.IGMachineFsm.Machine.Curr.CurrentState()])
 		}
 	}
@@ -335,17 +369,39 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 	if dr.a == nil {
 		t.Error("ERROR BEGIN was called before an Agg has been attached")
 	}
+	waitChan := make(chan bool)
+	go func(wc *chan bool) {
+		for i := 0; i < 10 && (dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate); i++ {
+			time.Sleep(time.Millisecond * 10)
+		}
+		*wc <- true
+	}(&waitChan)
+
+	<-waitChan
+
+	// Rx machine sets the change portal which should inform the psm
 	if dr.PsMachineFsm == nil ||
-		dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate {
+		dr.PsMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate {
 		t.Error("ERROR BEGIN Initial Portal System Machine state is not correct", PsmStateStrMap[dr.PsMachineFsm.Machine.Curr.CurrentState()])
 	}
+
+	go func(wc *chan bool) {
+		for i := 0; i < 10 && dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate; i++ {
+			time.Sleep(time.Millisecond * 10)
+		}
+		*wc <- true
+	}(&waitChan)
+
+	<-waitChan
+
+	// Ps Machine updates the Gm based on the rx gateway update
 	if dr.GMachineFsm == nil ||
-		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayInitialize {
-		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", dr.GMachineFsm.Machine.Curr.CurrentState())
+		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate {
+		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", GmStateStrMap[dr.GMachineFsm.Machine.Curr.CurrentState()])
 	}
 	if dr.AMachineFsm == nil ||
 		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortInitialize {
-		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", dr.AMachineFsm.Machine.Curr.CurrentState())
+		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", AmStateStrMap[dr.AMachineFsm.Machine.Curr.CurrentState()])
 	}
 
 	if len(dr.Ipplinks) == 0 {
@@ -359,9 +415,8 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 			t.Error("ERROR BEGIN Initial Receive Machine state is not correct", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 		}
 		// port is enabled and drcp is enabled thus we should be in fast periodic state
-		if ipp.PtxMachineFsm == nil ||
-			ipp.PtxMachineFsm.Machine.Curr.CurrentState() != PtxmStateFastPeriodic {
-			t.Error("ERROR BEGIN Initial Periodic Tx Machine state is not correct", PtxmStateStrMap[ipp.PtxMachineFsm.Machine.Curr.CurrentState()])
+		if ipp.PtxMachineFsm == nil {
+			t.Error("ERROR BEGIN Initial Periodic Tx Machine state is not correct")
 		}
 		if ipp.TxMachineFsm == nil ||
 			ipp.TxMachineFsm.Machine.Curr.CurrentState() != TxmStateOff {
@@ -375,8 +430,18 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 			ipp.IAMachineFsm.Machine.Curr.CurrentState() != IAmStateIPPPortInitialize {
 			t.Error("ERROR BEGIN Initial IPP Aggregator state is not correct", IAmStateStrMap[ipp.IAMachineFsm.Machine.Curr.CurrentState()])
 		}
+
+		go func(wc *chan bool) {
+			for i := 0; i < 10 && ipp.IGMachineFsm.Machine.Curr.CurrentState() != IGmStateIPPGatewayUpdate; i++ {
+				time.Sleep(time.Millisecond * 10)
+			}
+			*wc <- true
+		}(&waitChan)
+
+		<-waitChan
+
 		if ipp.IGMachineFsm == nil ||
-			ipp.IGMachineFsm.Machine.Curr.CurrentState() != IGmStateIPPGatewayInitialize {
+			ipp.IGMachineFsm.Machine.Curr.CurrentState() != IGmStateIPPGatewayUpdate {
 			t.Error("ERROR BEGIN Initial IPP Gateway Machine state is not correct", GmStateStrMap[ipp.IGMachineFsm.Machine.Curr.CurrentState()])
 		}
 	}

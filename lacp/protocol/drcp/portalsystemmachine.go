@@ -25,7 +25,7 @@
 package drcp
 
 import (
-	//"fmt"
+	"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
@@ -129,10 +129,10 @@ func (psm *PsMachine) DrcpPsMachinePortalSystemInitialize(m fsm.Machine, data in
 func (psm *PsMachine) DrcpPsMachinePortalSystemUpdate(m fsm.Machine, data interface{}) fsm.State {
 	dr := psm.dr
 
+	psm.updateDRFHomeState(dr.ChangePortal, dr.ChangeDRFPorts)
+	psm.updateKey()
 	dr.ChangePortal = false
 	dr.ChangeDRFPorts = false
-	psm.updateDRFHomeState()
-	psm.updateKey()
 
 	// next State
 	return PsmStatePortalSystemUpdate
@@ -309,12 +309,14 @@ func (psm *PsMachine) updateKey() {
 
 //updateDRFHomeState This function updates the DRF_Home_State based on the operational
 //state of the local ports as follows
-func (psm *PsMachine) updateDRFHomeState() {
+func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 	// TODO need to understand the logic better
 	dr := psm.dr
 	a := dr.a
 
-	psm.setDRFHomeState()
+	// Update the Home Gateway State
+	psm.setDRFHomeState(changeDRFPorts)
+
 	allippactivitynotset := true
 	for _, ipp := range dr.Ipplinks {
 		if ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) {
@@ -327,19 +329,34 @@ func (psm *PsMachine) updateDRFHomeState() {
 		dr.PSI = false
 	}
 
+	// update the digests
+	if changePortal {
+		// TODO update the Gateway Vector sequence
+		dr.GatewayConversationUpdate = true
+		if dr.GMachineFsm != nil {
+			dr.GMachineFsm.GmEvents <- utils.MachineEvent{
+				E:   GmEventGatewayConversationUpdate,
+				Src: PsMachineModuleStr,
+			}
+		}
+	}
+	if changeDRFPorts {
+		if dr.AMachineFsm != nil {
+			dr.AMachineFsm.AmEvents <- utils.MachineEvent{
+				E:   AmEventPortConversationUpdate,
+				Src: PsMachineModuleStr,
+			}
+		}
+	}
+
 	if dr.PSI &&
 		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) {
 		// LaAggregator processing
 		for _, aggport := range a.PortNumList {
 			var p *lacp.LaAggPort
 			if lacp.LaFindPortById(aggport, &p) {
-				lacp.LacpStateClear(&p.ActorOper.State, lacp.LacpStateSyncBit)
-				if p.CdMachineFsm.Machine.Curr.CurrentState() == lacp.LacpCdmStateNoActorChurn {
-					p.CdMachineFsm.CdmEvents <- utils.MachineEvent{
-						E:   lacp.LacpCdmEventActorOperPortStateSyncOff,
-						Src: PsMachineModuleStr,
-					}
-				}
+				// Lets set the port to unselected
+				lacp.SetLaAggPortCheckSelectionDistributedRelayIsSynced(p.PortNum, false)
 			}
 		}
 	}
@@ -349,24 +366,40 @@ func (psm *PsMachine) updateDRFHomeState() {
 // Function is able to relay traffic through its Gateway Port and at least one of its other Ports—
 // IPP(s) or Aggregator) and that connectivity through the local Gateway is enabled by the
 // operation of the network control protocol
-func (psm *PsMachine) setDRFHomeState() {
+func (psm *PsMachine) setDRFHomeState(changeDRFPorts bool) (gatewayChanged bool) {
 	dr := psm.dr
-	a := dr.a
-	// TODO
 	// 1) ipp link is down
 	// 2) No agg ports are in distributed state
 	// 3) No conversations exist
+	distributedPortsValid := (dr.DRAggregatorDistributedList != nil &&
+		len(dr.DRAggregatorDistributedList) > 0)
+	isGatewaySet := dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit)
 	for _, ipp := range dr.Ipplinks {
-		if (ipp.IppPortEnabled ||
-			a != nil &&
-				(dr.DRAggregatorDistributedList != nil &&
-					len(dr.DRAggregatorDistributedList) > 0)) &&
+		if (ipp.IppPortEnabled || distributedPortsValid) &&
 			!psm.isGatewayConvNull() {
 			dr.DRFHomeOperDRCPState.SetState(layers.DRCPStateHomeGatewayBit)
+			if !isGatewaySet {
+				gatewayChanged = true
+				psm.DrcpPsmLog("Gateway Sync Set")
+			}
 		} else {
 			dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStateHomeGatewayBit)
+			if isGatewaySet {
+				gatewayChanged = true
+				psm.DrcpPsmLog("Gateway Sync Cleared")
+			}
 		}
 	}
+
+	if !distributedPortsValid &&
+		changeDRFPorts &&
+		dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
+		// TODO flush the mac table so no mac is forwarded
+		// to neighbor card and not this local lag
+		psm.DrcpPsmLog(fmt.Sprintln("Flush DB based on AGG", dr.DrniAggregator))
+	}
+
+	return gatewayChanged
 }
 
 // IsGatewayConvNull will check that there are no conversations provisioned

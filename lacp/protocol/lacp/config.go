@@ -407,7 +407,9 @@ func EnableLaAggPort(pId uint16) {
 		LaAggPortNumListPortIdExist(p.Key, pId) {
 		p.LaAggPortEnabled()
 
-		if p.IsPortOperStatusUp() &&
+		DrniEnabled := ((p.DrniName != "" && p.DrniSynced) || p.DrniName == "")
+		if DrniEnabled &&
+			p.IsPortOperStatusUp() &&
 			p.aggSelected == LacpAggUnSelected {
 			p.checkConfigForSelection()
 		}
@@ -536,6 +538,65 @@ func SetLaAggPortSystemInfo(pId uint16, sysIdMac string, sysPrio uint16) {
 				p.aggSelected == LacpAggUnSelected {
 				p.checkConfigForSelection()
 			}
+		}
+	}
+}
+
+// SetLaAggPortSystemInfoFromDistributedRelay called by DRCP when the Distributed
+// relay is linked with the Aggregator, which means that the Agg will now use
+// the DR params for the Aggregator port.
+//
+// TODO this function may need to change to include the operkey change as well as
+// change the port Id which is sent on the wire
+func SetLaAggPortSystemInfoFromDistributedRelay(pId uint16, sysIdMac string, sysPrio uint16, drName string, synced bool) {
+	var p *LaAggPort
+	// port exists
+	// port is unselected
+	// agg exists
+	if LaFindPortById(pId, &p) {
+		mac, ok := net.ParseMAC(sysIdMac)
+		if ok == nil {
+			p.DrniName = drName
+			p.DrniSynced = true
+
+			macArr := convertNetHwAddressToSysIdKey(mac)
+			p.LaAggPortActorAdminInfoSet(macArr, sysPrio)
+		}
+	}
+}
+
+// SetLaAggPortCheckSelectionDistributedRelayIsSynced is called by DRCP when the
+// Distributed Relay has reached sync state, which should be the trigger to
+// allow the local lag to start sycing with the peer device
+func SetLaAggPortCheckSelectionDistributedRelayIsSynced(pId uint16, sync bool) {
+	mEvtChan := make([]chan utils.MachineEvent, 0)
+	evt := make([]utils.MachineEvent, 0)
+	var p *LaAggPort
+
+	// port exists
+	// port is unselected
+	// agg exists
+	if LaFindPortById(pId, &p) {
+		// indicate that the peer has been synced
+		p.DrniSynced = sync
+		if p.DrniSynced &&
+			p.IsPortOperStatusUp() &&
+			p.aggSelected == LacpAggUnSelected {
+			p.checkConfigForSelection()
+		} else if p.IsPortOperStatusUp() &&
+			p.aggSelected == LacpAggSelected {
+
+			p.aggSelected = LacpAggUnSelected
+			// partner info should be wrong so lets force sync to be off
+			LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
+
+			mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
+			evt = append(evt, utils.MachineEvent{
+				E:   LacpMuxmEventSelectedEqualUnselected,
+				Src: PortConfigModuleStr})
+
+			// unselected event
+			p.DistributeMachineEvents(mEvtChan, evt, true)
 		}
 	}
 }
