@@ -122,7 +122,6 @@ func (svr *LLDPServer) InitL2PortInfo(portInfo *config.PortInfo) {
 		gblInfo.Enable()
 	}
 	svr.lldpGblInfo[portInfo.IfIndex] = gblInfo
-
 	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.Port.IfIndex)
 }
 
@@ -206,7 +205,8 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 	if gblInfo.PcapHandle != nil {
 		debug.Logger.Info("Pcap already exist means the port changed it states")
 		// Move the port to up state and continue
-		svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice, gblInfo.Port.IfIndex)
+		svr.AddPortToUpState(gblInfo.Port.IfIndex)
+		//svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice, gblInfo.Port.IfIndex)
 		return // returning because the go routine is already up and running for the port
 	}
 	err := gblInfo.CreatePcapHandler(svr.lldpSnapshotLen, svr.lldpPromiscuous, svr.lldpTimeout)
@@ -222,7 +222,8 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 	// Everything set up, so now lets start with receiving frames and transmitting frames go routine...
 	go svr.ReceiveFrames(gblInfo.PcapHandle, ifIndex)
 	svr.TransmitFrames(ifIndex)
-	svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice, gblInfo.Port.IfIndex)
+	svr.AddPortToUpState(gblInfo.Port.IfIndex)
+	//svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice, gblInfo.Port.IfIndex)
 }
 
 /*  Send Signal for stopping rx/tx go routine and timers as the pcap handler for
@@ -275,6 +276,19 @@ func (svr *LLDPServer) DeletePortFromUpState(ifIndex int32) {
 			break
 		}
 	}
+}
+
+/*
+ *  Add ifIndex to lldpUpIntfStateSlice on start rx/tx only if it doesn't exists
+ */
+func (svr *LLDPServer) AddPortToUpState(ifIndex int32) {
+	for idx, _ := range svr.lldpUpIntfStateSlice {
+		if svr.lldpUpIntfStateSlice[idx] == ifIndex {
+			debug.Logger.Alert("Duplicate ADD request for ifIndex:", ifIndex)
+			return
+		}
+	}
+	svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice, ifIndex)
 }
 
 /*  handle l2 state up/down notifications..
