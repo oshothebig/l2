@@ -152,6 +152,16 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 
 	svr.asicPlugin.Start()
 	svr.SysPlugin.Start()
+	// Only start rx/tx if, Globally LLDP is enabled, Interface LLDP is enabled and port is in UP state
+	// move RX/TX to Channel Handler
+	// The below step is really important for us.
+	// On Re-Start if lldp global is enable then we will start rx/tx for those ports which are in up state
+	// and at the same time we will start the loop for signal handler
+	// if fresh start then svr.Global is nil as no global config is done and hence it will be no-op
+	// however on re-start lets say you have 100 ports that have lldp running on it in that case your writer
+	// channel will create a deadlock as the reader is not yet started... To avoid this we spawn go-routine
+	// for handling Global Config before Channel Handler is started
+	go svr.handleGlobalConfig(true)
 	go svr.ChannelHanlder()
 }
 
@@ -401,13 +411,6 @@ func (svr *LLDPServer) SendFrame(ifIndex int32) {
  * LLDPInitGlobalDS api to see which all channels are getting initialized
  */
 func (svr *LLDPServer) ChannelHanlder() {
-	// Only start rx/tx if, Globally LLDP is enabled, Interface LLDP is enabled and port is in UP state
-	// move RX/TX to Channel Handler
-	// The below step is really important for us.
-	// On Re-Start if lldp global is enable then we will start rx/tx for those ports which are in up state
-	// and at the same time we will start the loop for signal handler
-	// @TODO: should this be moved to timer... like wait 1 second and then start the handleGlobalConfig??
-	svr.handleGlobalConfig(true)
 
 	for {
 		select {
