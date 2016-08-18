@@ -309,6 +309,9 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(ifIndex int32, state string) {
 /*  handle global lldp enable/disable, which will enable/disable lldp for all the ports
  */
 func (svr *LLDPServer) handleGlobalConfig(restart bool) {
+	if svr.Global == nil {
+		return
+	}
 	// iterate over all the entries in the gblInfo and change the state accordingly
 	for _, ifIndex := range svr.lldpIntfStateSlice {
 		gblInfo, found := svr.lldpGblInfo[ifIndex]
