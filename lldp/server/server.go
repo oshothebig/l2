@@ -122,7 +122,6 @@ func (svr *LLDPServer) InitL2PortInfo(portInfo *config.PortInfo) {
 		gblInfo.Enable()
 	}
 	svr.lldpGblInfo[portInfo.IfIndex] = gblInfo
-
 	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.Port.IfIndex)
 }
 
@@ -153,6 +152,16 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 
 	svr.asicPlugin.Start()
 	svr.SysPlugin.Start()
+	// Only start rx/tx if, Globally LLDP is enabled, Interface LLDP is enabled and port is in UP state
+	// move RX/TX to Channel Handler
+	// The below step is really important for us.
+	// On Re-Start if lldp global is enable then we will start rx/tx for those ports which are in up state
+	// and at the same time we will start the loop for signal handler
+	// if fresh start then svr.Global is nil as no global config is done and hence it will be no-op
+	// however on re-start lets say you have 100 ports that have lldp running on it in that case your writer
+	// channel will create a deadlock as the reader is not yet started... To avoid this we spawn go-routine
+	// for handling Global Config before Channel Handler is started
+	go svr.handleGlobalConfig(true)
 	go svr.ChannelHanlder()
 }
 
@@ -206,7 +215,8 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 	if gblInfo.PcapHandle != nil {
 		debug.Logger.Info("Pcap already exist means the port changed it states")
 		// Move the port to up state and continue
-		svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice, gblInfo.Port.IfIndex)
+		svr.AddPortToUpState(gblInfo.Port.IfIndex)
+		//svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice, gblInfo.Port.IfIndex)
 		return // returning because the go routine is already up and running for the port
 	}
 	err := gblInfo.CreatePcapHandler(svr.lldpSnapshotLen, svr.lldpPromiscuous, svr.lldpTimeout)
@@ -222,7 +232,8 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 	// Everything set up, so now lets start with receiving frames and transmitting frames go routine...
 	go svr.ReceiveFrames(gblInfo.PcapHandle, ifIndex)
 	svr.TransmitFrames(ifIndex)
-	svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice, gblInfo.Port.IfIndex)
+	svr.AddPortToUpState(gblInfo.Port.IfIndex)
+	//svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice, gblInfo.Port.IfIndex)
 }
 
 /*  Send Signal for stopping rx/tx go routine and timers as the pcap handler for
@@ -277,6 +288,19 @@ func (svr *LLDPServer) DeletePortFromUpState(ifIndex int32) {
 	}
 }
 
+/*
+ *  Add ifIndex to lldpUpIntfStateSlice on start rx/tx only if it doesn't exists
+ */
+func (svr *LLDPServer) AddPortToUpState(ifIndex int32) {
+	for idx, _ := range svr.lldpUpIntfStateSlice {
+		if svr.lldpUpIntfStateSlice[idx] == ifIndex {
+			debug.Logger.Alert("Duplicate ADD request for ifIndex:", ifIndex)
+			return
+		}
+	}
+	svr.lldpUpIntfStateSlice = append(svr.lldpUpIntfStateSlice, ifIndex)
+}
+
 /*  handle l2 state up/down notifications..
  */
 func (svr *LLDPServer) UpdateL2IntfStateChange(ifIndex int32, state string) {
@@ -309,6 +333,9 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(ifIndex int32, state string) {
 /*  handle global lldp enable/disable, which will enable/disable lldp for all the ports
  */
 func (svr *LLDPServer) handleGlobalConfig(restart bool) {
+	if svr.Global == nil {
+		return
+	}
 	// iterate over all the entries in the gblInfo and change the state accordingly
 	for _, ifIndex := range svr.lldpIntfStateSlice {
 		gblInfo, found := svr.lldpGblInfo[ifIndex]
@@ -384,13 +411,6 @@ func (svr *LLDPServer) SendFrame(ifIndex int32) {
  * LLDPInitGlobalDS api to see which all channels are getting initialized
  */
 func (svr *LLDPServer) ChannelHanlder() {
-	// Only start rx/tx if, Globally LLDP is enabled, Interface LLDP is enabled and port is in UP state
-	// move RX/TX to Channel Handler
-	// The below step is really important for us.
-	// On Re-Start if lldp global is enable then we will start rx/tx for those ports which are in up state
-	// and at the same time we will start the loop for signal handler
-	// @TODO: should this be moved to timer... like wait 1 second and then start the handleGlobalConfig??
-	svr.handleGlobalConfig(true)
 
 	for {
 		select {
