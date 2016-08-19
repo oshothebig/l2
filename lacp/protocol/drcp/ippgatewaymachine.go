@@ -25,6 +25,7 @@
 package drcp
 
 import (
+	"fmt"
 	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
@@ -229,51 +230,48 @@ func (igm *IGMachine) setIPPGatewayConversation() {
 		// TODO handle 3 portal system logic
 	} else if p.DifferGatewayDigest &&
 		!dr.DrniThreeSystemPortal {
-		var neighborConversationSystemNumbers [1024]uint8
-		for i, j := 0, 0; i < MAX_CONVERSATION_IDS; i, j = i+8, j+2 {
+		for i, j := 0, 0; i < 512; i, j = i+1, j+8 {
 			if (p.DrniNeighborGatewayConversation[i] >> 7 & 1) == 0 {
-				neighborConversationSystemNumbers[j] |= dr.DRFPortalSystemNumber << 6
+				p.IppOtherGatewayConversation[j] = dr.DRFPortalSystemNumber
 			} else {
-				neighborConversationSystemNumbers[j] |= p.DRFHomeConfNeighborPortalSystemNumber << 6
+				p.IppOtherGatewayConversation[j] = p.DRFHomeConfNeighborPortalSystemNumber
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 6 & 1) == 0 {
-				neighborConversationSystemNumbers[j] |= dr.DRFPortalSystemNumber << 4
+				p.IppOtherGatewayConversation[j+1] = dr.DRFPortalSystemNumber
 			} else {
-				neighborConversationSystemNumbers[j] |= p.DRFHomeConfNeighborPortalSystemNumber << 4
+				p.IppOtherGatewayConversation[j+1] = p.DRFHomeConfNeighborPortalSystemNumber
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 5 & 1) == 0 {
-				neighborConversationSystemNumbers[j] |= dr.DRFPortalSystemNumber << 2
+				p.IppOtherGatewayConversation[j+2] = dr.DRFPortalSystemNumber
 			} else {
-				neighborConversationSystemNumbers[j] |= p.DRFHomeConfNeighborPortalSystemNumber << 2
+				p.IppOtherGatewayConversation[j+2] = p.DRFHomeConfNeighborPortalSystemNumber
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 4 & 1) == 0 {
-				neighborConversationSystemNumbers[j] |= dr.DRFPortalSystemNumber << 0
+				p.IppOtherGatewayConversation[j+3] = dr.DRFPortalSystemNumber
 			} else {
-				neighborConversationSystemNumbers[j] |= p.DRFHomeConfNeighborPortalSystemNumber << 0
+				p.IppOtherGatewayConversation[j+3] = p.DRFHomeConfNeighborPortalSystemNumber
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 3 & 1) == 0 {
-				neighborConversationSystemNumbers[j+1] |= dr.DRFPortalSystemNumber << 6
+				p.IppOtherGatewayConversation[j+4] = dr.DRFPortalSystemNumber
 			} else {
-				neighborConversationSystemNumbers[j+1] |= p.DRFHomeConfNeighborPortalSystemNumber << 6
+				p.IppOtherGatewayConversation[j+4] = p.DRFHomeConfNeighborPortalSystemNumber
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 2 & 1) == 0 {
-				neighborConversationSystemNumbers[j+1] |= dr.DRFPortalSystemNumber << 4
+				p.IppOtherGatewayConversation[j+5] = dr.DRFPortalSystemNumber
 			} else {
-				neighborConversationSystemNumbers[j+1] |= p.DRFHomeConfNeighborPortalSystemNumber << 4
+				p.IppOtherGatewayConversation[j+5] = p.DRFHomeConfNeighborPortalSystemNumber
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 1 & 1) == 0 {
-				neighborConversationSystemNumbers[j+1] |= dr.DRFPortalSystemNumber << 2
+				p.IppOtherGatewayConversation[j+6] = dr.DRFPortalSystemNumber
 			} else {
-				neighborConversationSystemNumbers[j+1] |= p.DRFHomeConfNeighborPortalSystemNumber << 2
+				p.IppOtherGatewayConversation[j+6] = p.DRFHomeConfNeighborPortalSystemNumber
 			}
 			if (p.DrniNeighborGatewayConversation[i] >> 0 & 1) == 0 {
-				neighborConversationSystemNumbers[j+1] |= dr.DRFPortalSystemNumber << 0
+				p.IppOtherGatewayConversation[j+7] = dr.DRFPortalSystemNumber
 			} else {
-				neighborConversationSystemNumbers[j+1] |= p.DRFHomeConfNeighborPortalSystemNumber << 0
+				p.IppOtherGatewayConversation[j+7] = p.DRFHomeConfNeighborPortalSystemNumber
 			}
 		}
-		// now lets save the values
-		p.DrniNeighborGatewayConversation = neighborConversationSystemNumbers
 	} else if !p.DifferGatewayDigest {
 		// TODO revisit logic
 		// This function sets Ipp_Other_Gateway_Conversation to the values computed from
@@ -283,6 +281,18 @@ func (igm *IGMachine) setIPPGatewayConversation() {
 		// provided by aDrniConvAdminGateway[] when only the Portal Systems having that
 		// Gateway Conversation ID enabled in the Gateway Vectors of the Drni_Neighbor_State[]
 		// variable, are included
+		for cid, portalsystemnumbers := range dr.DrniConvAdminGateway {
+			if portalsystemnumbers != nil {
+				for _, portalsystemnumber := range portalsystemnumbers {
+					if portalsystemnumber != 0 &&
+						p.DrniNeighborState[portalsystemnumber].OpState &&
+						p.DrniNeighborState[portalsystemnumber].GatewayVector != nil &&
+						p.DrniNeighborState[portalsystemnumber].GatewayVector[0].Vector[cid] {
+						p.IppOtherGatewayConversation[cid] = portalsystemnumber
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -318,6 +328,11 @@ func (igm *IGMachine) updateIPPGatewayConversationDirection() {
 										if seqvector.Vector != nil &&
 											seqvector.Vector[conid] {
 											p.IppGatewayConversationPasses[conid] = true
+
+											if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
+												// TODO  Set the Vlan Membership for each conversation that is valid
+												igm.DrcpIGmLog(fmt.Sprintf("Setting Vlan Membership for Conversation Id %d ipp port %d\n", conid, p.Id))
+											}
 										}
 									}
 								}

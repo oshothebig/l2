@@ -39,37 +39,37 @@ func (p *DRCPIpp) LaIppLog(msg string) {
 }
 
 func (rxm *RxMachine) DrcpRxmLog(msg string) {
-	utils.GlobalLogger.Info(strings.Join([]string{"RXM", fmt.Sprintf("%s", rxm.p.Name), msg}, ":"))
+	utils.GlobalLogger.Info(strings.Join([]string{"DR RXM", fmt.Sprintf("%s", rxm.p.Name), msg}, ":"))
 }
 
 func (ptxm *PtxMachine) DrcpPtxmLog(msg string) {
-	utils.GlobalLogger.Info(strings.Join([]string{"PTXM", fmt.Sprintf("%s", ptxm.p.Name), msg}, ":"))
+	utils.GlobalLogger.Info(strings.Join([]string{"DR PTXM", fmt.Sprintf("%s", ptxm.p.Name), msg}, ":"))
 }
 
 func (psm *PsMachine) DrcpPsmLog(msg string) {
-	utils.GlobalLogger.Info(strings.Join([]string{"PSM", fmt.Sprintf("%s", psm.dr.DrniName), msg}, ":"))
+	utils.GlobalLogger.Info(strings.Join([]string{"DR PSM", fmt.Sprintf("%s", psm.dr.DrniName), msg}, ":"))
 }
 
 func (gm *GMachine) DrcpGmLog(msg string) {
-	utils.GlobalLogger.Info(strings.Join([]string{"GM", fmt.Sprintf("%s", gm.dr.DrniName), msg}, ":"))
+	utils.GlobalLogger.Info(strings.Join([]string{"DR GM", fmt.Sprintf("%s", gm.dr.DrniName), msg}, ":"))
 }
 
 func (am *AMachine) DrcpAmLog(msg string) {
-	utils.GlobalLogger.Info(strings.Join([]string{"AM", fmt.Sprintf("%s", am.dr.DrniName), msg}, ":"))
+	utils.GlobalLogger.Info(strings.Join([]string{"DR AM", fmt.Sprintf("%s", am.dr.DrniName), msg}, ":"))
 }
 
 func (txm *TxMachine) DrcpTxmLog(msg string) {
-	utils.GlobalLogger.Info(strings.Join([]string{"TXM", fmt.Sprintf("%s", txm.p.Name), msg}, ":"))
+	utils.GlobalLogger.Info(strings.Join([]string{"DR TXM", fmt.Sprintf("%s", txm.p.Name), msg}, ":"))
 }
 
 func (nism *NetIplShareMachine) DrcpNetIplSharemLog(msg string) {
-	utils.GlobalLogger.Info(strings.Join([]string{"NETIPLSHARE", fmt.Sprintf("%s", nism.p.Name), msg}, ":"))
+	utils.GlobalLogger.Info(strings.Join([]string{"DR NETIPLSHARE", fmt.Sprintf("%s", nism.p.Name), msg}, ":"))
 }
 
 func (iam *IAMachine) DrcpIAmLog(msg string) {
-	utils.GlobalLogger.Info(strings.Join([]string{"IAM", fmt.Sprintf("%s", iam.p.Name), msg}, ":"))
+	utils.GlobalLogger.Info(strings.Join([]string{"DR IAM", fmt.Sprintf("%s", iam.p.Name), msg}, ":"))
 }
 
 func (igm *IGMachine) DrcpIGmLog(msg string) {
-	utils.GlobalLogger.Info(strings.Join([]string{"IGM", fmt.Sprintf("%s", igm.p.Name), msg}, ":"))
+	utils.GlobalLogger.Info(strings.Join([]string{"DR IGM", fmt.Sprintf("%s", igm.p.Name), msg}, ":"))
 }

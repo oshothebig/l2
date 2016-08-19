@@ -506,6 +506,8 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 		}
 	}
 	OnlyForTestTeardown()
+	LacpSysGlobalInfoDestroy(sysId)
+
 }
 
 func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
@@ -625,4 +627,5 @@ func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
 		}
 	}
 	OnlyForTestTeardown()
+	LacpSysGlobalInfoDestroy(sysId)
 }

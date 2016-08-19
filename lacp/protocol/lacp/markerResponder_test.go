@@ -48,10 +48,10 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
-		port1:       LaAggPortActor,
-		port2:       LaAggPortPeer,
-		rxLacpPort1: make(chan gopacket.Packet, 10),
-		rxLacpPort2: make(chan gopacket.Packet, 10),
+		Port1:       LaAggPortActor,
+		Port2:       LaAggPortPeer,
+		RxLacpPort1: make(chan gopacket.Packet, 10),
+		RxLacpPort2: make(chan gopacket.Packet, 10),
 	}
 
 	ActorSystem := LacpSysGlobalInfoInit(LaSystemActor)
@@ -107,9 +107,9 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 	CreateLaAggPort(p2conf)
 
 	// port 1
-	LaRxMain(bridge.port1, bridge.rxLacpPort1)
+	LaRxMain(bridge.Port1, bridge.RxLacpPort1)
 	// port 2
-	LaRxMain(bridge.port2, bridge.rxLacpPort2)
+	LaRxMain(bridge.Port2, bridge.RxLacpPort2)
 
 	a1conf := &LaAggConfig{
 		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
@@ -211,10 +211,10 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 	}
 
 	// cleanup the provisioning
-	close(bridge.rxLacpPort1)
-	close(bridge.rxLacpPort2)
-	bridge.rxLacpPort1 = nil
-	bridge.rxLacpPort2 = nil
+	close(bridge.RxLacpPort1)
+	close(bridge.RxLacpPort2)
+	bridge.RxLacpPort1 = nil
+	bridge.RxLacpPort2 = nil
 	DeleteLaAgg(a1conf.Id)
 	DeleteLaAgg(a2conf.Id)
 	for _, sgi := range LacpSysGlobalInfoGet() {
@@ -226,4 +226,7 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 		}
 	}
 	OnlyForTestTeardown()
+	LacpSysGlobalInfoDestroy(LaSystemActor)
+	LacpSysGlobalInfoDestroy(LaSystemPeer)
+
 }

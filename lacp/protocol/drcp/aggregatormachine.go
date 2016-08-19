@@ -244,7 +244,7 @@ func (am *AMachine) IppAllPortUpdateCheck() bool {
 	dr := am.dr
 	for _, ippid := range dr.DrniIntraPortalLinkList {
 		for _, ipp := range DRCPIppDBList {
-			if ipp.Id == ippid {
+			if ipp.Id == ippid&0xffff {
 				if ipp.IppPortUpdate {
 					dr.IppAllPortUpdate = true
 				}

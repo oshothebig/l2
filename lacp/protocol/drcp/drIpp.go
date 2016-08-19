@@ -78,6 +78,8 @@ type GatewayVectorEntry struct {
 }
 
 type StateVectorInfo struct {
+	mutex *sync.Mutex
+
 	OpState bool
 	// indexed by the received Home_Gateway_Sequence in
 	// increasing sequence number order
@@ -98,7 +100,7 @@ type DRCPIntraPortal struct {
 	DRFHomeConfNeighborPortalSystemNumber uint8
 	DRFHomeNetworkIPLIPLEncapDigest       Md5Digest
 	DRFHomeNetworkIPLIPLNetEncapDigest    Md5Digest
-	DRFHomeNetworkIPLSharingMethod        [4]uint8
+	DRFHomeNetworkIPLSharingMethod        EncapMethod
 	// defines for state can be found in "github.com/google/gopacket/layers"
 	DRFNeighborAdminAggregatorKey            uint16
 	DRFNeighborAggregatorId                  [6]uint8
@@ -110,7 +112,7 @@ type DRCPIntraPortal struct {
 	DRFNeighborGatewaySequence               uint16
 	DRFNeighborNetworkIPLIPLEncapDigest      Md5Digest
 	DRFNeighborNetworkIPLNetEncapDigest      Md5Digest
-	DRFNeighborNetworkIPLSharingMethod       [4]uint8
+	DRFNeighborNetworkIPLSharingMethod       EncapMethod
 	DRFNeighborOperAggregatorKey             uint16
 	DRFNeighborOperPartnerAggregatorKey      uint16
 	// defines for state can be found in "github.com/google/gopacket/layers"
@@ -143,7 +145,7 @@ type DRCPIntraPortal struct {
 	DrniNeighborThreeSystemPortal        bool
 	EnabledTimeShared                    bool
 	EnabledEncTagShared                  bool
-	IppOtherGatewayConversation          [MAX_CONVERSATION_IDS]uint32
+	IppOtherGatewayConversation          [MAX_CONVERSATION_IDS]uint8
 	IppOtherPortConversationPortalSystem [MAX_CONVERSATION_IDS]uint8
 	IppPortEnabled                       bool
 	IppPortalSystemState                 []StateVectorInfo // this is probably wrong
@@ -155,12 +157,10 @@ type DRCPIntraPortal struct {
 	// 9.4.10
 	Begin                       bool
 	DRCPEnabled                 bool
-	HomeGatewayVectorTransmit   bool
 	GatewayConversationTransmit bool
 	IppAllUpdate                bool
 	IppGatewayUpdate            bool
 	IppPortUpdate               bool
-	OtherGatewayVectorTransmit  bool
 	PortConversationTransmit    bool
 
 	// 9.3.4.3
@@ -197,22 +197,33 @@ type DRCPIpp struct {
 
 func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 
+	neighborPortalSystemNum := uint8(1)
+	if id>>16&0x3 == 1 {
+		neighborPortalSystemNum = 2
+	}
+
 	ipp := &DRCPIpp{
 		DistributedRelayIPP: DistributedRelayIPP{
-			Name:       utils.PortConfigMap[int32(id)].Name,
-			Id:         id,
+			Name:       utils.PortConfigMap[int32(id&0xffff)].Name,
+			Id:         id & 0xffff,
 			AdminState: true,
 		},
 		DRCPIntraPortal: DRCPIntraPortal{
 			DRCPEnabled:          true,
 			IppPortalSystemState: make([]StateVectorInfo, 0),
 			// neighbor system id contained in the port id
-			DRFHomeConfNeighborPortalSystemNumber: uint8(id >> 16 & 0x3),
+			DRFHomeConfNeighborPortalSystemNumber: neighborPortalSystemNum,
+			DRFHomeNetworkIPLSharingMethod:        dr.DrniEncapMethod,
+			DRFNeighborState:                      StateVectorInfo{mutex: &sync.Mutex{}},
+			DRFOtherNeighborState:                 StateVectorInfo{mutex: &sync.Mutex{}},
 		},
 		dr:                 dr,
 		ippEvtResponseChan: make(chan string),
 	}
 
+	for i, _ := range ipp.DRCPIntraPortal.DrniNeighborState {
+		ipp.DRCPIntraPortal.DrniNeighborState[i].mutex = &sync.Mutex{}
+	}
 	key := IppDbKey{
 		Name:   ipp.Name,
 		DrName: ipp.dr.DrniName,
@@ -226,8 +237,10 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 	for _, client := range utils.GetAsicDPluginList() {
 		ipp.OperState = client.GetPortLinkStatus(int32(ipp.Id))
 		ipp.IppPortEnabled = ipp.OperState
-		fmt.Println("Initial IPP Link State", ipp.Name, ipp.IppPortEnabled)
+		ipp.LaIppLog(fmt.Sprintln("Initial IPP Link State", ipp.Name, ipp.IppPortEnabled))
 	}
+
+	ipp.LaIppLog(fmt.Sprintf("Created IPP port %+v\n", ipp))
 
 	handle, err := pcap.OpenLive(ipp.Name, 65536, false, 50*time.Millisecond)
 	if err != nil {
@@ -237,7 +250,7 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 		}
 		return ipp
 	}
-	fmt.Println("Creating Listener for intf", ipp.Name)
+	fmt.Println("Creating Listener for intf ", ipp.Name)
 	ipp.handle = handle
 	src := gopacket.NewPacketSource(ipp.handle, layers.LayerTypeEthernet)
 	in := src.Packets()
@@ -531,8 +544,10 @@ func (p *DRCPIpp) NotifyNTTDRCPUDChange(src string, oldval, newval bool) {
 // is wrong.
 func (p *DRCPIpp) reportToManagement() {
 
-	p.LaIppLog(fmt.Sprintln("Report Failure to Management:", p.DifferPortalReason))
-	// TODO send event
+	if p.DifferPortalReason != "" {
+		p.LaIppLog(fmt.Sprintf("Report Failure to Management: %s", p.DifferPortalReason))
+		// TODO send event
+	}
 }
 
 // DRFindPortByKey find ipp port by key
@@ -547,10 +562,15 @@ func DRFindPortByKey(key IppDbKey, p **DRCPIpp) bool {
 // updateGatewayVector will update the vector, indexed by the received
 // Home_Gateway_Sequence in increasing sequence number order
 func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) {
+	nsi.mutex.Lock()
+
+	fmt.Printf("updateGatewayVector: GatewayVector vector[100]=%t\n", vector[100])
 
 	if len(nsi.GatewayVector) > 0 {
+		nsi.OpState = true
 		for i, seqVector := range nsi.GatewayVector {
-			if seqVector.Sequence == sequence {
+			/*if seqVector.Sequence == sequence {
+
 				// overwrite the sequence
 				nsi.GatewayVector[i] = GatewayVectorEntry{
 					Sequence: sequence,
@@ -559,17 +579,22 @@ func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) 
 				for j, val := range vector {
 					nsi.GatewayVector[i].Vector[j] = val
 				}
-			} else if seqVector.Sequence > sequence {
-				// insert sequence/vecotor before between i and i -1
+				fmt.Printf("updateGatewayVector: overwrite vector[100] %t\n", nsi.GatewayVector[i].Vector[100])
+			} else*/
+			if seqVector.Sequence < sequence {
+				// insert sequence/vecotor at front of list
 				nsi.GatewayVector = append(nsi.GatewayVector, GatewayVectorEntry{Vector: make([]bool, 4096)})
 				copy(nsi.GatewayVector[i:], nsi.GatewayVector[i+1:])
-				nsi.GatewayVector[i-1] = GatewayVectorEntry{
+				fmt.Printf("updateGatewayVector length of GatewayVector %d\n", len(nsi.GatewayVector))
+				nsi.GatewayVector[0] = GatewayVectorEntry{
 					Sequence: sequence,
 					Vector:   make([]bool, 4096),
 				}
 				for j, val := range vector {
-					nsi.GatewayVector[i-1].Vector[j] = val
+					nsi.GatewayVector[0].Vector[j] = val
 				}
+				fmt.Printf("updateGatewayVector: prepend vector[100] %t\n", nsi.GatewayVector[0].Vector[100])
+				break
 			}
 		}
 	} else {
@@ -580,19 +605,38 @@ func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) 
 		for j, val := range vector {
 			tmp.Vector[j] = val
 		}
+		nsi.OpState = true
 		nsi.GatewayVector = append(nsi.GatewayVector, tmp)
+		fmt.Printf("updateGatewayVector: new vector[100] %t\n", nsi.GatewayVector[0].Vector[100])
 	}
+	nsi.mutex.Unlock()
+
 }
 
 // getNeighborVectorGatwaySequenceIndex get the index for the entry whos
 // sequence number is equal.
 func (nsi *StateVectorInfo) getNeighborVectorGatwaySequenceIndex(sequence uint32, vector []bool) int32 {
+	nsi.mutex.Lock()
+
 	if len(nsi.GatewayVector) > 0 {
 		for i, seqVector := range nsi.GatewayVector {
 			if seqVector.Sequence == sequence {
+				nsi.mutex.Unlock()
 				return int32(i)
 			}
 		}
 	}
+	nsi.mutex.Unlock()
 	return -1
+}
+
+func (nsi *StateVectorInfo) getGatewayVectorByIndex(index int32) *GatewayVectorEntry {
+	nsi.mutex.Lock()
+	length := len(nsi.GatewayVector)
+	if length > 0 && index < int32(length) {
+		nsi.mutex.Unlock()
+		return &nsi.GatewayVector[index]
+	}
+	nsi.mutex.Unlock()
+	return nil
 }

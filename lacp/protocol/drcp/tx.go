@@ -34,10 +34,10 @@ import (
 
 // bridge will simulate communication between two channels
 type SimulationNeighborBridge struct {
-	port1      uint32
-	port2      uint32
-	rxIppPort1 chan gopacket.Packet
-	rxIppPort2 chan gopacket.Packet
+	Port1      uint32
+	Port2      uint32
+	RxIppPort1 chan gopacket.Packet
+	RxIppPort2 chan gopacket.Packet
 }
 
 func (bridge *SimulationNeighborBridge) TxViaGoChannel(key IppDbKey, dmac net.HardwareAddr, pdu interface{}) {
@@ -60,19 +60,18 @@ func (bridge *SimulationNeighborBridge) TxViaGoChannel(key IppDbKey, dmac net.Ha
 		switch pdu.(type) {
 		case *layers.DRCP:
 			drcp := pdu.(*layers.DRCP)
-
 			gopacket.SerializeLayers(buf, opts, &eth, drcp)
 		}
 
 		pkt := gopacket.NewPacket(buf.Bytes(), layers.LinkTypeEthernet, gopacket.Default)
-
-		if p.Id != bridge.port1 && bridge.rxIppPort1 != nil {
-			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port1)
-			//fmt.Println("TX:", pkt)
-			bridge.rxIppPort1 <- pkt
-		} else if bridge.rxIppPort2 != nil {
-			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port2)
-			bridge.rxIppPort2 <- pkt
+		if p.Id != bridge.Port1 && bridge.RxIppPort1 != nil {
+			fmt.Println("TX channel: Tx From port", p.Id, "bridge Port Rx", bridge.Port1)
+			fmt.Printf("TX: %+v", pkt)
+			bridge.RxIppPort1 <- pkt
+		} else if bridge.RxIppPort2 != nil {
+			fmt.Println("TX channel: Tx From port", p.Id, "bridge Port Rx", bridge.Port2)
+			fmt.Println("TX: %+v", pkt)
+			bridge.RxIppPort2 <- pkt
 		}
 	} else {
 		utils.GlobalLogger.Err(fmt.Sprintf("Unable to find port %d (%s) in tx", p.Id, p.Name))

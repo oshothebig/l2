@@ -428,8 +428,19 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// default actor admin
 	//fmt.Println(config.sysId, gLacpSysGlobalInfo[config.sysId])
 	p.ActorAdmin.State = sgi.ActorStateDefaultParams.State
-	p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.Actor_System))
-	p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
+	if a != nil &&
+		a.DrniName != "" {
+		// DR is the owner of the systemid and priority and it set the aggregator
+		// mac and priority
+		p.LaPortLog(fmt.Sprintf("Aggregator  %s is an MLAG owned by DR %s, thus using DR SystemId %+v Priority %d", a.AggName, a.DrniName, a.AggMacAddr, a.AggPriority))
+		p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(a.AggMacAddr))
+		p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(a.AggPriority)
+
+	} else {
+		p.LaPortLog(fmt.Sprintf("Aggregator %s is a LAG owned by System, thus using SystemId %+v Priority %d", a.AggName, sgi.SystemDefaultParams.Actor_System, sgi.SystemDefaultParams.Actor_System_priority))
+		p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.Actor_System))
+		p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
+	}
 	p.ActorAdmin.Key = p.Key
 	p.ActorAdmin.port = p.PortNum
 	p.ActorAdmin.Port_pri = p.portPriority
@@ -961,9 +972,8 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 }
 
 func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16) {
-	mEvtChan := make([]chan utils.MachineEvent, 0)
-	evt := make([]utils.MachineEvent, 0)
 
+	p.LaPortLog(fmt.Sprintf("Changing Actor SystemId: MAC: %+v Priority %d ", sysIdMac, sysPrio))
 	p.ActorAdmin.System.Actor_System = sysIdMac
 	p.ActorAdmin.System.Actor_System_priority = sysPrio
 
@@ -978,13 +988,7 @@ func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16
 	// partner info should be wrong so lets force sync to be off
 	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
 
-	mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-	evt = append(evt, utils.MachineEvent{
-		E:   LacpMuxmEventSelectedEqualUnselected,
-		Src: PortConfigModuleStr})
-
-	// unselected event
-	p.DistributeMachineEvents(mEvtChan, evt, true)
+	p.checkConfigForSelection()
 
 }
 

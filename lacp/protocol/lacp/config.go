@@ -212,7 +212,7 @@ func SaveLaAggConfig(ac *LaAggConfig) {
 		a.AggName = ac.Name
 		a.AggId = ac.Id
 		a.AggMacAddr = sysId.Actor_System
-		a.AggPriority = ac.Lacp.SystemPriority
+		a.AggPriority = sysId.Actor_System_priority
 		a.ActorAdminKey = ac.Key
 		a.AggType = ac.Type
 		a.AggMinLinks = ac.MinLinks
@@ -228,7 +228,6 @@ func CreateLaAgg(agg *LaAggConfig) {
 	a := NewLaAggregator(agg)
 	if a != nil {
 		a.LacpAggLog(fmt.Sprintf("%#v\n", a))
-
 		/*
 			// two methods for creating ports after CreateLaAgg is created
 			// 1) PortNumList is populated
@@ -249,7 +248,7 @@ func CreateLaAgg(agg *LaAggConfig) {
 		*/
 		index := 0
 		var p *LaAggPort
-		a.LacpAggLog(fmt.Sprintln("looking for ports with ActorAdminKey", a.ActorAdminKey))
+		a.LacpAggLog(fmt.Sprintf("looking for ports with ActorAdminKey %d", a.ActorAdminKey))
 		if mac, err := net.ParseMAC(a.Config.SystemIdMac); err == nil {
 			if sgi := LacpSysGlobalInfoByIdGet(LacpSystem{Actor_System: convertNetHwAddressToSysIdKey(mac),
 				Actor_System_priority: a.Config.SystemPriority}); sgi != nil {
@@ -363,8 +362,8 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 			// check for selection
 			p.checkConfigForSelection()
 
-			p.LaPortLog(fmt.Sprintf("PORT Config:\n%#v\n", port))
-			p.LaPortLog(fmt.Sprintf("PORT (after config create):\n%#v\n", p))
+			p.LaPortLog(fmt.Sprintf("PORT Config:%+v\n", port))
+			p.LaPortLog(fmt.Sprintf("PORT (after config create):\n%+v\n", p))
 		}
 	} else {
 		utils.GlobalLogger.Err("CONF: ERROR PORT ALREADY EXISTS")
@@ -548,20 +547,26 @@ func SetLaAggPortSystemInfo(pId uint16, sysIdMac string, sysPrio uint16) {
 //
 // TODO this function may need to change to include the operkey change as well as
 // change the port Id which is sent on the wire
-func SetLaAggPortSystemInfoFromDistributedRelay(pId uint16, sysIdMac string, sysPrio uint16, drName string, synced bool) {
+func SetLaAggPortSystemInfoFromDistributedRelay(pId uint16, sysIdMac string, sysPrio uint16, operKey uint16, drName string, synced bool) {
 	var p *LaAggPort
 	// port exists
 	// port is unselected
 	// agg exists
 	if LaFindPortById(pId, &p) {
 		mac, ok := net.ParseMAC(sysIdMac)
-		if ok == nil {
+		if ok == nil &&
+			p.ActorOper.Key != operKey {
+			// update the port infot o point back to drni
 			p.DrniName = drName
 			p.DrniSynced = true
+			p.ActorOper.Key = uint16(operKey)
 
+			utils.GlobalLogger.Info(fmt.Sprintf("Setting DR %s info systemid %s priority %d and oper key %d on LAG port %d", drName, sysIdMac, sysPrio, operKey, pId))
 			macArr := convertNetHwAddressToSysIdKey(mac)
 			p.LaAggPortActorAdminInfoSet(macArr, sysPrio)
 		}
+	} else {
+		utils.GlobalLogger.Info(fmt.Sprintf("ERROR: Unable to update system info on LAG port %d not found", pId))
 	}
 }
 
@@ -630,6 +635,7 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 		p.aggSelected == LacpAggUnSelected &&
 		!LaAggPortNumListPortIdExist(Key, pId) {
 
+		fmt.Printf("Adding LaAggPort %d to LaAgg %d\n", pId, a.ActorAdminKey)
 		p.LaPortLog(fmt.Sprintf("Adding LaAggPort %d to LaAgg %d", pId, a.ActorAdminKey))
 		// add port to port number list
 		a.PortNumList = append(a.PortNumList, p.PortNum)

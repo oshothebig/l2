@@ -162,9 +162,11 @@ func ProcessLacpFrame(pId uint16, lacp *layers.LACP) {
 	// lets find the port via the info in the packet
 	if LaFindPortById(pId, &p) {
 		//fmt.Println(lacp)
-		p.RxMachineFsm.RxmPktRxEvent <- LacpRxLacpPdu{
-			pdu: lacp,
-			src: RxModuleStr}
+		if p.RxMachineFsm != nil {
+			p.RxMachineFsm.RxmPktRxEvent <- LacpRxLacpPdu{
+				pdu: lacp,
+				src: RxModuleStr}
+		}
 	} else {
 		fmt.Println("LACP: Unable to find port", pId)
 	}
@@ -175,9 +177,11 @@ func ProcessLampFrame(pId uint16, lamp *layers.LAMP) {
 
 	if LaFindPortById(pId, &p) {
 		//fmt.Println(lacp)
-		p.MarkerResponderFsm.LampMarkerResponderPktRxEvent <- LampRxLampPdu{
-			pdu: lamp,
-			src: RxModuleStr}
+		if p.MarkerResponderFsm != nil {
+			p.MarkerResponderFsm.LampMarkerResponderPktRxEvent <- LampRxLampPdu{
+				pdu: lamp,
+				src: RxModuleStr}
+		}
 	} else {
 		fmt.Println("LAMP: Unable to find port", pId)
 	}

@@ -172,7 +172,9 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+
 	ConfigTeardown()
+	LacpSysGlobalInfoDestroy(sysId)
 }
 
 func TestLaAggPortCreateDifferentModes(t *testing.T) {
@@ -261,6 +263,7 @@ func TestLaAggPortCreateDifferentModes(t *testing.T) {
 		}
 	}
 	ConfigTeardown()
+	LacpSysGlobalInfoDestroy(sysId)
 }
 
 func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
@@ -326,6 +329,7 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 		}
 	}
 	ConfigTeardown()
+	LacpSysGlobalInfoDestroy(sysId)
 }
 
 func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
@@ -376,6 +380,7 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 		}
 	}
 	ConfigTeardown()
+	LacpSysGlobalInfoDestroy(sysId)
 }
 
 func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
@@ -452,6 +457,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 		}
 	}
 	ConfigTeardown()
+	LacpSysGlobalInfoDestroy(sysId)
 }
 
 // TestLaAggPortCreateThenCorrectAggCreateThenDetach:
@@ -537,6 +543,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 		}
 	}
 	ConfigTeardown()
+	LacpSysGlobalInfoDestroy(sysId)
 }
 
 // Enable port post creation
@@ -614,6 +621,7 @@ func TestLaAggPortEnable(t *testing.T) {
 		}
 	}
 	ConfigTeardown()
+	LacpSysGlobalInfoDestroy(sysId)
 }
 
 func TestTwoAggsBackToBackSinglePort(t *testing.T) {
@@ -637,10 +645,10 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
-		port1:       LaAggPortActor,
-		port2:       LaAggPortPeer,
-		rxLacpPort1: make(chan gopacket.Packet, 10),
-		rxLacpPort2: make(chan gopacket.Packet, 10),
+		Port1:       LaAggPortActor,
+		Port2:       LaAggPortPeer,
+		RxLacpPort1: make(chan gopacket.Packet, 10),
+		RxLacpPort2: make(chan gopacket.Packet, 10),
 	}
 
 	ActorSystem := LacpSysGlobalInfoInit(LaSystemActor)
@@ -688,9 +696,9 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	CreateLaAggPort(p2conf)
 
 	// port 1
-	LaRxMain(bridge.port1, bridge.rxLacpPort1)
+	LaRxMain(bridge.Port1, bridge.RxLacpPort1)
 	// port 2
-	LaRxMain(bridge.port2, bridge.rxLacpPort2)
+	LaRxMain(bridge.Port2, bridge.RxLacpPort2)
 
 	a1conf := &LaAggConfig{
 		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
@@ -759,10 +767,10 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	}
 
 	// cleanup the provisioning
-	close(bridge.rxLacpPort1)
-	close(bridge.rxLacpPort2)
-	bridge.rxLacpPort1 = nil
-	bridge.rxLacpPort2 = nil
+	close(bridge.RxLacpPort1)
+	close(bridge.RxLacpPort2)
+	bridge.RxLacpPort1 = nil
+	bridge.RxLacpPort2 = nil
 	DeleteLaAgg(a1conf.Id)
 	DeleteLaAgg(a2conf.Id)
 	for _, sgi := range LacpSysGlobalInfoGet() {
@@ -774,6 +782,8 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 		}
 	}
 	OnlyForTestTeardown()
+	LacpSysGlobalInfoDestroy(LaSystemActor)
+	LacpSysGlobalInfoDestroy(LaSystemPeer)
 }
 
 // TestTwoAggsBackToBackSinglePortTimeout will allow for
@@ -801,10 +811,10 @@ func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
-		port1:       LaAggPortActor,
-		port2:       LaAggPortPeer,
-		rxLacpPort1: make(chan gopacket.Packet),
-		rxLacpPort2: make(chan gopacket.Packet),
+		Port1:       LaAggPortActor,
+		Port2:       LaAggPortPeer,
+		RxLacpPort1: make(chan gopacket.Packet),
+		RxLacpPort2: make(chan gopacket.Packet),
 	}
 
 	ActorSystem := LacpSysGlobalInfoInit(LaSystemActor)
@@ -813,9 +823,9 @@ func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeerIf, bridge.TxViaGoChannel)
 
 	// port 1
-	go LaRxMain(bridge.port1, bridge.rxLacpPort1)
+	go LaRxMain(bridge.Port1, bridge.RxLacpPort1)
 	// port 2
-	go LaRxMain(bridge.port2, bridge.rxLacpPort2)
+	go LaRxMain(bridge.Port2, bridge.RxLacpPort2)
 
 	p1conf := &LaAggPortConfig{
 		Id:      LaAggPortActor,
@@ -957,10 +967,10 @@ func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 	}
 
 	// cleanup the provisioning
-	close(bridge.rxLacpPort1)
-	close(bridge.rxLacpPort2)
-	bridge.rxLacpPort1 = nil
-	bridge.rxLacpPort2 = nil
+	close(bridge.RxLacpPort1)
+	close(bridge.RxLacpPort2)
+	bridge.RxLacpPort1 = nil
+	bridge.RxLacpPort2 = nil
 	DeleteLaAgg(a1conf.Id)
 	DeleteLaAgg(a2conf.Id)
 	for _, sgi := range LacpSysGlobalInfoGet() {
@@ -972,6 +982,9 @@ func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 		}
 	}
 	OnlyForTestTeardown()
+	LacpSysGlobalInfoDestroy(LaSystemActor)
+	LacpSysGlobalInfoDestroy(LaSystemPeer)
+
 }
 
 // TestLaAggCallSaveLaAggConfig No logic just coverage
@@ -1028,10 +1041,10 @@ func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
 		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
-		port1:       LaAggPortActor,
-		port2:       LaAggPortPeer,
-		rxLacpPort1: make(chan gopacket.Packet),
-		rxLacpPort2: make(chan gopacket.Packet),
+		Port1:       LaAggPortActor,
+		Port2:       LaAggPortPeer,
+		RxLacpPort1: make(chan gopacket.Packet),
+		RxLacpPort2: make(chan gopacket.Packet),
 	}
 
 	ActorSystem := LacpSysGlobalInfoInit(LaSystemActor)
@@ -1040,9 +1053,9 @@ func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
 	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeerIf, bridge.TxViaGoChannel)
 
 	// port 1
-	go LaRxMain(bridge.port1, bridge.rxLacpPort1)
+	go LaRxMain(bridge.Port1, bridge.RxLacpPort1)
 	// port 2
-	go LaRxMain(bridge.port2, bridge.rxLacpPort2)
+	go LaRxMain(bridge.Port2, bridge.RxLacpPort2)
 
 	p1conf := &LaAggPortConfig{
 		Id:      LaAggPortActor,
@@ -1216,10 +1229,10 @@ func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
 		t.Error("Unable to find port just created")
 	}
 	// cleanup the provisioning
-	close(bridge.rxLacpPort1)
-	close(bridge.rxLacpPort2)
-	bridge.rxLacpPort1 = nil
-	bridge.rxLacpPort2 = nil
+	close(bridge.RxLacpPort1)
+	close(bridge.RxLacpPort2)
+	bridge.RxLacpPort1 = nil
+	bridge.RxLacpPort2 = nil
 
 	DeleteLaAgg(a1conf.Id)
 	DeleteLaAgg(a2conf.Id)
@@ -1232,6 +1245,9 @@ func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
 		}
 	}
 	OnlyForTestTeardown()
+	LacpSysGlobalInfoDestroy(LaSystemActor)
+	LacpSysGlobalInfoDestroy(LaSystemPeer)
+
 }
 
 func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
@@ -1255,10 +1271,10 @@ func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
 		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	bridge := SimulationBridge{
-		port1:       LaAggPortActor,
-		port2:       LaAggPortPeer,
-		rxLacpPort1: make(chan gopacket.Packet, 10),
-		rxLacpPort2: make(chan gopacket.Packet, 10),
+		Port1:       LaAggPortActor,
+		Port2:       LaAggPortPeer,
+		RxLacpPort1: make(chan gopacket.Packet, 10),
+		RxLacpPort2: make(chan gopacket.Packet, 10),
 	}
 
 	ActorSystem := LacpSysGlobalInfoInit(LaSystemActor)
@@ -1308,9 +1324,9 @@ func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
 	CreateLaAggPort(p2conf)
 
 	// port 1
-	LaRxMain(bridge.port1, bridge.rxLacpPort1)
+	LaRxMain(bridge.Port1, bridge.RxLacpPort1)
 	// port 2
-	LaRxMain(bridge.port2, bridge.rxLacpPort2)
+	LaRxMain(bridge.Port2, bridge.RxLacpPort2)
 
 	a1conf := &LaAggConfig{
 		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
@@ -1430,10 +1446,10 @@ func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
 		}
 
 		// cleanup the provisioning
-		close(bridge.rxLacpPort1)
-		close(bridge.rxLacpPort2)
-		bridge.rxLacpPort1 = nil
-		bridge.rxLacpPort2 = nil
+		close(bridge.RxLacpPort1)
+		close(bridge.RxLacpPort2)
+		bridge.RxLacpPort1 = nil
+		bridge.RxLacpPort2 = nil
 		DeleteLaAgg(a1conf.Id)
 		DeleteLaAgg(a2conf.Id)
 		for _, sgi := range LacpSysGlobalInfoGet() {
@@ -1446,6 +1462,9 @@ func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
 		}
 	}
 	OnlyForTestTeardown()
+	LacpSysGlobalInfoDestroy(LaSystemActor)
+	LacpSysGlobalInfoDestroy(LaSystemPeer)
+
 }
 
 func TestSetLaAggPortSystemInfo(t *testing.T) {

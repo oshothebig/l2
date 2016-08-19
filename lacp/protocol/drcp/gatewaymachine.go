@@ -25,6 +25,7 @@
 package drcp
 
 import (
+	"fmt"
 	//"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"strconv"
@@ -242,7 +243,7 @@ func (gm *GMachine) IppAllGatewayUpdateCheck() bool {
 	dr := gm.dr
 	for _, ippid := range dr.DrniIntraPortalLinkList {
 		for _, ipp := range DRCPIppDBList {
-			if ipp.Id == ippid {
+			if ipp.Id == ippid&0xffff {
 				if ipp.IppGatewayUpdate {
 					dr.IppAllGatewayUpdate = true
 				}
@@ -269,9 +270,14 @@ func (gm *GMachine) updatePortalState() {
 
 	// The information for this Portal System, DRF_Home_State, indexed by the Portal System
 	// Number, is included in Drni_Portal_System_State[].
-	for _, seqvector := range dr.DRFHomeState.GatewayVector {
-		dr.DrniPortalSystemState[dr.DRFPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
+	fmt.Println("updateGatewayVector called on dr.DrniPortalSystemState local")
+	homevector := dr.DRFHomeState.getGatewayVectorByIndex(0)
+	if homevector == nil {
+		fmt.Println("DRFHomeState returned nil for gateway vector at index 0")
+		return
 	}
+	dr.DrniPortalSystemState[dr.DRFPortalSystemNumber].updateGatewayVector(homevector.Sequence, homevector.Vector)
+
 	for _, ipp := range dr.Ipplinks {
 		if len(dr.Ipplinks) == 2 {
 			// TODO when 3P system supported
@@ -281,18 +287,21 @@ func (gm *GMachine) updatePortalState() {
 			// Number
 		} else {
 			if ipp.DRFNeighborState.OpState {
-				for _, seqvector := range ipp.DRFNeighborState.GatewayVector {
-					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
-					ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = make([]GatewayVectorEntry, 2)
-					ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
-					for _, seqvector2 := range dr.DRFHomeState.GatewayVector {
-						ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector2.Sequence, seqvector2.Vector)
-					}
-				}
+				fmt.Println("updateGatewayVector called on dr.DrniPortalSystemState neighbor")
+				neighborvector := ipp.DRFNeighborState.getGatewayVectorByIndex(0)
+
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(neighborvector.Sequence, neighborvector.Vector)
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = make([]GatewayVectorEntry, 2)
+				fmt.Println("updateGatewayVector called on ipp.IppPortalSystemState neighbor then home")
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(neighborvector.Sequence, neighborvector.Vector)
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(homevector.Sequence, homevector.Vector)
+
 			} else {
+				//dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Lock()
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
+				//dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Unlock()
 				ipp.IppPortalSystemState = nil
 			}
 
@@ -317,6 +326,7 @@ func (gm *GMachine) updatePortalState() {
 			*/
 		}
 	}
+
 	// always set to false since portal system number is never 0
 	dr.DrniPortalSystemState[0].OpState = false
 	dr.DrniPortalSystemState[0].GatewayVector = nil
@@ -329,7 +339,7 @@ func (gm *GMachine) setIPPGatewayUpdate() {
 	dr := gm.dr
 	for _, ippid := range dr.DrniIntraPortalLinkList {
 		for _, ipp := range DRCPIppDBList {
-			if ipp.Id == ippid {
+			if ipp.Id == ippid&0xffff {
 
 				// inform the ipp gateway machine
 				if !ipp.IppGatewayUpdate &&

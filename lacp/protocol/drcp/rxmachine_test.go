@@ -276,7 +276,7 @@ func TestRxMachineRxValidDRCPDUNeighborPkt(t *testing.T) {
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// create packet which will be sent for this test
 	drcp := OnlyForRxMachineCreateValidDRCPPacket()
@@ -408,7 +408,7 @@ func TestRxMachineRxValidDRCPDUNeighborPktThenTimeout(t *testing.T) {
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// create packet which will be sent for this test
 	drcp := OnlyForRxMachineCreateValidDRCPPacket()
@@ -569,7 +569,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorPriority(t *testi
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -680,7 +680,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorAddr(t *testing.T
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -791,7 +791,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferOperAggregatorKey(t *testin
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -955,7 +955,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferThreeSystemPortalDiff(t *te
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -1111,7 +1111,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferNeighborPortalSystemNumDiff
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -1248,7 +1248,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayAlgorithmDiff(t *tes
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -1356,7 +1356,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortAlgorithmDiff(t *testin
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -1464,7 +1464,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayDigestDiff(t *testin
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]
@@ -1574,7 +1574,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortDigestDiff(t *testing.T
 	}
 
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	// lets get the IPP
 	ipp := dr.Ipplinks[0]

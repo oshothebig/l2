@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
+	"math"
 	"strconv"
 	"strings"
 	"utils/fsm"
@@ -112,7 +113,7 @@ func (txm *TxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	txm.Machine.Rules = r
 	txm.Machine.Curr = &utils.StateEvent{
 		StrStateMap: TxmStateStrMap,
-		LogEna:      false,
+		LogEna:      true,
 		Logger:      txm.DrcpTxmLog,
 		Owner:       TxMachineModuleStr,
 	}
@@ -172,8 +173,22 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				OperAggKey:       dr.DRFHomeOperAggregatorKey,
 				PortAlgorithm:    dr.DRFHomePortAlgorithm,
 				GatewayAlgorithm: dr.DRFHomeGatewayAlgorithm,
+				GatewayDigest:    dr.DRFHomeConversationGatewayListDigest.get16Bytes(),
+				PortDigest:       dr.DRFHomeConversationPortListDigest.get16Bytes(),
 			}
 			drcp.PortalConfigInfo.TopologyState.SetState(layers.DRCPTopologyStatePortalSystemNum, dr.DrniPortalSystemNumber)
+			drcp.PortalConfigInfo.TopologyState.SetState(layers.DRCPTopologyStateNeighborConfPortalSystemNumber, p.DRFHomeConfNeighborPortalSystemNumber)
+			val := uint8(0)
+			if dr.DrniThreeSystemPortal {
+				val = 1
+			}
+			drcp.PortalConfigInfo.TopologyState.SetState(layers.DRCPTopologyState3SystemPortal, val)
+			val = 0
+			if dr.DrniPortConversationControl {
+				val = 1
+			}
+			drcp.PortalConfigInfo.TopologyState.SetState(layers.DRCPTopologyStateCommonMethods, val)
+
 			drcp.PortalConfigInfo.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypePortalConfigInfo))
 			drcp.PortalConfigInfo.TlvTypeLength.SetLength(uint16(layers.DRCPTLVPortalConfigurationInfoLength))
 			// TODO set Port Digest and Gateway Digest
@@ -389,37 +404,98 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 			drcp.HomePortsInfo.TlvTypeLength.SetLength(uint16(homePortsInfoLength))
 			pktLength += uint32(homePortsInfoLength) + uint32(layers.DRCPTlvAndLengthSize)
 
-			portMtu := uint32(utils.PortConfigMap[int32(p.Id)].Mtu)
-			if (p.HomeGatewayVectorTransmit ||
-				p.OtherGatewayVectorTransmit) &&
-				pktLength < portMtu {
-				// TODO WTF is the standard trying to say is supposed to happen here
-				// Only include it if it does not make the packet exceed the MTU?
-				/*HomeGatewayVector                     DRCPHomeGatewayVectorTlv
-				NeighborGatewayVector                 DRCPGatewaNeighborGatewayVector		OtherGatewayVector                    DRCPOtherGatewayVectorTlv
-				*/
-
-			} else if (p.HomeGatewayVectorTransmit ||
-				p.OtherGatewayVectorTransmit) &&
-				pktLength > portMtu {
-				txm.DrcpTxmLog(fmt.Sprintf("Unable to send packet pkt size %d exceeds MTU of IPP %d", pktLength, portMtu))
+			drcp.NeighborPortsInfo = layers.DRCPNeighborPortsInfoTlv{
+				AdminAggKey:       p.DRFNeighborOperAggregatorKey,
+				OperPartnerAggKey: p.DRFNeighborOperPartnerAggregatorKey,
 			}
 
-			if p.DRFHomeNetworkIPLSharingMethod != [4]uint8{} {
+			if dr.DrniPortalSystemState[p.DRFNeighborConfPortalSystemNumber].OpState {
+				for _, portId := range dr.DrniPortalSystemState[p.DRFNeighborConfPortalSystemNumber].PortIdList {
+					drcp.NeighborPortsInfo.ActiveNeighborPorts = append(drcp.NeighborPortsInfo.ActiveNeighborPorts, portId)
+				}
+			}
+			drcp.NeighborPortsInfo.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeNeighborPortsInfo))
+			drcp.NeighborPortsInfo.TlvTypeLength.SetLength(uint16(4 + (4 * len(drcp.NeighborPortsInfo.ActiveNeighborPorts))))
+
+			//portMtu := uint32(utils.PortConfigMap[int32(p.Id)].Mtu)
+			portMtu := uint32(32768)
+			fmt.Printf("TX: HomeGatewayVectorTransmit %t OtherGatewayVectorTRansmit %t pktlength %d mtu %d\n",
+				dr.HomeGatewayVectorTransmit,
+				dr.OtherGatewayVectorTransmit,
+				pktLength,
+				portMtu)
+			if (dr.HomeGatewayVectorTransmit ||
+				dr.OtherGatewayVectorTransmit) &&
+				pktLength < portMtu {
+				// TODO WTF is the standard trying to say is supposed to happen here
+				// Only include it if it does not make the packet exceed the MTU?  But other parts of standard say
+				// the field is manditory
+				drcp.HomeGatewayVector = layers.DRCPHomeGatewayVectorTlv{}
+				gatewayvector := dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].getGatewayVectorByIndex(0)
+				if gatewayvector != nil {
+					// TODO this should actually be the DRFHomeGatewayConversationMask, which should be the same as below but
+					// lets follow the standard
+					if gatewayvector.Vector != nil {
+						fmt.Printf("TX (1)\n")
+						drcp.HomeGatewayVector.Sequence = gatewayvector.Sequence
+						j := 0
+						fmt.Printf("TX (2)\n")
+						for i, vector := range gatewayvector.Vector {
+							index := uint(math.Mod(float64(i), 8))
+							if vector {
+								fmt.Printf("TX j %d", j)
+								if drcp.HomeGatewayVector.Vector == nil {
+									drcp.HomeGatewayVector.Vector = make([]uint8, 512)
+								}
+								drcp.HomeGatewayVector.Vector[j] |= uint8(1 << index)
+							}
+							if index == 0 {
+								j++
+							}
+						}
+					}
+				}
+				drcp.HomeGatewayVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeHomeGatewayVector))
+				if len(drcp.HomeGatewayVector.Vector) > 0 {
+					drcp.HomeGatewayVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLVHomeGatewayVectorLength_2))
+				} else {
+					drcp.HomeGatewayVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLVHomeGatewayVectorLength_1))
+				}
+
+				// 3P system not supported, thus other should not be set
+				drcp.OtherGatewayVector = layers.DRCPOtherGatewayVectorTlv{}
+				drcp.OtherGatewayVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeOtherGatewayVector))
+				drcp.OtherGatewayVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLVOtherGatewayVectorLength_1))
+
+			} else if (dr.HomeGatewayVectorTransmit ||
+				dr.OtherGatewayVectorTransmit) &&
+				pktLength > portMtu {
+				txm.DrcpTxmLog(fmt.Sprintf("Unable to send packet pkt size %d exceeds MTU %d of IPP %d", pktLength, portMtu, p.Id))
+			}
+
+			drcp.NeighborGatewayVector = layers.DRCPNeighborGatewayVectorTlv{
+				Sequence: uint32(p.DRFNeighborGatewaySequence),
+			}
+			drcp.NeighborGatewayVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeNeighborGatewayVector))
+			drcp.NeighborGatewayVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLVNeighborGatewayVectorLength))
+
+			fmt.Println("TX: sharing method", p.DRFHomeNetworkIPLSharingMethod)
+			if p.DRFHomeNetworkIPLSharingMethod != ENCAP_METHOD_SHARING_NULL {
 
 				drcp.NetworkIPLMethod.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVNetworkIPLSharingMethod))
 				drcp.NetworkIPLMethod.TlvTypeLength.SetLength(uint16(layers.DRCPTLVNetworkIPLSharingMethodLength))
 				drcp.NetworkIPLMethod.Method = p.DRFHomeNetworkIPLSharingMethod
 				pktLength += uint32(layers.DRCPTLVNetworkIPLSharingMethodLength) + uint32(layers.DRCPTlvAndLengthSize)
 
-				drcp.NetworkIPLEncapsulation.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVNetworkIPLSharingEncapsulation))
-				drcp.NetworkIPLEncapsulation.TlvTypeLength.SetLength(uint16(layers.DRCPTLVNetworkIPLSharingEncapsulationLength))
-				for i := 0; i < 16; i++ {
-					drcp.NetworkIPLEncapsulation.IplEncapDigest[i] = p.DRFHomeNetworkIPLIPLEncapDigest[i]
-					drcp.NetworkIPLEncapsulation.NetEncapDigest[i] = p.DRFHomeNetworkIPLIPLNetEncapDigest[i]
+				if p.DRFHomeNetworkIPLSharingMethod != ENCAP_METHOD_SHARING_BY_TIME {
+					drcp.NetworkIPLEncapsulation.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVNetworkIPLSharingEncapsulation))
+					drcp.NetworkIPLEncapsulation.TlvTypeLength.SetLength(uint16(layers.DRCPTLVNetworkIPLSharingEncapsulationLength))
+					for i := 0; i < 16; i++ {
+						drcp.NetworkIPLEncapsulation.IplEncapDigest[i] = p.DRFHomeNetworkIPLIPLEncapDigest[i]
+						drcp.NetworkIPLEncapsulation.NetEncapDigest[i] = p.DRFHomeNetworkIPLIPLNetEncapDigest[i]
+					}
+					pktLength += uint32(layers.DRCPTLVNetworkIPLSharingEncapsulationLength) + uint32(layers.DRCPTlvAndLengthSize)
 				}
-				pktLength += uint32(layers.DRCPTLVNetworkIPLSharingEncapsulationLength) + uint32(layers.DRCPTlvAndLengthSize)
-
 			}
 
 			drcp.Terminator.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeTerminator))
@@ -431,7 +507,7 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 			}
 			// transmit the packet(s)
 			for _, txfunc := range DRGlobalSystem.TxCallbacks[key] {
-				txfunc(key, p.dr.DrniPortalPortProtocolIDA, drcp)
+				txfunc(key, p.dr.DrniPortalPortProtocolIDA, &drcp)
 			}
 		}
 	}

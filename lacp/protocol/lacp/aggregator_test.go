@@ -81,6 +81,7 @@ func TestCreateDeleteLaAggregatorNoMembers(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+	LacpSysGlobalInfoDestroy(sysId)
 	OnlyForTestTeardown()
 }
 
@@ -118,6 +119,7 @@ func TestCreateDeleteLaAggregatorWithMembers(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.SysKey, sgi.PortList, sgi.PortMap)
 		}
 	}
+	LacpSysGlobalInfoDestroy(sysId)
 	OnlyForTestTeardown()
 }
 
@@ -175,6 +177,7 @@ func TestCreateDeleteFindByAggName(t *testing.T) {
 	if LaFindAggByName("agg2000", &na) {
 		t.Error("Error found aggregator by name")
 	}
+	LacpSysGlobalInfoDestroy(sysId)
 	OnlyForTestTeardown()
 }
 
@@ -233,6 +236,7 @@ func TestCreateDeleteFindById(t *testing.T) {
 	if LaFindAggById(2000, &na) {
 		t.Error("Error found aggregator by name")
 	}
+	LacpSysGlobalInfoDestroy(sysId)
 	OnlyForTestTeardown()
 }
 
@@ -292,6 +296,7 @@ func TestCreateDeleteFindByKey(t *testing.T) {
 		t.Error("Error found aggregator by deleted key")
 	}
 
+	LacpSysGlobalInfoDestroy(sysId)
 	OnlyForTestTeardown()
 }
 
@@ -357,6 +362,8 @@ func TestCreateDeleteFindLacpPortMember(t *testing.T) {
 	if LaFindAggByKey(50, &na) {
 		t.Error("Error found aggregator by name")
 	}
+
+	LacpSysGlobalInfoDestroy(sysId)
 	OnlyForTestTeardown()
 }
 
@@ -397,6 +404,7 @@ func TestDuplicateAdd(t *testing.T) {
 	}
 
 	agg1.DeleteLaAgg()
+	LacpSysGlobalInfoDestroy(sysId)
 	OnlyForTestTeardown()
 }
 
@@ -478,5 +486,6 @@ func TestScaleAggCreate(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.SysKey, sgi.PortList, sgi.PortMap)
 		}
 	}
+	LacpSysGlobalInfoDestroy(sysId)
 	OnlyForTestTeardown()
 }

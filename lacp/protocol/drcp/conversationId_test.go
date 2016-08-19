@@ -209,7 +209,7 @@ func TestConversationIdVlanMembershipCreateNoPorts(t *testing.T) {
 		}
 	}
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	//dr.DRFHomeConversationPortListDigest = drcp.PortalConfigInfo.PortDigest
 	//dr.DRFHomeConversationGatewayListDigest = drcp.PortalConfigInfo.GatewayDigest
@@ -289,7 +289,7 @@ func TestConversationIdVlanMembershipCreateNoPortsThenAddDelPort(t *testing.T) {
 		}
 	}
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	//dr.DRFHomeConversationPortListDigest = drcp.PortalConfigInfo.PortDigest
 	//dr.DRFHomeConversationGatewayListDigest = drcp.PortalConfigInfo.GatewayDigest
@@ -432,7 +432,7 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 		}
 	}
 	// set gateway info and digest
-	dr.setTimeSharingPortAndGatwewayDigest()
+	dr.SetTimeSharingPortAndGatwewayDigest()
 
 	//dr.DRFHomeConversationPortListDigest = drcp.PortalConfigInfo.PortDigest
 	//dr.DRFHomeConversationGatewayListDigest = drcp.PortalConfigInfo.GatewayDigest

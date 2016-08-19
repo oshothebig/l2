@@ -27,7 +27,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
-	//"fmt"
+	"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
@@ -80,13 +80,16 @@ type DistributedRelay struct {
 	DrniPortConversationControl            bool
 	DrniPortalPortProtocolIDA              net.HardwareAddr
 
+	// TODO This should be removed
 	GatewayVectorDatabase []GatewayVectorEntry
 
 	// 9.4.10
-	PortConversationUpdate    bool
-	IppAllPortUpdate          bool
-	GatewayConversationUpdate bool
-	IppAllGatewayUpdate       bool
+	PortConversationUpdate     bool
+	IppAllPortUpdate           bool
+	GatewayConversationUpdate  bool
+	IppAllGatewayUpdate        bool
+	HomeGatewayVectorTransmit  bool
+	OtherGatewayVectorTransmit bool
 
 	// channel used to wait on response from distributed event send
 	drEvtResponseChan chan string
@@ -198,7 +201,7 @@ func (dr *DistributedRelay) isAggPortInConverstaion(portList []int32) bool {
 // If all local aggregator ports are down then the neighbor system must
 // forward frames out the aggregator as well as any network links to
 // which the frame is destined for
-func (dr *DistributedRelay) setTimeSharingPortAndGatwewayDigest() {
+func (dr *DistributedRelay) SetTimeSharingPortAndGatwewayDigest() {
 	// algorithm assumes 2P system only
 	if dr.DrniGatewayAlgorithm == GATEWAY_ALGORITHM_CVID {
 		if !dr.DrniThreeSystemPortal {
@@ -215,31 +218,37 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 	isNewConversation := false
 	ghash := md5.New()
 	for cid, conv := range ConversationIdMap {
+		if cid == 100 {
+			fmt.Printf("conv %+v   isAggPortInConversation %t  portList %+v\n", conv, dr.isAggPortInConverstaion(conv.PortList), dr.a.PortNumList)
+		}
 		if conv.Valid && dr.isAggPortInConverstaion(conv.PortList) {
+			fmt.Printf("Conversation Admin Gateway %+v\n", dr.DrniConvAdminGateway[cid])
+
 			// mark this call as new so that we can update the state machines
 			if dr.DrniConvAdminGateway[cid] == nil {
 				dr.DrniConvAdminGateway[cid] = make([]uint8, 0)
 				isNewConversation = true
-			}
+				fmt.Printf("Adding New Gateway Conversation %d\n", cid)
+				dr.LaDrLog(fmt.Sprintf("Adding New Gateway Conversation %d", cid))
 
-			// Fixed algorithm for 2P system
-			// Because we only support sharing by time we don't really care which
-			// system is the "gateway" of the conversation because all conversations
-			// are free to be delivered on both systems based on bridging rules.
-			// Annex G:
-			//  A frame received over the IPL shall never be forwarded over the Aggregator Port.
-			//  A frame received over the IPL with a DA that was learned from the Aggregator Port shall be discarded.
-			//
-			// NOTE when other sharing methods are supported then this algorithm will
-			// need to be changed
-			if math.Mod(float64(conv.Cvlan), 2) == 0 {
-				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 2)
-				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 1)
-			} else {
-				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 1)
-				dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 2)
+				// Fixed algorithm for 2P system
+				// Because we only support sharing by time we don't really care which
+				// system is the "gateway" of the conversation because all conversations
+				// are free to be delivered on both systems based on bridging rules.
+				// Annex G:
+				//  A frame received over the IPL shall never be forwarded over the Aggregator Port.
+				//  A frame received over the IPL with a DA that was learned from the Aggregator Port shall be discarded.
+				//
+				// NOTE when other sharing methods are supported then this algorithm will
+				// need to be changed
+				if math.Mod(float64(conv.Cvlan), 2) == 0 {
+					dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 2)
+					dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 1)
+				} else {
+					dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 1)
+					dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 2)
+				}
 			}
-
 			buf := new(bytes.Buffer)
 			utils.GlobalLogger.Info("Adding to Gateway Digest:", conv.Cvlan, math.Mod(float64(conv.Cvlan), 2), []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
 			// network byte order
@@ -298,6 +307,7 @@ func (dr *DistributedRelay) setAdminConvPortAndNeighborPortListDigest() {
 // NewDistributedRelay create a new instance of Distributed Relay and
 // the associated objects for the IPP ports
 func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
+
 	dr := &DistributedRelay{
 		DrniId:                      uint32(cfg.DrniPortalSystemNumber),
 		DrniName:                    cfg.DrniName,
@@ -310,7 +320,29 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		drEvtResponseChan:           make(chan string),
 		DrniIPLEncapMap:             make(map[uint32]uint32),
 		DrniNetEncapMap:             make(map[uint32]uint32),
+		DistributedRelayFunction: DistributedRelayFunction{
+			DRFHomeState: StateVectorInfo{mutex: &sync.Mutex{}},
+		},
 	}
+
+	neighborPortalSystemNumber := uint32(1)
+	if cfg.DrniPortalSystemNumber == 1 {
+		neighborPortalSystemNumber = 2
+
+	}
+	// Only support two portal system so we need to adjust
+	// the ipp port id.  This should ideally come from the user
+	// but lets make provisioning as simple as possible
+	for i, ippPortId := range cfg.DrniIntraPortalLinkList {
+		if ippPortId>>16&0x3 == 0 {
+			dr.DrniIntraPortalLinkList[i] = ippPortId | (neighborPortalSystemNumber << 16)
+		}
+	}
+
+	for i, _ := range dr.DrniPortalSystemState {
+		dr.DrniPortalSystemState[i].mutex = &sync.Mutex{}
+	}
+
 	/*
 		Not allowing user to set we are goign to fill this in via
 		setTimeSharingPortAndGatwewayDigest
@@ -326,6 +358,9 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		}
 	*/
 	dr.DrniPortalAddr, _ = net.ParseMAC(cfg.DrniPortalAddress)
+	for i, macbyte := range dr.DrniPortalAddr {
+		dr.DrniAggregatorId[i] = macbyte
+	}
 
 	// string format in bits "00000000"
 	for i, j := 0, uint32(7); i < 8; i, j = i+1, j-1 {
@@ -341,6 +376,7 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 			dr.DrniNeighborAdminConvPortListDigest[i] = cfg.DrniNeighborAdminConvPortListDigest[i]
 		}
 	*/
+
 	// format "00:00:00:00"
 	encapmethod := strings.Split(cfg.DrniEncapMethod, ":")
 	gatewayalgorithm := strings.Split(cfg.DrniGatewayAlgorithm, ":")
@@ -378,8 +414,11 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	DistributedRelayDB[dr.DrniName] = dr
 	DistributedRelayDBList = append(DistributedRelayDBList, dr)
 
+	dr.LaDrLog(fmt.Sprintf("Created Distributed Relay %+v\n", dr))
+
 	for _, ippid := range dr.DrniIntraPortalLinkList {
-		if ippid > 0 {
+		portid := ippid & 0xffff
+		if portid > 0 {
 			ipp := NewDRCPIpp(ippid, dr)
 			// disabled until an aggregator has been attached
 			ipp.DRCPEnabled = false

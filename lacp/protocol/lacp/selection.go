@@ -111,19 +111,7 @@ s) An Aggregation Port shall not select an Aggregator, which has been assigned t
    equal to the value 2 or 3. This is to prevent network partition due to isolation of the Portal Systems
    in the interconnected Portals (Clause 9)
 */
-/*
-func (p *LaAggPort) LacpSelectAggrigator() bool {
 
-	p.AggId
-	if _, ok := gLacpSysGlobalInfo.AggMap[p.AggId] ok {
-
-	}
-	else {
-
-	}
-
-}
-*/
 // LacpMuxCheckSelectionLogic will be called after the
 // wait while timer has expired.  If this is the last
 // port to have its wait while timer expire then
@@ -188,23 +176,41 @@ func (a *LaAggregator) LacpMuxCheckSelectionLogic(p *LaAggPort, sendResponse boo
 // Sets the value of the Selected variable based on the following:
 //
 // Rx pdu: (Actor: Port, Priority, System, System Priority, Key
-// and State Aggregation) vs (Partner Oper: Port, Priority,
+// and State Aggregation) vs local recorded: (Partner Oper: Port, Priority,
 // System, System Priority, Key, State Aggregation).  If values
 // have changed then Selected is set to UNSELECTED, othewise
 // SELECTED
 func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *layers.LACP) {
 
 	p := rxm.p
-
+	unselectedCondition := false
 	//rxm.LacpRxmLog(fmt.Sprintf("PDU actor info %#v", lacpPduInfo.Actor.Info))
 	//rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.PartnerOper))
 
-	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Actor.Info, &p.PartnerOper, LacpStateAggregationBit) {
+	// lets check a few conditions from Selection logic 802.1ax Section 6.4.14.1
 
-		rxm.LacpRxmLog("PDU and Oper States do not agree, moving port to UnSelected")
+	if rxm.detectLoopbackCondition(lacpPduInfo) &&
+		p.aggSelected == LacpAggSelected {
+		rxm.LacpRxmLog("ERROR Loopback condition detected")
+		unselectedCondition = true
+	}
 
+	if rxm.detectInvalidPeerSelection(lacpPduInfo) &&
+		p.aggSelected == LacpAggSelected {
+		rxm.LacpRxmLog("ERROR Peer Selection Invalid")
+		unselectedCondition = true
+	}
+
+	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Actor.Info, &p.PartnerOper, LacpStateAggregationBit) &&
+		p.aggSelected == LacpAggSelected {
+		rxm.LacpRxmLog("ERROR PDU and Oper States do not agree, moving port to UnSelected")
+		unselectedCondition = true
+	}
+
+	if unselectedCondition {
 		// lets trigger the event only if mux is not in waiting State as
 		// the wait while timer expiration will trigger the unselected event
+
 		if p.MuxMachineFsm != nil &&
 			(p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
 				p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCWaiting) {
@@ -214,6 +220,58 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *layers.LACP) {
 				Src: RxMachineModuleStr}
 		}
 	}
+}
+
+// detectLoopbackCondition: 802.1ax Section 6.4.14.1 (g)
+// Any pair of Aggregation Ports that are members of the same LAG, but are connected together by the
+// same link, shall not select the same Aggregator (i.e., if a loopback condition exists between two
+// Aggregation Ports, they shall not be aggregated together. For both Aggregation Ports, the Actor
+// System ID is the same as the Partner System ID; also, for Aggregation Port A, the Partner’s Port
+// Identifier is Aggregation Port B, and for Aggregation Port B, the Partner’s Port Identifier is
+//Aggregation Port A).
+func (rxm *LacpRxMachine) detectLoopbackCondition(lacpPduInfo *layers.LACP) bool {
+	p := rxm.p
+	// will allow ports to talk to each other on same system but on different aggregator
+	// keys
+	if (p.PartnerOper.System.Actor_System == lacpPduInfo.Actor.Info.System.SystemId &&
+		p.PartnerOper.System.Actor_System_priority == lacpPduInfo.Actor.Info.System.SystemPriority) &&
+		(lacpPduInfo.Actor.Info.Key == p.ActorOper.Key ||
+			lacpPduInfo.Actor.Info.Port == p.ActorOper.port) {
+		return true
+	}
+	return false
+}
+
+// detectInvalidPeerAggregators: detect that if multiple aggregation ports are connected
+// to mulitiple peers which don't have the same aggregator info then all ports should be taken down
+func (rxm *LacpRxMachine) detectInvalidPeerSelection(lacpPduInfo *layers.LACP) bool {
+
+	p := rxm.p
+	a := p.AggAttached
+	selectionInvalid := false
+	if a != nil {
+		for _, pId := range a.PortNumList {
+			if pId != p.PortNum {
+				var aggport *LaAggPort
+				if LaFindPortById(pId, &aggport) {
+					if (aggport.PartnerOper.System.Actor_System != lacpPduInfo.Actor.Info.System.SystemId ||
+						aggport.PartnerOper.System.Actor_System_priority != lacpPduInfo.Actor.Info.System.SystemPriority) ||
+						aggport.PartnerOper.Key != lacpPduInfo.Actor.Info.Key {
+						selectionInvalid = true
+						if p.MuxMachineFsm != nil &&
+							(aggport.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateWaiting &&
+								aggport.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCWaiting) {
+							aggport.aggSelected = LacpAggUnSelected
+							aggport.MuxMachineFsm.MuxmEvents <- utils.MachineEvent{
+								E:   LacpMuxmEventSelectedEqualUnselected,
+								Src: RxMachineModuleStr}
+						}
+					}
+				}
+			}
+		}
+	}
+	return selectionInvalid
 }
 
 // updateDefaultedSelected: 802.1ax Section 6.4.9
@@ -256,7 +314,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 	if p.AggId != 0 && LaFindAggById(p.AggId, &a) {
 		if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
-			p.Key == a.ActorAdminKey &&
+			p.ActorOper.Key == a.ActorOperKey &&
 			p.PortEnabled {
 
 			p.LaPortLog("checkConfigForSelection: selected")

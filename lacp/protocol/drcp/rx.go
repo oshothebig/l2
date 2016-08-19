@@ -27,12 +27,13 @@
 package drcp
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"l2/lacp/protocol/utils"
+	//"l2/lacp/protocol/utils"
 	"net"
-	"reflect"
+	"strings"
 )
 
 const RxModuleStr = "Rx Module"
@@ -68,6 +69,8 @@ func DrRxMain(pId uint16, portaladdr string, rxPktChan chan gopacket.Packet) {
 								ProcessDrcpFrame(rxMainPort, rxMainDrPortalAddr, drcp)
 							}
 						}
+					} else {
+						fmt.Println("Non-DRCP frame received")
 					}
 				} else {
 					return
@@ -81,32 +84,37 @@ func DrRxMain(pId uint16, portaladdr string, rxPktChan chan gopacket.Packet) {
 
 func IsControlFrame(pId uint16, packet gopacket.Packet) bool {
 
-	drcp := false
+	isdrcp := false
 	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
 	drcpLayer := packet.Layer(layers.LayerTypeDRCP)
-	if ethernetLayer == nil {
+	if ethernetLayer == nil ||
+		drcpLayer == nil {
 		return false
 	}
 
 	ethernet := ethernetLayer.(*layers.Ethernet)
-	drcpProtocolMACs := make([]net.HardwareAddr, 3)
-	drcpProtocolMACs = append(drcpProtocolMACs, net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x00})
-	drcpProtocolMACs = append(drcpProtocolMACs, net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x03})
-	drcpProtocolMACs = append(drcpProtocolMACs, net.HardwareAddr{0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E})
+	drcp := drcpLayer.(*layers.DRCP)
 
 	isDrcpProtocolEtherType := ethernet.EthernetType == layers.EthernetTypeDRCP
 
+	// Nearest Customer Bridge group address 0x00
+	// Nearest Bridge Group address 0x03
+	// Nearest non-TPMR Bridge group address 0x0E
+	isDrcpProtocolMac := (bytes.Equal(ethernet.DstMAC, []uint8{0x01, 0x80, 0xC2, 0x00, 0x00, 0x00}) ||
+		bytes.Equal(ethernet.DstMAC, []uint8{0x01, 0x80, 0xC2, 0x00, 0x00, 0x03}) ||
+		bytes.Equal(ethernet.DstMAC, []uint8{0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E}))
+
+	fmt.Printf("RX: isDrcpProtocolEtherType %t, mac check %t subtype %d\n", isDrcpProtocolEtherType, isDrcpProtocolMac, drcp.SubType)
 	// check the mac address and ethertype
-	if reflect.DeepEqual(ethernet.DstMAC, drcpProtocolMACs[0]) ||
-		reflect.DeepEqual(ethernet.DstMAC, drcpProtocolMACs[1]) ||
-		reflect.DeepEqual(ethernet.DstMAC, drcpProtocolMACs[2]) {
+	if isDrcpProtocolMac {
 		if isDrcpProtocolEtherType &&
-			drcpLayer != nil {
-			drcp = true
+			drcpLayer != nil &&
+			drcp.SubType == layers.DRCPSubProtocolDRCP {
+			isdrcp = true
 		}
 	}
 
-	return drcp
+	return isdrcp
 }
 
 // ProcessDrcpFrame will lookup the cooresponding port from which the
@@ -120,23 +128,32 @@ func ProcessDrcpFrame(pId uint16, pa string, drcp *layers.DRCP) {
 		drcp.PortalInfo.PortalAddr[4],
 		drcp.PortalInfo.PortalAddr[5],
 	}
-
-	if pa != netAddr.String() {
+	upperpa := strings.ToUpper(pa)
+	upperpktpa := strings.ToUpper(netAddr.String())
+	if upperpa != upperpktpa {
 		// not meant for this portal disregarding
+		fmt.Printf("RX: Packet RX portal %+v, expected portal %+v\n", upperpa, upperpktpa)
 		return
 	}
 
-	var dr *DistributedRelay
-	if DrFindByPortalAddr(netAddr.String(), &dr) {
-		for _, ipp := range dr.Ipplinks {
-			if ipp.Id == uint32(pId) {
-				ipp.RxMachineFsm.RxmPktRxEvent <- RxDrcpPdu{
-					pdu: drcp,
-					src: RxModuleStr,
+	// should only be one portal residing on this machine,
+	// but for SIM the same portal is living on the same
+	// system
+	for _, dr := range DistributedRelayDBList {
+		if dr.DrniPortalAddr.String() == netAddr.String() {
+			for _, ipp := range dr.Ipplinks {
+				if ipp.Id == uint32(pId) {
+					if ipp.RxMachineFsm != nil {
+						ipp.RxMachineFsm.RxmPktRxEvent <- RxDrcpPdu{
+							pdu: drcp,
+							src: RxModuleStr,
+						}
+					}
+					return
 				}
-				return
 			}
+			//utils.GlobalLogger.Warning(fmt.Sprintf("RX: Received DRCP Packet on invalid Port %s with Portal Addr %s", pId, pa))
 		}
-		utils.GlobalLogger.Warning(fmt.Sprintf("RX: Received DRCP Packet on invalid Port %s with Portal Addr %s", pId, pa))
 	}
+
 }

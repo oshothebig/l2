@@ -27,6 +27,7 @@ package drcp
 import ()
 
 func init() {
+	DRGlobalSystem.TxCallbacks = make(map[IppDbKey][]TxCallback)
 	DRCPIppDB = make(map[IppDbKey]*DRCPIpp)
 	DRCPIppDBList = make([]*DRCPIpp, 0)
 	DistributedRelayDB = make(map[string]*DistributedRelay)

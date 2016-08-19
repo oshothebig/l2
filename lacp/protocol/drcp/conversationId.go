@@ -25,7 +25,7 @@
 package drcp
 
 import (
-	//"fmt"
+	"fmt"
 	"l2/lacp/protocol/utils"
 )
 
@@ -74,6 +74,7 @@ func GetAllCVIDConversations() {
 					for _, ifindex := range bulkVlanInfo.VlanList[i].IfIndexList {
 						ent.PortList = append(ent.PortList, ifindex)
 					}
+					fmt.Println("Creating Conversation Id", ent)
 					ConversationIdMap[uint16(vlan)] = ent
 				}
 			} else {
@@ -114,7 +115,7 @@ func CreateConversationId(cfg *DRConversationConfig) {
 			// update the local digests and converstaion lists
 			for _, dr := range DistributedRelayDBList {
 				if dr.DrniName == cfg.DrniName {
-					dr.setAdminConvGatewayAndNeighborGatewayListDigest()
+					dr.SetTimeSharingPortAndGatwewayDigest()
 				}
 			}
 		}
@@ -143,7 +144,7 @@ func DeleteConversationId(cfg *DRConversationConfig) {
 				// update the local digests and converstaion lists
 				for _, dr := range DistributedRelayDBList {
 					if dr.DrniName == cfg.DrniName {
-						dr.setAdminConvGatewayAndNeighborGatewayListDigest()
+						dr.SetTimeSharingPortAndGatwewayDigest()
 					}
 				}
 			}
@@ -179,7 +180,7 @@ func UpdateConversationId(cfg *DRConversationConfig) {
 
 			// update the local digests and converstaion lists
 			for _, dr := range DistributedRelayDBList {
-				dr.setAdminConvGatewayAndNeighborGatewayListDigest()
+				dr.SetTimeSharingPortAndGatwewayDigest()
 			}
 		}
 	}

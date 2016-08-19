@@ -53,6 +53,7 @@ var GATEWAY_ALGORITHM_ISID GatewayAlgorithm = GatewayAlgorithm{0x00, 0x80, 0xC2,
 var GATEWAY_ALGORITHM_TE_SID GatewayAlgorithm = GatewayAlgorithm{0x00, 0x80, 0xC2, 0x04}
 var GATEWAY_ALGORITHM_ECMP_FLOW_HASH GatewayAlgorithm = GatewayAlgorithm{0x00, 0x80, 0xC2, 0x05}
 
+var ENCAP_METHOD_SHARING_NULL [4]uint8 = [4]uint8{0x00, 0x00, 0x00, 0x00}
 var ENCAP_METHOD_SEPARATE_LINKS [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x00}
 var ENCAP_METHOD_SHARING_BY_TIME [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x01}
 var ENCAP_METHOD_SHARING_BY_TAG [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x02}
@@ -63,6 +64,15 @@ var ENCAP_METHOD_SHARING_BY_PSEUDOWIRE [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x0
 type GatewayAlgorithm [4]uint8
 type EncapMethod [4]uint8
 type Md5Digest [16]uint8
+
+func (d Md5Digest) get16Bytes() [16]uint8 {
+	return [16]uint8{
+		d[0], d[1], d[2], d[3],
+		d[4], d[5], d[6], d[7],
+		d[8], d[9], d[10], d[11],
+		d[12], d[13], d[14], d[15],
+	}
+}
 
 func (d Md5Digest) calculatePortDigest(portList [][]uint16) Md5Digest {
 	hash := md5.New()

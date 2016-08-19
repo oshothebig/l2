@@ -191,6 +191,7 @@ func (dr *DistributedRelay) DrcpPsMachineMain() {
 		for {
 			select {
 			case event, ok := <-m.PsmEvents:
+				m.DrcpPsmLog(fmt.Sprintf("Received Event %+v", event))
 				if ok {
 					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 					if rv == nil {
@@ -260,9 +261,7 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 	// This should be updated with the valid 'conversation ids'
 	//
 	//dr.DRFHomeConversationPortListDigest
-	dr.setAdminConvPortAndNeighborPortListDigest()
-	dr.setAdminConvGatewayAndNeighborGatewayListDigest()
-
+	dr.SetTimeSharingPortAndGatwewayDigest()
 }
 
 //updateKey This function updates the operational Aggregator Key,
@@ -302,7 +301,32 @@ func (psm *PsMachine) updateKey() {
 					operKey = ipp.DRFOtherNeighborAdminAggregatorKey
 				}
 			}
-			dr.DRFHomeOperAggregatorKey = operKey
+			if dr.DRFHomeAdminAggregatorKey != operKey {
+				psm.DrcpPsmLog(fmt.Sprintf("updateKey: Admin Aggregator Key is updated from %d to %d source(home[%d]neighbor[%d]other[%d])",
+					dr.DRFHomeAdminAggregatorKey, operKey, dr.DRFHomeAdminAggregatorKey, ipp.DRFNeighborAdminAggregatorKey, ipp.DRFOtherNeighborAdminAggregatorKey))
+
+				dr.DRFHomeOperAggregatorKey = operKey
+
+				// required so that the checkForSelection succeeds in finding the
+				// new port info as being set below
+				a.ActorOperKey = operKey
+
+				for _, aggport := range a.PortNumList {
+					lacp.SetLaAggPortSystemInfoFromDistributedRelay(
+						uint16(aggport),
+						fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
+							dr.DrniPortalAddr[0],
+							dr.DrniPortalAddr[1],
+							dr.DrniPortalAddr[2],
+							dr.DrniPortalAddr[3],
+							dr.DrniPortalAddr[4],
+							dr.DrniPortalAddr[5]),
+						dr.DrniPortalPriority,
+						dr.DRFHomeOperAggregatorKey,
+						dr.DrniName,
+						false)
+				}
+			}
 		}
 	}
 }
@@ -313,6 +337,11 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 	// TODO need to understand the logic better
 	dr := psm.dr
 	a := dr.a
+
+	if changeDRFPorts {
+		fmt.Println("updateDRFHomeState called with changedDRFPorts")
+		dr.SetTimeSharingPortAndGatwewayDigest()
+	}
 
 	// Update the Home Gateway State
 	psm.setDRFHomeState(changeDRFPorts)
@@ -331,7 +360,26 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 
 	// update the digests
 	if changePortal {
-		// TODO update the Gateway Vector sequence
+		// If change portal event was received means that the gateway
+		// has been updated so lets update the home state
+		// update the Home State Gateway Vector sequence
+		vector := make([]bool, 4096)
+		if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
+			for cid, portalsystemnumbers := range dr.DrniConvAdminGateway {
+				if len(portalsystemnumbers) > 1 {
+					fmt.Printf("updateDRFHome: cid %d is true\n", cid)
+					vector[cid] = true
+				}
+			}
+		}
+		if len(dr.DRFHomeState.GatewayVector) > 0 {
+			dr.DRFHomeState.updateGatewayVector(dr.DRFHomeState.GatewayVector[0].Sequence+1, vector)
+		} else {
+			dr.DRFHomeState.updateGatewayVector(1, vector)
+		}
+		fmt.Printf("updateDRFHome: DRFHomeState vector[100] %t\n", dr.DRFHomeState.GatewayVector[0].Vector[100])
+		dr.HomeGatewayVectorTransmit = true
+
 		dr.GatewayConversationUpdate = true
 		if dr.GMachineFsm != nil {
 			dr.GMachineFsm.GmEvents <- utils.MachineEvent{
@@ -341,6 +389,13 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		}
 	}
 	if changeDRFPorts {
+		// Assumption is made that if DRFPorts have changed that the aggregators
+		// distributing ports have changed
+		dr.DRFHomeState.PortIdList = make([]uint32, len(dr.DRAggregatorDistributedList))
+		for i, portId := range dr.DRAggregatorDistributedList {
+			dr.DRFHomeState.PortIdList[i] = uint32(portId)
+		}
+		dr.PortConversationUpdate = true
 		if dr.AMachineFsm != nil {
 			dr.AMachineFsm.AmEvents <- utils.MachineEvent{
 				E:   AmEventPortConversationUpdate,
@@ -407,8 +462,8 @@ func (psm *PsMachine) setDRFHomeState(changeDRFPorts bool) (gatewayChanged bool)
 func (psm *PsMachine) isGatewayConvNull() bool {
 	dr := psm.dr
 	conversationdoesnotexist := true
-	for _, gateway := range dr.DrniConvAdminGateway {
-		if gateway != nil {
+	for _, portalsystemnumbers := range dr.DrniConvAdminGateway {
+		if portalsystemnumbers != nil {
 			conversationdoesnotexist = false
 			break
 		}

@@ -34,12 +34,12 @@ import (
 
 // bridge will simulate communication between two channels
 type SimulationBridge struct {
-	port1       uint16
-	port2       uint16
-	rxLacpPort1 chan gopacket.Packet
-	rxLacpPort2 chan gopacket.Packet
-	rxLampPort1 chan gopacket.Packet
-	rxLampPort2 chan gopacket.Packet
+	Port1       uint16
+	Port2       uint16
+	RxLacpPort1 chan gopacket.Packet
+	RxLacpPort2 chan gopacket.Packet
+	RxLampPort1 chan gopacket.Packet
+	RxLampPort2 chan gopacket.Packet
 }
 
 func (bridge *SimulationBridge) TxViaGoChannel(port uint16, pdu interface{}) {
@@ -78,13 +78,13 @@ func (bridge *SimulationBridge) TxViaGoChannel(port uint16, pdu interface{}) {
 
 		pkt := gopacket.NewPacket(buf.Bytes(), layers.LinkTypeEthernet, gopacket.Default)
 
-		if port != bridge.port1 && bridge.rxLacpPort1 != nil {
+		if port != bridge.Port1 && bridge.RxLacpPort1 != nil {
 			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port1)
 			//fmt.Println("TX:", pkt)
-			bridge.rxLacpPort1 <- pkt
-		} else if bridge.rxLacpPort2 != nil {
+			bridge.RxLacpPort1 <- pkt
+		} else if bridge.RxLacpPort2 != nil {
 			//fmt.Println("TX channel: Tx From port", port, "bridge Port Rx", bridge.port2)
-			bridge.rxLacpPort2 <- pkt
+			bridge.RxLacpPort2 <- pkt
 		}
 	} else {
 		utils.GlobalLogger.Err(fmt.Sprintf("Unable to find port %d in tx", port))

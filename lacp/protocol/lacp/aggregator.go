@@ -147,11 +147,14 @@ type LaAggregator struct {
 	// Actor_Oper_Aggregator_Key
 	ActorOperKey uint16
 	//Aggregator_MAC_address
-	AggMacAddr               [6]uint8 // AggActorSystmID
-	AggPriority              uint16   // AggActorSystemPriority
-	PortAlgorithm            [4]uint8 // AggPortAlgorithm
-	PartnerDWC               bool
-	AggConversationAdminLink [4096]uint16
+	AggMacAddr    [6]uint8 // AggActorSystmID
+	AggPriority   uint16   // AggActorSystemPriority
+	PortAlgorithm [4]uint8 // AggPortAlgorithm
+	PartnerDWC    bool
+	//AggConversationAdminLink [4096]uint16
+
+	// If attached to a DR then this will be set
+	DrniName string
 
 	// TODO need to fill in the parameters for DR's use
 	// Partner_System
@@ -159,7 +162,7 @@ type LaAggregator struct {
 	// Partner_System_Priority
 	PartnerSystemPriority int
 	// Partner_Oper_Aggregator_Key
-	PartnerOperKey int
+	PartnerOperKey uint16
 
 	//		1 : string 	NameKey
 	//	    2 : i32 	Interval
@@ -200,7 +203,7 @@ type LaAggregator struct {
 	// which is always invoked when a new aAggConversationAdminLink[] (7.3.1.1.35) or new
 	// aAggPortLinkNumberID (7.3.2.1.27) operator command is issued
 	// Port priority will be 1:1 with the port value
-	ConversationPortList [4096][]uint16
+	//ConversationPortList [4096][]uint16
 
 	// For now this value assumes the value of the linux modes
 	// 0 - L2
@@ -223,7 +226,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		AggId:                  ac.Id,
 		AdminState:             ac.Enabled,
 		AggMacAddr:             sysId.Actor_System,
-		AggPriority:            ac.Lacp.SystemPriority,
+		AggPriority:            sysId.Actor_System_priority,
 		PortAlgorithm:          [4]uint8{0x00, 0x80, 0xC2, 0x01},
 		PartnerDWC:             false,
 		ActorAdminKey:          ac.Key,
