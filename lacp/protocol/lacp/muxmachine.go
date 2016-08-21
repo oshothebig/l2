@@ -671,7 +671,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 func (muxm *LacpMuxMachine) LacpMuxmWaitingEvaluateSelected(sendResponse bool) {
 	var a *LaAggregator
 	p := muxm.p
-	//muxm.LacpMuxmLog(strings.Join([]string{"Selected", strconv.Itoa(LacpAggSelected), "actual", strconv.Itoa(p.aggSelected)}, "="))
+	muxm.LacpMuxmLog(strings.Join([]string{"Selected", strconv.Itoa(LacpAggSelected), "actual", strconv.Itoa(p.aggSelected)}, "="))
 	// current port should be in selected State
 	if p.aggSelected == LacpAggSelected ||
 		p.aggSelected == LacpAggStandby {
@@ -694,7 +694,7 @@ func (muxm *LacpMuxMachine) AttachMuxToAggregator() {
 	p := muxm.p
 	if LaFindAggById(p.AggId, &p.AggAttached) {
 		LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
-		muxm.LacpMuxmLog("Attach Mux To Aggregator Enter, send Add PORT to ASICD")
+		muxm.LacpMuxmLog("Attach Mux To Aggregator Enter")
 	}
 }
 

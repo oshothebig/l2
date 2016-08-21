@@ -564,7 +564,7 @@ func DRFindPortByKey(key IppDbKey, p **DRCPIpp) bool {
 func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) {
 	nsi.mutex.Lock()
 
-	fmt.Printf("updateGatewayVector: GatewayVector vector[100]=%t\n", vector[100])
+	//fmt.Printf("updateGatewayVector: GatewayVector vector[100]=%t\n", vector[100])
 
 	if len(nsi.GatewayVector) > 0 {
 		nsi.OpState = true
@@ -585,7 +585,7 @@ func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) 
 				// insert sequence/vecotor at front of list
 				nsi.GatewayVector = append(nsi.GatewayVector, GatewayVectorEntry{Vector: make([]bool, 4096)})
 				copy(nsi.GatewayVector[i:], nsi.GatewayVector[i+1:])
-				fmt.Printf("updateGatewayVector length of GatewayVector %d\n", len(nsi.GatewayVector))
+				//fmt.Printf("updateGatewayVector length of GatewayVector %d\n", len(nsi.GatewayVector))
 				nsi.GatewayVector[0] = GatewayVectorEntry{
 					Sequence: sequence,
 					Vector:   make([]bool, 4096),
@@ -593,7 +593,7 @@ func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) 
 				for j, val := range vector {
 					nsi.GatewayVector[0].Vector[j] = val
 				}
-				fmt.Printf("updateGatewayVector: prepend vector[100] %t\n", nsi.GatewayVector[0].Vector[100])
+				//fmt.Printf("updateGatewayVector: prepend vector[100] %t\n", nsi.GatewayVector[0].Vector[100])
 				break
 			}
 		}
@@ -607,7 +607,7 @@ func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) 
 		}
 		nsi.OpState = true
 		nsi.GatewayVector = append(nsi.GatewayVector, tmp)
-		fmt.Printf("updateGatewayVector: new vector[100] %t\n", nsi.GatewayVector[0].Vector[100])
+		//fmt.Printf("updateGatewayVector: new vector[100] %t\n", nsi.GatewayVector[0].Vector[100])
 	}
 	nsi.mutex.Unlock()
 

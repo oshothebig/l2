@@ -150,7 +150,7 @@ func (rxm *RxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	rxm.Machine.Rules = r
 	rxm.Machine.Curr = &utils.StateEvent{
 		StrStateMap: RxmStateStrMap,
-		LogEna:      true,
+		LogEna:      false,
 		Logger:      rxm.DrcpRxmLog,
 		Owner:       RxMachineModuleStr,
 	}
@@ -676,8 +676,6 @@ func (rxm *RxMachine) recordPortalValuesSavePortalInfo(drcpPduInfo *layers.DRCP)
 
 	p.DRFNeighborAggregatorPriority = drcpPduInfo.PortalInfo.AggPriority
 	p.DRFNeighborAggregatorId = drcpPduInfo.PortalInfo.AggId
-	rxm.DrcpRxmLog(fmt.Sprintf("record Portal Values: Aggregator Id pkt %d local %d", drcpPduInfo.PortalInfo.AggId, p.dr.DrniAggregatorId))
-
 	p.DrniNeighborPortalPriority = drcpPduInfo.PortalInfo.PortalPriority
 	p.DrniNeighborPortalAddr = drcpPduInfo.PortalInfo.PortalAddr
 
@@ -1388,7 +1386,7 @@ func (rxm *RxMachine) compareGatewayOperGatewayVector() {
 	operOrVectorDiffer := false
 	for i := 1; i <= MAX_PORTAL_SYSTEM_IDS && !operOrVectorDiffer; i++ {
 		if dr.DrniPortalSystemState[i].OpState != p.DrniNeighborState[i].OpState {
-			rxm.DrcpRxmLog(fmt.Sprintf("Neighbor Gateway OpState Different Prev[%t] New[%t]", dr.DrniPortalSystemState[i].OpState, p.DrniNeighborState[i].OpState))
+			rxm.DrcpRxmLog(fmt.Sprintf("Neighbor Gateway OpState Different system portal num[%d[ Prev[%t] New[%t]", i, dr.DrniPortalSystemState[i].OpState, p.DrniNeighborState[i].OpState))
 			operOrVectorDiffer = true
 		} else if dr.DrniPortalSystemState[i].OpState {
 			if len(dr.DrniPortalSystemState[i].GatewayVector) != len(p.DrniNeighborState[i].GatewayVector) {

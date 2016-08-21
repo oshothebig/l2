@@ -37,7 +37,6 @@ import (
 
 	//"net"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 	"utils/dbutils"
@@ -283,18 +282,6 @@ func GetKeyByAggName(AggName string) uint16 {
 	return Key
 }
 
-// the id of the agg should be part of the name
-// format expected <name>-<#number>
-func GetIdByName(AggName string) int {
-	var i int
-	if strings.Contains(AggName, "-") {
-		i, _ = strconv.Atoi(strings.Split(AggName, "-")[1])
-	} else {
-		i = 0
-	}
-	return i
-}
-
 func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) error {
 	if dbHdl != nil {
 		var dbObj objects.LaPortChannel
@@ -363,18 +350,18 @@ func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) 
 		lacp.LacpFastPeriodicTime: lacp.LacpShortTimeoutTime,
 	}
 
-	nameKey := fmt.Sprintf("agg-%d", config.LagId)
+	nameKey := config.IntfRef
 
 	var a *lacp.LaAggregator
 	if lacp.LaFindAggByName(nameKey, &a) {
 
-		return false, errors.New(fmt.Sprintf("LACP: Error trying to create Lag %d that already exists", config.LagId))
+		return false, errors.New(fmt.Sprintf("LACP: Error trying to create Lag %s that already exists", config.IntfRef))
 
 	} else {
-
+		id := GetKeyByAggName(nameKey)
 		conf := &lacp.LaAggConfig{
-			Id:  int(config.LagId),
-			Key: GetKeyByAggName(nameKey),
+			Id:  int(id),
+			Key: id,
 			// Identifier of the lag
 			Name: nameKey,
 			// Type of LAG STATIC or LACP
@@ -405,7 +392,7 @@ func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) 
 			var a *lacp.LaAggregator
 			if lacp.LaFindAggById(conf.Id, &a) {
 
-				for _, ifindex := range config.Members {
+				for _, intfref := range config.IntfRefList {
 					mode, ok := aggModeMap[uint32(a.Config.Mode)]
 					if !ok || a.AggType == lacp.LaAggTypeSTATIC {
 						mode = lacp.LacpModeOn
@@ -415,11 +402,12 @@ func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) 
 					if !ok {
 						timeout = lacp.LacpLongTimeoutTime
 					}
+					ifindex := utils.GetIfIndexFromName(intfref)
 					conf := &lacp.LaAggPortConfig{
 						Id:       uint16(ifindex),
 						Prio:     uint16(a.Config.SystemPriority),
-						Key:      uint16(config.LagId),
-						AggId:    int(GetIdByName(nameKey)),
+						Key:      uint16(conf.Key),
+						AggId:    int(conf.Id),
 						Enable:   conf.Enabled,
 						Mode:     int(mode),
 						Timeout:  timeout,
@@ -441,9 +429,9 @@ func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) 
 func (la *LACPDServiceHandler) DeleteLaPortChannel(config *lacpd.LaPortChannel) (bool, error) {
 
 	//nameKey := fmt.Sprintf("agg-%d", config.LagId)
-
+	id := GetKeyByAggName(config.IntfRef)
 	conf := &lacp.LaAggConfig{
-		Id: int(config.LagId),
+		Id: int(id),
 	}
 
 	cfg := server.LAConfig{
@@ -505,11 +493,12 @@ func (la *LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChann
 	//objVal := reflect.ValueOf(origconfig)
 	//updateObjVal := reflect.ValueOf(*updateconfig)
 
-	nameKey := fmt.Sprintf("agg-%d", updateconfig.LagId)
+	nameKey := updateconfig.IntfRef
 
+	id := GetKeyByAggName(nameKey)
 	conf := &lacp.LaAggConfig{
-		Id:  GetIdByName(nameKey),
-		Key: GetKeyByAggName(nameKey),
+		Id:  int(id),
+		Key: id,
 		// Identifier of the lag
 		Name: nameKey,
 		// Type of LAG STATIC or LACP
@@ -536,11 +525,18 @@ func (la *LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChann
 			//fmt.Println("UpdateAggregationLacpConfig (server): (index, objName) ", i, objName)
 			if attrset[i] {
 				fmt.Println("UpdateAggregationLacpConfig (server): changed ", objName)
-				if objName == "Members" {
+				if objName == "IntfRefList" {
 					var a *lacp.LaAggregator
 
 					if lacp.LaFindAggById(int(conf.Id), &a) {
-						addList, delList := GetAddDelMembers(a.PortNumList, updateconfig.Members)
+						ifindexList := make([]int32, 0)
+						for _, intfref := range updateconfig.IntfRefList {
+							ifindex := utils.GetIfIndexFromName(intfref)
+							if ifindex != 0 {
+								ifindexList = append(ifindexList, ifindex)
+							}
+						}
+						addList, delList := GetAddDelMembers(a.PortNumList, ifindexList)
 						for _, m := range delList {
 							conf := &lacp.LaAggPortConfig{
 								Id: uint16(m),
@@ -562,11 +558,12 @@ func (la *LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChann
 							if !ok {
 								timeout = lacp.LacpLongTimeoutTime
 							}
+							id := GetKeyByAggName(nameKey)
 							conf := &lacp.LaAggPortConfig{
 								Id:       uint16(ifindex),
 								Prio:     uint16(a.Config.SystemPriority),
-								Key:      uint16(updateconfig.LagId),
-								AggId:    int(GetIdByName(nameKey)),
+								Key:      id,
+								AggId:    int(id),
 								Enable:   conf.Enabled,
 								Mode:     mode,
 								Timeout:  timeout,
@@ -788,8 +785,9 @@ func (la *LACPDServiceHandler) GetPortChannelState(portChannel *lacpd.LaPortChan
 	pcs := &lacpd.LaPortChannelState{}
 
 	var a *lacp.LaAggregator
-	if lacp.LaFindAggById(int(portChannel.LagId), &a) {
-		pcs.LagId = int32(a.AggId)
+	id := GetKeyByAggName(portChannel.IntfRef)
+	if lacp.LaFindAggById(int(id), &a) {
+		pcs.IntfRef = a.AggName
 		pcs.IfIndex = int32(a.AggId)
 		pcs.LagType = ConvertLaAggTypeToModelLagType(a.AggType)
 		pcs.AdminState = "DOWN"
@@ -808,21 +806,27 @@ func (la *LACPDServiceHandler) GetPortChannelState(portChannel *lacpd.LaPortChan
 		pcs.LagHash = int32(a.LagHash)
 		//pcs.Ifindex = int32(a.HwAggId)
 		for _, m := range a.PortNumList {
-			pcs.Members = append(pcs.Members, int32(m))
+			name := utils.GetNameFromIfIndex(int32(m))
+			if name != "" {
+				pcs.IntfRefList = append(pcs.IntfRefList, name)
+			}
 			var p *lacp.LaAggPort
 			if lacp.LaFindPortById(m, &p) {
 				if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit) {
-					pcs.MembersUpInBundle = append(pcs.MembersUpInBundle, int32(m))
+					distName := utils.GetNameFromIfIndex(int32(m))
+					if distName != "" {
+						pcs.IntfRefListUpInBundle = append(pcs.IntfRefListUpInBundle, distName)
+					}
 				}
 			}
 		}
 	} else {
-		return pcs, errors.New(fmt.Sprintf("LACP: Unable to find port channel from LagId %d", portChannel.LagId))
+		return pcs, errors.New(fmt.Sprintf("LACP: Unable to find port channel from LagId %s", portChannel.IntfRef))
 	}
 	return pcs, nil
 }
 
-func (la *LACPDServiceHandler) GetLaPortChannelState(lagId int32) (obj *lacpd.LaPortChannelState, err error) {
+func (la *LACPDServiceHandler) GetLaPortChannelState(intfref string) (obj *lacpd.LaPortChannelState, err error) {
 	return nil, nil
 }
 
@@ -849,8 +853,8 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 		} else {
 
 			nextLagState = &lagStateList[validCount]
-			nextLagState.LagId = int32(a.AggId)
-			nextLagState.IfIndex = int32(a.AggId)
+			nextLagState.IntfRef = a.AggName
+			nextLagState.IfIndex = int32(a.HwAggId)
 			nextLagState.LagType = ConvertLaAggTypeToModelLagType(a.AggType)
 			nextLagState.AdminState = "DOWN"
 			if a.AdminState {
@@ -868,11 +872,17 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 			nextLagState.LagHash = int32(a.LagHash)
 			//nextLagState.Ifindex = int32(a.HwAggId)
 			for _, m := range a.PortNumList {
-				nextLagState.Members = append(nextLagState.Members, int32(m))
+				name := utils.GetNameFromIfIndex(int32(m))
+				if name != "" {
+					nextLagState.IntfRefList = append(nextLagState.IntfRefList, name)
+				}
 				var p *lacp.LaAggPort
 				if lacp.LaFindPortById(m, &p) {
 					if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit) {
-						nextLagState.MembersUpInBundle = append(nextLagState.MembersUpInBundle, int32(m))
+						distName := utils.GetNameFromIfIndex(int32(m))
+						if distName != "" {
+							nextLagState.IntfRefListUpInBundle = append(nextLagState.IntfRefListUpInBundle, distName)
+						}
 					}
 				}
 			}
@@ -901,10 +911,11 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 	return obj, nil
 }
 
-func (la *LACPDServiceHandler) GetPortChannelMemberState(portchannelmemberstate *lacpd.LaPortChannelMemberState) (*lacpd.LaPortChannelMemberState, error) {
-	pcms := &lacpd.LaPortChannelMemberState{}
+func (la *LACPDServiceHandler) GetLaPortChannelIntfRefListState(intfref string) (*lacpd.LaPortChannelIntfRefListState, error) {
+	pcms := &lacpd.LaPortChannelIntfRefListState{}
 	var p *lacp.LaAggPort
-	if lacp.LaFindPortByPortId(int(portchannelmemberstate.IfIndex), &p) {
+	id := utils.GetIfIndexFromName(intfref)
+	if lacp.LaFindPortById(uint16(id), &p) {
 		// actor info
 		pcms.Aggregatable = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateAggregationBit)
 		pcms.Collecting = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateCollectingBit)
@@ -942,9 +953,9 @@ func (la *LACPDServiceHandler) GetPortChannelMemberState(portchannelmemberstate 
 		}
 
 		pcms.OperKey = int16(p.ActorOper.Key)
-		pcms.IfIndex = int32(p.PortNum)
+		pcms.IntfRef = p.IntfNum
 		if p.AggAttached != nil {
-			pcms.LagId = int32(p.AggId)
+			pcms.LagIntfRef = p.AggAttached.AggName
 			//		pcms.Mode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)
 		}
 
@@ -990,23 +1001,19 @@ func (la *LACPDServiceHandler) GetPortChannelMemberState(portchannelmemberstate 
 		pcms.ActorCdsChurnCount = int64(p.AggPortDebug.AggPortDebugActorCDSChurnCount)
 		pcms.PartnerCdsChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerCDSChurnCount)
 	} else {
-		return pcms, errors.New(fmt.Sprintf("LACP: Unabled to find port by IfIndex %d", portchannelmemberstate.IfIndex))
+		return pcms, errors.New(fmt.Sprintf("LACP: Unabled to find port by IntfRef %s", intfref))
 	}
 	return pcms, nil
 }
 
-func (la *LACPDServiceHandler) GetLaPortChannelMemberState(ifIndex int32) (obj *lacpd.LaPortChannelMemberState, err error) {
-	return nil, nil
-}
-
 // GetBulkAggregationLacpMemberStateCounters will return the status of all
 // the lag members.
-func (la *LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.LaPortChannelMemberStateGetInfo, err error) {
+func (la *LACPDServiceHandler) GetBulkLaPortChannelIntfRefListState(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.LaPortChannelIntfRefListStateGetInfo, err error) {
 
-	var lagMemberStateList []lacpd.LaPortChannelMemberState = make([]lacpd.LaPortChannelMemberState, count)
-	var nextLagMemberState *lacpd.LaPortChannelMemberState
-	var returnLagMemberStates []*lacpd.LaPortChannelMemberState
-	var returnLagMemberStateGetInfo lacpd.LaPortChannelMemberStateGetInfo
+	var lagMemberStateList []lacpd.LaPortChannelIntfRefListState = make([]lacpd.LaPortChannelIntfRefListState, count)
+	var nextLagMemberState *lacpd.LaPortChannelIntfRefListState
+	var returnLagMemberStates []*lacpd.LaPortChannelIntfRefListState
+	var returnLagMemberStateGetInfo lacpd.LaPortChannelIntfRefListStateGetInfo
 	var p *lacp.LaAggPort
 	validCount := lacpd.Int(0)
 	toIndex := fromIndex
@@ -1056,9 +1063,9 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.I
 			}
 
 			nextLagMemberState.OperKey = int16(p.ActorOper.Key)
-			nextLagMemberState.IfIndex = int32(p.PortNum)
+			nextLagMemberState.IntfRef = p.IntfNum
 			if p.AggAttached != nil {
-				nextLagMemberState.LagId = int32(p.AggId)
+				nextLagMemberState.LagIntfRef = p.AggAttached.AggName
 				//		nextLagMemberState.Mode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)
 			}
 
@@ -1105,7 +1112,7 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.I
 			nextLagMemberState.PartnerCdsChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerCDSChurnCount)
 
 			if len(returnLagMemberStates) == 0 {
-				returnLagMemberStates = make([]*lacpd.LaPortChannelMemberState, 0)
+				returnLagMemberStates = make([]*lacpd.LaPortChannelIntfRefListState, 0)
 			}
 			returnLagMemberStates = append(returnLagMemberStates, nextLagMemberState)
 			validCount++
@@ -1119,7 +1126,7 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.I
 	}
 
 	fmt.Printf("Returning %d list of lagMembers\n", validCount)
-	obj.LaPortChannelMemberStateList = returnLagMemberStates
+	obj.LaPortChannelIntfRefListStateList = returnLagMemberStates
 	obj.StartIdx = fromIndex
 	obj.EndIdx = toIndex + 1
 	obj.More = moreRoutes
@@ -1129,7 +1136,7 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelMemberState(fromIndex lacpd.I
 }
 
 func (la *LACPDServiceHandler) convertDbObjDataToDRCPData(objData *objects.DistributedRelay, cfgData *drcp.DistrubtedRelayConfig) {
-	cfgData.DrniName = objData.Name
+	cfgData.DrniName = objData.DrniName
 	cfgData.DrniPortalAddress = objData.PortalAddress
 	cfgData.DrniPortalPriority = uint16(objData.PortalPriority)
 	cfgData.DrniThreePortalSystem = objData.ThreePortalSystem
@@ -1137,7 +1144,7 @@ func (la *LACPDServiceHandler) convertDbObjDataToDRCPData(objData *objects.Distr
 	for i, val := range objData.IntraPortalLinkList {
 		cfgData.DrniIntraPortalLinkList[i] = val
 	}
-	cfgData.DrniAggregator = objData.LagId
+	cfgData.DrniAggregator = uint32(GetKeyByAggName(objData.IntfRef))
 	// This will be dynamically configured not provisioned by user
 	//cfgData.DrniConvAdminGateway = objData.ConvAdminGateway
 	for i, data := range objData.NeighborAdminConvGatewayListDigest {

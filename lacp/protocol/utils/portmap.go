@@ -117,3 +117,12 @@ func GetIfIndexFromName(name string) int32 {
 	}
 	return 0
 }
+
+func GetNameFromIfIndex(ifindex int32) string {
+	for _, portcfg := range PortConfigMap {
+		if portcfg.IfIndex == ifindex {
+			return portcfg.Name
+		}
+	}
+	return ""
+}

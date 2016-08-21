@@ -554,6 +554,8 @@ func SetLaAggPortSystemInfoFromDistributedRelay(pId uint16, sysIdMac string, sys
 	// agg exists
 	if LaFindPortById(pId, &p) {
 		mac, ok := net.ParseMAC(sysIdMac)
+		utils.GlobalLogger.Info(fmt.Sprintf("%s Previous Agg Port %d OperKey %d New %d", drName, pId, p.ActorOper.Key, operKey))
+
 		if ok == nil &&
 			p.ActorOper.Key != operKey {
 			// update the port infot o point back to drni

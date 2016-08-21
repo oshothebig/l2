@@ -65,12 +65,12 @@ func (bridge *SimulationNeighborBridge) TxViaGoChannel(key IppDbKey, dmac net.Ha
 
 		pkt := gopacket.NewPacket(buf.Bytes(), layers.LinkTypeEthernet, gopacket.Default)
 		if p.Id != bridge.Port1 && bridge.RxIppPort1 != nil {
-			fmt.Println("TX channel: Tx From port", p.Id, "bridge Port Rx", bridge.Port1)
-			fmt.Printf("TX: %+v", pkt)
+			//fmt.Println("TX channel: Tx From port", p.Id, "bridge Port Rx", bridge.Port1)
+			//fmt.Printf("TX: %+v", pkt)
 			bridge.RxIppPort1 <- pkt
 		} else if bridge.RxIppPort2 != nil {
-			fmt.Println("TX channel: Tx From port", p.Id, "bridge Port Rx", bridge.Port2)
-			fmt.Println("TX: %+v", pkt)
+			//fmt.Println("TX channel: Tx From port", p.Id, "bridge Port Rx", bridge.Port2)
+			//fmt.Println("TX: %+v", pkt)
 			bridge.RxIppPort2 <- pkt
 		}
 	} else {

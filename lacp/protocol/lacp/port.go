@@ -448,6 +448,13 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	// default actor oper same as admin
 	p.ActorOper = p.ActorAdmin
 
+	// port should be forced to unselected until the
+	// DRNI has negotiated the Key
+	if a != nil &&
+		a.DrniName != "" {
+		p.ActorOper.Key = 0
+	}
+
 	// default partner admin
 	p.partnerAdmin.State = sgi.PartnerStateDefaultParams.State
 	// default partner oper same as admin
@@ -1021,7 +1028,7 @@ func LacpCopyLacpPortInfo(fromPortInfoPtr *LacpPortInfo, toPortInfoPtr *LacpPort
 }
 
 func LacpLacpPktPortInfoIsEqual(aPortInfoPtr *layers.LACPPortInfo, bPortInfoPtr *LacpPortInfo, StateBits uint8) bool {
-
+	utils.GlobalLogger.Info(fmt.Sprintf("LacpLacpPktPortInfoIsEqual: pkt %+v  port %+v %t %t", aPortInfoPtr, bPortInfoPtr, LacpStateIsSet(aPortInfoPtr.State, StateBits), LacpStateIsSet(bPortInfoPtr.State, StateBits)))
 	return aPortInfoPtr.System.SystemId == bPortInfoPtr.System.Actor_System &&
 		aPortInfoPtr.System.SystemPriority == bPortInfoPtr.System.Actor_System_priority &&
 		aPortInfoPtr.Port == bPortInfoPtr.port &&

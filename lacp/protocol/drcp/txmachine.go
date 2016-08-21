@@ -30,7 +30,7 @@ import (
 	"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
-	"math"
+	//"math"
 	"strconv"
 	"strings"
 	"utils/fsm"
@@ -113,7 +113,7 @@ func (txm *TxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	txm.Machine.Rules = r
 	txm.Machine.Curr = &utils.StateEvent{
 		StrStateMap: TxmStateStrMap,
-		LogEna:      true,
+		LogEna:      false,
 		Logger:      txm.DrcpTxmLog,
 		Owner:       TxMachineModuleStr,
 	}
@@ -131,6 +131,7 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 	if p.NTTDRCPDU &&
 		p.DRCPEnabled {
 
+		dr.DRFHomeOperDRCPState.SetState(layers.DRCPStateIPPActivity)
 		numPkts := 1
 		if p.GatewayConversationTransmit &&
 			p.PortConversationTransmit &&
@@ -313,6 +314,8 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 					drcp.TwoPortalGatewayConversationVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLV2PGatewayConversationVector))
 					drcp.TwoPortalGatewayConversationVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLV2PGatewayConversationVectorLength))
 					pktLength += uint32(layers.DRCPTLV2PGatewayConversationVectorLength) + uint32(layers.DRCPTlvAndLengthSize)
+
+					drcp.TwoPortalGatewayConversationVector.Vector = make([]uint8, 512)
 					for i, j := 0, 0; i < 512; i, j = i+1, j+8 {
 
 						if dr.DrniPortalSystemGatewayConversation[j] {
@@ -419,42 +422,44 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 
 			//portMtu := uint32(utils.PortConfigMap[int32(p.Id)].Mtu)
 			portMtu := uint32(32768)
-			fmt.Printf("TX: HomeGatewayVectorTransmit %t OtherGatewayVectorTRansmit %t pktlength %d mtu %d\n",
-				dr.HomeGatewayVectorTransmit,
-				dr.OtherGatewayVectorTransmit,
-				pktLength,
-				portMtu)
+			//fmt.Printf("TX: HomeGatewayVectorTransmit %t OtherGatewayVectorTRansmit %t pktlength %d mtu %d\n",
+			//	dr.HomeGatewayVectorTransmit,
+			//	dr.OtherGatewayVectorTransmit,
+			//	pktLength,
+			//	portMtu)
 			if (dr.HomeGatewayVectorTransmit ||
 				dr.OtherGatewayVectorTransmit) &&
 				pktLength < portMtu {
 				// TODO WTF is the standard trying to say is supposed to happen here
 				// Only include it if it does not make the packet exceed the MTU?  But other parts of standard say
 				// the field is manditory
-				drcp.HomeGatewayVector = layers.DRCPHomeGatewayVectorTlv{}
-				gatewayvector := dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].getGatewayVectorByIndex(0)
-				if gatewayvector != nil {
-					// TODO this should actually be the DRFHomeGatewayConversationMask, which should be the same as below but
-					// lets follow the standard
-					if gatewayvector.Vector != nil {
-						fmt.Printf("TX (1)\n")
-						drcp.HomeGatewayVector.Sequence = gatewayvector.Sequence
-						j := 0
-						fmt.Printf("TX (2)\n")
-						for i, vector := range gatewayvector.Vector {
-							index := uint(math.Mod(float64(i), 8))
-							if vector {
-								fmt.Printf("TX j %d", j)
-								if drcp.HomeGatewayVector.Vector == nil {
-									drcp.HomeGatewayVector.Vector = make([]uint8, 512)
+				/*
+					drcp.HomeGatewayVector = layers.DRCPHomeGatewayVectorTlv{}
+					gatewayvector := dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].getGatewayVectorByIndex(0)
+					if gatewayvector != nil {
+						// TODO this should actually be the DRFHomeGatewayConversationMask, which should be the same as below but
+						// lets follow the standard
+						if gatewayvector.Vector != nil {
+							fmt.Printf("TX (1)\n")
+							drcp.HomeGatewayVector.Sequence = gatewayvector.Sequence
+							j := 0
+							fmt.Printf("TX (2)\n")
+							for i, vector := range gatewayvector.Vector {
+								index := uint(math.Mod(float64(i), 8))
+								if vector {
+									fmt.Printf("TX j %d", j)
+									if drcp.HomeGatewayVector.Vector == nil {
+										drcp.HomeGatewayVector.Vector = make([]uint8, 512)
+									}
+									drcp.HomeGatewayVector.Vector[j] |= uint8(1 << index)
 								}
-								drcp.HomeGatewayVector.Vector[j] |= uint8(1 << index)
-							}
-							if index == 0 {
-								j++
+								if index == 0 {
+									j++
+								}
 							}
 						}
 					}
-				}
+				*/
 				drcp.HomeGatewayVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeHomeGatewayVector))
 				if len(drcp.HomeGatewayVector.Vector) > 0 {
 					drcp.HomeGatewayVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLVHomeGatewayVectorLength_2))

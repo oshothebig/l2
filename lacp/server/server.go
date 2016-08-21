@@ -168,7 +168,6 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		s.logger.Info("CONFIG: Create Link Aggregation Port")
 		config := conf.Msgdata.(*lacp.LaAggPortConfig)
 		lacp.CreateLaAggPort(config)
-		var a *lacp.LaAggregator
 		// if this is the first port then we need to do some
 		// work in terms of the
 		drcp.UpdateAggregatorPortList(config.AggId)

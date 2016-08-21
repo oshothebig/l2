@@ -270,7 +270,7 @@ func (gm *GMachine) updatePortalState() {
 
 	// The information for this Portal System, DRF_Home_State, indexed by the Portal System
 	// Number, is included in Drni_Portal_System_State[].
-	fmt.Println("updateGatewayVector called on dr.DrniPortalSystemState local")
+	//fmt.Println("updateGatewayVector called on dr.DrniPortalSystemState local")
 	homevector := dr.DRFHomeState.getGatewayVectorByIndex(0)
 	if homevector == nil {
 		fmt.Println("DRFHomeState returned nil for gateway vector at index 0")
@@ -287,12 +287,12 @@ func (gm *GMachine) updatePortalState() {
 			// Number
 		} else {
 			if ipp.DRFNeighborState.OpState {
-				fmt.Println("updateGatewayVector called on dr.DrniPortalSystemState neighbor")
+				//fmt.Println("updateGatewayVector called on dr.DrniPortalSystemState neighbor")
 				neighborvector := ipp.DRFNeighborState.getGatewayVectorByIndex(0)
 
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(neighborvector.Sequence, neighborvector.Vector)
 				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = make([]GatewayVectorEntry, 2)
-				fmt.Println("updateGatewayVector called on ipp.IppPortalSystemState neighbor then home")
+				//fmt.Println("updateGatewayVector called on ipp.IppPortalSystemState neighbor then home")
 				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(neighborvector.Sequence, neighborvector.Vector)
 				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(homevector.Sequence, homevector.Vector)
 

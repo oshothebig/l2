@@ -319,7 +319,8 @@ func (igm *IGMachine) updateIPPGatewayConversationDirection() {
 				// owns this conversation, however it should be noted
 				// that in the case of sharing by time both systems
 				// will own a conversation
-				if dr.DrniGatewayConversation[conid][0] != dr.DrniPortalSystemNumber {
+				if len(dr.DrniGatewayConversation[conid]) > 0 &&
+					dr.DrniGatewayConversation[conid][0] != dr.DrniPortalSystemNumber {
 					if p.IppPortalSystemState != nil {
 						for _, statevector := range p.IppPortalSystemState {
 							if statevector.OpState {

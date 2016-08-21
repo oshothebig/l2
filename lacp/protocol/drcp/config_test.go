@@ -1031,6 +1031,7 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 
 	// create second drni
 	cfg.DrniName = "DR-2"
+	cfg.DrniPortalSystemNumber = 2
 	cfg.DrniAggregator = 101
 	cfg.DrniIntraPortalLinkList = [3]uint32{uint32(DRNeighborIpp2)}
 	CreateDistributedRelay(cfg)

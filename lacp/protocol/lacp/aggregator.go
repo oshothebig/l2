@@ -230,6 +230,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		PortAlgorithm:          [4]uint8{0x00, 0x80, 0xC2, 0x01},
 		PartnerDWC:             false,
 		ActorAdminKey:          ac.Key,
+		ActorOperKey:           ac.Key,
 		AggType:                ac.Type,
 		AggMinLinks:            ac.MinLinks,
 		Config:                 ac.Lacp,

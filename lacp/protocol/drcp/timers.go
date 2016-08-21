@@ -25,7 +25,6 @@
 package drcp
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -33,7 +32,6 @@ func (rxm *RxMachine) CurrentWhileTimerStart() {
 	if rxm.currentWhileTimer == nil {
 		rxm.currentWhileTimer = time.NewTimer(rxm.currentWhileTimerTimeout)
 	} else {
-		rxm.DrcpRxmLog(fmt.Sprintf("Restarting CurrentWhiletimer %d", rxm.currentWhileTimerTimeout))
 		rxm.currentWhileTimer.Reset(rxm.currentWhileTimerTimeout)
 	}
 }

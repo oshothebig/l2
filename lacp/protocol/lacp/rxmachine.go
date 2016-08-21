@@ -651,6 +651,10 @@ func (rxm *LacpRxMachine) recordPDU(lacpPduInfo *layers.LACP) {
 	// or both Actor Oper Port State LACP_Activity and PDU Partner
 	// Partner State LACP_Activity is TRUE
 
+	rxm.LacpRxmLog(fmt.Sprintf("Pkt Partner State %s, Pkt Actor State %s, ActorOper State %s",
+		LacpStateToStr(lacpPduInfo.Partner.Info.State),
+		LacpStateToStr(lacpPduInfo.Actor.Info.State),
+		LacpStateToStr(p.ActorOper.State)))
 	// (1)
 	if ((LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Partner.Info, &p.ActorOper, LacpStateAggregationBit) &&
 		LacpStateIsSet(lacpPduInfo.Actor.Info.State, LacpStateSyncBit)) ||
@@ -746,13 +750,13 @@ func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *layers.LACP) bool {
 	const nttStateCompare uint8 = (LacpStateAggregationBit | LacpStateSyncBit)
 
 	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Partner.Info, &p.ActorOper, nttStateCompare) {
-		//rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.ActorOper))
+		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.ActorOper))
 		return true
 	} else if (LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && !LacpStateIsSet(p.ActorOper.State, LacpStateTimeoutBit)) ||
 		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && LacpStateIsSet(p.ActorOper.State, LacpStateTimeoutBit)) ||
 		(LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit) && !LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit)) ||
 		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit) && LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit)) {
-		//rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.ActorOper))
+		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.ActorOper))
 		return true
 	}
 	return false

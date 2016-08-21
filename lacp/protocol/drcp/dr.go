@@ -325,9 +325,9 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		},
 	}
 
-	neighborPortalSystemNumber := uint32(1)
+	neighborPortalSystemNumber := uint32(2)
 	if cfg.DrniPortalSystemNumber == 1 {
-		neighborPortalSystemNumber = 2
+		neighborPortalSystemNumber = 1
 
 	}
 	// Only support two portal system so we need to adjust

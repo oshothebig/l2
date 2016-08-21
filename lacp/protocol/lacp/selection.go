@@ -189,14 +189,12 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *layers.LACP) {
 
 	// lets check a few conditions from Selection logic 802.1ax Section 6.4.14.1
 
-	if rxm.detectLoopbackCondition(lacpPduInfo) &&
-		p.aggSelected == LacpAggSelected {
+	if rxm.detectLoopbackCondition(lacpPduInfo) {
 		rxm.LacpRxmLog("ERROR Loopback condition detected")
 		unselectedCondition = true
 	}
 
-	if rxm.detectInvalidPeerSelection(lacpPduInfo) &&
-		p.aggSelected == LacpAggSelected {
+	if rxm.detectInvalidPeerSelection(lacpPduInfo) {
 		rxm.LacpRxmLog("ERROR Peer Selection Invalid")
 		unselectedCondition = true
 	}
@@ -307,8 +305,6 @@ func (rxm *LacpRxMachine) updateDefaultSelected() {
 func (p *LaAggPort) checkConfigForSelection() bool {
 	var a *LaAggregator
 
-	//p.LaPortLog(fmt.Sprintln("checkConfigForSelection: (aggId, mux state, portenabled)",
-	//	p.AggId, p.MuxMachineFsm.Machine.Curr.CurrentState(), p.PortEnabled))
 	// check to see if aggrigator exists
 	// and that the Keys match
 	if p.AggId != 0 && LaFindAggById(p.AggId, &a) {

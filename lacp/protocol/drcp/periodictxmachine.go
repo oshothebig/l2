@@ -126,7 +126,7 @@ func (ptxm *PtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ptxm.Machine.Rules = r
 	ptxm.Machine.Curr = &utils.StateEvent{
 		StrStateMap: PtxmStateStrMap,
-		LogEna:      false,
+		LogEna:      true,
 		Logger:      ptxm.DrcpPtxmLog,
 		Owner:       PtxMachineModuleStr,
 	}
@@ -137,7 +137,14 @@ func (ptxm *PtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // DrcpPtxMachineNoPeriodic function to be called after
 // State transition to NO_PERIODIC
 func (ptxm *PtxMachine) DrcpPtxMachineNoPeriodic(m fsm.Machine, data interface{}) fsm.State {
+	p := ptxm.p
+	dr := p.dr
+
 	ptxm.PeriodicTimerStop()
+
+	// should be no activity since we are not sending on the IPP
+	dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStateIPPActivity)
+
 	// next State
 	return PtxmStateNoPeriodic
 }
@@ -165,6 +172,10 @@ func (ptxm *PtxMachine) DrcpPtxMachineSlowPeriodic(m fsm.Machine, data interface
 func (ptxm *PtxMachine) DrcpPtxMachinePeriodicTx(m fsm.Machine, data interface{}) fsm.State {
 
 	p := ptxm.p
+	dr := p.dr
+
+	// should be no activity since we are not sending on the IPP
+	dr.DRFHomeOperDRCPState.SetState(layers.DRCPStateIPPActivity)
 
 	defer p.NotifyNTTDRCPUDChange(PtxMachineModuleStr, p.NTTDRCPDU, true)
 	p.NTTDRCPDU = true

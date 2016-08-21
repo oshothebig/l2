@@ -32,7 +32,7 @@ import (
 
 func (p *LaAggPort) LaPortLog(msg string) {
 	if p.logEna {
-		utils.GlobalLogger.Info(msg)
+		utils.GlobalLogger.Info(strings.Join([]string{p.IntfNum, "PORT", msg}, ":"))
 	}
 }
 

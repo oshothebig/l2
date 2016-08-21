@@ -104,7 +104,7 @@ func IsControlFrame(pId uint16, packet gopacket.Packet) bool {
 		bytes.Equal(ethernet.DstMAC, []uint8{0x01, 0x80, 0xC2, 0x00, 0x00, 0x03}) ||
 		bytes.Equal(ethernet.DstMAC, []uint8{0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E}))
 
-	fmt.Printf("RX: isDrcpProtocolEtherType %t, mac check %t subtype %d\n", isDrcpProtocolEtherType, isDrcpProtocolMac, drcp.SubType)
+	//fmt.Printf("RX: isDrcpProtocolEtherType %t, mac check %t subtype %d\n", isDrcpProtocolEtherType, isDrcpProtocolMac, drcp.SubType)
 	// check the mac address and ethertype
 	if isDrcpProtocolMac {
 		if isDrcpProtocolEtherType &&
@@ -132,7 +132,7 @@ func ProcessDrcpFrame(pId uint16, pa string, drcp *layers.DRCP) {
 	upperpktpa := strings.ToUpper(netAddr.String())
 	if upperpa != upperpktpa {
 		// not meant for this portal disregarding
-		fmt.Printf("RX: Packet RX portal %+v, expected portal %+v\n", upperpa, upperpktpa)
+		//fmt.Printf("RX: Packet RX portal %+v, expected portal %+v\n", upperpa, upperpktpa)
 		return
 	}
 

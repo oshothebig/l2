@@ -301,11 +301,14 @@ func (psm *PsMachine) updateKey() {
 					operKey = ipp.DRFOtherNeighborAdminAggregatorKey
 				}
 			}
-			if dr.DRFHomeAdminAggregatorKey != operKey {
-				psm.DrcpPsmLog(fmt.Sprintf("updateKey: Admin Aggregator Key is updated from %d to %d source(home[%d]neighbor[%d]other[%d])",
-					dr.DRFHomeAdminAggregatorKey, operKey, dr.DRFHomeAdminAggregatorKey, ipp.DRFNeighborAdminAggregatorKey, ipp.DRFOtherNeighborAdminAggregatorKey))
 
-				dr.DRFHomeOperAggregatorKey = operKey
+			dr.DRFHomeOperAggregatorKey = operKey
+
+			// oper key has been successfully been negotiated because the
+			// neighbor
+			if ipp.DRFNeighborAdminAggregatorKey != 0 {
+				psm.DrcpPsmLog(fmt.Sprintf("updateKey: Admin Aggregator Key is updated from %d to %d source(home[%d]neighbor[%d]other[%d] updateing ports %+v)",
+					dr.DRFHomeAdminAggregatorKey, operKey, dr.DRFHomeAdminAggregatorKey, ipp.DRFNeighborAdminAggregatorKey, ipp.DRFOtherNeighborAdminAggregatorKey, a.PortNumList))
 
 				// required so that the checkForSelection succeeds in finding the
 				// new port info as being set below
@@ -404,14 +407,16 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		}
 	}
 
+	// Portal System is Isolated, which means IPP link is down
+	// take down the AGGs
 	if dr.PSI &&
 		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) {
 		// LaAggregator processing
-		for _, aggport := range a.PortNumList {
+		for _, intfref := range a.PortNumList {
 			var p *lacp.LaAggPort
-			if lacp.LaFindPortById(aggport, &p) {
+			if lacp.LaFindPortById(intfref, &p) {
 				// Lets set the port to unselected
-				lacp.SetLaAggPortCheckSelectionDistributedRelayIsSynced(p.PortNum, false)
+				lacp.SetLaAggPortCheckSelectionDistributedRelayIsSynced(intfref, false)
 			}
 		}
 	}
