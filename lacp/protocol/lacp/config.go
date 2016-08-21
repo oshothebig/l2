@@ -637,7 +637,6 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 		p.aggSelected == LacpAggUnSelected &&
 		!LaAggPortNumListPortIdExist(Key, pId) {
 
-		fmt.Printf("Adding LaAggPort %d to LaAgg %d\n", pId, a.ActorAdminKey)
 		p.LaPortLog(fmt.Sprintf("Adding LaAggPort %d to LaAgg %d", pId, a.ActorAdminKey))
 		// add port to port number list
 		a.PortNumList = append(a.PortNumList, p.PortNum)

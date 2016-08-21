@@ -123,7 +123,7 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 
 	// if the port is found verify the initial State after begin event
 	// which was called as part of create
-	if LaFindPortIntfRef(pconf.IntfId, &p) {
+	if LaFindPortById(pconf.Id, &p) {
 
 		//	fmt.Println("Rx:", p.RxMachineFsm.Machine.Curr.CurrentState(),
 		//		"Ptx:", p.PtxMachineFsm.Machine.Curr.CurrentState(),
@@ -311,14 +311,14 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 
 	// if the port is found verify the initial State after begin event
 	// which was called as part of create
-	if LaFindPortIntfRef(pconf.IntfId, &p) {
+	if LaFindPortById(pconf.Id, &p) {
 		if p.aggSelected == LacpAggSelected {
 			t.Error("Port is in SELECTED mode")
 		}
 	}
 
 	// Delete the port and agg
-	DeleteLaAggPort(pconf.IntfId)
+	DeleteLaAggPort(pconf.Id)
 	DeleteLaAgg(aconf.Id)
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
@@ -363,14 +363,14 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 
 	// if the port is found verify the initial State after begin event
 	// which was called as part of create
-	if LaFindPortIntfRef(pconf.IntfId, &p) {
+	if LaFindPortById(pconf.Id, &p) {
 		if p.aggSelected == LacpAggSelected {
 			t.Error("Port is in SELECTED mode")
 		}
 	}
 
 	// Delete port
-	DeleteLaAggPort(pconf.IntfId)
+	DeleteLaAggPort(pconf.Id)
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
 			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
@@ -495,7 +495,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 
 	// if the port is found verify the initial State after begin event
 	// which was called as part of create
-	if LaFindPortIntfRef(pconf.IntfId, &p) {
+	if LaFindPortById(pconf.Id, &p) {
 		if p.aggSelected == LacpAggSelected {
 			t.Error("Port is in SELECTED mode 1")
 		}

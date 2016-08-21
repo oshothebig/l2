@@ -437,7 +437,9 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(a.AggPriority)
 
 	} else {
-		p.LaPortLog(fmt.Sprintf("Aggregator %s is a LAG owned by System, thus using SystemId %+v Priority %d", a.AggName, sgi.SystemDefaultParams.Actor_System, sgi.SystemDefaultParams.Actor_System_priority))
+		if a != nil {
+			p.LaPortLog(fmt.Sprintf("Aggregator %s is a LAG owned by System, thus using SystemId %+v Priority %d", a.AggName, sgi.SystemDefaultParams.Actor_System, sgi.SystemDefaultParams.Actor_System_priority))
+		}
 		p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.Actor_System))
 		p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
 	}
