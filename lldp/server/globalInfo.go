@@ -112,8 +112,8 @@ const (
 
 	// Consts Init Size/Capacity
 	LLDP_INITIAL_GLOBAL_INFO_CAPACITY = 100
-	LLDP_RX_PKT_CHANNEL_SIZE          = 10
-	LLDP_TX_PKT_CHANNEL_SIZE          = 10
+	LLDP_RX_PKT_CHANNEL_SIZE          = 30
+	LLDP_TX_PKT_CHANNEL_SIZE          = 30
 
 	// Port Operation State
 	LLDP_PORT_STATE_DOWN = "DOWN"

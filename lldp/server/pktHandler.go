@@ -46,10 +46,6 @@ func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 	}
 	quit := gblInfo.RxKill
 	for {
-		// check if rx channel is still valid or not
-		if svr.lldpRxPktCh == nil {
-			return
-		}
 		select {
 		case pkt, ok := <-in:
 			//default:
@@ -82,9 +78,14 @@ func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 				debug.Logger.Info("Pcap closed terminate go routine for " + gblInfo.Port.Name)
 				return
 			}
-			svr.lldpRxPktCh <- InPktChannel{
-				pkt:     pkt,
-				ifIndex: ifIndex,
+			// check if rx channel is still valid or not
+			if svr.lldpRxPktCh == nil {
+				return
+			} else {
+				svr.lldpRxPktCh <- InPktChannel{
+					pkt:     pkt,
+					ifIndex: ifIndex,
+				}
 			}
 		case <-quit:
 			debug.Logger.Info(fmt.Sprintln("quit for ifIndex", ifIndex, "rx exiting go routine"))

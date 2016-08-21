@@ -73,9 +73,9 @@ func (svr *LLDPServer) InitGlobalDS() {
 	// 30 seconds. So, we can have the leavrage the pcap timeout (read from
 	// buffer) to be 1 second.
 	svr.lldpTimeout = 1 * time.Second
-	svr.GblCfgCh = make(chan *config.Global)
-	svr.IntfCfgCh = make(chan *config.Intf)
-	svr.IfStateCh = make(chan *config.PortState)
+	svr.GblCfgCh = make(chan *config.Global, 20)
+	svr.IntfCfgCh = make(chan *config.Intf, 20)
+	svr.IfStateCh = make(chan *config.PortState, 20)
 	svr.UpdateCacheCh = make(chan bool)
 	svr.EventCh = make(chan config.EventInfo, 10)
 	// All Plugin Info
@@ -375,6 +375,9 @@ func (svr *LLDPServer) handleIntfConfig(ifIndex int32, enable bool) {
 	case true:
 		debug.Logger.Debug("Config Enable for " + gblInfo.Port.Name + " ifIndex: " +
 			strconv.Itoa(int(gblInfo.Port.IfIndex)))
+		if gblInfo.isEnabled() {
+			return // if rx/tx already started then return its no-op
+		}
 		gblInfo.Enable()
 		svr.lldpGblInfo[ifIndex] = gblInfo
 		svr.StartRxTx(ifIndex)
@@ -466,7 +469,8 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 			svr.Global.Enable = gbl.Enable
 			svr.Global.Vrf = gbl.Vrf
-			svr.handleGlobalConfig(false)
+			// start all interface rx/tx in go routine only
+			go svr.handleGlobalConfig(false)
 		case intf, ok := <-svr.IntfCfgCh: // Change in interface config
 			if !ok {
 				continue
