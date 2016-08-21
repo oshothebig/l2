@@ -1028,7 +1028,7 @@ func LacpCopyLacpPortInfo(fromPortInfoPtr *LacpPortInfo, toPortInfoPtr *LacpPort
 }
 
 func LacpLacpPktPortInfoIsEqual(aPortInfoPtr *layers.LACPPortInfo, bPortInfoPtr *LacpPortInfo, StateBits uint8) bool {
-	utils.GlobalLogger.Info(fmt.Sprintf("LacpLacpPktPortInfoIsEqual: pkt %+v  port %+v %t %t", aPortInfoPtr, bPortInfoPtr, LacpStateIsSet(aPortInfoPtr.State, StateBits), LacpStateIsSet(bPortInfoPtr.State, StateBits)))
+	//utils.GlobalLogger.Info(fmt.Sprintf("LacpLacpPktPortInfoIsEqual: pkt %+v  port %+v %t %t", aPortInfoPtr, bPortInfoPtr, LacpStateIsSet(aPortInfoPtr.State, StateBits), LacpStateIsSet(bPortInfoPtr.State, StateBits)))
 	return aPortInfoPtr.System.SystemId == bPortInfoPtr.System.Actor_System &&
 		aPortInfoPtr.System.SystemPriority == bPortInfoPtr.System.Actor_System_priority &&
 		aPortInfoPtr.Port == bPortInfoPtr.port &&
