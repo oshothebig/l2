@@ -594,11 +594,13 @@ func (rxm *RxMachine) updateNTT() {
 		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
 		!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
 		!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
-		rxm.DrcpRxmLog(fmt.Sprintf("Home Gateway Sync %t Home Port Sync %t Neighbor Gateway Sync %t Neighbor Port Sync %t",
+		/*
+			rxm.DrcpRxmLog(fmt.Sprintf("Home Gateway Sync %t Home Port Sync %t Neighbor Gateway Sync %t Neighbor Port Sync %t",
 			dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync),
 			dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync),
 			p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync),
 			p.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync)))
+		*/
 		defer p.NotifyNTTDRCPUDChange(RxMachineModuleStr, p.NTTDRCPDU, true)
 		p.NTTDRCPDU = true
 	}
@@ -625,12 +627,16 @@ func (rxm *RxMachine) recordDefaultDRCPDU() {
 	p.DrniNeighborPortalAddr = a.PartnerSystemId
 	p.DRFNeighborPortalSystemNumber = p.DRFHomeConfNeighborPortalSystemNumber
 	p.DRFNeighborConfPortalSystemNumber = dr.DRFPortalSystemNumber
+	p.DRFNeighborState.mutex.Lock()
 	p.DRFNeighborState.OpState = false
 	p.DRFNeighborState.GatewayVector = nil
 	p.DRFNeighborState.PortIdList = nil
+	p.DRFNeighborState.mutex.Unlock()
+	p.DRFOtherNeighborState.mutex.Lock()
 	p.DRFOtherNeighborState.OpState = false
 	p.DRFOtherNeighborState.GatewayVector = nil
 	p.DRFOtherNeighborState.PortIdList = nil
+	p.DRFOtherNeighborState.mutex.Unlock()
 	p.DRFNeighborAdminAggregatorKey = 0
 	p.DRFOtherNeighborAdminAggregatorKey = 0
 	p.DRFNeighborOperPartnerAggregatorKey = 0
@@ -1034,7 +1040,9 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 			// Active_Home_Ports in the Home Ports Information TLV, carried in a
 			// received DRCPDU on the IPP, are used as the current values for the DRF_Neighbor_State on
 			// this IPP and are associated with the Portal System identified by DRF_Neighbor_Portal_System_Number;
+			p.DrniNeighborState[neighborSystemNum].mutex.Lock()
 			p.DrniNeighborState[neighborSystemNum].PortIdList = drcpPduInfo.HomePortsInfo.ActiveHomePorts
+			p.DrniNeighborState[neighborSystemNum].mutex.Unlock()
 		}
 
 		if drcpPduInfo.State.State.GetState(layers.DRCPStateOtherGatewayBit) {
@@ -1110,7 +1118,9 @@ func (rxm *RxMachine) saveRcvNeighborGatewayVector(neighborSystemNum layers.DRCP
 					vector[j+7] = drcpPduInfo.HomeGatewayVector.Vector[i]>>0&0x1 == 1
 					p.DRFRcvNeighborGatewayConversationMask[j+7] = drcpPduInfo.HomeGatewayVector.Vector[i]>>0&0x1 == 1
 				}
+				p.DrniNeighborState[neighborSystemNum].mutex.Lock()
 				p.DrniNeighborState[neighborSystemNum].updateGatewayVector(drcpPduInfo.HomeGatewayVector.Sequence, vector)
+				p.DrniNeighborState[neighborSystemNum].mutex.Unlock()
 				// The OtherGatewayVectorTransmit on the other IPP, if it exists and is operational, is set to
 				// TRUE, which mean we need to get the other ipp
 				for _, ipp := range dr.Ipplinks {
@@ -1122,6 +1132,7 @@ func (rxm *RxMachine) saveRcvNeighborGatewayVector(neighborSystemNum layers.DRCP
 		} else if len(drcpPduInfo.HomeGatewayVector.Vector) == 0 {
 			// The OtherGatewayVectorTransmit on the other IPP, if it exists and is operational, is set to
 			// TRUE
+			p.DrniNeighborState[neighborSystemNum].mutex.Lock()
 			for _, ipp := range dr.Ipplinks {
 				if ipp != p && ipp.DRCPEnabled {
 					dr.OtherGatewayVectorTransmit = false
@@ -1140,6 +1151,7 @@ func (rxm *RxMachine) saveRcvNeighborGatewayVector(neighborSystemNum layers.DRCP
 					}
 				}
 			}
+			p.DrniNeighborState[neighborSystemNum].mutex.Unlock()
 		}
 	}
 }
@@ -1178,6 +1190,7 @@ func (rxm *RxMachine) saveRcvHomeGatewayVector(neighborSystemNum layers.DRCPTopo
 		p.DRFRcvHomeGatewayConversationMask = [MAX_CONVERSATION_IDS]bool{}
 	} else {
 		vector := make([]bool, MAX_CONVERSATION_IDS)
+		p.DrniNeighborState[neighborSystemNum].mutex.Lock()
 		index := p.DrniNeighborState[neighborSystemNum].getNeighborVectorGatwaySequenceIndex(drcpPduInfo.NeighborGatewayVector.Sequence, vector)
 		if index != -1 {
 			for i := 0; i < MAX_CONVERSATION_IDS; i++ {
@@ -1195,8 +1208,10 @@ func (rxm *RxMachine) saveRcvHomeGatewayVector(neighborSystemNum layers.DRCPTopo
 					for i := 0; i < MAX_CONVERSATION_IDS; i++ {
 						vector[i] = dr.GatewayVectorDatabase[index].Vector[i]
 					}
+					p.DrniNeighborState[neighborSystemNum].mutex.Lock()
 					p.DrniNeighborState[neighborSystemNum].updateGatewayVector(drcpPduInfo.NeighborGatewayVector.Sequence+1,
 						vector)
+					p.DrniNeighborState[neighborSystemNum].mutex.Unlock()
 				}
 			}
 		} else {
@@ -1205,6 +1220,7 @@ func (rxm *RxMachine) saveRcvHomeGatewayVector(neighborSystemNum layers.DRCPTopo
 			}
 			dr.HomeGatewayVectorTransmit = true
 		}
+		p.DrniNeighborState[neighborSystemNum].mutex.Unlock()
 	}
 }
 
@@ -1385,8 +1401,10 @@ func (rxm *RxMachine) compareGatewayOperGatewayVector() {
 
 	operOrVectorDiffer := false
 	for i := 1; i <= MAX_PORTAL_SYSTEM_IDS && !operOrVectorDiffer; i++ {
+		dr.DrniPortalSystemState[i].mutex.Lock()
+		p.DrniNeighborState[i].mutex.Lock()
 		if dr.DrniPortalSystemState[i].OpState != p.DrniNeighborState[i].OpState {
-			rxm.DrcpRxmLog(fmt.Sprintf("Neighbor Gateway OpState Different system portal num[%d[ Prev[%t] New[%t]", i, dr.DrniPortalSystemState[i].OpState, p.DrniNeighborState[i].OpState))
+			//rxm.DrcpRxmLog(fmt.Sprintf("Neighbor Gateway OpState Different system portal num[%d[ Prev[%t] New[%t]", i, dr.DrniPortalSystemState[i].OpState, p.DrniNeighborState[i].OpState))
 			operOrVectorDiffer = true
 		} else if dr.DrniPortalSystemState[i].OpState {
 			if len(dr.DrniPortalSystemState[i].GatewayVector) != len(p.DrniNeighborState[i].GatewayVector) {
@@ -1405,6 +1423,8 @@ func (rxm *RxMachine) compareGatewayOperGatewayVector() {
 				}
 			}
 		}
+		p.DrniNeighborState[i].mutex.Unlock()
+		dr.DrniPortalSystemState[i].mutex.Unlock()
 	}
 
 	if operOrVectorDiffer {
@@ -1451,6 +1471,8 @@ func (rxm *RxMachine) comparePortIds() {
 	portListDiffer := false
 
 	for i := 1; i <= MAX_PORTAL_SYSTEM_IDS && !portListDiffer; i++ {
+		dr.DrniPortalSystemState[i].mutex.Lock()
+		p.DrniNeighborState[i].mutex.Lock()
 		if len(dr.DrniPortalSystemState[i].PortIdList) == len(p.DrniNeighborState[i].PortIdList) {
 			// make sure the lists are sorted
 			sort.Sort(sortPortList(dr.DrniPortalSystemState[i].PortIdList))
@@ -1465,6 +1487,8 @@ func (rxm *RxMachine) comparePortIds() {
 			rxm.DrcpRxmLog(fmt.Sprintf("PortList Different Prev %+v New %+v", dr.DrniPortalSystemState[i].PortIdList, p.DrniNeighborState[i].PortIdList))
 			portListDiffer = true
 		}
+		p.DrniNeighborState[i].mutex.Unlock()
+		dr.DrniPortalSystemState[i].mutex.Unlock()
 	}
 
 	if portListDiffer {

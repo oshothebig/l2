@@ -269,7 +269,13 @@ func (am *AMachine) updatePortalState() {
 	dr := am.dr
 
 	// update the local portal info
-	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber] = dr.DRFHomeState
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].mutex.Lock()
+	dr.DRFHomeState.mutex.Lock()
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].OpState = dr.DRFHomeState.OpState
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].updateGatewayVector(dr.DRFHomeState.GatewayVector[0].Sequence, dr.DRFHomeState.GatewayVector[0].Vector)
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].PortIdList = dr.DRFHomeState.PortIdList
+	dr.DRFHomeState.mutex.Unlock()
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].mutex.Unlock()
 
 	if len(dr.Ipplinks) > 1 {
 		// TODO need for the following case when more than a single IPL is supported
@@ -278,6 +284,9 @@ func (am *AMachine) updatePortalState() {
 	} else if len(dr.Ipplinks) == 1 {
 		// single IPP case
 		for _, ipp := range dr.Ipplinks {
+			dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Lock()
+			ipp.DRFNeighborState.mutex.Lock()
+			ipp.DRFOtherNeighborState.mutex.Lock()
 			if ipp.DRFNeighborState.OpState {
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFNeighborState.OpState
 				for _, seqvector := range ipp.DRFNeighborState.GatewayVector {
@@ -296,21 +305,28 @@ func (am *AMachine) updatePortalState() {
 					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = append(dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList, port)
 				}
 			}
+			ipp.DRFOtherNeighborState.mutex.Unlock()
+			ipp.DRFNeighborState.mutex.Unlock()
+			dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Unlock()
 		}
 	}
 	// clear unset portals (ignore first index)
 	for i, stateinfo := range dr.DrniPortalSystemState {
 		if i != 0 && !stateinfo.OpState {
+			dr.DrniPortalSystemState[i].mutex.Lock()
 			dr.DrniPortalSystemState[i].GatewayVector = nil
 			dr.DrniPortalSystemState[i].PortIdList = nil
+			dr.DrniPortalSystemState[i].mutex.Unlock()
 		}
 	}
 	// TODO revisit logic as this may be incorrect
 	// should only be one ipp
 	for _, ipp := range dr.Ipplinks {
 		for i := uint8(1); i <= MAX_PORTAL_SYSTEM_IDS; i++ {
+			ipp.DRFNeighborState.mutex.Lock()
 			if i != dr.DRFPortalSystemNumber {
 				if !ipp.DRFNeighborState.OpState {
+					dr.DrniPortalSystemState[i].mutex.Lock()
 					ipp.DRFNeighborState.OpState = dr.DrniPortalSystemState[i].OpState
 					for _, seqvector := range dr.DrniPortalSystemState[i].GatewayVector {
 						ipp.DRFNeighborState.GatewayVector = append(ipp.DRFNeighborState.GatewayVector, seqvector)
@@ -318,8 +334,10 @@ func (am *AMachine) updatePortalState() {
 					for _, port := range dr.DrniPortalSystemState[i].PortIdList {
 						ipp.DRFNeighborState.PortIdList = append(ipp.DRFNeighborState.PortIdList, port)
 					}
+					dr.DrniPortalSystemState[i].mutex.Unlock()
 				}
 			}
+			ipp.DRFNeighborState.mutex.Unlock()
 		}
 	}
 
@@ -333,11 +351,13 @@ func (am *AMachine) updatePortalState() {
 		// are any other portals received on this IPP they will follow
 		for _, ipp := range dr.Ipplinks {
 			ipp.IppPortalSystemState = nil
+			ipp.DRFNeighborState.mutex.Lock()
 			if ipp.DRFNeighborState.OpState {
 				ipp.IppPortalSystemState = append(ipp.IppPortalSystemState, ipp.DRFNeighborState)
 				// TODO add the any other portal state info from received DRCP here
 				// Not being done today because should only be one other system in 2P config
 			}
+			ipp.DRFNeighborState.mutex.Unlock()
 		}
 	}
 }

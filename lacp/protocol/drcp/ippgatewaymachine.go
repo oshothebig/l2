@@ -284,12 +284,14 @@ func (igm *IGMachine) setIPPGatewayConversation() {
 		for cid, portalsystemnumbers := range dr.DrniConvAdminGateway {
 			if portalsystemnumbers != nil {
 				for _, portalsystemnumber := range portalsystemnumbers {
+					p.DrniNeighborState[portalsystemnumber].mutex.Lock()
 					if portalsystemnumber != 0 &&
 						p.DrniNeighborState[portalsystemnumber].OpState &&
 						p.DrniNeighborState[portalsystemnumber].GatewayVector != nil &&
 						p.DrniNeighborState[portalsystemnumber].GatewayVector[0].Vector[cid] {
 						p.IppOtherGatewayConversation[cid] = portalsystemnumber
 					}
+					p.DrniNeighborState[portalsystemnumber].mutex.Unlock()
 				}
 			}
 		}

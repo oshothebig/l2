@@ -115,8 +115,8 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 			invalidlinkcnt++
 		}
 	}
-	if invalidlinkcnt > 0 {
-		return errors.New("ERROR Invalid Intra Portal Link, Must be Port within system or Lag")
+	if invalidlinkcnt == 3 {
+		return errors.New("ERROR Invalid Intra Portal Link, Must contain Port within system")
 	}
 
 	if mlag.DrniThreePortalSystem {

@@ -454,8 +454,6 @@ func TestRxMachineRxValidDRCPDUNeighborPktThenTimeout(t *testing.T) {
 
 	<-responseChan
 
-	// Neighbor Admin values not correct, thus should discard as
-	// neighbor info is not known yet
 	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateCurrent {
 		t.Error("ERROR Rx Machine is not in expected state from first received PDU actual:", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 	}
@@ -839,6 +837,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferOperAggregatorKey(t *testin
 
 	<-responseChan
 
+	// Config info agrees, now operAgg needs to be negotiated
 	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateCurrent {
 		t.Error("ERROR Rx Machine is not in expected state from first received PDU actual:", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 	}
@@ -1006,7 +1005,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferThreeSystemPortalDiff(t *te
 
 	// Neighbor Admin values not correct, thus should discard as
 	// neighbor info is not known yet
-	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateCurrent {
+	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateDiscard {
 		t.Error("ERROR Rx Machine is not in expected state from first received PDU actual:", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 	}
 	// lets check some settings on the ipp
@@ -1162,7 +1161,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferNeighborPortalSystemNumDiff
 
 	// Neighbor Admin values not correct, thus should discard as
 	// neighbor info is not known yet
-	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateCurrent {
+	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateDiscard {
 		t.Error("ERROR Rx Machine is not in expected state from first received PDU actual:", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 	}
 	// lets check some settings on the ipp
@@ -1297,7 +1296,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayAlgorithmDiff(t *tes
 
 	// Neighbor Admin values not correct, thus should discard as
 	// neighbor info is not known yet
-	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateCurrent {
+	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateDiscard {
 		t.Error("ERROR Rx Machine is not in expected state from first received PDU actual:", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 	}
 	// only the upper two bits of operaggkey is different this does not mean that the rx fails
@@ -1405,7 +1404,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortAlgorithmDiff(t *testin
 
 	// Neighbor Admin values not correct, thus should discard as
 	// neighbor info is not known yet
-	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateCurrent {
+	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateDiscard {
 		t.Error("ERROR Rx Machine is not in expected state from first received PDU actual:", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 	}
 	// only the upper two bits of operaggkey is different this does not mean that the rx fails
@@ -1515,7 +1514,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayDigestDiff(t *testin
 
 	// Neighbor Admin values not correct, thus should discard as
 	// neighbor info is not known yet
-	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateCurrent {
+	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateDiscard {
 		t.Error("ERROR Rx Machine is not in expected state from first received PDU actual:", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 	}
 	// gateway digest is different
@@ -1625,7 +1624,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortDigestDiff(t *testing.T
 
 	// Neighbor Admin values not correct, thus should discard as
 	// neighbor info is not known yet
-	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateCurrent {
+	if ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateDiscard {
 		t.Error("ERROR Rx Machine is not in expected state from first received PDU actual:", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 	}
 	// gateway digest is different

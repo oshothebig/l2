@@ -37,12 +37,12 @@ import (
 )
 
 // first two bytes are priority but in case of ipp this is the neighbor system number
-const ipplink1 int32 = 0x00020003
+const ipplink1 int32 = 3
 const aggport1 int32 = 1
 const aggport2 int32 = 2
 
 // first two bytes are priority but in case of ipp this is the neighbor system number
-const ipplink2 int32 = 0x00010004
+const ipplink2 int32 = 4
 const aggport3 int32 = 5
 const aggport4 int32 = 6
 
@@ -252,7 +252,7 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", GmStateStrMap[dr.GMachineFsm.Machine.Curr.CurrentState()])
 	}
 	if dr.AMachineFsm == nil ||
-		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortInitialize {
+		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate {
 		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", AmStateStrMap[dr.AMachineFsm.Machine.Curr.CurrentState()])
 	}
 
@@ -414,7 +414,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", GmStateStrMap[dr.GMachineFsm.Machine.Curr.CurrentState()])
 	}
 	if dr.AMachineFsm == nil ||
-		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortInitialize {
+		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate {
 		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", AmStateStrMap[dr.AMachineFsm.Machine.Curr.CurrentState()])
 	}
 

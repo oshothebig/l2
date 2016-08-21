@@ -247,8 +247,8 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 	// set during config do not want to clear this to a default because
 	// there is only one default
 	// dr.Ipplinks = nil
-	for i := 0; i < 3; i++ {
-		dr.DrniPortalSystemState[0].OpState = false
+	for i := 1; i <= MAX_PORTAL_SYSTEM_IDS; i++ {
+		dr.DrniPortalSystemState[i].OpState = false
 		// Don't want to clear this as it is set by config
 		//dr.DrniIntraPortalLinkList[i] = 0
 	}
@@ -375,11 +375,13 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 				}
 			}
 		}
+		dr.DRFHomeState.mutex.Lock()
 		if len(dr.DRFHomeState.GatewayVector) > 0 {
 			dr.DRFHomeState.updateGatewayVector(dr.DRFHomeState.GatewayVector[0].Sequence+1, vector)
 		} else {
 			dr.DRFHomeState.updateGatewayVector(1, vector)
 		}
+		dr.DRFHomeState.mutex.Unlock()
 		fmt.Printf("updateDRFHome: DRFHomeState vector[100] %t\n", dr.DRFHomeState.GatewayVector[0].Vector[100])
 		dr.HomeGatewayVectorTransmit = true
 
@@ -392,12 +394,14 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		}
 	}
 	if changeDRFPorts {
+		dr.DRFHomeState.mutex.Lock()
 		// Assumption is made that if DRFPorts have changed that the aggregators
 		// distributing ports have changed
 		dr.DRFHomeState.PortIdList = make([]uint32, len(dr.DRAggregatorDistributedList))
 		for i, portId := range dr.DRAggregatorDistributedList {
 			dr.DRFHomeState.PortIdList[i] = uint32(portId)
 		}
+		dr.DRFHomeState.mutex.Unlock()
 		dr.PortConversationUpdate = true
 		if dr.AMachineFsm != nil {
 			dr.AMachineFsm.AmEvents <- utils.MachineEvent{
@@ -405,6 +409,7 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 				Src: PsMachineModuleStr,
 			}
 		}
+
 	}
 
 	// Portal System is Isolated, which means IPP link is down

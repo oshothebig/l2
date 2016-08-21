@@ -562,7 +562,6 @@ func DRFindPortByKey(key IppDbKey, p **DRCPIpp) bool {
 // updateGatewayVector will update the vector, indexed by the received
 // Home_Gateway_Sequence in increasing sequence number order
 func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) {
-	nsi.mutex.Lock()
 
 	//fmt.Printf("updateGatewayVector: GatewayVector vector[100]=%t\n", vector[100])
 
@@ -609,34 +608,26 @@ func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) 
 		nsi.GatewayVector = append(nsi.GatewayVector, tmp)
 		//fmt.Printf("updateGatewayVector: new vector[100] %t\n", nsi.GatewayVector[0].Vector[100])
 	}
-	nsi.mutex.Unlock()
-
 }
 
 // getNeighborVectorGatwaySequenceIndex get the index for the entry whos
 // sequence number is equal.
 func (nsi *StateVectorInfo) getNeighborVectorGatwaySequenceIndex(sequence uint32, vector []bool) int32 {
-	nsi.mutex.Lock()
 
 	if len(nsi.GatewayVector) > 0 {
 		for i, seqVector := range nsi.GatewayVector {
 			if seqVector.Sequence == sequence {
-				nsi.mutex.Unlock()
 				return int32(i)
 			}
 		}
 	}
-	nsi.mutex.Unlock()
 	return -1
 }
 
 func (nsi *StateVectorInfo) getGatewayVectorByIndex(index int32) *GatewayVectorEntry {
-	nsi.mutex.Lock()
 	length := len(nsi.GatewayVector)
 	if length > 0 && index < int32(length) {
-		nsi.mutex.Unlock()
 		return &nsi.GatewayVector[index]
 	}
-	nsi.mutex.Unlock()
 	return nil
 }

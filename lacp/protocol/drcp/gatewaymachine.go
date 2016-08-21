@@ -271,14 +271,19 @@ func (gm *GMachine) updatePortalState() {
 	// The information for this Portal System, DRF_Home_State, indexed by the Portal System
 	// Number, is included in Drni_Portal_System_State[].
 	//fmt.Println("updateGatewayVector called on dr.DrniPortalSystemState local")
+	dr.DRFHomeState.mutex.Lock()
 	homevector := dr.DRFHomeState.getGatewayVectorByIndex(0)
 	if homevector == nil {
 		fmt.Println("DRFHomeState returned nil for gateway vector at index 0")
 		return
 	}
+	dr.DRFHomeState.mutex.Unlock()
+	dr.DrniPortalSystemState[dr.DRFPortalSystemNumber].mutex.Lock()
 	dr.DrniPortalSystemState[dr.DRFPortalSystemNumber].updateGatewayVector(homevector.Sequence, homevector.Vector)
-
+	dr.DrniPortalSystemState[dr.DRFPortalSystemNumber].mutex.Unlock()
 	for _, ipp := range dr.Ipplinks {
+		dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Lock()
+
 		if len(dr.Ipplinks) == 2 {
 			// TODO when 3P system supported
 			// For that Portal System, only the Portal System state information provided by the
@@ -286,6 +291,7 @@ func (gm *GMachine) updatePortalState() {
 			// System will be included in Drni_Portal_System_State[], indexed by the Portal System
 			// Number
 		} else {
+			ipp.DRFNeighborState.mutex.Lock()
 			if ipp.DRFNeighborState.OpState {
 				//fmt.Println("updateGatewayVector called on dr.DrniPortalSystemState neighbor")
 				neighborvector := ipp.DRFNeighborState.getGatewayVectorByIndex(0)
@@ -304,7 +310,7 @@ func (gm *GMachine) updatePortalState() {
 				//dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Unlock()
 				ipp.IppPortalSystemState = nil
 			}
-
+			ipp.DRFNeighborState.mutex.Unlock()
 			/*
 				TODO: NOT supported
 				if ipp.DRFOtherNeighborState.OpState {
@@ -325,6 +331,7 @@ func (gm *GMachine) updatePortalState() {
 				ipp.IppPortalSystemState = nil
 			*/
 		}
+		dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Unlock()
 	}
 
 	// always set to false since portal system number is never 0
@@ -371,6 +378,7 @@ func (gm *GMachine) setGatewayConversation() {
 			if portalsystemnumber == 0 {
 				continue
 			}
+			dr.DrniPortalSystemState[portalsystemnumber].mutex.Lock()
 			if dr.DrniPortalSystemState[portalsystemnumber].OpState {
 
 				if dr.DrniGatewayConversation[i] == nil {
@@ -380,6 +388,7 @@ func (gm *GMachine) setGatewayConversation() {
 				// highest priority should be first and subsequent to follow
 				dr.DrniGatewayConversation[i] = append(dr.DrniGatewayConversation[i], portalsystemnumber)
 			}
+			dr.DrniPortalSystemState[portalsystemnumber].mutex.Unlock()
 		}
 	}
 }

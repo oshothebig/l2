@@ -412,11 +412,13 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				OperPartnerAggKey: p.DRFNeighborOperPartnerAggregatorKey,
 			}
 
+			dr.DrniPortalSystemState[p.DRFNeighborConfPortalSystemNumber].mutex.Lock()
 			if dr.DrniPortalSystemState[p.DRFNeighborConfPortalSystemNumber].OpState {
 				for _, portId := range dr.DrniPortalSystemState[p.DRFNeighborConfPortalSystemNumber].PortIdList {
 					drcp.NeighborPortsInfo.ActiveNeighborPorts = append(drcp.NeighborPortsInfo.ActiveNeighborPorts, portId)
 				}
 			}
+			dr.DrniPortalSystemState[p.DRFNeighborConfPortalSystemNumber].mutex.Unlock()
 			drcp.NeighborPortsInfo.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeNeighborPortsInfo))
 			drcp.NeighborPortsInfo.TlvTypeLength.SetLength(uint16(4 + (4 * len(drcp.NeighborPortsInfo.ActiveNeighborPorts))))
 
@@ -484,7 +486,6 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 			drcp.NeighborGatewayVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeNeighborGatewayVector))
 			drcp.NeighborGatewayVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLVNeighborGatewayVectorLength))
 
-			fmt.Println("TX: sharing method", p.DRFHomeNetworkIPLSharingMethod)
 			if p.DRFHomeNetworkIPLSharingMethod != ENCAP_METHOD_SHARING_NULL {
 
 				drcp.NetworkIPLMethod.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVNetworkIPLSharingMethod))
