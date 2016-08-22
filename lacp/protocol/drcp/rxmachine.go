@@ -588,22 +588,26 @@ func (rxm *RxMachine) NotifyPortConversationUpdate(oldval, newval bool) {
 
 // updateNTT This function sets NTTDRCPDU to TRUE, if any of:
 func (rxm *RxMachine) updateNTT() {
-	p := rxm.p
-	dr := p.dr
-	if !dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
-		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
-		!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
-		!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
 
-		rxm.DrcpRxmLog(fmt.Sprintf("Home Gateway Sync %t Home Port Sync %t Neighbor Gateway Sync %t Neighbor Port Sync %t",
-			dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync),
-			dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync),
-			p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync),
-			p.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync)))
+	/*
+		// TODO this does not work at the moment
+		p := rxm.p
+		dr := p.dr
+		if !dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+			!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
+			!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+			!p.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
 
-		defer p.NotifyNTTDRCPUDChange(RxMachineModuleStr, p.NTTDRCPDU, true)
-		p.NTTDRCPDU = true
-	}
+			rxm.DrcpRxmLog(fmt.Sprintf("Home Gateway Sync %t Home Port Sync %t Neighbor Gateway Sync %t Neighbor Port Sync %t",
+				dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync),
+				dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync),
+				p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync),
+				p.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync)))
+
+			defer p.NotifyNTTDRCPUDChange(RxMachineModuleStr, p.NTTDRCPDU, true)
+			p.NTTDRCPDU = true
+		}
+	*/
 }
 
 // recordDefaultDRCPDU: 802.1ax Section 9.4.1.1
@@ -1424,7 +1428,9 @@ func (rxm *RxMachine) compareGatewayOperGatewayVector() {
 			operOrVectorDiffer = true
 		} else if dr.DrniPortalSystemState[i].OpState {
 			// lets only compare the most recent gateway vector
-			if dr.DrniPortalSystemState[i].GatewayVector[0].Sequence != p.DrniNeighborState[i].GatewayVector[0].Sequence ||
+			if len(dr.DrniPortalSystemState[i].GatewayVector) == 0 ||
+				len(p.DrniNeighborState[i].GatewayVector) == 0 ||
+				dr.DrniPortalSystemState[i].GatewayVector[0].Sequence != p.DrniNeighborState[i].GatewayVector[0].Sequence ||
 				len(dr.DrniPortalSystemState[i].GatewayVector[0].Vector) != len(p.DrniNeighborState[i].GatewayVector[0].Vector) {
 				rxm.DrcpRxmLog(fmt.Sprintf("Neighbor Sequence/Vector Gateway Vector %d Different seq(%d) len(%d) != seq(%d) len(%d)",
 					i, dr.DrniPortalSystemState[i].GatewayVector[0].Sequence, len(dr.DrniPortalSystemState[i].GatewayVector),

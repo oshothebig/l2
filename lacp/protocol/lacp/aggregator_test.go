@@ -35,7 +35,7 @@ type MyMockAsicdClientMgr struct {
 	asicdmock.MockAsicdClientMgr
 }
 
-func (mock *MyMockAsicdClientMgr) CreateLag(hashType int32, ports string) (hwAggId int32, err error) {
+func (mock *MyMockAsicdClientMgr) CreateLag(ifName string, hashType int32, ports string) (ifindex int32, err error) {
 	return 10, nil
 }
 

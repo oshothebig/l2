@@ -125,8 +125,8 @@ type AggregatorObject struct {
 type LaAggregator struct {
 	// 802.1ax Section 7.3.1.1 && 6.3.2
 	// Aggregator_Identifier
-	AggId          int
-	HwAggId        int32
+	AggId          int    // internal
+	HwAggId        int32  // IfIndex
 	AggDescription string // 255 max chars
 	AggName        string // 255 max chars
 	AggType        uint32 // LACP/STATIC

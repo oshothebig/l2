@@ -346,7 +346,7 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 	a := dr.a
 
 	if changeDRFPorts {
-		fmt.Println("updateDRFHomeState called with changedDRFPorts")
+		//fmt.Println("updateDRFHomeState called with changedDRFPorts")
 		dr.SetTimeSharingPortAndGatwewayDigest()
 	}
 
@@ -374,7 +374,7 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
 			for cid, portalsystemnumbers := range dr.DrniConvAdminGateway {
 				if len(portalsystemnumbers) > 1 {
-					fmt.Printf("updateDRFHome: cid %d is true\n", cid)
+					//fmt.Printf("updateDRFHome: cid %d is true\n", cid)
 					vector[cid] = true
 				}
 			}
@@ -387,7 +387,7 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 			dr.DRFHomeState.OpState = true
 			dr.DRFHomeState.updateGatewayVector(1, vector)
 		}
-		fmt.Printf("updateDRFHome: DRFHomeState vector[100] %t\n", dr.DRFHomeState.GatewayVector[0].Vector[100])
+		//fmt.Printf("updateDRFHome: DRFHomeState vector[100] %t\n", dr.DRFHomeState.GatewayVector[0].Vector[100])
 		dr.DRFHomeState.mutex.Unlock()
 		dr.HomeGatewayVectorTransmit = true
 

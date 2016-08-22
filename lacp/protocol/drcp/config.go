@@ -200,11 +200,9 @@ func DeleteDistributedRelay(name string) {
 // been updated
 func UpdateAggregatorPortList(aggId int) {
 	for _, dr := range DistributedRelayDBList {
-		fmt.Printf("Looking for aggId %d found %d portList %+v\n", aggId, dr.DrniAggregator, dr.a.PortNumList)
 		if dr.DrniAggregator == int32(aggId) &&
 			dr.a != nil &&
 			len(dr.a.PortNumList) > 0 {
-			fmt.Println("UpdateAggregatorPortList: found aggregator")
 			// set this to allow for portal system machine to fall through
 			// after initialization
 			dr.ChangeDRFPorts = true

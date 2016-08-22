@@ -215,17 +215,12 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 	isNewConversation := false
 	ghash := md5.New()
 	for cid, conv := range ConversationIdMap {
-		if cid == 100 {
-			fmt.Printf("conv %+v   isAggPortInConversation %t  portList %+v\n", conv, dr.isAggPortInConverstaion(conv.PortList), dr.a.PortNumList)
-		}
 		if conv.Valid && dr.isAggPortInConverstaion(conv.PortList) {
-			fmt.Printf("Conversation Admin Gateway %+v\n", dr.DrniConvAdminGateway[cid])
 
 			// mark this call as new so that we can update the state machines
 			if dr.DrniConvAdminGateway[cid] == nil {
 				dr.DrniConvAdminGateway[cid] = make([]uint8, 0)
 				isNewConversation = true
-				fmt.Printf("Adding New Gateway Conversation %d\n", cid)
 				dr.LaDrLog(fmt.Sprintf("Adding New Gateway Conversation %d", cid))
 
 				// Fixed algorithm for 2P system

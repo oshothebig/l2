@@ -756,7 +756,7 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d hwAggId %d EnableDistributing PortsListLen %d PortList %v", p.AggId, a.HwAggId, len(a.DistributedPortNumList), a.DistributedPortNumList))
 		if len(a.DistributedPortNumList) == 1 {
 			for _, client := range utils.GetAsicDPluginList() {
-				hwId, err := client.CreateLag(asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
+				hwId, err := client.CreateLag(a.AggName, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
 				if err != nil {
 					a.LacpAggLog(fmt.Sprintln("EnableDistributing: Error creating first port in LAG Group in HW", err))
 					return

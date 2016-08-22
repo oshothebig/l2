@@ -25,7 +25,7 @@
 package drcp
 
 import (
-	"fmt"
+	//"fmt"
 	"l2/lacp/protocol/utils"
 )
 
@@ -74,7 +74,7 @@ func GetAllCVIDConversations() {
 					for _, ifindex := range bulkVlanInfo.VlanList[i].IfIndexList {
 						ent.PortList = append(ent.PortList, ifindex)
 					}
-					fmt.Println("Creating Conversation Id", ent)
+					//fmt.Println("Creating Conversation Id", ent)
 					ConversationIdMap[uint16(vlan)] = ent
 				}
 			} else {
