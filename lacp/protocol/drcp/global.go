@@ -21,56 +21,49 @@
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
 
-// main
-package main
+//global.go
+package drcp
 
 import (
-	"flag"
-	"l2/lacp/asicdMgr"
+	"fmt"
 	"l2/lacp/protocol/utils"
-	"l2/lacp/rpc"
-	"l2/lacp/server"
-	"utils/asicdClient"
-	"utils/commonDefs"
-	"utils/keepalive"
-	"utils/logging"
+	"net"
 )
 
-func main() {
+var DRGlobalSystem DRSystemInfo
 
-	var err error
+type TxCallback func(key IppDbKey, dmac net.HardwareAddr, data interface{})
 
-	// lookup port
-	paramsDir := flag.String("params", "./params", "Params directory")
-	flag.Parse()
-	path := *paramsDir
-	if path[len(path)-1] != '/' {
-		path = path + "/"
+type DRSystemInfo struct {
+	// list of tx function which should be called for a given port
+	TxCallbacks map[IppDbKey][]TxCallback
+}
+
+func (g *DRSystemInfo) DRSystemGlobalRegisterTxCallback(intf IppDbKey, f TxCallback) {
+	g.TxCallbacks[intf] = append(g.TxCallbacks[intf], f)
+}
+
+func (g *DRSystemInfo) DRSystemGlobalDeRegisterTxCallback(intf IppDbKey) {
+	delete(g.TxCallbacks, intf)
+}
+
+func DRSystemGlobalTxCallbackListGet(p *DRCPIpp) []TxCallback {
+
+	key := IppDbKey{
+		Name:   p.Name,
+		DrName: p.dr.DrniName,
 	}
-	clientInfoFile := path + "clients.json"
 
-	logger, _ := logging.NewLogger("lacpd", "LA", true)
-	utils.SetLaLogger(logger)
-	laServer := server.NewLAServer(logger)
-
-	// lets setup north bound notifications
-	nHdl, nMap := asicdMgr.NewNotificationHdl(laServer)
-	asicdHdl := commonDefs.AsicdClientStruct{
-		Logger: logger,
-		NHdl:   nHdl,
-		NMap:   nMap,
+	if fList, pok := DRGlobalSystem.TxCallbacks[key]; pok {
+		return fList
 	}
-	asicdPlugin := asicdClient.NewAsicdClientInit("Flexswitch", clientInfoFile, asicdHdl)
 
-	utils.SetAsicDPlugin(asicdPlugin)
+	// temporary function
+	x := func(key IppDbKey, dmac net.HardwareAddr, data interface{}) {
+		utils.GlobalLogger.Info(fmt.Sprintf("TX not registered for IPP port\n", key))
+	}
 
-	// Start keepalive routine
-	go keepalive.InitKeepAlive("lacpd", path)
-
-	laServer.StartLaConfigNotificationListener()
-	confIface := rpc.NewLACPDServiceHandler(laServer)
-	logger.Info("Starting LACP Thrift daemon")
-	rpc.StartServer(utils.GetLaLogger(), confIface, *paramsDir)
-	logger.Err("ERROR server not started")
-	panic(err)
+	debugTxList := make([]TxCallback, 0)
+	debugTxList = append(debugTxList, x)
+	return debugTxList
 }

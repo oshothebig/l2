@@ -21,56 +21,51 @@
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
 
-// main
-package main
+// hw.go
+package lacp
 
 import (
-	"flag"
-	"l2/lacp/asicdMgr"
-	"l2/lacp/protocol/utils"
-	"l2/lacp/rpc"
-	"l2/lacp/server"
-	"utils/asicdClient"
-	"utils/commonDefs"
-	"utils/keepalive"
-	"utils/logging"
+	hwconst "asicd/asicdCommonDefs"
+	"strings"
 )
 
-func main() {
+// convert the lacp port names name to asic format string list
+func asicDPortBmpFormatGet(distPortList []string) string {
+	s := ""
+	dLength := len(distPortList)
 
-	var err error
-
-	// lookup port
-	paramsDir := flag.String("params", "./params", "Params directory")
-	flag.Parse()
-	path := *paramsDir
-	if path[len(path)-1] != '/' {
-		path = path + "/"
+	for i := 0; i < dLength; i++ {
+		var num string
+		if strings.Contains(distPortList[i], "-") {
+			num = strings.Split(distPortList[i], "-")[1]
+		} else if strings.HasPrefix(distPortList[i], "eth") {
+			num = strings.TrimLeft(distPortList[i], "eth")
+		} else if strings.HasPrefix(distPortList[i], "fpPort") {
+			num = strings.TrimLeft(distPortList[i], "fpPort")
+		}
+		if i == dLength-1 {
+			s += num
+		} else {
+			s += num + ","
+		}
 	}
-	clientInfoFile := path + "clients.json"
+	return s
 
-	logger, _ := logging.NewLogger("lacpd", "LA", true)
-	utils.SetLaLogger(logger)
-	laServer := server.NewLAServer(logger)
+}
 
-	// lets setup north bound notifications
-	nHdl, nMap := asicdMgr.NewNotificationHdl(laServer)
-	asicdHdl := commonDefs.AsicdClientStruct{
-		Logger: logger,
-		NHdl:   nHdl,
-		NMap:   nMap,
+// convert the model value to asic value
+func asicDHashModeGet(hashmode uint32) (laghash int32) {
+	switch hashmode {
+	case 0: //L2
+		laghash = hwconst.HASH_SEL_SRCDSTMAC
+		break
+	case 1: //L2 + L3
+		laghash = hwconst.HASH_SEL_SRCDSTIP
+		break
+	//case 2: //L3 + L4
+	//break
+	default:
+		laghash = hwconst.HASH_SEL_SRCDSTMAC
 	}
-	asicdPlugin := asicdClient.NewAsicdClientInit("Flexswitch", clientInfoFile, asicdHdl)
-
-	utils.SetAsicDPlugin(asicdPlugin)
-
-	// Start keepalive routine
-	go keepalive.InitKeepAlive("lacpd", path)
-
-	laServer.StartLaConfigNotificationListener()
-	confIface := rpc.NewLACPDServiceHandler(laServer)
-	logger.Info("Starting LACP Thrift daemon")
-	rpc.StartServer(utils.GetLaLogger(), confIface, *paramsDir)
-	logger.Err("ERROR server not started")
-	panic(err)
+	return laghash
 }

@@ -21,56 +21,45 @@
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
 
-// main
-package main
+// timers
+package drcp
 
 import (
-	"flag"
-	"l2/lacp/asicdMgr"
-	"l2/lacp/protocol/utils"
-	"l2/lacp/rpc"
-	"l2/lacp/server"
-	"utils/asicdClient"
-	"utils/commonDefs"
-	"utils/keepalive"
-	"utils/logging"
+	"time"
 )
 
-func main() {
-
-	var err error
-
-	// lookup port
-	paramsDir := flag.String("params", "./params", "Params directory")
-	flag.Parse()
-	path := *paramsDir
-	if path[len(path)-1] != '/' {
-		path = path + "/"
+func (rxm *RxMachine) CurrentWhileTimerStart() {
+	if rxm.currentWhileTimer == nil {
+		rxm.currentWhileTimer = time.NewTimer(rxm.currentWhileTimerTimeout)
+	} else {
+		rxm.currentWhileTimer.Reset(rxm.currentWhileTimerTimeout)
 	}
-	clientInfoFile := path + "clients.json"
+}
 
-	logger, _ := logging.NewLogger("lacpd", "LA", true)
-	utils.SetLaLogger(logger)
-	laServer := server.NewLAServer(logger)
-
-	// lets setup north bound notifications
-	nHdl, nMap := asicdMgr.NewNotificationHdl(laServer)
-	asicdHdl := commonDefs.AsicdClientStruct{
-		Logger: logger,
-		NHdl:   nHdl,
-		NMap:   nMap,
+func (rxm *RxMachine) CurrentWhileTimerStop() {
+	if rxm.currentWhileTimer != nil {
+		rxm.currentWhileTimer.Stop()
 	}
-	asicdPlugin := asicdClient.NewAsicdClientInit("Flexswitch", clientInfoFile, asicdHdl)
+}
 
-	utils.SetAsicDPlugin(asicdPlugin)
+func (rxm *RxMachine) CurrentWhileTimerTimeoutSet(timeout time.Duration) {
+	rxm.currentWhileTimerTimeout = timeout
+}
 
-	// Start keepalive routine
-	go keepalive.InitKeepAlive("lacpd", path)
+func (ptxm *PtxMachine) PeriodicTimerStart() {
+	if ptxm.periodicTimer == nil {
+		ptxm.periodicTimer = time.NewTimer(ptxm.periodicTimerInterval)
+	} else {
+		ptxm.periodicTimer.Reset(ptxm.periodicTimerInterval)
+	}
+}
 
-	laServer.StartLaConfigNotificationListener()
-	confIface := rpc.NewLACPDServiceHandler(laServer)
-	logger.Info("Starting LACP Thrift daemon")
-	rpc.StartServer(utils.GetLaLogger(), confIface, *paramsDir)
-	logger.Err("ERROR server not started")
-	panic(err)
+func (ptxm *PtxMachine) PeriodicTimerStop() {
+	if ptxm.periodicTimer != nil {
+		ptxm.periodicTimer.Stop()
+	}
+}
+
+func (ptxm *PtxMachine) PeriodicTimerIntervalSet(interval time.Duration) {
+	ptxm.periodicTimerInterval = interval
 }

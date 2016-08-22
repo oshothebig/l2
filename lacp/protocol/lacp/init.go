@@ -21,56 +21,25 @@
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
 
-// main
-package main
+// init
+package lacp
 
-import (
-	"flag"
-	"l2/lacp/asicdMgr"
-	"l2/lacp/protocol/utils"
-	"l2/lacp/rpc"
-	"l2/lacp/server"
-	"utils/asicdClient"
-	"utils/commonDefs"
-	"utils/keepalive"
-	"utils/logging"
-)
+import ()
 
-func main() {
+var LaSystemIdDefault LacpSystem
+var MuxStateStrMap map[uint8]string
+var ModeStrMap map[uint8]string
 
-	var err error
+func init() {
 
-	// lookup port
-	paramsDir := flag.String("params", "./params", "Params directory")
-	flag.Parse()
-	path := *paramsDir
-	if path[len(path)-1] != '/' {
-		path = path + "/"
+	DefsStrMapsCreate()
+
+	// Default System Id is all zero's
+	// this will be used by all static lags, as well as initial
+	// aggregation configs.
+	LaSystemIdDefault = LacpSystem{
+		Actor_System_priority: 0,
+		Actor_System:          [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 	}
-	clientInfoFile := path + "clients.json"
-
-	logger, _ := logging.NewLogger("lacpd", "LA", true)
-	utils.SetLaLogger(logger)
-	laServer := server.NewLAServer(logger)
-
-	// lets setup north bound notifications
-	nHdl, nMap := asicdMgr.NewNotificationHdl(laServer)
-	asicdHdl := commonDefs.AsicdClientStruct{
-		Logger: logger,
-		NHdl:   nHdl,
-		NMap:   nMap,
-	}
-	asicdPlugin := asicdClient.NewAsicdClientInit("Flexswitch", clientInfoFile, asicdHdl)
-
-	utils.SetAsicDPlugin(asicdPlugin)
-
-	// Start keepalive routine
-	go keepalive.InitKeepAlive("lacpd", path)
-
-	laServer.StartLaConfigNotificationListener()
-	confIface := rpc.NewLACPDServiceHandler(laServer)
-	logger.Info("Starting LACP Thrift daemon")
-	rpc.StartServer(utils.GetLaLogger(), confIface, *paramsDir)
-	logger.Err("ERROR server not started")
-	panic(err)
+	LacpSysGlobalInfoInit(LaSystemIdDefault)
 }
