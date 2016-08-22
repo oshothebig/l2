@@ -54,6 +54,7 @@ type IntfState struct {
 	PeerPort            string
 	PeerHostName        string
 	HoldTime            string
+	SystemDescription   string
 	SystemCapabilities  string
 	EnabledCapabilities string
 }

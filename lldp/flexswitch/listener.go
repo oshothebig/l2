@@ -151,6 +151,7 @@ func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(state config.Intf
 	entry.HoldTime = state.HoldTime
 	entry.Enable = state.Enable
 	entry.IfIndex = state.IfIndex
+	entry.SystemDescription = state.SystemDescription
 	entry.SystemCapabilities = state.SystemCapabilities
 	entry.EnabledCapabilities = state.EnabledCapabilities
 	return entry

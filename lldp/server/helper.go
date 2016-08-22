@@ -303,6 +303,13 @@ func (gblInfo *LLDPGlobalInfo) GetPeerHostName() string {
 	return gblInfo.RxInfo.RxLinkInfo.SysName
 }
 
+/*  Get Peer Host Name information
+ *
+ */
+func (gblInfo *LLDPGlobalInfo) GetSystemDescription() string {
+	return gblInfo.RxInfo.RxLinkInfo.SysDescription
+}
+
 /*  dump received lldp frame and other TX information
  */
 func (gblInfo LLDPGlobalInfo) DumpFrame() {
