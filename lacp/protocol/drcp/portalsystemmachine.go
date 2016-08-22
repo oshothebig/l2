@@ -243,12 +243,16 @@ func (psm PsMachine) setDefaultPortalSystemParameters() {
 	dr.DRFHomeGatewayAlgorithm = dr.DrniGatewayAlgorithm
 	dr.DRFHomeOperDRCPState = dr.DRFNeighborAdminDRCPState
 
-	dr.GatewayVectorDatabase = nil
 	// set during config do not want to clear this to a default because
 	// there is only one default
 	// dr.Ipplinks = nil
 	for i := 1; i <= MAX_PORTAL_SYSTEM_IDS; i++ {
+		dr.DrniPortalSystemState[i].mutex.Lock()
+		psm.DrcpPsmLog(fmt.Sprintf("DrniPortalSystemState[%d] setting OpState to false setting default params", i))
 		dr.DrniPortalSystemState[i].OpState = false
+		dr.DrniPortalSystemState[i].GatewayVector = nil
+		dr.DrniPortalSystemState[i].PortIdList = nil
+		dr.DrniPortalSystemState[i].mutex.Unlock()
 		// Don't want to clear this as it is set by config
 		//dr.DrniIntraPortalLinkList[i] = 0
 	}
@@ -377,12 +381,14 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		}
 		dr.DRFHomeState.mutex.Lock()
 		if len(dr.DRFHomeState.GatewayVector) > 0 {
+			dr.DRFHomeState.OpState = true
 			dr.DRFHomeState.updateGatewayVector(dr.DRFHomeState.GatewayVector[0].Sequence+1, vector)
 		} else {
+			dr.DRFHomeState.OpState = true
 			dr.DRFHomeState.updateGatewayVector(1, vector)
 		}
-		dr.DRFHomeState.mutex.Unlock()
 		fmt.Printf("updateDRFHome: DRFHomeState vector[100] %t\n", dr.DRFHomeState.GatewayVector[0].Vector[100])
+		dr.DRFHomeState.mutex.Unlock()
 		dr.HomeGatewayVectorTransmit = true
 
 		dr.GatewayConversationUpdate = true

@@ -25,7 +25,6 @@
 package drcp
 
 import (
-	"fmt"
 	//"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"strconv"
@@ -268,76 +267,7 @@ func (gm *GMachine) updatePortalState() {
 
 	dr := gm.dr
 
-	// The information for this Portal System, DRF_Home_State, indexed by the Portal System
-	// Number, is included in Drni_Portal_System_State[].
-	//fmt.Println("updateGatewayVector called on dr.DrniPortalSystemState local")
-	dr.DRFHomeState.mutex.Lock()
-	homevector := dr.DRFHomeState.getGatewayVectorByIndex(0)
-	if homevector == nil {
-		fmt.Println("DRFHomeState returned nil for gateway vector at index 0")
-		return
-	}
-	dr.DRFHomeState.mutex.Unlock()
-	dr.DrniPortalSystemState[dr.DRFPortalSystemNumber].mutex.Lock()
-	dr.DrniPortalSystemState[dr.DRFPortalSystemNumber].updateGatewayVector(homevector.Sequence, homevector.Vector)
-	dr.DrniPortalSystemState[dr.DRFPortalSystemNumber].mutex.Unlock()
-	for _, ipp := range dr.Ipplinks {
-		dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Lock()
-
-		if len(dr.Ipplinks) == 2 {
-			// TODO when 3P system supported
-			// For that Portal System, only the Portal System state information provided by the
-			// DRF_Neighbor_State on the IPP having the other Portal System as a Neighbor Portal
-			// System will be included in Drni_Portal_System_State[], indexed by the Portal System
-			// Number
-		} else {
-			ipp.DRFNeighborState.mutex.Lock()
-			if ipp.DRFNeighborState.OpState {
-				//fmt.Println("updateGatewayVector called on dr.DrniPortalSystemState neighbor")
-				neighborvector := ipp.DRFNeighborState.getGatewayVectorByIndex(0)
-
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(neighborvector.Sequence, neighborvector.Vector)
-				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = make([]GatewayVectorEntry, 2)
-				//fmt.Println("updateGatewayVector called on ipp.IppPortalSystemState neighbor then home")
-				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(neighborvector.Sequence, neighborvector.Vector)
-				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(homevector.Sequence, homevector.Vector)
-
-			} else {
-				//dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Lock()
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
-				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
-				//dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Unlock()
-				ipp.IppPortalSystemState = nil
-			}
-			ipp.DRFNeighborState.mutex.Unlock()
-			/*
-				TODO: NOT supported
-				if ipp.DRFOtherNeighborState.OpState {
-					for _, seqvector := range ipp.DRFOtherNeighborState.GatewayVector {
-						dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
-					}
-					ipp.ONN = true
-				} else {
-					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = false
-					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].GatewayVector = nil
-					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = nil
-					ipp.IppPortalSystemState = nil
-				}
-
-				dr.DrniPortalSystemState[3].OpState = false
-				dr.DrniPortalSystemState[3].GatewayVector = nil
-				dr.DrniPortalSystemState[3].PortIdList = nil
-				ipp.IppPortalSystemState = nil
-			*/
-		}
-		dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Unlock()
-	}
-
-	// always set to false since portal system number is never 0
-	dr.DrniPortalSystemState[0].OpState = false
-	dr.DrniPortalSystemState[0].GatewayVector = nil
-	dr.DrniPortalSystemState[0].PortIdList = nil
+	dr.updatePortalState()
 }
 
 // setIPPGatewayUpdate This function sets the IppGatewayUpdate on every IPP on this

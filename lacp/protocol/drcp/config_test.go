@@ -26,9 +26,12 @@ package drcp
 import (
 	"fmt"
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 	asicdmock "utils/asicdClient/mock"
@@ -78,6 +81,33 @@ func (m *MyTestMock) GetBulkVlan(curMark, count int) (*commonDefs.VlanGetInfo, e
 		IfIndexList: []int32{aggport1, aggport2, LaAggPort1NeighborActor, LaAggPort2NeighborActor, LaAggPort1Peer, LaAggPort2Peer},
 	}
 	return getinfo, nil
+}
+
+// normally asicd would notify any listeners of ports being added or deleted
+func (m *MyTestMock) UpdateLag(ifIndex, hashType int32, ports string) error {
+
+	// NOTE this logic only handles ports as is, no state
+	var mydr *DistributedRelay
+	strPortList := strings.Split(ports, ",")
+	portList := make([]int32, len(strPortList))
+	for _, dr := range DistributedRelayDBList {
+		if dr.a.HwAggId == ifIndex {
+			mydr = dr
+			for i, strport := range strPortList {
+				ifindex, _ := strconv.Atoi(strport)
+				portList[i] = int32(ifindex)
+			}
+		}
+	}
+	if mydr != nil {
+		config := &DRAggregatorPortListConfig{
+			DrniAggregator: uint32(mydr.DrniAggregator),
+			PortList:       portList,
+		}
+
+		DistributedRelayAggregatorPortListUpdate(config)
+	}
+	return nil
 }
 
 func OnlyForTestSetup() {
@@ -1283,6 +1313,36 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 		t.Error("Unable to find port just created")
 	}
 
+	var dr *DistributedRelay
+	if !DrFindByAggregator(int32(cfg.DrniAggregator), &dr) {
+		t.Error("Error could not find te DR by local aggregator")
+	}
+
+	if len(dr.DRAggregatorDistributedList) != 1 {
+		t.Error("Error Distributed Ports does not equal")
+	} else {
+
+		if dr.DRAggregatorDistributedList[0] != LaAggPort2NeighborActor {
+			t.Error("Error Distributed Ports Incorrect port found", dr.DRAggregatorDistributedList[0])
+		}
+	}
+
+	if !dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
+		t.Error("Error IPP HOME did not sync up as expected current state ", dr.DRFHomeOperDRCPState.String())
+	}
+
+	for _, ipp := range dr.Ipplinks {
+
+		if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
+			t.Error("Error IPP NEIGHBOR did not sync up as expected current state ", ipp.DRFNeighborOperDRCPState.String())
+		}
+	}
 	// cleanup the provisioning
 	close(bridge1.RxLacpPort1)
 	close(bridge1.RxLacpPort2)

@@ -560,43 +560,33 @@ func DRFindPortByKey(key IppDbKey, p **DRCPIpp) bool {
 }
 
 // updateGatewayVector will update the vector, indexed by the received
-// Home_Gateway_Sequence in increasing sequence number order
+// Gateway_Sequence in increasing sequence number order
 func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) {
 
 	//fmt.Printf("updateGatewayVector: GatewayVector vector[100]=%t\n", vector[100])
 
 	if len(nsi.GatewayVector) > 0 {
-		nsi.OpState = true
-		for i, seqVector := range nsi.GatewayVector {
-			/*if seqVector.Sequence == sequence {
 
-				// overwrite the sequence
-				nsi.GatewayVector[i] = GatewayVectorEntry{
-					Sequence: sequence,
-					Vector:   make([]bool, 4096),
-				}
-				for j, val := range vector {
-					nsi.GatewayVector[i].Vector[j] = val
-				}
-				fmt.Printf("updateGatewayVector: overwrite vector[100] %t\n", nsi.GatewayVector[i].Vector[100])
-			} else*/
-			if seqVector.Sequence < sequence {
-				// insert sequence/vecotor at front of list
-				nsi.GatewayVector = append(nsi.GatewayVector, GatewayVectorEntry{Vector: make([]bool, 4096)})
-				copy(nsi.GatewayVector[i:], nsi.GatewayVector[i+1:])
-				//fmt.Printf("updateGatewayVector length of GatewayVector %d\n", len(nsi.GatewayVector))
-				nsi.GatewayVector[0] = GatewayVectorEntry{
-					Sequence: sequence,
-					Vector:   make([]bool, 4096),
-				}
-				for j, val := range vector {
-					nsi.GatewayVector[0].Vector[j] = val
-				}
-				//fmt.Printf("updateGatewayVector: prepend vector[100] %t\n", nsi.GatewayVector[0].Vector[100])
-				break
+		nsi.OpState = true
+		if nsi.GatewayVector[0].Sequence != sequence {
+			obj := GatewayVectorEntry{
+				Sequence: sequence,
+				Vector:   make([]bool, 4096)}
+			// save off the vector information
+			for j, val := range vector {
+				obj.Vector[j] = val
 			}
+			// insert sequence/vecotor at front of list
+			nsi.GatewayVector = append([]GatewayVectorEntry{obj}, nsi.GatewayVector...)
+
+			// lets only store the last 5 sequences
+			if len(nsi.GatewayVector) > 5 {
+				nsi.GatewayVector = append(nsi.GatewayVector[:0], nsi.GatewayVector[0:5]...)
+			}
+			//fmt.Printf("updateGatewayVector: prepend vector[100] %t\n", nsi.GatewayVector[0].Vector[100])
 		}
 	} else {
+		nsi.GatewayVector = make([]GatewayVectorEntry, 1)
 		tmp := GatewayVectorEntry{
 			Sequence: sequence,
 			Vector:   make([]bool, 4096),
@@ -605,7 +595,7 @@ func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) 
 			tmp.Vector[j] = val
 		}
 		nsi.OpState = true
-		nsi.GatewayVector = append(nsi.GatewayVector, tmp)
+		nsi.GatewayVector[0] = tmp
 		//fmt.Printf("updateGatewayVector: new vector[100] %t\n", nsi.GatewayVector[0].Vector[100])
 	}
 }

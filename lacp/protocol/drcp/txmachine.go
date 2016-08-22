@@ -30,7 +30,7 @@ import (
 	"fmt"
 	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
-	//"math"
+	"math"
 	"strconv"
 	"strings"
 	"utils/fsm"
@@ -403,7 +403,7 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 					}
 				}
 			}
-			homePortsInfoLength += uint32(len(drcp.HomePortsInfo.ActiveHomePorts))
+			homePortsInfoLength += uint32(4 + (4 * len(drcp.HomePortsInfo.ActiveHomePorts)))
 			drcp.HomePortsInfo.TlvTypeLength.SetLength(uint16(homePortsInfoLength))
 			pktLength += uint32(homePortsInfoLength) + uint32(layers.DRCPTlvAndLengthSize)
 
@@ -435,33 +435,30 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				// TODO WTF is the standard trying to say is supposed to happen here
 				// Only include it if it does not make the packet exceed the MTU?  But other parts of standard say
 				// the field is manditory
-				/*
-					drcp.HomeGatewayVector = layers.DRCPHomeGatewayVectorTlv{}
-					gatewayvector := dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].getGatewayVectorByIndex(0)
-					if gatewayvector != nil {
-						// TODO this should actually be the DRFHomeGatewayConversationMask, which should be the same as below but
-						// lets follow the standard
-						if gatewayvector.Vector != nil {
-							fmt.Printf("TX (1)\n")
-							drcp.HomeGatewayVector.Sequence = gatewayvector.Sequence
-							j := 0
-							fmt.Printf("TX (2)\n")
-							for i, vector := range gatewayvector.Vector {
-								index := uint(math.Mod(float64(i), 8))
-								if vector {
-									fmt.Printf("TX j %d", j)
-									if drcp.HomeGatewayVector.Vector == nil {
-										drcp.HomeGatewayVector.Vector = make([]uint8, 512)
-									}
-									drcp.HomeGatewayVector.Vector[j] |= uint8(1 << index)
+
+				drcp.HomeGatewayVector = layers.DRCPHomeGatewayVectorTlv{}
+				gatewayvector := dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].getGatewayVectorByIndex(0)
+				if gatewayvector != nil {
+					// TODO this should actually be the DRFHomeGatewayConversationMask, which should be the same as below but
+					// lets follow the standard
+					if gatewayvector.Vector != nil {
+						drcp.HomeGatewayVector.Sequence = gatewayvector.Sequence
+						j := 0
+						for i, vector := range gatewayvector.Vector {
+							index := uint(math.Mod(float64(i), 8))
+							if vector {
+								if drcp.HomeGatewayVector.Vector == nil {
+									drcp.HomeGatewayVector.Vector = make([]uint8, 512)
 								}
-								if index == 0 {
-									j++
-								}
+								drcp.HomeGatewayVector.Vector[j] |= uint8(1 << index)
+							}
+							if index == 0 {
+								j++
 							}
 						}
 					}
-				*/
+				}
+
 				drcp.HomeGatewayVector.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeHomeGatewayVector))
 				if len(drcp.HomeGatewayVector.Vector) > 0 {
 					drcp.HomeGatewayVector.TlvTypeLength.SetLength(uint16(layers.DRCPTLVHomeGatewayVectorLength_2))

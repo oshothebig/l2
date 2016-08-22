@@ -80,9 +80,6 @@ type DistributedRelay struct {
 	DrniPortConversationControl            bool
 	DrniPortalPortProtocolIDA              net.HardwareAddr
 
-	// TODO This should be removed
-	GatewayVectorDatabase []GatewayVectorEntry
-
 	// 9.4.10
 	PortConversationUpdate     bool
 	IppAllPortUpdate           bool
@@ -600,4 +597,103 @@ func extractGatewayConversationID() {
 // 802.1ax-2014 9.3.4.4
 func extractPortConversationID() {
 
+}
+
+// updatePortalState This function updates the Drni_Portal_System_State[] as follows
+func (dr *DistributedRelay) updatePortalState() {
+
+	// update the local portal info
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].mutex.Lock()
+	dr.DRFHomeState.mutex.Lock()
+	/*
+		dr.LaDrLog(fmt.Sprintf("DrniPortalSystemState[%d] from DRFHomeState OpState %t updating vector sequence %d portList %v",
+			dr.DrniPortalSystemNumber,
+			dr.DRFHomeState.OpState,
+			dr.DRFHomeState.GatewayVector[0].Sequence,
+			dr.DRFHomeState.PortIdList))
+	*/
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].OpState = dr.DRFHomeState.OpState
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].updateGatewayVector(dr.DRFHomeState.GatewayVector[0].Sequence, dr.DRFHomeState.GatewayVector[0].Vector)
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].PortIdList = dr.DRFHomeState.PortIdList
+	dr.DRFHomeState.mutex.Unlock()
+	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].mutex.Unlock()
+
+	if len(dr.Ipplinks) > 1 {
+		// TODO need for the following case when more than a single IPL is supported
+		// if any of the other Portal System’s state information is available from two IPPs in this Portal
+		// System, then....
+	} else if len(dr.Ipplinks) == 1 {
+		// single IPP case
+		for _, ipp := range dr.Ipplinks {
+			dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Lock()
+			ipp.DRFNeighborState.mutex.Lock()
+			ipp.DRFOtherNeighborState.mutex.Lock()
+			if ipp.DRFNeighborState.OpState {
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFNeighborState.OpState
+				for _, seqvector := range ipp.DRFNeighborState.GatewayVector {
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
+				}
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = ipp.DRFNeighborState.PortIdList
+
+			} else if ipp.DRFOtherNeighborState.OpState {
+				ipp.DrniNeighborONN = true
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFOtherNeighborState.OpState
+				for _, seqvector := range ipp.DRFOtherNeighborState.GatewayVector {
+					dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
+				}
+				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = ipp.DRFOtherNeighborState.PortIdList
+			}
+			ipp.DRFOtherNeighborState.mutex.Unlock()
+			ipp.DRFNeighborState.mutex.Unlock()
+			dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Unlock()
+		}
+	}
+	// clear unset portals (ignore first index)
+	for i, stateinfo := range dr.DrniPortalSystemState {
+		if i != 0 && !stateinfo.OpState {
+			dr.DrniPortalSystemState[i].mutex.Lock()
+			dr.DrniPortalSystemState[i].GatewayVector = nil
+			dr.DrniPortalSystemState[i].PortIdList = nil
+			dr.DrniPortalSystemState[i].mutex.Unlock()
+		}
+	}
+	// TODO revisit logic as this may be incorrect
+	// should only be one ipp
+	for _, ipp := range dr.Ipplinks {
+		for i := uint8(1); i <= MAX_PORTAL_SYSTEM_IDS; i++ {
+			ipp.DRFNeighborState.mutex.Lock()
+			if i != dr.DRFPortalSystemNumber {
+				if !ipp.DRFNeighborState.OpState {
+					dr.DrniPortalSystemState[i].mutex.Lock()
+					ipp.DRFNeighborState.OpState = dr.DrniPortalSystemState[i].OpState
+					for _, seqvector := range dr.DrniPortalSystemState[i].GatewayVector {
+						ipp.DRFNeighborState.updateGatewayVector(seqvector.Sequence, seqvector.Vector)
+					}
+					ipp.DRFNeighborState.PortIdList = dr.DrniPortalSystemState[i].PortIdList
+					dr.DrniPortalSystemState[i].mutex.Unlock()
+				}
+			}
+			ipp.DRFNeighborState.mutex.Unlock()
+		}
+	}
+
+	// update ipp_portal_system_state
+	// TODO If any other Portal System’s state information is available from two IPPs, then
+	if len(dr.Ipplinks) > 1 {
+
+	} else if len(dr.Ipplinks) == 1 {
+		// single ipl
+		// Ipp portal state contains the neighbor state as first entry and if there
+		// are any other portals received on this IPP they will follow
+		for _, ipp := range dr.Ipplinks {
+			ipp.IppPortalSystemState = make([]StateVectorInfo, 0)
+			ipp.DRFNeighborState.mutex.Lock()
+			if ipp.DRFNeighborState.OpState {
+				ipp.IppPortalSystemState = append(ipp.IppPortalSystemState, ipp.DRFNeighborState)
+				// TODO add the any other portal state info from received DRCP here
+				// Not being done today because should only be one other system in 2P config
+			}
+			ipp.DRFNeighborState.mutex.Unlock()
+		}
+	}
 }
