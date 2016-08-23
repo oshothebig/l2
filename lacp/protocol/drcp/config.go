@@ -28,7 +28,6 @@ import (
 	"fmt"
 	//"sync"
 	"errors"
-	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
 )
@@ -181,7 +180,7 @@ func CreateDistributedRelay(cfg *DistrubtedRelayConfig) {
 
 	dr := NewDistributedRelay(cfg)
 	if dr != nil {
-		AttachAggregatorToDistributedRelay(int(dr.DrniAggregator))
+		dr.AttachAggregatorToDistributedRelay(dr.DrniAggregator)
 	}
 }
 
@@ -191,189 +190,7 @@ func DeleteDistributedRelay(name string) {
 
 	dr, ok := DistributedRelayDB[name]
 	if ok {
-		DetachAggregatorFromDistributedRelay(int(dr.DrniAggregator))
+		dr.DetachAggregatorFromDistributedRelay(dr.DrniAggregator)
 		dr.DeleteDistributedRelay()
-	}
-}
-
-// UpdateAggregatorPortList to be called when aggregator port list has
-// been updated
-func UpdateAggregatorPortList(aggId int) {
-	for _, dr := range DistributedRelayDBList {
-		if dr.DrniAggregator == int32(aggId) &&
-			dr.a != nil &&
-			len(dr.a.PortNumList) > 0 {
-			// set this to allow for portal system machine to fall through
-			// after initialization
-			dr.ChangeDRFPorts = true
-			if dr.PsMachineFsm != nil {
-				dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
-					E:   PsmEventChangeDRFPorts,
-					Src: DRCPConfigModuleStr,
-				}
-			}
-		}
-	}
-}
-
-// AttachAggregatorToDistributedRelay: will attach the aggregator and start the Distributed
-// relay protocol for the given dr if this agg is associated with a DR
-func AttachAggregatorToDistributedRelay(aggId int) {
-	for _, dr := range DistributedRelayDBList {
-		if dr.DrniAggregator == int32(aggId) &&
-			dr.a == nil {
-			var a *lacp.LaAggregator
-			if lacp.LaFindAggById(aggId, &a) {
-				dr.a = a
-				a.DrniName = dr.DrniName
-				a.ActorOperKey = uint16(dr.DRFHomeOperAggregatorKey)
-				a.PartnerOperKey = a.ActorOperKey
-
-				dr.LaDrLog(fmt.Sprintf("Attaching Agg %s %d to DR %s", a.AggName, a.AggId, dr.DrniName))
-
-				// These values should be the same as the admin
-				dr.PrevAggregatorId = a.AggMacAddr
-				dr.PrevAggregatorPriority = a.AggPriority
-				dr.LaDrLog(fmt.Sprintf("Saving Orig SystemId %+v Priority %d", a.AggMacAddr, a.AggPriority))
-
-				// set the aggregator Id for the aggregator as this is used in
-				// setDefaultPortalSystemParameters
-				a.AggMacAddr = dr.DrniAggregatorId
-
-				// only need to set this once the key has been negotiated.
-				if dr.PsMachineFsm != nil &&
-					dr.PsMachineFsm.Machine.Curr.CurrentState() == PsmStatePortalSystemUpdate {
-					// lets update the aggregator parameters
-					// configured ports
-					for _, aggport := range a.PortNumList {
-						var p *lacp.LaAggPort
-						if lacp.LaFindPortById(aggport, &p) {
-
-							dr.LaDrLog(fmt.Sprintf("Aggregator found updating system parameters moving to unselected until DR is synced"))
-							// assign the new values to the aggregator
-							lacp.SetLaAggPortSystemInfoFromDistributedRelay(
-								uint16(aggport),
-								fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
-									dr.DrniPortalAddr[0],
-									dr.DrniPortalAddr[1],
-									dr.DrniPortalAddr[2],
-									dr.DrniPortalAddr[3],
-									dr.DrniPortalAddr[4],
-									dr.DrniPortalAddr[5]),
-								dr.DrniPortalPriority,
-								dr.DRFHomeOperAggregatorKey,
-								dr.DrniName,
-								false)
-						} else {
-							dr.LaDrLog(fmt.Sprintf("ERROR unable update system info on port %d not found", aggport))
-						}
-					}
-				}
-				if len(a.PortNumList) == 0 {
-					dr.LaDrLog(fmt.Sprintf("Aggregator found but port list is empty thus not updating system parameters"))
-				}
-
-				// add the port to the local distributed list so that the digests can be
-				// calculated
-				dr.DRAggregatorDistributedList = make([]int32, 0)
-				for _, disport := range a.DistributedPortNumList {
-					var aggp *lacp.LaAggPort
-					foundPort := false
-					for lacp.LaGetPortNext(&aggp) && !foundPort {
-						if aggp.IntfNum == disport {
-							dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
-							dr.LaDrLog(fmt.Sprintf("Aggregator port in Distributing State", aggp.PortNum))
-						}
-					}
-				}
-
-				// set port and gateway info and digest
-				//dr.SetTimeSharingPortAndGatwewayDigest()
-				// TODO can we get away with just setting
-				if len(a.PortNumList) > 0 {
-					// set this to allow for portal system machine to fall through
-					// after initialization
-					dr.ChangeDRFPorts = true
-					dr.ChangePortal = true
-				}
-
-				dr.BEGIN(false)
-				// start the IPP links
-				for _, ipp := range dr.Ipplinks {
-					dr.LaDrLog(fmt.Sprintf("Starting Ipp %s", ipp.Name))
-					ipp.DRCPEnabled = true
-					ipp.BEGIN(false)
-				}
-			}
-		}
-	}
-}
-
-// DetachCreatedAggregatorFromDistributedRelay: will detach the aggregator and stop the Distributed
-// relay protocol for the given dr if since this aggregator is no longer attached
-func DetachAggregatorFromDistributedRelay(aggId int) {
-	for _, dr := range DistributedRelayDBList {
-		if dr.DrniAggregator == int32(aggId) &&
-			dr.a != nil {
-			var a *lacp.LaAggregator
-			if lacp.LaFindAggById(aggId, &a) {
-				// lets update the aggregator parameters
-				// configured ports
-				for _, pId := range a.PortNumList {
-					lacp.SetLaAggPortSystemInfo(
-						uint16(pId),
-						fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
-							dr.PrevAggregatorId[0],
-							dr.PrevAggregatorId[1],
-							dr.PrevAggregatorId[2],
-							dr.PrevAggregatorId[3],
-							dr.PrevAggregatorId[4],
-							dr.PrevAggregatorId[5]),
-						dr.PrevAggregatorPriority)
-				}
-				// reset aggregator values
-				a.DrniName = ""
-				a.AggMacAddr = dr.PrevAggregatorId
-				a.AggPriority = dr.PrevAggregatorPriority
-				a.ActorOperKey = a.ActorAdminKey
-			}
-			dr.Stop()
-			dr.a = nil
-		}
-	}
-}
-
-// DistributedRelayAggregatorPortListUpdate inform the Portal System Machine
-// that the port list has changed.  It will then send the correct update
-// to gateway and aggregator machines
-func DistributedRelayAggregatorPortListUpdate(cfg *DRAggregatorPortListConfig) {
-	var dr *DistributedRelay
-	if DrFindByAggregator(int32(cfg.DrniAggregator), &dr) {
-
-		a := dr.a
-
-		if a != nil {
-			// fill in current distributed port list
-			dr.DRAggregatorDistributedList = make([]int32, 0)
-			// add the port to the local distributed list so that the digests can be
-			// calculated
-			for _, disport := range a.DistributedPortNumList {
-				var aggp *lacp.LaAggPort
-				foundPort := false
-				for lacp.LaGetPortNext(&aggp) && !foundPort {
-					if aggp.IntfNum == disport {
-						dr.DRAggregatorDistributedList = append(dr.DRAggregatorDistributedList, int32(aggp.PortNum))
-					}
-				}
-			}
-
-			dr.ChangeDRFPorts = true
-			if dr.PsMachineFsm != nil {
-				dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
-					E:   PsmEventChangeDRFPorts,
-					Src: DRCPConfigModuleStr,
-				}
-			}
-		}
 	}
 }

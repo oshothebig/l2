@@ -396,6 +396,7 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 			drcp.HomePortsInfo.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeHomePortsInfo))
 			// length is determine by the number of active ports + 6
 			homePortsInfoLength := uint32(4)
+			// TODO protect this list with a lock
 			if dr.a != nil && dr.DRAggregatorDistributedList != nil {
 				for _, ifindex := range dr.DRAggregatorDistributedList {
 					if ifindex > 0 {
@@ -577,7 +578,7 @@ func (p *DRCPIpp) TxMachineMain() {
 		for {
 			select {
 			case event, ok := <-m.TxmEvents:
-				var rv error
+
 				if ok {
 					if event.E == TxmEventNtt {
 						p.NTTDRCPDU = true
@@ -587,15 +588,15 @@ func (p *DRCPIpp) TxMachineMain() {
 					if rv == nil && m.Machine.Curr.CurrentState() == TxmStateOn {
 						rv = m.Machine.ProcessEvent(TxMachineModuleStr, TxmEventUnconditionalFallThrough, nil)
 					}
-				}
-				if event.ResponseChan != nil {
-					utils.SendResponse(TxMachineModuleStr, event.ResponseChan)
-				}
-				if rv != nil {
-					m.DrcpTxmLog(strings.Join([]string{error.Error(rv), event.Src, TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 
-				}
-				if !ok {
+					if event.ResponseChan != nil {
+						utils.SendResponse(TxMachineModuleStr, event.ResponseChan)
+					}
+					if rv != nil {
+						m.DrcpTxmLog(strings.Join([]string{error.Error(rv), event.Src, TxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
+
+					}
+				} else {
 					m.DrcpTxmLog("Machine End")
 					return
 				}

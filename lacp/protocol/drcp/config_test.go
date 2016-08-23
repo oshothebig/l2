@@ -25,13 +25,12 @@ package drcp
 
 import (
 	"fmt"
+
 	"github.com/google/gopacket"
 	//"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 	asicdmock "utils/asicdClient/mock"
@@ -83,31 +82,8 @@ func (m *MyTestMock) GetBulkVlan(curMark, count int) (*commonDefs.VlanGetInfo, e
 	return getinfo, nil
 }
 
-// normally asicd would notify any listeners of ports being added or deleted
-func (m *MyTestMock) UpdateLag(ifIndex, hashType int32, ports string) error {
-
-	// NOTE this logic only handles ports as is, no state
-	var mydr *DistributedRelay
-	strPortList := strings.Split(ports, ",")
-	portList := make([]int32, len(strPortList))
-	for _, dr := range DistributedRelayDBList {
-		if dr.a.HwAggId == ifIndex {
-			mydr = dr
-			for i, strport := range strPortList {
-				ifindex, _ := strconv.Atoi(strport)
-				portList[i] = int32(ifindex)
-			}
-		}
-	}
-	if mydr != nil {
-		config := &DRAggregatorPortListConfig{
-			DrniAggregator: uint32(mydr.DrniAggregator),
-			PortList:       portList,
-		}
-
-		DistributedRelayAggregatorPortListUpdate(config)
-	}
-	return nil
+func (m *MyTestMock) GetPortLinkStatus(port int32) bool {
+	return true
 }
 
 func OnlyForTestSetup() {
@@ -128,13 +104,28 @@ func OnlyForTestTeardown() {
 	ConversationIdMap[100].Cvlan = 0
 	ConversationIdMap[100].Refcnt = 0
 	ConversationIdMap[100].Idtype = [4]uint8{}
+
+	// validate that the
+	if len(DistributedRelayDB) != 0 {
+		t.Errorf("Error DR objects not deleted")
+	}
+	if len(DistributedRelayDBList) != 0 {
+		t.Errorf("Error DR objects not deleted")
+	}
+	if len(DRCPIppDB) != 0 {
+		t.Errorf("Error IPP objects not deleted")
+	}
+	if len(DRCPIppDBList) != 0 {
+		t.Errorf("Error IPP objects not deleted")
+	}
 }
 
 func OnlyForTestSetupCreateAggGroup(aggId uint32) *lacp.LaAggregator {
 	a1conf := &lacp.LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:  int(aggId),
-		Key: uint16(aggId),
+		Name: fmt.Sprintf("agg%d", aggId),
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:   int(aggId),
+		Key:  uint16(aggId),
 		Lacp: lacp.LacpConfigInfo{Interval: lacp.LacpFastPeriodicTime,
 			Mode:           lacp.LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:64",
@@ -281,6 +272,16 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate {
 		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", GmStateStrMap[dr.GMachineFsm.Machine.Curr.CurrentState()])
 	}
+
+	go func(wc *chan bool) {
+		for i := 0; i < 4 && dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate; i++ {
+			time.Sleep(time.Second * 1)
+		}
+		*wc <- true
+	}(&waitChan)
+
+	<-waitChan
+
 	if dr.AMachineFsm == nil ||
 		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate {
 		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", AmStateStrMap[dr.AMachineFsm.Machine.Curr.CurrentState()])
@@ -375,8 +376,6 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 	}
 
 	CreateDistributedRelay(cfg)
-	// This should fail as agg has not been created yet
-	AttachAggregatorToDistributedRelay(200)
 
 	// configuration is incomplete because lag has not been created as part of this
 	if len(DistributedRelayDB) == 0 ||
@@ -410,7 +409,6 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 
 	// TEST aggregator created after DR
 	a := OnlyForTestSetupCreateAggGroup(200)
-	AttachAggregatorToDistributedRelay(200)
 
 	// check the inital state of each of the state machines
 	if dr.a == nil {
@@ -418,7 +416,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 	}
 	waitChan := make(chan bool)
 	go func(wc *chan bool) {
-		for i := 0; i < 10 && (dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate); i++ {
+		for i := 0; i < 20 && dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate; i++ {
 			time.Sleep(time.Millisecond * 10)
 		}
 		*wc <- true
@@ -428,12 +426,12 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 
 	// Rx machine sets the change portal which should inform the psm
 	if dr.PsMachineFsm == nil ||
-		dr.PsMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate {
+		dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate {
 		t.Error("ERROR BEGIN Initial Portal System Machine state is not correct", PsmStateStrMap[dr.PsMachineFsm.Machine.Curr.CurrentState()])
 	}
-
+	waitChan = make(chan bool)
 	go func(wc *chan bool) {
-		for i := 0; i < 10 && dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate; i++ {
+		for i := 0; i < 20 && dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate; i++ {
 			time.Sleep(time.Millisecond * 10)
 		}
 		*wc <- true
@@ -446,6 +444,19 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate {
 		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", GmStateStrMap[dr.GMachineFsm.Machine.Curr.CurrentState()])
 	}
+
+	waitChan = make(chan bool)
+	go func(wc *chan bool) {
+		// TODO investigate why this event is taking so long  because it is taking so long
+		// the RXM is transitioning from Expired to Defaulted
+		for i := 0; i < 4 && dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate; i++ {
+			time.Sleep(time.Second * 1)
+		}
+		*wc <- true
+	}(&waitChan)
+
+	<-waitChan
+
 	if dr.AMachineFsm == nil ||
 		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate {
 		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", AmStateStrMap[dr.AMachineFsm.Machine.Curr.CurrentState()])
@@ -458,7 +469,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 	for _, ipp := range dr.Ipplinks {
 		// IPL should be disabled thus state should be in initialized state
 		if ipp.RxMachineFsm == nil ||
-			ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateExpired {
+			ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateDefaulted {
 			t.Error("ERROR BEGIN Initial Receive Machine state is not correct", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 		}
 		// port is enabled and drcp is enabled thus we should be in fast periodic state
@@ -1151,9 +1162,7 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 
 	// Create Aggregation
 	lacp.CreateLaAgg(a1conf)
-	AttachAggregatorToDistributedRelay(a1conf.Id)
 	lacp.CreateLaAgg(a2conf)
-	AttachAggregatorToDistributedRelay(a2conf.Id)
 	lacp.CreateLaAgg(a3conf)
 
 	// actor        peer
@@ -1230,13 +1239,11 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 
 	// actor / neighbor
 	lacp.CreateLaAggPort(p1conf)
-	UpdateAggregatorPortList(p1conf.AggId)
 	// peer
 	lacp.CreateLaAggPort(p2conf)
 
 	// actor / neighbor
 	lacp.CreateLaAggPort(p3conf)
-	UpdateAggregatorPortList(p3conf.AggId)
 	// peer
 	lacp.CreateLaAggPort(p4conf)
 
@@ -1269,10 +1276,10 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 			lacp.LacpStateSyncBit | lacp.LacpStateCollectingBit | lacp.LacpStateDistributingBit
 
 		if !lacp.LacpStateIsSet(State1, portUpState) {
-			t.Error(fmt.Sprintf("Actor Port State 0x%x did not come up properly with peer expected 0x%x", State1, portUpState))
+			t.Error(fmt.Sprintf("Actor Port State %s did not come up properly with peer expected %s", lacp.LacpStateToStr(State1), lacp.LacpStateToStr(portUpState)))
 		}
 		if !lacp.LacpStateIsSet(State2, portUpState) {
-			t.Error(fmt.Sprintf("Peer Port State 0x%x did not come up properly with actor expected 0x%x", State2, portUpState))
+			t.Error(fmt.Sprintf("Peer Port State %s did not come up properly with actor expected %s", lacp.LacpStateToStr(State2), lacp.LacpStateToStr(portUpState)))
 		}
 
 		// TODO check the States of the other State machines
@@ -1287,7 +1294,7 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 		lacp.LaFindPortById(p3conf.Id, &p2) {
 
 		go func() {
-			for i := 0; i < 10 &&
+			for i := 0; i < 20 &&
 				(p1.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing ||
 					p2.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing); i++ {
 				time.Sleep(time.Second * 1)
@@ -1322,7 +1329,7 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 	}
 
 	if len(dr.DRAggregatorDistributedList) != 1 {
-		t.Error("Error Distributed Ports does not equal")
+		t.Error("Error Distributed Ports does not equal", dr.DRAggregatorDistributedList)
 	} else {
 
 		if dr.DRAggregatorDistributedList[0] != LaAggPort2NeighborActor {

@@ -530,6 +530,7 @@ func SetLaAggPortSystemInfo(pId uint16, sysIdMac string, sysPrio uint16) {
 	if LaFindPortById(pId, &p) {
 		mac, ok := net.ParseMAC(sysIdMac)
 		if ok == nil {
+			p.DrniName = ""
 			macArr := convertNetHwAddressToSysIdKey(mac)
 			p.LaAggPortActorAdminInfoSet(macArr, sysPrio)
 
@@ -642,6 +643,13 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 		a.PortNumList = append(a.PortNumList, p.PortNum)
 		// add reference to aggId
 		p.AggId = a.AggId
+		p.DrniName = a.DrniName
+
+		// notify DR that port has been created
+		for name, createcb := range LacpCbDb.PortCreateDbList {
+			p.LaPortLog(fmt.Sprintf("Checking if %s assiciated with the port %s", name, p.IntfNum))
+			createcb(int32(p.PortNum))
+		}
 
 		// attach the port to the aggregator
 		//LacpStateSet(&p.ActorAdmin.State, LacpStateAggregationBit)
@@ -675,6 +683,7 @@ func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 
 		// del reference to aggId
 		p.AggId = 0
+		p.DrniName = ""
 
 		// detach the port from the agg port list
 		for idx, PortNum := range a.PortNumList {

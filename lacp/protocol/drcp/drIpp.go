@@ -25,13 +25,14 @@ package drcp
 
 import (
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"l2/lacp/protocol/utils"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 )
 
 // DRNI - Distributed Resilient Network Interconnect
@@ -240,6 +241,9 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 		ipp.LaIppLog(fmt.Sprintln("Initial IPP Link State", ipp.Name, ipp.IppPortEnabled))
 	}
 
+	// create the packet capture rule if it does not already exist
+	ipp.SetupDRCPMacCapture(ipp.dr.DrniPortalPortProtocolIDA.String())
+
 	ipp.LaIppLog(fmt.Sprintf("Created IPP port %+v\n", ipp))
 
 	handle, err := pcap.OpenLive(ipp.Name, 65536, false, 50*time.Millisecond)
@@ -266,6 +270,9 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 
 //
 func (p *DRCPIpp) DeleteDRCPIpp() {
+	// remove the packet capture rule if this is the last reference to it
+	p.TeardownDRCPMacCapture(p.dr.DrniPortalPortProtocolIDA.String())
+
 	// stop all state machines
 	p.Stop()
 
@@ -283,6 +290,44 @@ func (p *DRCPIpp) DeleteDRCPIpp() {
 			}
 		}
 	}
+}
+
+// SetupDRCPMacCapture will create an pkt capture rule in the hw
+func (p *DRCPIpp) SetupDRCPMacCapture(mac string) {
+	intfref := utils.GetNameFromIfIndex(int32(p.Id))
+	key := MacCaptureKey{
+		mac:     mac,
+		intfref: intfref,
+	}
+
+	if _, ok := MacCaptureCount[key]; ok {
+		MacCaptureCount[key]++
+	} else {
+		MacCaptureCount[key] = 1
+		for _, client := range utils.GetAsicDPluginList() {
+			client.EnablePacketReception(mac, 0, int32(p.Id))
+		}
+	}
+
+}
+
+// TeardownDRCPMacCapture will delete a pkt capture rule in the hw
+func (p *DRCPIpp) TeardownDRCPMacCapture(mac string) {
+	intfref := utils.GetNameFromIfIndex(int32(p.Id))
+	key := MacCaptureKey{
+		mac:     mac,
+		intfref: intfref,
+	}
+
+	if _, ok := MacCaptureCount[key]; ok {
+		MacCaptureCount[key]--
+		if MacCaptureCount[key] == 0 {
+			for _, client := range utils.GetAsicDPluginList() {
+				client.DisablePacketReception(mac, 0, int32(p.Id))
+			}
+		}
+	}
+
 }
 
 // Stop the port services and state machines

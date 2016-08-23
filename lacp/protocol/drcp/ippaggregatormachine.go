@@ -195,13 +195,12 @@ func (p *DRCPIpp) DrcpIAMachineMain() {
 					if rv != nil {
 						m.DrcpIAmLog(strings.Join([]string{error.Error(rv), event.Src, IAmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
-				}
 
-				// respond to caller if necessary so that we don't have a deadlock
-				if event.ResponseChan != nil {
-					utils.SendResponse(IAMachineModuleStr, event.ResponseChan)
-				}
-				if !ok {
+					// respond to caller if necessary so that we don't have a deadlock
+					if event.ResponseChan != nil {
+						utils.SendResponse(IAMachineModuleStr, event.ResponseChan)
+					}
+				} else {
 					m.DrcpIAmLog("Machine End")
 					return
 				}

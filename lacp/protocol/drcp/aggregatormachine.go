@@ -222,13 +222,12 @@ func (dr *DistributedRelay) DrcpAMachineMain() {
 					if rv != nil {
 						m.DrcpAmLog(strings.Join([]string{error.Error(rv), event.Src, AmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
-				}
 
-				// respond to caller if necessary so that we don't have a deadlock
-				if event.ResponseChan != nil {
-					utils.SendResponse(AMachineModuleStr, event.ResponseChan)
-				}
-				if !ok {
+					// respond to caller if necessary so that we don't have a deadlock
+					if event.ResponseChan != nil {
+						utils.SendResponse(AMachineModuleStr, event.ResponseChan)
+					}
+				} else {
 					m.DrcpAmLog("Machine End")
 					return
 				}

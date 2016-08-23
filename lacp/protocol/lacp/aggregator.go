@@ -28,6 +28,7 @@ package lacp
 import (
 	"fmt"
 	//"log/syslog"
+	"l2/lacp/protocol/utils"
 	"net"
 	"time"
 )
@@ -254,11 +255,31 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		for _, pId := range ac.LagMembers {
 			a.PortNumList = append(a.PortNumList, pId)
 		}
+
 	} else {
 		a.LacpAggLog(fmt.Sprintf("Error trying to create aggregator duplicate id or key or name\n", ac.Id, ac.Key, ac.Name))
 		a = nil
 	}
 
+	if a != nil {
+		// The Lag must exist in the HW in order for IP interfaces to be created
+		for _, client := range utils.GetAsicDPluginList() {
+			if client != nil {
+				ifindex, err := client.CreateLag(a.AggName, asicDHashModeGet(a.LagHash), "")
+				if err != nil {
+					a.LacpAggLog(fmt.Sprintln("EnableDistributing: Error creating first port in LAG Group in HW", err))
+				} else {
+					a.HwAggId = ifindex
+				}
+			}
+		}
+
+		// notify DR that aggregator has been created
+		for name, createcb := range LacpCbDb.AggCreateDbList {
+			a.LacpAggLog(fmt.Sprintf("Checking if %s is associated with this lag %s", name, a.AggName))
+			createcb(int32(a.AggId))
+		}
+	}
 	return a
 }
 
@@ -343,6 +364,26 @@ func LaFindAggByKey(Key uint16, agg **LaAggregator) bool {
 }
 
 func (a *LaAggregator) DeleteLaAgg() {
+
+	for _, client := range utils.GetAsicDPluginList() {
+		err := client.DeleteLag(a.HwAggId)
+		if err != nil {
+			a.LacpAggLog(fmt.Sprintln("ERROR Deleting Lag in HW", err))
+			return
+		}
+	}
+	a.HwAggId = 0
+	a.OperState = false
+
+	// notify DR that aggregator has been created
+	a.LacpAggLog(fmt.Sprintf("Do we need to Detach Aggregator from %s  %s", a.AggName, a.DrniName))
+	if a.DrniName != "" {
+		a.LacpAggLog(fmt.Sprintf("Registered for agg delete notification  %v", LacpCbDb.AggDeleteDbList))
+		if deletecb, ok := LacpCbDb.AggDeleteDbList[a.DrniName]; ok {
+			a.LacpAggLog(fmt.Sprintf("Detaching Aggregator from %s", a.DrniName))
+			deletecb(int32(a.AggId))
+		}
+	}
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		lookupKey := AggIdKey{Id: a.AggId, Name: a.AggName}
 		for Key, _ := range sgi.AggMap {

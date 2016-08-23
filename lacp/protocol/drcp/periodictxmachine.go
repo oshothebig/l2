@@ -299,13 +299,12 @@ func (p *DRCPIpp) DrcpPtxMachineMain() {
 					if rv != nil {
 						m.DrcpPtxmLog(strings.Join([]string{error.Error(rv), event.Src, PtxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
-				}
 
-				// respond to caller if necessary so that we don't have a deadlock
-				if event.ResponseChan != nil {
-					utils.SendResponse(PtxMachineModuleStr, event.ResponseChan)
-				}
-				if !ok {
+					// respond to caller if necessary so that we don't have a deadlock
+					if event.ResponseChan != nil {
+						utils.SendResponse(PtxMachineModuleStr, event.ResponseChan)
+					}
+				} else {
 					m.DrcpPtxmLog("Machine End")
 					return
 				}
