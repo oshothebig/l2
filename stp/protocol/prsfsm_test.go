@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var WAIT_FOR_EVENT_TIME time.Duration = time.Millisecond * 75
+var WAIT_FOR_EVENT_TIME time.Duration = time.Millisecond * 250
 
 func UsedForTestOnlyPrsInitPortConfigTest() {
 
