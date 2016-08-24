@@ -95,7 +95,7 @@ func OnlyForTestSetup() {
 	GetAllCVIDConversations()
 }
 
-func OnlyForTestTeardown() {
+func OnlyForTestTeardown(t *testing.T) {
 
 	utils.SetLaLogger(nil)
 	utils.DeleteAllAsicDPlugins()
@@ -107,16 +107,16 @@ func OnlyForTestTeardown() {
 
 	// validate that the
 	if len(DistributedRelayDB) != 0 {
-		t.Errorf("Error DR objects not deleted")
+		t.Error("Error DR objects not deleted")
 	}
 	if len(DistributedRelayDBList) != 0 {
-		t.Errorf("Error DR objects not deleted")
+		t.Error("Error DR objects not deleted")
 	}
 	if len(DRCPIppDB) != 0 {
-		t.Errorf("Error IPP objects not deleted")
+		t.Error("Error IPP objects not deleted")
 	}
 	if len(DRCPIppDBList) != 0 {
-		t.Errorf("Error IPP objects not deleted")
+		t.Error("Error IPP objects not deleted")
 	}
 }
 
@@ -184,9 +184,9 @@ func ConfigTestSetup() {
 		HardwareAddr: net.HardwareAddr{0x00, 0x66, 0x11, 0x22, 0x22, 0x33},
 	}
 }
-func ConfigTestTeardwon() {
+func ConfigTestTeardwon(t *testing.T) {
 
-	OnlyForTestTeardown()
+	OnlyForTestTeardown(t)
 	delete(utils.PortConfigMap, ipplink1)
 	delete(utils.PortConfigMap, aggport1)
 	delete(utils.PortConfigMap, aggport2)
@@ -343,7 +343,7 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
@@ -447,9 +447,8 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 
 	waitChan = make(chan bool)
 	go func(wc *chan bool) {
-		// TODO investigate why this event is taking so long  because it is taking so long
-		// the RXM is transitioning from Expired to Defaulted
-		for i := 0; i < 4 && dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate; i++ {
+		// takes time for agg port to be in distributing state so lets give it time
+		for i := 0; i < 5 && dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate; i++ {
 			time.Sleep(time.Second * 1)
 		}
 		*wc <- true
@@ -515,7 +514,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 		t.Error("ERROR IPP DB was not cleaned up")
 	}
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigDistributedRelayInValidCreateDRNoAgg(t *testing.T) {
@@ -591,7 +590,7 @@ func TestConfigDistributedRelayInValidCreateDRNoAgg(t *testing.T) {
 		t.Error("ERROR IPP DB was not cleaned up")
 	}
 
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidPortalAddressString(t *testing.T) {
@@ -626,7 +625,7 @@ func TestConfigInvalidPortalAddressString(t *testing.T) {
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidThreePortalSystemSet(t *testing.T) {
@@ -655,7 +654,7 @@ func TestConfigInvalidThreePortalSystemSet(t *testing.T) {
 		t.Error("Parameter check did not fail setting 3P system")
 	}
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidPortalSytemNumber(t *testing.T) {
@@ -690,7 +689,7 @@ func TestConfigInvalidPortalSytemNumber(t *testing.T) {
 		t.Error("Parameter check did not fail portal system number 3")
 	}
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidIntraPortalLink(t *testing.T) {
@@ -726,7 +725,7 @@ func TestConfigInvalidIntraPortalLink(t *testing.T) {
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidGatewayAlgorithm(t *testing.T) {
@@ -767,14 +766,14 @@ func TestConfigInvalidGatewayAlgorithm(t *testing.T) {
 		t.Error("Parameter check did not fail Invalid Gateway Algorithm wrong format to short missing actual type byte")
 	}
 
-	cfg.DrniGatewayAlgorithm = "00-80-C2-02"
+	cfg.DrniGatewayAlgorithm = "00-80:C2-02"
 	err = DistrubtedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Gateway Algorithm separator")
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidNeighborGatewayAlgorithm(t *testing.T) {
@@ -815,14 +814,14 @@ func TestConfigInvalidNeighborGatewayAlgorithm(t *testing.T) {
 		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm wrong format to short missing actual type byte")
 	}
 
-	cfg.DrniNeighborAdminGatewayAlgorithm = "00-80-C2-02"
+	cfg.DrniNeighborAdminGatewayAlgorithm = "00-80:C2-02"
 	err = DistrubtedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm separator")
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidNeighborPortAlgorithm(t *testing.T) {
@@ -863,14 +862,14 @@ func TestConfigInvalidNeighborPortAlgorithm(t *testing.T) {
 		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm wrong format to short missing actual type byte")
 	}
 
-	cfg.DrniNeighborAdminPortAlgorithm = "00-80-C2-02"
+	cfg.DrniNeighborAdminPortAlgorithm = "00-80:C2-02"
 	err = DistrubtedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm separator")
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidEncapMethod(t *testing.T) {
@@ -911,44 +910,14 @@ func TestConfigInvalidEncapMethod(t *testing.T) {
 		t.Error("Parameter check did not fail Invalid Encap Method wrong format to short missing actual type byte")
 	}
 
-	cfg.DrniEncapMethod = "00-80-C2-02"
+	cfg.DrniEncapMethod = "00-80:C2-02"
 	err = DistrubtedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Encap Method separator")
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
-}
-
-func TestConfigInvalidPortConversationControl(t *testing.T) {
-	ConfigTestSetup()
-	a := OnlyForTestSetupCreateAggGroup(100)
-
-	cfg := &DistrubtedRelayConfig{
-		DrniName:                          "DR-1",
-		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
-		DrniPortalPriority:                128,
-		DrniThreePortalSystem:             false,
-		DrniPortalSystemNumber:            1,
-		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)}, // no link supplied is invalid
-		DrniAggregator:                    100,
-		DrniGatewayAlgorithm:              "00:80:C2:01",
-		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
-		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
-		DrniNeighborAdminDRCPState:        "00000000",
-		DrniEncapMethod:                   "00:80:C2:01",
-		DrniPortConversationControl:       true,                // invalid assuming protocol will take care of conversation always
-		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
-	}
-
-	err := DistrubtedRelayConfigParamCheck(cfg)
-	if err == nil {
-		t.Error("Parameter check did not fail Invalid Port Conversaton Control")
-	}
-
-	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidPortalPortProtocolDA(t *testing.T) {
@@ -990,7 +959,7 @@ func TestConfigInvalidPortalPortProtocolDA(t *testing.T) {
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func FullBackToBackConfigTestSetup() {
@@ -1015,8 +984,8 @@ func FullBackToBackConfigTestSetup() {
 	}
 }
 
-func FullBackToBackConfigTestTeardown() {
-	OnlyForTestTeardown()
+func FullBackToBackConfigTestTeardown(t *testing.T) {
+	OnlyForTestTeardown(t)
 	delete(utils.PortConfigMap, LaAggPort1NeighborActor)
 	delete(utils.PortConfigMap, LaAggPort2NeighborActor)
 	delete(utils.PortConfigMap, LaAggPort1Peer)
@@ -1026,7 +995,7 @@ func FullBackToBackConfigTestTeardown() {
 }
 
 // 3 node system where two neighbors are connected to 1 peer device
-func TestCreateBackToBackMLagAndPeer(t *testing.T) {
+func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 
 	FullBackToBackConfigTestSetup()
 
@@ -1073,12 +1042,14 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 	// create first drni
 	CreateDistributedRelay(cfg)
 
+	cfg2 := *cfg
+
 	// create second drni
-	cfg.DrniName = "DR-2"
-	cfg.DrniPortalSystemNumber = 2
-	cfg.DrniAggregator = 101
-	cfg.DrniIntraPortalLinkList = [3]uint32{uint32(DRNeighborIpp2)}
-	CreateDistributedRelay(cfg)
+	cfg2.DrniName = "DR-2"
+	cfg2.DrniPortalSystemNumber = 2
+	cfg2.DrniAggregator = 101
+	cfg2.DrniIntraPortalLinkList = [3]uint32{uint32(DRNeighborIpp2)}
+	CreateDistributedRelay(&cfg2)
 
 	// must be called to initialize the global
 	LaSystem1NeighborActor := lacp.LacpSystem{Actor_System_priority: 128,
@@ -1324,7 +1295,7 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 	}
 
 	var dr *DistributedRelay
-	if !DrFindByAggregator(int32(cfg.DrniAggregator), &dr) {
+	if !DrFindByAggregator(int32(cfg2.DrniAggregator), &dr) {
 		t.Error("Error could not find te DR by local aggregator")
 	}
 
@@ -1376,8 +1347,12 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+
+	DeleteDistributedRelay(cfg.DrniName)
+	DeleteDistributedRelay(cfg2.DrniName)
+
 	lacp.LacpSysGlobalInfoDestroy(LaSystem1NeighborActor)
 	lacp.LacpSysGlobalInfoDestroy(LaSystem2NeighborActor)
 	lacp.LacpSysGlobalInfoDestroy(LaSystemPeer)
-	FullBackToBackConfigTestTeardown()
+	FullBackToBackConfigTestTeardown(t)
 }

@@ -162,6 +162,38 @@ func DrFindByPortalAddr(portaladdr string, dr **DistributedRelay) bool {
 	return false
 }
 
+// DrFindByName will find the DR based on the DRNI name
+func DrFindByName(DrniName string, dr **DistributedRelay) bool {
+	for _, d := range DistributedRelayDBList {
+		if d.DrniName == DrniName {
+			*dr = d
+			return true
+		}
+	}
+	return false
+}
+
+func DrGetDrcpNext(dr **DistributedRelay) bool {
+	returnNext := false
+	for _, d := range DistributedRelayDBList {
+		if *dr == nil {
+			// first agg
+			*dr = d
+			return true
+		} else if (*dr).DrniName == d.DrniName {
+			// found agg
+			returnNext = true
+		} else if returnNext {
+			// next agg
+			*dr = d
+			return true
+		}
+	}
+
+	*dr = nil
+	return false
+}
+
 // DrFindByAggregator will find the DR based on the Aggregator that it is
 // associated with
 func DrFindByAggregator(DrniAggregator int32, dr **DistributedRelay) bool {

@@ -28,6 +28,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
+	"fmt"
 	"time"
 )
 
@@ -64,6 +65,14 @@ var ENCAP_METHOD_SHARING_BY_PSEUDOWIRE [4]uint8 = [4]uint8{0x00, 0x80, 0xC2, 0x0
 type GatewayAlgorithm [4]uint8
 type EncapMethod [4]uint8
 type Md5Digest [16]uint8
+
+func (g *GatewayAlgorithm) String() string {
+	return fmt.Sprintf("%02x-%02x-%02x-%02x", g[0], g[1], g[2], g[3])
+}
+
+func (g *EncapMethod) String() string {
+	return fmt.Sprintf("%02x-%02x-%02x-%02x", g[0], g[1], g[2], g[3])
+}
 
 func (d Md5Digest) get16Bytes() [16]uint8 {
 	return [16]uint8{

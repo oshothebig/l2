@@ -133,6 +133,11 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 		"00:80:C2:03": true,
 		"00:80:C2:04": true,
 		"00:80:C2:05": true,
+		"00-80-C2-01": true,
+		"00-80-C2-02": true,
+		"00-80-C2-03": true,
+		"00-80-C2-04": true,
+		"00-80-C2-05": true,
 	}
 
 	if _, ok := validPortGatewayAlgorithms[mlag.DrniGatewayAlgorithm]; !ok {
@@ -151,14 +156,13 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 		"00:80:C2:00": true, // seperate physical or lag link
 		"00:80:C2:01": true, // shared by time
 		"00:80:C2:02": true, // shared by tag
+		"00-80-C2-00": true, // seperate physical or lag link
+		"00-80-C2-01": true, // shared by time
+		"00-80-C2-02": true, // shared by tag
 	}
 
 	if _, ok := validEncapStrings[mlag.DrniEncapMethod]; !ok {
 		return errors.New(fmt.Sprintln("ERROR Invalid Encap Method supplied must be in the format 00:80:C2:XX where XX is 0-2 the value of the encap method ", mlag.DrniEncapMethod))
-	}
-
-	if mlag.DrniPortConversationControl {
-		return errors.New(fmt.Sprintln("ERROR Invalid Port Conversation Control is always false as the Home Gateway Vector is controlled by protocol ", mlag.DrniPortConversationControl))
 	}
 
 	_, err = net.ParseMAC(mlag.DrniIntraPortalPortProtocolDA)
@@ -166,8 +170,13 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 		return errors.New(fmt.Sprintln("ERROR Invalid Port Protocol DA invalid format must be 00:00:00:00:00:00 rcvd: ", mlag.DrniIntraPortalPortProtocolDA))
 	}
 
+	validProtocolMacAddress := map[string]bool{
+		"01:80:C2:00:00:03": true,
+		"01-80-C2-00-00-03": true,
+	}
+
 	// only going to support this address
-	if mlag.DrniIntraPortalPortProtocolDA != "01:80:C2:00:00:03" {
+	if _, ok := validProtocolMacAddress[mlag.DrniIntraPortalPortProtocolDA]; !ok {
 		return errors.New(fmt.Sprintln("ERROR Invalid Port Protocol DA only support 01:80:C2:00:00:03 rcvd: ", mlag.DrniIntraPortalPortProtocolDA))
 	}
 
