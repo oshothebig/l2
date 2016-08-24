@@ -335,6 +335,7 @@ func (p *DRCPIpp) SetupDRCPMacCapture(mac string) {
 	} else {
 		MacCaptureCount[key] = 1
 		for _, client := range utils.GetAsicDPluginList() {
+			p.LaIppLog(fmt.Sprintf("Enabling Pkt Capture in HW IPP port %s with mac %s", p.Name, mac))
 			client.EnablePacketReception(mac, 0, int32(p.Id))
 		}
 	}
@@ -353,6 +354,7 @@ func (p *DRCPIpp) TeardownDRCPMacCapture(mac string) {
 		MacCaptureCount[key]--
 		if MacCaptureCount[key] == 0 {
 			for _, client := range utils.GetAsicDPluginList() {
+				p.LaIppLog(fmt.Sprintf("Disabling Pkt Capture in HW IPP port %s with mac %s", p.Name, mac))
 				client.DisablePacketReception(mac, 0, int32(p.Id))
 			}
 		}

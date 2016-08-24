@@ -866,9 +866,16 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 			nextLagState.SystemIdMac = a.Config.SystemIdMac
 			nextLagState.SystemPriority = int16(a.Config.SystemPriority)
 			nextLagState.LagHash = int32(a.LagHash)
-			//nextLagState.Ifindex = int32(a.HwAggId)
+			if len(a.PortNumList) > 0 {
+				nextLagState.IntfRefList = make([]string, 0)
+			}
+			if len(a.DistributedPortNumList) > 0 {
+				nextLagState.IntfRefListUpInBundle = make([]string, 0)
+			}
+			fmt.Println("Aggregator Port List: ", a.PortNumList)
 			for _, m := range a.PortNumList {
 				name := utils.GetNameFromIfIndex(int32(m))
+				fmt.Println("Aggregator Port Name: ", name)
 				if name != "" {
 					nextLagState.IntfRefList = append(nextLagState.IntfRefList, name)
 				}
