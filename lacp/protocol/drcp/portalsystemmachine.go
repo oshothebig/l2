@@ -207,13 +207,12 @@ func (dr *DistributedRelay) DrcpPsMachineMain() {
 					if rv != nil {
 						m.DrcpPsmLog(strings.Join([]string{error.Error(rv), event.Src, PsmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
-				}
 
-				// respond to caller if necessary so that we don't have a deadlock
-				if event.ResponseChan != nil {
-					utils.SendResponse(PsMachineModuleStr, event.ResponseChan)
-				}
-				if !ok {
+					// respond to caller if necessary so that we don't have a deadlock
+					if event.ResponseChan != nil {
+						utils.SendResponse(PsMachineModuleStr, event.ResponseChan)
+					}
+				} else {
 					m.DrcpPsmLog("Machine End")
 					return
 				}
@@ -344,7 +343,7 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 	// TODO need to understand the logic better
 	dr := psm.dr
 	a := dr.a
-
+	psm.DrcpPsmLog(fmt.Sprintln("updateDRFHomeState: changePortal changeDRFPorts", dr.DrniName, a.AggName, changePortal, changeDRFPorts))
 	if changeDRFPorts {
 		//fmt.Println("updateDRFHomeState called with changedDRFPorts")
 		dr.SetTimeSharingPortAndGatwewayDigest()
@@ -374,7 +373,6 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
 			for cid, portalsystemnumbers := range dr.DrniConvAdminGateway {
 				if len(portalsystemnumbers) > 1 {
-					//fmt.Printf("updateDRFHome: cid %d is true\n", cid)
 					vector[cid] = true
 				}
 			}
@@ -387,12 +385,13 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 			dr.DRFHomeState.OpState = true
 			dr.DRFHomeState.updateGatewayVector(1, vector)
 		}
-		//fmt.Printf("updateDRFHome: DRFHomeState vector[100] %t\n", dr.DRFHomeState.GatewayVector[0].Vector[100])
+
 		dr.DRFHomeState.mutex.Unlock()
 		dr.HomeGatewayVectorTransmit = true
 
 		dr.GatewayConversationUpdate = true
 		if dr.GMachineFsm != nil {
+			psm.DrcpPsmLog("Sending Update Gateway Conversation to GM machine")
 			dr.GMachineFsm.GmEvents <- utils.MachineEvent{
 				E:   GmEventGatewayConversationUpdate,
 				Src: PsMachineModuleStr,
@@ -410,12 +409,12 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		dr.DRFHomeState.mutex.Unlock()
 		dr.PortConversationUpdate = true
 		if dr.AMachineFsm != nil {
+			psm.DrcpPsmLog("Sending Update Port Conversation to AM machine")
 			dr.AMachineFsm.AmEvents <- utils.MachineEvent{
 				E:   AmEventPortConversationUpdate,
 				Src: PsMachineModuleStr,
 			}
 		}
-
 	}
 
 	// Portal System is Isolated, which means IPP link is down
@@ -451,13 +450,13 @@ func (psm *PsMachine) setDRFHomeState(changeDRFPorts bool) (gatewayChanged bool)
 			dr.DRFHomeOperDRCPState.SetState(layers.DRCPStateHomeGatewayBit)
 			if !isGatewaySet {
 				gatewayChanged = true
-				psm.DrcpPsmLog("Gateway Sync Set")
+				psm.DrcpPsmLog("Home Gateway Set")
 			}
 		} else {
 			dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStateHomeGatewayBit)
 			if isGatewaySet {
 				gatewayChanged = true
-				psm.DrcpPsmLog("Gateway Sync Cleared")
+				psm.DrcpPsmLog("Home Gateway Cleared")
 			}
 		}
 	}

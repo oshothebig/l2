@@ -220,13 +220,12 @@ func (dr *DistributedRelay) DrcpGMachineMain() {
 					if rv != nil {
 						m.DrcpGmLog(strings.Join([]string{error.Error(rv), event.Src, GmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
-				}
 
-				// respond to caller if necessary so that we don't have a deadlock
-				if event.ResponseChan != nil {
-					utils.SendResponse(GMachineModuleStr, event.ResponseChan)
-				}
-				if !ok {
+					// respond to caller if necessary so that we don't have a deadlock
+					if event.ResponseChan != nil {
+						utils.SendResponse(GMachineModuleStr, event.ResponseChan)
+					}
+				} else {
 					m.DrcpGmLog("Machine End")
 					return
 				}

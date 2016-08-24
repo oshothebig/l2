@@ -24,8 +24,6 @@
 // init
 package lacp
 
-import ()
-
 var LaSystemIdDefault LacpSystem
 var MuxStateStrMap map[uint8]string
 var ModeStrMap map[uint8]string
@@ -42,4 +40,13 @@ func init() {
 		Actor_System:          [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 	}
 	LacpSysGlobalInfoInit(LaSystemIdDefault)
+
+	LacpCbDb = LacpCbDbEntry{
+		PortCreateDbList: make(map[string]LacpPortEvtCb),
+		PortDeleteDbList: make(map[string]LacpPortEvtCb),
+		PortUpDbList:     make(map[string]LacpPortEvtCb),
+		PortDownDbList:   make(map[string]LacpPortEvtCb),
+		AggCreateDbList:  make(map[string]LacpAggEvtCb),
+		AggDeleteDbList:  make(map[string]LacpAggEvtCb),
+	}
 }

@@ -32,4 +32,5 @@ func init() {
 	DRCPIppDBList = make([]*DRCPIpp, 0)
 	DistributedRelayDB = make(map[string]*DistributedRelay)
 	DistributedRelayDBList = make([]*DistributedRelay, 0)
+	MacCaptureCount = make(map[MacCaptureKey]int)
 }

@@ -754,24 +754,17 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 		sort.Strings(a.DistributedPortNumList)
 
 		muxm.LacpMuxmLog(fmt.Sprintf("Agg %d hwAggId %d EnableDistributing PortsListLen %d PortList %v", p.AggId, a.HwAggId, len(a.DistributedPortNumList), a.DistributedPortNumList))
-		if len(a.DistributedPortNumList) == 1 {
-			for _, client := range utils.GetAsicDPluginList() {
-				hwId, err := client.CreateLag(a.AggName, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
-				if err != nil {
-					a.LacpAggLog(fmt.Sprintln("EnableDistributing: Error creating first port in LAG Group in HW", err))
-					return
-				}
-				a.HwAggId = hwId
+		for _, client := range utils.GetAsicDPluginList() {
+			err := client.UpdateLag(a.HwAggId, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
+			if err != nil {
+				a.LacpAggLog(fmt.Sprintln("EnableDistributing: Error updating LAG in HW", err))
 			}
-			a.OperState = true
-			// TODO UPDATE SQL DB for warm boot purposes
-		} else {
-			for _, client := range utils.GetAsicDPluginList() {
-				err := client.UpdateLag(a.HwAggId, asicDHashModeGet(a.LagHash), asicDPortBmpFormatGet(a.DistributedPortNumList))
-				if err != nil {
-					a.LacpAggLog(fmt.Sprintln("EnableDistributing: Error updating LAG in HW", err))
-				}
-			}
+		}
+
+		// notify DR that port has been created
+		for name, upcb := range LacpCbDb.PortUpDbList {
+			a.LacpAggLog(fmt.Sprintf("Checking %s if it cares about port up for port %s", name, p.IntfNum))
+			upcb(int32(p.PortNum))
 		}
 	}
 }
@@ -807,6 +800,11 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 					muxm.LacpMuxmLog(fmt.Sprintln("ERROR Updating Lag in HW", err))
 					return
 				}
+			}
+
+			// notify DR that port has been created
+			for _, downcb := range LacpCbDb.PortDownDbList {
+				downcb(int32(p.PortNum))
 			}
 
 			if len(a.DistributedPortNumList) == 0 {

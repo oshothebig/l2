@@ -217,15 +217,15 @@ func (p *DRCPIpp) NetIplShareMachineMain() {
 					if rv == nil {
 						m.processPostStates()
 					}
-				}
-				if event.ResponseChan != nil {
-					utils.SendResponse(NetIplShareMachineModuleStr, event.ResponseChan)
-				}
-				if rv != nil {
-					m.DrcpNetIplSharemLog(strings.Join([]string{error.Error(rv), event.Src, NetIplSharemStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 
-				}
-				if !ok {
+					if event.ResponseChan != nil {
+						utils.SendResponse(NetIplShareMachineModuleStr, event.ResponseChan)
+					}
+
+					if rv != nil {
+						m.DrcpNetIplSharemLog(strings.Join([]string{error.Error(rv), event.Src, NetIplSharemStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
+					}
+				} else {
 					m.DrcpNetIplSharemLog("Machine End")
 					return
 				}

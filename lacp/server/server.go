@@ -31,8 +31,6 @@ const (
 	LAConfigMsgCreateConversationId
 	LAConfigMsgUpdateConversationId
 	LAConfigMsgDeleteConversationId
-	// events based on port being in distributed state or not
-	LAConfigMsgLaPortChannelDistributedRelayPortListUpdate
 )
 
 type LAConfig struct {
@@ -88,12 +86,10 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		s.logger.Info("CONFIG: Create Link Aggregation Group / Port Channel")
 		config := conf.Msgdata.(*lacp.LaAggConfig)
 		lacp.CreateLaAgg(config)
-		drcp.AttachAggregatorToDistributedRelay(config.Id)
 
 	case LAConfigMsgDeleteLaPortChannel:
 		s.logger.Info("CONFIG: Delete Link Aggregation Group / Port Channel")
 		config := conf.Msgdata.(*lacp.LaAggConfig)
-		drcp.DetachAggregatorFromDistributedRelay(config.Id)
 		lacp.DeleteLaAgg(config.Id)
 
 	case LAConfigMsgUpdateLaPortChannelLagHash:
@@ -168,9 +164,6 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		s.logger.Info("CONFIG: Create Link Aggregation Port")
 		config := conf.Msgdata.(*lacp.LaAggPortConfig)
 		lacp.CreateLaAggPort(config)
-		// if this is the first port then we need to do some
-		// work in terms of the
-		drcp.UpdateAggregatorPortList(config.AggId)
 
 	case LAConfigMsgDeleteLaAggPort:
 		s.logger.Info("CONFIG: Delete Link Aggregation Port")
@@ -201,11 +194,6 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		s.logger.Info("CONFIG: Update Conversation Id")
 		config := conf.Msgdata.(*drcp.DRConversationConfig)
 		drcp.UpdateConversationId(config)
-
-	case LAConfigMsgLaPortChannelDistributedRelayPortListUpdate:
-		s.logger.Info("CONFIG: Update DR AGG Port List")
-		config := conf.Msgdata.(*drcp.DRAggregatorPortListConfig)
-		drcp.DistributedRelayAggregatorPortListUpdate(config)
 	}
 }
 
@@ -281,37 +269,6 @@ func (s *LAServer) processVlanEvent(vlanMsg commonDefs.VlanNotifyMsg) {
 	}
 }
 
-/*
-
-type LagNotifyMsg struct {
-	MsgType     uint8
-	LagName     string
-	IfIndex     int32
-	IfIndexList []int32
-}
-
-*/
-func (s *LAServer) processLAGEvent(lagMsg commonDefs.LagNotifyMsg) {
-
-	// Only care about port updates
-	if lagMsg.MsgType == commonDefs.NOTIFY_LAG_UPDATE {
-		s.logger.Info(fmt.Sprintln("Msg lag = ", lagMsg))
-		msgtype := LAConfigMsgLaPortChannelDistributedRelayPortListUpdate
-		aggId := asicdCommonDefs.GetIntfIdFromIfIndex(lagMsg.IfIndex)
-		cfg := drcp.DRAggregatorPortListConfig{
-			DrniAggregator: uint32(aggId),
-		}
-		for _, ifindex := range lagMsg.IfIndexList {
-			cfg.PortList = append(cfg.PortList, int32(asicdCommonDefs.GetIntfIdFromIfIndex(ifindex)))
-		}
-
-		s.ConfigCh <- LAConfig{
-			Msgtype: msgtype,
-			Msgdata: cfg,
-		}
-	}
-}
-
 func (s *LAServer) processAsicdNotification(msg commonDefs.AsicdNotifyMsg) {
 	switch msg.(type) {
 	case commonDefs.L2IntfStateNotifyMsg:
@@ -326,9 +283,5 @@ func (s *LAServer) processAsicdNotification(msg commonDefs.AsicdNotifyMsg) {
 		vlanMsg := msg.(commonDefs.VlanNotifyMsg)
 		s.logger.Info(fmt.Sprintln("Msg vlan = ", vlanMsg))
 		s.processVlanEvent(vlanMsg)
-
-	case commonDefs.LagNotifyMsg:
-		lagMsg := msg.(commonDefs.LagNotifyMsg)
-		s.processLAGEvent(lagMsg)
 	}
 }

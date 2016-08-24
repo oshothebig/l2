@@ -47,11 +47,13 @@ func OnlyForTestSetup() {
 }
 func OnlyForTestTeardown() {
 	utils.SetLaLogger(nil)
+	utils.DeleteAllAsicDPlugins()
 }
 
 func TestCreateDeleteLaAggregatorNoMembers(t *testing.T) {
 
 	OnlyForTestSetup()
+	defer OnlyForTestTeardown()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -82,12 +84,12 @@ func TestCreateDeleteLaAggregatorNoMembers(t *testing.T) {
 		}
 	}
 	LacpSysGlobalInfoDestroy(sysId)
-	OnlyForTestTeardown()
 }
 
 func TestCreateDeleteLaAggregatorWithMembers(t *testing.T) {
 
 	OnlyForTestSetup()
+	defer OnlyForTestTeardown()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -120,11 +122,11 @@ func TestCreateDeleteLaAggregatorWithMembers(t *testing.T) {
 		}
 	}
 	LacpSysGlobalInfoDestroy(sysId)
-	OnlyForTestTeardown()
 }
 
 func TestCreateDeleteFindByAggName(t *testing.T) {
 	OnlyForTestSetup()
+	defer OnlyForTestTeardown()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -178,12 +180,12 @@ func TestCreateDeleteFindByAggName(t *testing.T) {
 		t.Error("Error found aggregator by name")
 	}
 	LacpSysGlobalInfoDestroy(sysId)
-	OnlyForTestTeardown()
 }
 
 func TestCreateDeleteFindById(t *testing.T) {
 
 	OnlyForTestSetup()
+	defer OnlyForTestTeardown()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -237,12 +239,12 @@ func TestCreateDeleteFindById(t *testing.T) {
 		t.Error("Error found aggregator by name")
 	}
 	LacpSysGlobalInfoDestroy(sysId)
-	OnlyForTestTeardown()
 }
 
 func TestCreateDeleteFindByKey(t *testing.T) {
 
 	OnlyForTestSetup()
+	defer OnlyForTestTeardown()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -297,12 +299,12 @@ func TestCreateDeleteFindByKey(t *testing.T) {
 	}
 
 	LacpSysGlobalInfoDestroy(sysId)
-	OnlyForTestTeardown()
 }
 
 func TestCreateDeleteFindLacpPortMember(t *testing.T) {
 
 	OnlyForTestSetup()
+	defer OnlyForTestTeardown()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -364,12 +366,12 @@ func TestCreateDeleteFindLacpPortMember(t *testing.T) {
 	}
 
 	LacpSysGlobalInfoDestroy(sysId)
-	OnlyForTestTeardown()
 }
 
 func TestDuplicateAdd(t *testing.T) {
 
 	OnlyForTestSetup()
+	defer OnlyForTestTeardown()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -405,7 +407,6 @@ func TestDuplicateAdd(t *testing.T) {
 
 	agg1.DeleteLaAgg()
 	LacpSysGlobalInfoDestroy(sysId)
-	OnlyForTestTeardown()
 }
 
 // Worst case is usually a single port lag and one per port
@@ -413,6 +414,7 @@ func TestDuplicateAdd(t *testing.T) {
 func TestScaleAggCreate(t *testing.T) {
 
 	OnlyForTestSetup()
+	defer OnlyForTestTeardown()
 	// must be called to initialize the global
 	sysId := LacpSystem{Actor_System_priority: 128,
 		Actor_System: [6]uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}}
@@ -487,5 +489,4 @@ func TestScaleAggCreate(t *testing.T) {
 		}
 	}
 	LacpSysGlobalInfoDestroy(sysId)
-	OnlyForTestTeardown()
 }
