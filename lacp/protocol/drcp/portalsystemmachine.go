@@ -287,20 +287,20 @@ func (psm *PsMachine) updateKey() {
 		for _, ipp := range dr.Ipplinks {
 
 			if dr.DRFHomeAdminAggregatorKey != 0 &&
-				(dr.DRFHomeAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) &&
-				(dr.DRFHomeAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
+				(dr.DRFHomeAdminAggregatorKey <= ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) &&
+				(dr.DRFHomeAdminAggregatorKey <= ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
 				if operKey == 0 || dr.DRFHomeAdminAggregatorKey <= operKey {
 					operKey = dr.DRFHomeAdminAggregatorKey
 				}
 			} else if ipp.DRFNeighborAdminAggregatorKey != 0 &&
-				(ipp.DRFNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
-				(ipp.DRFNeighborAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
+				(ipp.DRFNeighborAdminAggregatorKey <= dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
+				(ipp.DRFNeighborAdminAggregatorKey <= ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
 				if operKey == 0 || ipp.DRFNeighborAdminAggregatorKey <= operKey {
 					operKey = ipp.DRFNeighborAdminAggregatorKey
 				}
 			} else if ipp.DRFOtherNeighborAdminAggregatorKey != 0 &&
-				(ipp.DRFOtherNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
-				(ipp.DRFOtherNeighborAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) {
+				(ipp.DRFOtherNeighborAdminAggregatorKey <= dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
+				(ipp.DRFOtherNeighborAdminAggregatorKey <= ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) {
 				if operKey == 0 || ipp.DRFOtherNeighborAdminAggregatorKey <= operKey {
 					operKey = ipp.DRFOtherNeighborAdminAggregatorKey
 				}
