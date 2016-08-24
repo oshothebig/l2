@@ -319,6 +319,15 @@ func (psm *PsMachine) updateKey() {
 				a.ActorOperKey = operKey
 
 				for _, aggport := range a.PortNumList {
+					if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
+						for _, client := range utils.GetAsicDPluginList() {
+							for _, ippid := range dr.DrniIntraPortalLinkList {
+								inport := ippid & 0xffff
+								dr.LaDrLog(fmt.Sprintf("Blocking IPP %d to AggPort %d", inport, aggport))
+								client.IppIngressEgressDrop(int32(inport), int32(aggport))
+							}
+						}
+					}
 					lacp.SetLaAggPortSystemInfoFromDistributedRelay(
 						uint16(aggport),
 						fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",

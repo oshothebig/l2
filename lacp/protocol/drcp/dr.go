@@ -948,9 +948,9 @@ func (dr *DistributedRelay) DetachAggregatorFromDistributedRelay(aggId int32) {
 		if lacp.LaFindAggById(int(aggId), &a) {
 			// lets update the aggregator parameters
 			// configured ports
-			for _, pId := range a.PortNumList {
+			for _, aggport := range a.PortNumList {
 				lacp.SetLaAggPortSystemInfo(
-					uint16(pId),
+					uint16(aggport),
 					fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
 						dr.PrevAggregatorId[0],
 						dr.PrevAggregatorId[1],
@@ -959,6 +959,16 @@ func (dr *DistributedRelay) DetachAggregatorFromDistributedRelay(aggId int32) {
 						dr.PrevAggregatorId[4],
 						dr.PrevAggregatorId[5]),
 					dr.PrevAggregatorPriority)
+
+				if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
+					for _, client := range utils.GetAsicDPluginList() {
+						for _, ippid := range dr.DrniIntraPortalLinkList {
+							inport := ippid & 0xffff
+							dr.LaDrLog(fmt.Sprintf("UnBlocking IPP %d to AggPort %d", inport, aggport))
+							client.IppIngressEgressPass(int32(inport), int32(aggport))
+						}
+					}
+				}
 			}
 			// reset aggregator values
 			a.DrniName = ""
