@@ -26,12 +26,13 @@ package drcp
 
 import (
 	"fmt"
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 const PsMachineModuleStr = "Portal System Machine"
@@ -288,19 +289,19 @@ func (psm *PsMachine) updateKey() {
 			if dr.DRFHomeAdminAggregatorKey != 0 &&
 				(dr.DRFHomeAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) &&
 				(dr.DRFHomeAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
-				if operKey == 0 || dr.DRFHomeAdminAggregatorKey < operKey {
+				if operKey == 0 || dr.DRFHomeAdminAggregatorKey <= operKey {
 					operKey = dr.DRFHomeAdminAggregatorKey
 				}
 			} else if ipp.DRFNeighborAdminAggregatorKey != 0 &&
 				(ipp.DRFNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
 				(ipp.DRFNeighborAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
-				if operKey == 0 || ipp.DRFNeighborAdminAggregatorKey < operKey {
+				if operKey == 0 || ipp.DRFNeighborAdminAggregatorKey <= operKey {
 					operKey = ipp.DRFNeighborAdminAggregatorKey
 				}
 			} else if ipp.DRFOtherNeighborAdminAggregatorKey != 0 &&
 				(ipp.DRFOtherNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
 				(ipp.DRFOtherNeighborAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) {
-				if operKey == 0 || ipp.DRFOtherNeighborAdminAggregatorKey < operKey {
+				if operKey == 0 || ipp.DRFOtherNeighborAdminAggregatorKey <= operKey {
 					operKey = ipp.DRFOtherNeighborAdminAggregatorKey
 				}
 			}
@@ -309,7 +310,7 @@ func (psm *PsMachine) updateKey() {
 
 			// oper key has been successfully been negotiated because the
 			// neighbor
-			if ipp.DRFNeighborAdminAggregatorKey != 0 {
+			if ipp.DRFHomeOperAggregatorKey != 0 {
 				psm.DrcpPsmLog(fmt.Sprintf("updateKey: Admin Aggregator Key is updated from %d to %d source(home[%d]neighbor[%d]other[%d] updateing ports %+v)",
 					dr.DRFHomeAdminAggregatorKey, operKey, dr.DRFHomeAdminAggregatorKey, ipp.DRFNeighborAdminAggregatorKey, ipp.DRFOtherNeighborAdminAggregatorKey, a.PortNumList))
 
