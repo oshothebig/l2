@@ -25,7 +25,7 @@
 package drcp
 
 import (
-	//"fmt"
+	"fmt"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
@@ -99,9 +99,10 @@ func OnlyForConversationIdTestTeardown() {
 
 func OnlyForConversationIdTestSetupCreateAggGroup(aggId uint32) *lacp.LaAggregator {
 	a1conf := &lacp.LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:  int(aggId),
-		Key: uint16(aggId),
+		Name: fmt.Sprintf("agg%d", aggId),
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:   int(aggId),
+		Key:  uint16(aggId),
 		Lacp: lacp.LacpConfigInfo{Interval: lacp.LacpFastPeriodicTime,
 			Mode:           lacp.LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:64",

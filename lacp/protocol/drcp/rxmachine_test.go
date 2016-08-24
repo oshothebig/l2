@@ -27,8 +27,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
-	//"fmt"
-	"github.com/google/gopacket/layers"
+	"fmt"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
@@ -37,6 +36,7 @@ import (
 	"time"
 	"utils/fsm"
 	"utils/logging"
+	"github.com/google/gopacket/layers"
 )
 
 //const ipplink1 int32 = 3
@@ -162,9 +162,10 @@ func OnlyForRxMachineCreateValidDRCPPacket() *layers.DRCP {
 
 func OnlyForRxMachineTestSetupCreateAggGroup(aggId uint32) *lacp.LaAggregator {
 	a1conf := &lacp.LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:  int(aggId),
-		Key: uint16(aggId),
+		Name: fmt.Sprintf("agg%d", aggId),
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:   int(aggId),
+		Key:  uint16(aggId),
 		Lacp: lacp.LacpConfigInfo{Interval: lacp.LacpFastPeriodicTime,
 			Mode:           lacp.LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:64",
@@ -265,6 +266,7 @@ func TestRxMachineRxValidDRCPDUNeighborPkt(t *testing.T) {
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false
@@ -399,6 +401,7 @@ func TestRxMachineRxValidDRCPDUNeighborPktThenTimeout(t *testing.T) {
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false
@@ -561,6 +564,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorPriority(t *testi
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false
@@ -672,6 +676,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorAddr(t *testing.T
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false
@@ -783,6 +788,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferOperAggregatorKey(t *testin
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false
@@ -948,6 +954,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferThreeSystemPortalDiff(t *te
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false
@@ -1104,6 +1111,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferNeighborPortalSystemNumDiff
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false
@@ -1241,6 +1249,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayAlgorithmDiff(t *tes
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false
@@ -1349,6 +1358,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortAlgorithmDiff(t *testin
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false
@@ -1458,6 +1468,7 @@ func xTestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayDigestDiff(t *testi
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false
@@ -1569,6 +1580,7 @@ func xTestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortDigestDiff(t *testing.
 	// just create instance not starting any state machines
 	dr := NewDistributedRelay(cfg)
 	dr.a = a
+	a.DrniName = dr.DrniName
 	for _, disport := range a.DistributedPortNumList {
 		var aggp *lacp.LaAggPort
 		foundPort := false

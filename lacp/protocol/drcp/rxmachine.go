@@ -389,13 +389,12 @@ func (p *DRCPIpp) DrcpRxMachineMain() {
 					if rv != nil {
 						m.DrcpRxmLog(strings.Join([]string{error.Error(rv), event.Src, RxmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
-				}
 
-				// respond to caller if necessary so that we don't have a deadlock
-				if event.ResponseChan != nil {
-					utils.SendResponse(RxMachineModuleStr, event.ResponseChan)
-				}
-				if !ok {
+					// respond to caller if necessary so that we don't have a deadlock
+					if event.ResponseChan != nil {
+						utils.SendResponse(RxMachineModuleStr, event.ResponseChan)
+					}
+				} else {
 					m.DrcpRxmLog("Machine End")
 					return
 				}
@@ -546,7 +545,8 @@ func (rxm *RxMachine) NotifyChangePortalChanged(oldval, newval bool) {
 	p := rxm.p
 	dr := p.dr
 	if newval {
-		if dr.PsMachineFsm != nil {
+		if dr != nil &&
+			dr.PsMachineFsm != nil {
 			rxm.DrcpRxmLog("Sending Change Portal Event to PSM")
 			dr.PsMachineFsm.PsmEvents <- utils.MachineEvent{
 				E:   PsmEventChangePortal,
@@ -559,11 +559,12 @@ func (rxm *RxMachine) NotifyChangePortalChanged(oldval, newval bool) {
 func (rxm *RxMachine) NotifyGatewayConversationUpdate(oldval, newval bool) {
 	p := rxm.p
 	dr := p.dr
-	if (dr.GMachineFsm != nil &&
+	if newval &&
+		dr != nil &&
+		dr.GMachineFsm != nil &&
 		dr.GMachineFsm.Machine.Curr.CurrentState() == GmStateDRNIGatewayInitialize ||
 		dr.GMachineFsm.Machine.Curr.CurrentState() == GmStateDRNIGatewayUpdate ||
-		dr.GMachineFsm.Machine.Curr.CurrentState() == GmStatePsGatewayUpdate) &&
-		newval {
+		dr.GMachineFsm.Machine.Curr.CurrentState() == GmStatePsGatewayUpdate {
 		dr.GMachineFsm.GmEvents <- utils.MachineEvent{
 			E:   GmEventGatewayConversationUpdate,
 			Src: RxMachineModuleStr,
@@ -574,11 +575,12 @@ func (rxm *RxMachine) NotifyGatewayConversationUpdate(oldval, newval bool) {
 func (rxm *RxMachine) NotifyPortConversationUpdate(oldval, newval bool) {
 	p := rxm.p
 	dr := p.dr
-	if (dr.AMachineFsm != nil &&
+	if newval &&
+		dr != nil &&
+		dr.AMachineFsm != nil &&
 		dr.AMachineFsm.Machine.Curr.CurrentState() == AmStateDRNIPortInitialize ||
 		dr.AMachineFsm.Machine.Curr.CurrentState() == AmStateDRNIPortUpdate ||
-		dr.AMachineFsm.Machine.Curr.CurrentState() == AmStatePsPortUpdate) &&
-		newval {
+		dr.AMachineFsm.Machine.Curr.CurrentState() == AmStatePsPortUpdate {
 		dr.AMachineFsm.AmEvents <- utils.MachineEvent{
 			E:   AmEventPortConversationUpdate,
 			Src: RxMachineModuleStr,

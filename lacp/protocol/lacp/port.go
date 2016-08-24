@@ -420,7 +420,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 			Speed:  config.Properties.Speed,
 			Duplex: config.Properties.Duplex,
 			Mtu:    config.Properties.Mtu},
-		logEna:       config.TraceEna,
+		logEna:       true,
 		portChan:     make(chan string),
 		AggPortDebug: AggPortDebugInformationObject{AggPortDebugInformationID: int(config.Id)},
 	}
@@ -527,6 +527,14 @@ func (p *LaAggPort) IsPortEnabled() bool {
 }
 
 func (p *LaAggPort) LaAggPortDelete() {
+	// notify DR that port has been deleted
+	if p.AggAttached != nil &&
+		p.AggAttached.DrniName != "" {
+		if deletecb, ok := LacpCbDb.PortCreateDbList[p.AggAttached.DrniName]; ok {
+			deletecb(int32(p.PortNum))
+		}
+	}
+
 	p.Stop()
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for Key, port := range sgi.PortMap {

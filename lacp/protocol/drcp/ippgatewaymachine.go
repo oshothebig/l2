@@ -196,13 +196,12 @@ func (p *DRCPIpp) DrcpIGMachineMain() {
 					if rv != nil {
 						m.DrcpIGmLog(strings.Join([]string{error.Error(rv), event.Src, IGmStateStrMap[m.Machine.Curr.CurrentState()], strconv.Itoa(int(event.E))}, ":"))
 					}
-				}
 
-				// respond to caller if necessary so that we don't have a deadlock
-				if event.ResponseChan != nil {
-					utils.SendResponse(IGMachineModuleStr, event.ResponseChan)
-				}
-				if !ok {
+					// respond to caller if necessary so that we don't have a deadlock
+					if event.ResponseChan != nil {
+						utils.SendResponse(IGMachineModuleStr, event.ResponseChan)
+					}
+				} else {
 					m.DrcpIGmLog("Machine End")
 					return
 				}
@@ -376,5 +375,4 @@ func (igm *IGMachine) NotifyIppAllGatewayUpdate() {
 			}
 		}
 	}
-
 }

@@ -25,13 +25,12 @@ package drcp
 
 import (
 	"fmt"
+
 	"github.com/google/gopacket"
 	//"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 	asicdmock "utils/asicdClient/mock"
@@ -83,31 +82,8 @@ func (m *MyTestMock) GetBulkVlan(curMark, count int) (*commonDefs.VlanGetInfo, e
 	return getinfo, nil
 }
 
-// normally asicd would notify any listeners of ports being added or deleted
-func (m *MyTestMock) UpdateLag(ifIndex, hashType int32, ports string) error {
-
-	// NOTE this logic only handles ports as is, no state
-	var mydr *DistributedRelay
-	strPortList := strings.Split(ports, ",")
-	portList := make([]int32, len(strPortList))
-	for _, dr := range DistributedRelayDBList {
-		if dr.a.HwAggId == ifIndex {
-			mydr = dr
-			for i, strport := range strPortList {
-				ifindex, _ := strconv.Atoi(strport)
-				portList[i] = int32(ifindex)
-			}
-		}
-	}
-	if mydr != nil {
-		config := &DRAggregatorPortListConfig{
-			DrniAggregator: uint32(mydr.DrniAggregator),
-			PortList:       portList,
-		}
-
-		DistributedRelayAggregatorPortListUpdate(config)
-	}
-	return nil
+func (m *MyTestMock) GetPortLinkStatus(port int32) bool {
+	return true
 }
 
 func OnlyForTestSetup() {
@@ -119,7 +95,7 @@ func OnlyForTestSetup() {
 	GetAllCVIDConversations()
 }
 
-func OnlyForTestTeardown() {
+func OnlyForTestTeardown(t *testing.T) {
 
 	utils.SetLaLogger(nil)
 	utils.DeleteAllAsicDPlugins()
@@ -128,13 +104,28 @@ func OnlyForTestTeardown() {
 	ConversationIdMap[100].Cvlan = 0
 	ConversationIdMap[100].Refcnt = 0
 	ConversationIdMap[100].Idtype = [4]uint8{}
+
+	// validate that the
+	if len(DistributedRelayDB) != 0 {
+		t.Error("Error DR objects not deleted")
+	}
+	if len(DistributedRelayDBList) != 0 {
+		t.Error("Error DR objects not deleted")
+	}
+	if len(DRCPIppDB) != 0 {
+		t.Error("Error IPP objects not deleted")
+	}
+	if len(DRCPIppDBList) != 0 {
+		t.Error("Error IPP objects not deleted")
+	}
 }
 
 func OnlyForTestSetupCreateAggGroup(aggId uint32) *lacp.LaAggregator {
 	a1conf := &lacp.LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:  int(aggId),
-		Key: uint16(aggId),
+		Name: fmt.Sprintf("agg%d", aggId),
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:   int(aggId),
+		Key:  uint16(aggId),
 		Lacp: lacp.LacpConfigInfo{Interval: lacp.LacpFastPeriodicTime,
 			Mode:           lacp.LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:64",
@@ -193,9 +184,9 @@ func ConfigTestSetup() {
 		HardwareAddr: net.HardwareAddr{0x00, 0x66, 0x11, 0x22, 0x22, 0x33},
 	}
 }
-func ConfigTestTeardwon() {
+func ConfigTestTeardwon(t *testing.T) {
 
-	OnlyForTestTeardown()
+	OnlyForTestTeardown(t)
 	delete(utils.PortConfigMap, ipplink1)
 	delete(utils.PortConfigMap, aggport1)
 	delete(utils.PortConfigMap, aggport2)
@@ -281,6 +272,16 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate {
 		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", GmStateStrMap[dr.GMachineFsm.Machine.Curr.CurrentState()])
 	}
+
+	go func(wc *chan bool) {
+		for i := 0; i < 4 && dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate; i++ {
+			time.Sleep(time.Second * 1)
+		}
+		*wc <- true
+	}(&waitChan)
+
+	<-waitChan
+
 	if dr.AMachineFsm == nil ||
 		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate {
 		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", AmStateStrMap[dr.AMachineFsm.Machine.Curr.CurrentState()])
@@ -342,7 +343,7 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
@@ -375,8 +376,6 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 	}
 
 	CreateDistributedRelay(cfg)
-	// This should fail as agg has not been created yet
-	AttachAggregatorToDistributedRelay(200)
 
 	// configuration is incomplete because lag has not been created as part of this
 	if len(DistributedRelayDB) == 0 ||
@@ -410,7 +409,6 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 
 	// TEST aggregator created after DR
 	a := OnlyForTestSetupCreateAggGroup(200)
-	AttachAggregatorToDistributedRelay(200)
 
 	// check the inital state of each of the state machines
 	if dr.a == nil {
@@ -418,7 +416,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 	}
 	waitChan := make(chan bool)
 	go func(wc *chan bool) {
-		for i := 0; i < 10 && (dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate); i++ {
+		for i := 0; i < 20 && dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate; i++ {
 			time.Sleep(time.Millisecond * 10)
 		}
 		*wc <- true
@@ -428,12 +426,12 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 
 	// Rx machine sets the change portal which should inform the psm
 	if dr.PsMachineFsm == nil ||
-		dr.PsMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate {
+		dr.PsMachineFsm.Machine.Curr.CurrentState() != PsmStatePortalSystemUpdate {
 		t.Error("ERROR BEGIN Initial Portal System Machine state is not correct", PsmStateStrMap[dr.PsMachineFsm.Machine.Curr.CurrentState()])
 	}
-
+	waitChan = make(chan bool)
 	go func(wc *chan bool) {
-		for i := 0; i < 10 && dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate; i++ {
+		for i := 0; i < 20 && dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate; i++ {
 			time.Sleep(time.Millisecond * 10)
 		}
 		*wc <- true
@@ -446,6 +444,18 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 		dr.GMachineFsm.Machine.Curr.CurrentState() != GmStateDRNIGatewayUpdate {
 		t.Error("ERROR BEGIN Initial Gateway Machine state is not correct", GmStateStrMap[dr.GMachineFsm.Machine.Curr.CurrentState()])
 	}
+
+	waitChan = make(chan bool)
+	go func(wc *chan bool) {
+		// takes time for agg port to be in distributing state so lets give it time
+		for i := 0; i < 5 && dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate; i++ {
+			time.Sleep(time.Second * 1)
+		}
+		*wc <- true
+	}(&waitChan)
+
+	<-waitChan
+
 	if dr.AMachineFsm == nil ||
 		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate {
 		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", AmStateStrMap[dr.AMachineFsm.Machine.Curr.CurrentState()])
@@ -458,7 +468,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 	for _, ipp := range dr.Ipplinks {
 		// IPL should be disabled thus state should be in initialized state
 		if ipp.RxMachineFsm == nil ||
-			ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateExpired {
+			ipp.RxMachineFsm.Machine.Curr.CurrentState() != RxmStateDefaulted {
 			t.Error("ERROR BEGIN Initial Receive Machine state is not correct", RxmStateStrMap[ipp.RxMachineFsm.Machine.Curr.CurrentState()])
 		}
 		// port is enabled and drcp is enabled thus we should be in fast periodic state
@@ -504,7 +514,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 		t.Error("ERROR IPP DB was not cleaned up")
 	}
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigDistributedRelayInValidCreateDRNoAgg(t *testing.T) {
@@ -580,7 +590,7 @@ func TestConfigDistributedRelayInValidCreateDRNoAgg(t *testing.T) {
 		t.Error("ERROR IPP DB was not cleaned up")
 	}
 
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidPortalAddressString(t *testing.T) {
@@ -615,7 +625,7 @@ func TestConfigInvalidPortalAddressString(t *testing.T) {
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidThreePortalSystemSet(t *testing.T) {
@@ -644,7 +654,7 @@ func TestConfigInvalidThreePortalSystemSet(t *testing.T) {
 		t.Error("Parameter check did not fail setting 3P system")
 	}
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidPortalSytemNumber(t *testing.T) {
@@ -679,7 +689,7 @@ func TestConfigInvalidPortalSytemNumber(t *testing.T) {
 		t.Error("Parameter check did not fail portal system number 3")
 	}
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidIntraPortalLink(t *testing.T) {
@@ -715,7 +725,7 @@ func TestConfigInvalidIntraPortalLink(t *testing.T) {
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidGatewayAlgorithm(t *testing.T) {
@@ -756,14 +766,14 @@ func TestConfigInvalidGatewayAlgorithm(t *testing.T) {
 		t.Error("Parameter check did not fail Invalid Gateway Algorithm wrong format to short missing actual type byte")
 	}
 
-	cfg.DrniGatewayAlgorithm = "00-80-C2-02"
+	cfg.DrniGatewayAlgorithm = "00-80:C2-02"
 	err = DistrubtedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Gateway Algorithm separator")
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidNeighborGatewayAlgorithm(t *testing.T) {
@@ -804,14 +814,14 @@ func TestConfigInvalidNeighborGatewayAlgorithm(t *testing.T) {
 		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm wrong format to short missing actual type byte")
 	}
 
-	cfg.DrniNeighborAdminGatewayAlgorithm = "00-80-C2-02"
+	cfg.DrniNeighborAdminGatewayAlgorithm = "00-80:C2-02"
 	err = DistrubtedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm separator")
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidNeighborPortAlgorithm(t *testing.T) {
@@ -852,14 +862,14 @@ func TestConfigInvalidNeighborPortAlgorithm(t *testing.T) {
 		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm wrong format to short missing actual type byte")
 	}
 
-	cfg.DrniNeighborAdminPortAlgorithm = "00-80-C2-02"
+	cfg.DrniNeighborAdminPortAlgorithm = "00-80:C2-02"
 	err = DistrubtedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm separator")
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidEncapMethod(t *testing.T) {
@@ -900,44 +910,14 @@ func TestConfigInvalidEncapMethod(t *testing.T) {
 		t.Error("Parameter check did not fail Invalid Encap Method wrong format to short missing actual type byte")
 	}
 
-	cfg.DrniEncapMethod = "00-80-C2-02"
+	cfg.DrniEncapMethod = "00-80:C2-02"
 	err = DistrubtedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Encap Method separator")
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
-}
-
-func TestConfigInvalidPortConversationControl(t *testing.T) {
-	ConfigTestSetup()
-	a := OnlyForTestSetupCreateAggGroup(100)
-
-	cfg := &DistrubtedRelayConfig{
-		DrniName:                          "DR-1",
-		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
-		DrniPortalPriority:                128,
-		DrniThreePortalSystem:             false,
-		DrniPortalSystemNumber:            1,
-		DrniIntraPortalLinkList:           [3]uint32{uint32(ipplink1)}, // no link supplied is invalid
-		DrniAggregator:                    100,
-		DrniGatewayAlgorithm:              "00:80:C2:01",
-		DrniNeighborAdminGatewayAlgorithm: "00:80:C2:01",
-		DrniNeighborAdminPortAlgorithm:    "00:80:C2:01",
-		DrniNeighborAdminDRCPState:        "00000000",
-		DrniEncapMethod:                   "00:80:C2:01",
-		DrniPortConversationControl:       true,                // invalid assuming protocol will take care of conversation always
-		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
-	}
-
-	err := DistrubtedRelayConfigParamCheck(cfg)
-	if err == nil {
-		t.Error("Parameter check did not fail Invalid Port Conversaton Control")
-	}
-
-	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func TestConfigInvalidPortalPortProtocolDA(t *testing.T) {
@@ -979,7 +959,7 @@ func TestConfigInvalidPortalPortProtocolDA(t *testing.T) {
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	ConfigTestTeardwon()
+	ConfigTestTeardwon(t)
 }
 
 func FullBackToBackConfigTestSetup() {
@@ -1004,8 +984,8 @@ func FullBackToBackConfigTestSetup() {
 	}
 }
 
-func FullBackToBackConfigTestTeardown() {
-	OnlyForTestTeardown()
+func FullBackToBackConfigTestTeardown(t *testing.T) {
+	OnlyForTestTeardown(t)
 	delete(utils.PortConfigMap, LaAggPort1NeighborActor)
 	delete(utils.PortConfigMap, LaAggPort2NeighborActor)
 	delete(utils.PortConfigMap, LaAggPort1Peer)
@@ -1015,7 +995,7 @@ func FullBackToBackConfigTestTeardown() {
 }
 
 // 3 node system where two neighbors are connected to 1 peer device
-func TestCreateBackToBackMLagAndPeer(t *testing.T) {
+func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 
 	FullBackToBackConfigTestSetup()
 
@@ -1062,12 +1042,14 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 	// create first drni
 	CreateDistributedRelay(cfg)
 
+	cfg2 := *cfg
+
 	// create second drni
-	cfg.DrniName = "DR-2"
-	cfg.DrniPortalSystemNumber = 2
-	cfg.DrniAggregator = 101
-	cfg.DrniIntraPortalLinkList = [3]uint32{uint32(DRNeighborIpp2)}
-	CreateDistributedRelay(cfg)
+	cfg2.DrniName = "DR-2"
+	cfg2.DrniPortalSystemNumber = 2
+	cfg2.DrniAggregator = 101
+	cfg2.DrniIntraPortalLinkList = [3]uint32{uint32(DRNeighborIpp2)}
+	CreateDistributedRelay(&cfg2)
 
 	// must be called to initialize the global
 	LaSystem1NeighborActor := lacp.LacpSystem{Actor_System_priority: 128,
@@ -1151,9 +1133,7 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 
 	// Create Aggregation
 	lacp.CreateLaAgg(a1conf)
-	AttachAggregatorToDistributedRelay(a1conf.Id)
 	lacp.CreateLaAgg(a2conf)
-	AttachAggregatorToDistributedRelay(a2conf.Id)
 	lacp.CreateLaAgg(a3conf)
 
 	// actor        peer
@@ -1230,13 +1210,11 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 
 	// actor / neighbor
 	lacp.CreateLaAggPort(p1conf)
-	UpdateAggregatorPortList(p1conf.AggId)
 	// peer
 	lacp.CreateLaAggPort(p2conf)
 
 	// actor / neighbor
 	lacp.CreateLaAggPort(p3conf)
-	UpdateAggregatorPortList(p3conf.AggId)
 	// peer
 	lacp.CreateLaAggPort(p4conf)
 
@@ -1269,10 +1247,10 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 			lacp.LacpStateSyncBit | lacp.LacpStateCollectingBit | lacp.LacpStateDistributingBit
 
 		if !lacp.LacpStateIsSet(State1, portUpState) {
-			t.Error(fmt.Sprintf("Actor Port State 0x%x did not come up properly with peer expected 0x%x", State1, portUpState))
+			t.Error(fmt.Sprintf("Actor Port State %s did not come up properly with peer expected %s", lacp.LacpStateToStr(State1), lacp.LacpStateToStr(portUpState)))
 		}
 		if !lacp.LacpStateIsSet(State2, portUpState) {
-			t.Error(fmt.Sprintf("Peer Port State 0x%x did not come up properly with actor expected 0x%x", State2, portUpState))
+			t.Error(fmt.Sprintf("Peer Port State %s did not come up properly with actor expected %s", lacp.LacpStateToStr(State2), lacp.LacpStateToStr(portUpState)))
 		}
 
 		// TODO check the States of the other State machines
@@ -1287,7 +1265,7 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 		lacp.LaFindPortById(p3conf.Id, &p2) {
 
 		go func() {
-			for i := 0; i < 10 &&
+			for i := 0; i < 20 &&
 				(p1.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing ||
 					p2.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing); i++ {
 				time.Sleep(time.Second * 1)
@@ -1317,12 +1295,12 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 	}
 
 	var dr *DistributedRelay
-	if !DrFindByAggregator(int32(cfg.DrniAggregator), &dr) {
+	if !DrFindByAggregator(int32(cfg2.DrniAggregator), &dr) {
 		t.Error("Error could not find te DR by local aggregator")
 	}
 
 	if len(dr.DRAggregatorDistributedList) != 1 {
-		t.Error("Error Distributed Ports does not equal")
+		t.Error("Error Distributed Ports does not equal", dr.DRAggregatorDistributedList)
 	} else {
 
 		if dr.DRAggregatorDistributedList[0] != LaAggPort2NeighborActor {
@@ -1369,8 +1347,12 @@ func TestCreateBackToBackMLagAndPeer(t *testing.T) {
 			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
+
+	DeleteDistributedRelay(cfg.DrniName)
+	DeleteDistributedRelay(cfg2.DrniName)
+
 	lacp.LacpSysGlobalInfoDestroy(LaSystem1NeighborActor)
 	lacp.LacpSysGlobalInfoDestroy(LaSystem2NeighborActor)
 	lacp.LacpSysGlobalInfoDestroy(LaSystemPeer)
-	FullBackToBackConfigTestTeardown()
+	FullBackToBackConfigTestTeardown(t)
 }

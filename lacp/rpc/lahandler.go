@@ -34,9 +34,9 @@ import (
 	"l2/lacp/server"
 	"lacpd"
 	"models/objects"
-
 	//"net"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 	"utils/dbutils"
@@ -435,7 +435,7 @@ func (la *LACPDServiceHandler) DeleteLaPortChannel(config *lacpd.LaPortChannel) 
 	}
 
 	cfg := server.LAConfig{
-		Msgtype: server.LAConfigMsgDeleteLaAggPort,
+		Msgtype: server.LAConfigMsgDeleteLaPortChannel,
 		Msgdata: conf,
 	}
 	la.svr.ConfigCh <- cfg
@@ -1141,30 +1141,16 @@ func (la *LACPDServiceHandler) convertDbObjDataToDRCPData(objData *objects.Distr
 	cfgData.DrniPortalPriority = uint16(objData.PortalPriority)
 	cfgData.DrniThreePortalSystem = objData.ThreePortalSystem
 	cfgData.DrniPortalSystemNumber = objData.PortalSystemNumber
-	for i, val := range objData.IntraPortalLinkList {
-		cfgData.DrniIntraPortalLinkList[i] = val
+	for i, val := range objData.Intfreflist {
+		cfgData.DrniIntraPortalLinkList[i] = uint32(utils.GetIfIndexFromName(val))
 	}
 	cfgData.DrniAggregator = uint32(GetKeyByAggName(objData.IntfRef))
-	// This will be dynamically configured not provisioned by user
-	//cfgData.DrniConvAdminGateway = objData.ConvAdminGateway
-	for i, data := range objData.NeighborAdminConvGatewayListDigest {
-		cfgData.DrniNeighborAdminConvGatewayListDigest[i] = data
-	}
-	for i, data := range objData.NeighborAdminConvPortListDigest {
-		cfgData.DrniNeighborAdminConvPortListDigest[i] = data
-	}
+
 	cfgData.DrniGatewayAlgorithm = objData.GatewayAlgorithm
 	cfgData.DrniNeighborAdminGatewayAlgorithm = objData.NeighborGatewayAlgorithm
 	cfgData.DrniNeighborAdminPortAlgorithm = objData.NeighborPortAlgorithm
 	cfgData.DrniNeighborAdminDRCPState = objData.NeighborAdminDRCPState
 	cfgData.DrniEncapMethod = objData.EncapMethod
-	for i, val := range objData.IPLEncapMap {
-		cfgData.DrniIPLEncapMap[i] = uint32(val)
-	}
-	for i, val := range objData.NetEncapMap {
-		cfgData.DrniNetEncapMap[i] = uint32(val)
-	}
-	cfgData.DrniPortConversationControl = objData.PortConversationControl
 	cfgData.DrniIntraPortalPortProtocolDA = objData.IntraPortalPortProtocolDA
 }
 
@@ -1252,12 +1238,104 @@ func (la *LACPDServiceHandler) DeleteDistributedRelay(config *lacpd.DistributedR
 	return true, nil
 }
 
-func (la *LACPDServiceHandler) GetDistributedRelayState(drname string) (obj *lacpd.DistributedRelayState, err error) {
-	return obj, err
+func (la *LACPDServiceHandler) GetDistributedRelayState(drname string) (*lacpd.DistributedRelayState, error) {
+
+	drs := &lacpd.DistributedRelayState{}
+	var dr *drcp.DistributedRelay
+	if drcp.DrFindByName(drname, &dr) {
+
+		var a *lacp.LaAggregator
+		aggName := ""
+		if lacp.LaFindAggById(int(dr.DrniAggregator), &a) {
+			aggName = a.AggName
+		}
+
+		drs.DrniName = dr.DrniName
+		drs.IntfRef = aggName
+		drs.PortalAddress = dr.DrniPortalAddr.String()
+		drs.PortalPriority = int16(dr.DrniPortalPriority)
+		drs.ThreePortalSystem = dr.DrniThreeSystemPortal
+		drs.PortalSystemNumber = int8(dr.DrniPortalSystemNumber)
+		for _, ifindex := range dr.DrniIntraPortalLinkList {
+			if ifindex != 0 {
+				drs.Intfreflist = append(drs.Intfreflist, utils.GetNameFromIfIndex(int32(ifindex)))
+			}
+		}
+		drs.GatewayAlgorithm = dr.DrniGatewayAlgorithm.String()
+		drs.NeighborGatewayAlgorithm = dr.DrniNeighborAdminGatewayAlgorithm.String()
+		drs.NeighborPortAlgorithm = dr.DrniNeighborAdminPortAlgorithm.String()
+		drs.NeighborAdminDRCPState = fmt.Sprintf("%s", strconv.FormatInt(int64(dr.DrniNeighborAdminDRCPState), 2))
+		drs.EncapMethod = dr.DrniEncapMethod.String()
+		drs.PSI = dr.DrniPSI
+		drs.IntraPortalPortProtocolDA = dr.DrniPortalPortProtocolIDA.String()
+
+	}
+	return drs, nil
 }
 
 func (la *LACPDServiceHandler) GetBulkDistributedRelayState(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.DistributedRelayStateGetInfo, err error) {
-	// TODO
+	var drcpStateList []lacpd.DistributedRelayState = make([]lacpd.DistributedRelayState, count)
+	var nextDrcpState *lacpd.DistributedRelayState
+	var returnDrcpStates []*lacpd.DistributedRelayState
+	var returnDrcpStateGetInfo lacpd.DistributedRelayStateGetInfo
+	var dr *drcp.DistributedRelay
+	validCount := lacpd.Int(0)
+	toIndex := fromIndex
+	obj = &returnDrcpStateGetInfo
+
+	for currIndex := lacpd.Int(0); validCount != count && drcp.DrGetDrcpNext(&dr); currIndex++ {
+
+		if currIndex < fromIndex {
+			continue
+		} else {
+
+			var a *lacp.LaAggregator
+			aggName := ""
+			if lacp.LaFindAggById(int(dr.DrniAggregator), &a) {
+				aggName = a.AggName
+			}
+
+			nextDrcpState = &drcpStateList[validCount]
+			nextDrcpState.DrniName = dr.DrniName
+			nextDrcpState.IntfRef = aggName
+			nextDrcpState.PortalAddress = dr.DrniPortalAddr.String()
+			nextDrcpState.PortalPriority = int16(dr.DrniPortalPriority)
+			nextDrcpState.ThreePortalSystem = dr.DrniThreeSystemPortal
+			nextDrcpState.PortalSystemNumber = int8(dr.DrniPortalSystemNumber)
+			for _, ifindex := range dr.DrniIntraPortalLinkList {
+				if ifindex != 0 {
+					nextDrcpState.Intfreflist = append(nextDrcpState.Intfreflist, utils.GetNameFromIfIndex(int32(ifindex)))
+				}
+			}
+			nextDrcpState.GatewayAlgorithm = dr.DrniGatewayAlgorithm.String()
+			nextDrcpState.NeighborGatewayAlgorithm = dr.DrniNeighborAdminGatewayAlgorithm.String()
+			nextDrcpState.NeighborPortAlgorithm = dr.DrniNeighborAdminPortAlgorithm.String()
+			nextDrcpState.NeighborAdminDRCPState = fmt.Sprintf("%s", strconv.FormatInt(int64(dr.DrniNeighborAdminDRCPState), 2))
+			nextDrcpState.EncapMethod = dr.DrniEncapMethod.String()
+			nextDrcpState.PSI = dr.DrniPSI
+			nextDrcpState.IntraPortalPortProtocolDA = dr.DrniPortalPortProtocolIDA.String()
+
+			if len(returnDrcpStates) == 0 {
+				returnDrcpStates = make([]*lacpd.DistributedRelayState, 0)
+			}
+			returnDrcpStates = append(returnDrcpStates, nextDrcpState)
+			validCount++
+			toIndex++
+		}
+	}
+	// lets try and get the next agg if one exists then there are more routes
+	moreRoutes := false
+	if dr != nil {
+		moreRoutes = drcp.DrGetDrcpNext(&dr)
+	}
+
+	obj.DistributedRelayStateList = returnDrcpStates
+	obj.StartIdx = fromIndex
+	obj.EndIdx = toIndex + 1
+	obj.More = moreRoutes
+	obj.Count = validCount
+
+	return obj, err
 	return obj, err
 }
 
