@@ -1141,8 +1141,8 @@ func (la *LACPDServiceHandler) convertDbObjDataToDRCPData(objData *objects.Distr
 	cfgData.DrniPortalPriority = uint16(objData.PortalPriority)
 	cfgData.DrniThreePortalSystem = objData.ThreePortalSystem
 	cfgData.DrniPortalSystemNumber = objData.PortalSystemNumber
-	for i, val := range objData.intfrefipplist {
-		cfgData.DrniIntraPortalLinkList[i] = utils.GetIfIndexFromName(val)
+	for i, val := range objData.Intfreflist {
+		cfgData.DrniIntraPortalLinkList[i] = uint32(utils.GetIfIndexFromName(val))
 	}
 	cfgData.DrniAggregator = uint32(GetKeyByAggName(objData.IntfRef))
 
@@ -1241,35 +1241,36 @@ func (la *LACPDServiceHandler) DeleteDistributedRelay(config *lacpd.DistributedR
 func (la *LACPDServiceHandler) GetDistributedRelayState(drname string) (*lacpd.DistributedRelayState, error) {
 
 	drs := &lacpd.DistributedRelayState{}
-	var dr *DistributedRelay
+	var dr *drcp.DistributedRelay
 	if drcp.DrFindByName(drname, &dr) {
 
+		var a *lacp.LaAggregator
 		aggName := ""
-		if lacp.LaAggFindById(dr.DrniAggregator, &a) {
+		if lacp.LaFindAggById(int(dr.DrniAggregator), &a) {
 			aggName = a.AggName
 		}
 
 		drs.DrniName = dr.DrniName
 		drs.IntfRef = aggName
-		drs.PortalAddress = dr.DrniPortalAddress.String()
-		drs.PortalPriority = dr.DrniPortalPriority
-		drs.ThreePortalSystem = dr.DrniThreePortalSystem
-		drs.PortalSystemNumber = dr.DrniPortalSystemNumber
+		drs.PortalAddress = dr.DrniPortalAddr.String()
+		drs.PortalPriority = int16(dr.DrniPortalPriority)
+		drs.ThreePortalSystem = dr.DrniThreeSystemPortal
+		drs.PortalSystemNumber = int8(dr.DrniPortalSystemNumber)
 		for _, ifindex := range dr.DrniIntraPortalLinkList {
 			if ifindex != 0 {
-				drs.Intfrefipplist = append(nextDrcpState.Intfrefipplist, utils.GetNameFromIfIndex(int32(ifindex)))
+				drs.Intfreflist = append(drs.Intfreflist, utils.GetNameFromIfIndex(int32(ifindex)))
 			}
 		}
 		drs.GatewayAlgorithm = dr.DrniGatewayAlgorithm.String()
 		drs.NeighborGatewayAlgorithm = dr.DrniNeighborAdminGatewayAlgorithm.String()
 		drs.NeighborPortAlgorithm = dr.DrniNeighborAdminPortAlgorithm.String()
-		drs.NeighborAdminDRCPState = fmt.Sprintf("%s", strconv.FormatInt(dr.DrniNeighborAdminDRCPState, 2))
+		drs.NeighborAdminDRCPState = fmt.Sprintf("%s", strconv.FormatInt(int64(dr.DrniNeighborAdminDRCPState), 2))
 		drs.EncapMethod = dr.DrniEncapMethod.String()
 		drs.PSI = dr.DrniPSI
-		drs.IntraPortalPortProtocolDA = dr.DrniPortalPortProtocolIDA
+		drs.IntraPortalPortProtocolDA = dr.DrniPortalPortProtocolIDA.String()
 
 	}
-	return obj, err
+	return drs, nil
 }
 
 func (la *LACPDServiceHandler) GetBulkDistributedRelayState(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.DistributedRelayStateGetInfo, err error) {
@@ -1282,36 +1283,37 @@ func (la *LACPDServiceHandler) GetBulkDistributedRelayState(fromIndex lacpd.Int,
 	toIndex := fromIndex
 	obj = &returnDrcpStateGetInfo
 
-	for currIndex := lacpd.Int(0); validCount != count && lacp.DrGetDrcpNext(&dr); currIndex++ {
+	for currIndex := lacpd.Int(0); validCount != count && drcp.DrGetDrcpNext(&dr); currIndex++ {
 
 		if currIndex < fromIndex {
 			continue
 		} else {
 
+			var a *lacp.LaAggregator
 			aggName := ""
-			if lacp.LaAggFindById(dr.DrniAggregator, &a) {
+			if lacp.LaFindAggById(int(dr.DrniAggregator), &a) {
 				aggName = a.AggName
 			}
 
 			nextDrcpState = &drcpStateList[validCount]
 			nextDrcpState.DrniName = dr.DrniName
 			nextDrcpState.IntfRef = aggName
-			nextDrcpState.PortalAddress = dr.DrniPortalAddress.String()
-			nextDrcpState.PortalPriority = dr.DrniPortalPriority
-			nextDrcpState.ThreePortalSystem = dr.DrniThreePortalSystem
-			nextDrcpState.PortalSystemNumber = dr.DrniPortalSystemNumber
+			nextDrcpState.PortalAddress = dr.DrniPortalAddr.String()
+			nextDrcpState.PortalPriority = int16(dr.DrniPortalPriority)
+			nextDrcpState.ThreePortalSystem = dr.DrniThreeSystemPortal
+			nextDrcpState.PortalSystemNumber = int8(dr.DrniPortalSystemNumber)
 			for _, ifindex := range dr.DrniIntraPortalLinkList {
 				if ifindex != 0 {
-					nextDrcpState.Intfrefipplist = append(nextDrcpState.Intfrefipplist, utils.GetNameFromIfIndex(int32(ifindex)))
+					nextDrcpState.Intfreflist = append(nextDrcpState.Intfreflist, utils.GetNameFromIfIndex(int32(ifindex)))
 				}
 			}
 			nextDrcpState.GatewayAlgorithm = dr.DrniGatewayAlgorithm.String()
 			nextDrcpState.NeighborGatewayAlgorithm = dr.DrniNeighborAdminGatewayAlgorithm.String()
 			nextDrcpState.NeighborPortAlgorithm = dr.DrniNeighborAdminPortAlgorithm.String()
-			nextDrcpState.NeighborAdminDRCPState = fmt.Sprintf("%s", strconv.FormatInt(dr.DrniNeighborAdminDRCPState, 2))
+			nextDrcpState.NeighborAdminDRCPState = fmt.Sprintf("%s", strconv.FormatInt(int64(dr.DrniNeighborAdminDRCPState), 2))
 			nextDrcpState.EncapMethod = dr.DrniEncapMethod.String()
 			nextDrcpState.PSI = dr.DrniPSI
-			nextDrcpState.IntraPortalPortProtocolDA = dr.DrniPortalPortProtocolIDA
+			nextDrcpState.IntraPortalPortProtocolDA = dr.DrniPortalPortProtocolIDA.String()
 
 			if len(returnDrcpStates) == 0 {
 				returnDrcpStates = make([]*lacpd.DistributedRelayState, 0)
@@ -1324,7 +1326,7 @@ func (la *LACPDServiceHandler) GetBulkDistributedRelayState(fromIndex lacpd.Int,
 	// lets try and get the next agg if one exists then there are more routes
 	moreRoutes := false
 	if dr != nil {
-		moreRoutes = lacp.DrGetAggNext(&dr)
+		moreRoutes = drcp.DrGetDrcpNext(&dr)
 	}
 
 	obj.DistributedRelayStateList = returnDrcpStates
