@@ -389,37 +389,33 @@ func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) 
 			la.svr.ConfigCh <- cfg
 			//lacp.CreateLaAgg(conf)
 
-			var a *lacp.LaAggregator
-			if lacp.LaFindAggById(conf.Id, &a) {
-
-				for _, intfref := range config.IntfRefList {
-					mode, ok := aggModeMap[uint32(a.Config.Mode)]
-					if !ok || a.AggType == lacp.LaAggTypeSTATIC {
-						mode = lacp.LacpModeOn
-					}
-
-					timeout, ok := aggIntervalToTimeoutMap[a.Config.Interval]
-					if !ok {
-						timeout = lacp.LacpLongTimeoutTime
-					}
-					ifindex := utils.GetIfIndexFromName(intfref)
-					conf := &lacp.LaAggPortConfig{
-						Id:       uint16(ifindex),
-						Prio:     uint16(a.Config.SystemPriority),
-						Key:      uint16(conf.Key),
-						AggId:    int(conf.Id),
-						Enable:   conf.Enabled,
-						Mode:     int(mode),
-						Timeout:  timeout,
-						TraceEna: true,
-					}
-
-					cfg := server.LAConfig{
-						Msgtype: server.LAConfigMsgCreateLaAggPort,
-						Msgdata: conf,
-					}
-					la.svr.ConfigCh <- cfg
+			for _, intfref := range config.IntfRefList {
+				mode, ok := aggModeMap[uint32(conf.Lacp.Mode)]
+				if !ok || conf.Type == lacp.LaAggTypeSTATIC {
+					mode = lacp.LacpModeOn
 				}
+
+				timeout, ok := aggIntervalToTimeoutMap[conf.Lacp.Interval]
+				if !ok {
+					timeout = lacp.LacpLongTimeoutTime
+				}
+				ifindex := utils.GetIfIndexFromName(intfref)
+				conf := &lacp.LaAggPortConfig{
+					Id:       uint16(ifindex),
+					Prio:     uint16(a.Config.SystemPriority),
+					Key:      uint16(conf.Key),
+					AggId:    int(conf.Id),
+					Enable:   conf.Enabled,
+					Mode:     int(mode),
+					Timeout:  timeout,
+					TraceEna: true,
+				}
+
+				cfg := server.LAConfig{
+					Msgtype: server.LAConfigMsgCreateLaAggPort,
+					Msgdata: conf,
+				}
+				la.svr.ConfigCh <- cfg
 			}
 		}
 	}
