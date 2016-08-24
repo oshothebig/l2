@@ -473,7 +473,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 
 	sgi.PortList = append(sgi.PortList, p)
 
-	if p.LinkOperStatus {
+	if p.IsPortOperStatusUp() {
 		p.CreateRxTx()
 	}
 
