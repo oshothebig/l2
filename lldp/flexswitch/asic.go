@@ -106,8 +106,7 @@ func (p *AsicPlugin) getPortStates() []*config.PortInfo {
 	count := 10
 	portStates := make([]*config.PortInfo, 0)
 	for {
-		bulkInfo, err := p.asicdClient.GetBulkPortState(
-			asicdServices.Int(currMarker), asicdServices.Int(count))
+		bulkInfo, err := p.asicdClient.GetBulkPortState(asicdServices.Int(currMarker), asicdServices.Int(count))
 		if err != nil {
 			debug.Logger.Err(fmt.Sprintln(": getting bulk port config"+
 				" from asicd failed with reason", err))
@@ -122,9 +121,9 @@ func (p *AsicPlugin) getPortStates() []*config.PortInfo {
 			port := &config.PortInfo{
 				IfIndex:   obj.IfIndex,
 				OperState: obj.OperState,
-				Name:      obj.Name,
+				Name:      obj.IntfRef, //obj.Name,
 			}
-			pObj, err := p.asicdClient.GetPort(obj.Name)
+			pObj, err := p.asicdClient.GetPort(obj.IntfRef) //obj.Name)
 			if err != nil {
 				debug.Logger.Err(fmt.Sprintln("Getting mac address for",
 					obj.Name, "failed, error:", err))

@@ -27,7 +27,6 @@ import (
 	"errors"
 	"l2/lldp/config"
 	"l2/lldp/server"
-	"strconv"
 	"sync"
 )
 
@@ -55,31 +54,33 @@ func Init(svr *server.LLDPServer) {
 //@TODO: Create for LLDP Interface will only be called during auto-create if an entry is not present in the DB
 // If it is present then we will read it during restart
 // During update we need to check whether there is any entry in the runtime information or not
-func validateExistingIntfConfig(ifIndex int32) (bool, error) {
-	exists := lldpapi.server.EntryExist(ifIndex)
+func validateExistingIntfConfig(intfRef string) (int32, bool, error) {
+	ifIndex, exists := lldpapi.server.EntryExist(intfRef)
 	if !exists {
-		return exists, errors.New("Update cannot be performed for " +
-			strconv.Itoa(int(ifIndex)) + " as LLDP Server doesn't have any info for the ifIndex")
+		return ifIndex, exists, errors.New("Update cannot be performed for " + intfRef +
+			" as LLDP Server doesn't have any info for the ifIndex")
 	}
-	return exists, nil
+	return ifIndex, exists, nil
 }
 
-func SendIntfConfig(ifIndex int32, enable bool) (bool, error) {
+//func SendIntfConfig(ifIndex int32, enable bool) (bool, error) {
+func SendIntfConfig(intfRef string, enable bool) (bool, error) {
 	// Validate ifIndex before sending the config to server
-	proceed, err := validateExistingIntfConfig(ifIndex)
+	ifIndex, proceed, err := validateExistingIntfConfig(intfRef)
 	if !proceed {
 		return proceed, err
 	}
-	lldpapi.server.IntfCfgCh <- &config.Intf{ifIndex, enable}
+	lldpapi.server.IntfCfgCh <- &config.IntfConfig{ifIndex, enable}
 	return proceed, err
 }
 
-func UpdateIntfConfig(ifIndex int32, enable bool) (bool, error) {
-	proceed, err := validateExistingIntfConfig(ifIndex)
+//func UpdateIntfConfig(ifIndex int32, enable bool) (bool, error) {
+func UpdateIntfConfig(intfRef string, enable bool) (bool, error) {
+	ifIndex, proceed, err := validateExistingIntfConfig(intfRef)
 	if !proceed {
 		return proceed, err
 	}
-	lldpapi.server.IntfCfgCh <- &config.Intf{ifIndex, enable}
+	lldpapi.server.IntfCfgCh <- &config.IntfConfig{ifIndex, enable}
 	return proceed, err
 }
 
@@ -113,8 +114,9 @@ func GetIntfStates(idx int, cnt int) (int, int, []config.IntfState) {
 	return n, c, result
 }
 
-func GetIntfState(ifIndex int32) *config.IntfState {
-	return lldpapi.server.GetIntfState(ifIndex)
+//func GetIntfState(ifIndex int32) *config.IntfState {
+func GetIntfState(intfRef string) *config.IntfState {
+	return lldpapi.server.GetIntfState(intfRef)
 }
 
 func UpdateCache() {

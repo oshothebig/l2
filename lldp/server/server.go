@@ -64,6 +64,7 @@ func LLDPNewServer(aPlugin plugin.AsicIntf, lPlugin plugin.ConfigIntf, sPlugin p
  */
 func (svr *LLDPServer) InitGlobalDS() {
 	svr.lldpGblInfo = make(map[int32]LLDPGlobalInfo, LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
+	svr.lldpIntfRef2IfIndexMap = make(map[string]int32, LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
 	svr.lldpRxPktCh = make(chan InPktChannel, LLDP_RX_PKT_CHANNEL_SIZE)
 	svr.lldpTxPktCh = make(chan SendPktChannel, LLDP_TX_PKT_CHANNEL_SIZE)
 	svr.lldpExit = make(chan bool)
@@ -74,7 +75,7 @@ func (svr *LLDPServer) InitGlobalDS() {
 	// buffer) to be 1 second.
 	svr.lldpTimeout = 1 * time.Second
 	svr.GblCfgCh = make(chan *config.Global, 20)
-	svr.IntfCfgCh = make(chan *config.Intf, 20)
+	svr.IntfCfgCh = make(chan *config.IntfConfig, 20)
 	svr.IfStateCh = make(chan *config.PortState, 20)
 	svr.UpdateCacheCh = make(chan bool)
 	svr.EventCh = make(chan config.EventInfo, 10)
@@ -114,15 +115,17 @@ func (svr *LLDPServer) CloseAllPktHandlers() {
 /* Create global run time information for l2 port and then start rx/tx for that port if state is up
  */
 func (svr *LLDPServer) InitL2PortInfo(portInfo *config.PortInfo) {
-	gblInfo, exists := svr.lldpGblInfo[portInfo.IfIndex]
+	gblInfo, _ := svr.lldpGblInfo[portInfo.IfIndex]
 	gblInfo.InitRuntimeInfo(portInfo)
-	if !exists {
-		// on fresh start it will not exists but on restart it might
-		// default is set to true but LLDP Object is auto-discover and hence we will enable it manually
-		gblInfo.Enable()
-	}
+	//if !exists {
+	// on fresh start it will not exists but on restart it might
+	// default is set to true but LLDP Object is auto-discover and hence we will enable it manually
+	// we will overwrite the value based on dbReead but default should always be true
+	gblInfo.Enable()
+	//}
 	svr.lldpGblInfo[portInfo.IfIndex] = gblInfo
 	svr.lldpIntfStateSlice = append(svr.lldpIntfStateSlice, gblInfo.Port.IfIndex)
+	svr.lldpIntfRef2IfIndexMap[portInfo.Name] = portInfo.IfIndex
 }
 
 /*  lldp server: 1) Connect to all the clients
@@ -136,6 +139,12 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 	svr.OSSignalHandle()
 
 	svr.paramsDir = paramsDir
+	// Get Port Information from Asic, only after reading from DB
+	portsInfo := svr.asicPlugin.GetPortsInfo()
+	for _, port := range portsInfo {
+		svr.InitL2PortInfo(port)
+	}
+
 	// Initialize DB
 	err := svr.InitDB()
 	if err != nil {
@@ -143,11 +152,6 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 	} else {
 		// Populate Gbl Configs
 		svr.ReadDB()
-	}
-	// Get Port Information from Asic, only after reading from DB
-	portsInfo := svr.asicPlugin.GetPortsInfo()
-	for _, port := range portsInfo {
-		svr.InitL2PortInfo(port)
 	}
 
 	svr.asicPlugin.Start()

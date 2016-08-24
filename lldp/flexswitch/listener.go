@@ -80,7 +80,8 @@ func (p *NBPlugin) Start() error {
 }
 
 func (h *ConfigHandler) CreateLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {
-	return api.SendIntfConfig(config.IfIndex, config.Enable)
+	return api.SendIntfConfig(config.IntfRef, config.Enable)
+	//return api.SendIntfConfig(config.IfIndex, config.Enable)
 }
 
 func (h *ConfigHandler) DeleteLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {
@@ -91,10 +92,11 @@ func (h *ConfigHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
 	newconfig *lldpd.LLDPIntf, attrset []bool, op []*lldpd.PatchOpInfo) (r bool, err error) {
 	// On update we do not care for old config... just push the new config to api layer
 	// and let the api layer handle the information
-	return api.UpdateIntfConfig(newconfig.IfIndex, newconfig.Enable)
+	return api.UpdateIntfConfig(newconfig.IntfRef, newconfig.Enable)
+	//return api.UpdateIntfConfig(newconfig.IfIndex, newconfig.Enable)
 }
 
-func (h *ConfigHandler) GetLLDPIntf(ifIndex int32) (*lldpd.LLDPIntf, error) {
+func (h *ConfigHandler) GetLLDPIntf(intfRef string) (*lldpd.LLDPIntf, error) {
 	return nil, nil
 }
 
@@ -138,7 +140,8 @@ func (h *ConfigHandler) UpdateLLDPGlobal(origconfig *lldpd.LLDPGlobal,
 func (h *ConfigHandler) convertLLDPIntfEntryToThriftEntry(state config.Intf) *lldpd.LLDPIntf {
 	entry := lldpd.NewLLDPIntf()
 	entry.Enable = state.Enable
-	entry.IfIndex = state.IfIndex
+	//entry.IfIndex = state.IfIndex
+	entry.IntfRef = state.IntfRef
 	return entry
 }
 
@@ -151,6 +154,7 @@ func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(state config.Intf
 	entry.HoldTime = state.HoldTime
 	entry.Enable = state.Enable
 	entry.IfIndex = state.IfIndex
+	entry.IntfRef = state.IntfRef
 	entry.SystemDescription = state.SystemDescription
 	entry.SystemCapabilities = state.SystemCapabilities
 	entry.EnabledCapabilities = state.EnabledCapabilities
@@ -180,10 +184,10 @@ func (h *ConfigHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int, count lldpd.In
 	return lldpEntryBulk, nil
 }
 
-func (h *ConfigHandler) GetLLDPIntfState(ifIndex int32) (*lldpd.LLDPIntfState, error) {
-	lldpIntf := api.GetIntfState(ifIndex)
+func (h *ConfigHandler) GetLLDPIntfState(intfRef string) (*lldpd.LLDPIntfState, error) {
+	lldpIntf := api.GetIntfState(intfRef)
 	if lldpIntf == nil {
-		return nil, errors.New(fmt.Sprintf("No Information found for", ifIndex))
+		return nil, errors.New(fmt.Sprintln("No Information found for", intfRef))
 	}
 
 	return h.convertLLDPIntfStateEntryToThriftEntry(*lldpIntf), nil
