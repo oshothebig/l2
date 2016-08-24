@@ -28,7 +28,14 @@ type Global struct {
 	Enable bool
 }
 
+// this is used for auto-discovery
 type Intf struct {
+	IntfRef string
+	Enable  bool
+}
+
+// this is used to update configuration request coming from client to server
+type IntfConfig struct {
 	IfIndex int32
 	Enable  bool
 }
@@ -47,6 +54,7 @@ type PortState struct {
 }
 
 type IntfState struct {
+	IntfRef             string
 	IfIndex             int32
 	Enable              bool
 	LocalPort           string

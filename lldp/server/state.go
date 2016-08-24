@@ -57,6 +57,7 @@ func (svr *LLDPServer) PopulateTLV(ifIndex int32, entry *config.IntfState) bool 
 
 	entry.IfIndex = gblInfo.Port.IfIndex
 	entry.Enable = gblInfo.enable
+	entry.IntfRef = gblInfo.Port.Name
 	return exists
 }
 
@@ -77,7 +78,8 @@ func (svr *LLDPServer) GetIntfs(idx, cnt int) (int, int, []config.Intf) {
 		key := svr.lldpIntfStateSlice[j]
 		gblInfo, exists := svr.lldpGblInfo[key]
 		if exists {
-			result[i].IfIndex = gblInfo.Port.IfIndex
+			//result[i].IfIndex = gblInfo.Port.IfIndex
+			result[i].IntfRef = gblInfo.Port.Name
 			result[i].Enable = gblInfo.enable
 			i++
 			j++
@@ -126,8 +128,13 @@ func (svr *LLDPServer) GetIntfStates(idx, cnt int) (int, int, []config.IntfState
 
 /*  Server get lldp interface state per interface
  */
-func (svr *LLDPServer) GetIntfState(ifIndex int32) *config.IntfState {
+func (svr *LLDPServer) GetIntfState(intfRef string) *config.IntfState {
 	entry := config.IntfState{}
+	ifIndex, exists := svr.lldpIntfRef2IfIndexMap[intfRef]
+	if !exists {
+		return &entry
+	}
+
 	success := svr.PopulateTLV(ifIndex, &entry)
 	if success {
 		return &entry
