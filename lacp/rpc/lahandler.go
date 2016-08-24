@@ -435,7 +435,7 @@ func (la *LACPDServiceHandler) DeleteLaPortChannel(config *lacpd.LaPortChannel) 
 	}
 
 	cfg := server.LAConfig{
-		Msgtype: server.LAConfigMsgDeleteLaAggPort,
+		Msgtype: server.LAConfigMsgDeleteLaPortChannel,
 		Msgdata: conf,
 	}
 	la.svr.ConfigCh <- cfg

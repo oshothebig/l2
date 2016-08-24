@@ -410,10 +410,20 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		}
 	*/
 
-	// format "00:00:00:00"
+	// format "00:00:00:00" or "00-00-00-00"
 	encapmethod := strings.Split(cfg.DrniEncapMethod, ":")
+	if strings.Contains(cfg.DrniEncapMethod, "-") {
+		encapmethod = strings.Split(cfg.DrniEncapMethod, "-")
+	}
 	gatewayalgorithm := strings.Split(cfg.DrniGatewayAlgorithm, ":")
+	if strings.Contains(cfg.DrniGatewayAlgorithm, "-") {
+		gatewayalgorithm = strings.Split(cfg.DrniGatewayAlgorithm, "-")
+	}
+
 	neighborgatewayalgorithm := strings.Split(cfg.DrniNeighborAdminGatewayAlgorithm, ":")
+	if strings.Contains(cfg.DrniNeighborAdminGatewayAlgorithm, "-") {
+		neighborgatewayalgorithm = strings.Split(cfg.DrniNeighborAdminGatewayAlgorithm, "-")
+	}
 	//neighborportalgorithm := strings.Split(cfg.DrniNeighborAdminPortAlgorithm, ":")
 	var val1, val2, val3, val4 int64
 	val1, _ = strconv.ParseInt(encapmethod[0], 16, 16)
