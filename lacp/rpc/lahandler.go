@@ -1302,6 +1302,7 @@ func (la *LACPDServiceHandler) GetBulkDistributedRelayState(fromIndex lacpd.Int,
 			nextDrcpState.PortalPriority = int16(dr.DrniPortalPriority)
 			nextDrcpState.ThreePortalSystem = dr.DrniThreeSystemPortal
 			nextDrcpState.PortalSystemNumber = int8(dr.DrniPortalSystemNumber)
+			utils.GlobalLogger.Info(fmt.Sprintf("GetBulkDistributedRelay, IPP Port List %v", dr.DrniIntraPortalLinkList))
 			for _, ifindex := range dr.DrniIntraPortalLinkList {
 				if ifindex != 0 {
 					nextDrcpState.Intfreflist = append(nextDrcpState.Intfreflist, utils.GetNameFromIfIndex(int32(ifindex)))

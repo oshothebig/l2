@@ -201,6 +201,7 @@ func (s *LAServer) processLinkDownEvent(linkId int) {
 	s.logger.Info(fmt.Sprintln("LA EVT: Link Down", linkId))
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(linkId), &p) {
+		p.DeleteRxTx()
 		p.LaAggPortDisable()
 		p.LinkOperStatus = false
 	} else {
@@ -216,8 +217,10 @@ func (s *LAServer) processLinkUpEvent(linkId int) {
 	s.logger.Info(fmt.Sprintln("LA EVT: Link Up", linkId))
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(linkId), &p) {
+		p.CreateRxTx()
 		p.LaAggPortEnabled()
 		p.LinkOperStatus = true
+
 	} else {
 		for _, ipp := range drcp.DRCPIppDBList {
 			if int(ipp.Id) == linkId {

@@ -26,14 +26,15 @@ package lacp
 
 import (
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"l2/lacp/protocol/utils"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 )
 
 type PortProperties struct {
@@ -472,31 +473,66 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 
 	sgi.PortList = append(sgi.PortList, p)
 
-	handle, err := pcap.OpenLive(p.IntfNum, 65536, false, 50*time.Millisecond)
-	if err != nil {
-		// failure here may be ok as this may be SIM
-		if !strings.Contains(p.IntfNum, "SIM") {
-			fmt.Println("Error creating pcap OpenLive handle for port", p.PortNum, p.IntfNum, err)
-		}
-		return p
+	if p.LinkOperStatus {
+		p.CreateRxTx()
 	}
-	fmt.Println("Creating Listener for intf", p.IntfNum)
-	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
-	p.handle = handle
-	src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
-	in := src.Packets()
-	// start rx routine
-	LaRxMain(p.PortNum, in)
-	fmt.Println("Rx Main Started for port", p.PortNum)
-
-	// register the tx func
-	sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, TxViaLinuxIf)
-
-	fmt.Println("Tx Callback Registered with")
-
-	//fmt.Println("New Port:\n%#v", *p)
 
 	return p
+}
+
+func (p *LaAggPort) CreateRxTx() {
+	if p.handle == nil {
+		var a *LaAggregator
+		var sysId LacpSystem
+		if LaFindAggById(p.AggId, &a) {
+			mac, _ := net.ParseMAC(a.Config.SystemIdMac)
+			sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
+			sysId.Actor_System_priority = a.Config.SystemPriority
+		}
+		sgi := LacpSysGlobalInfoByIdGet(sysId)
+
+		handle, err := pcap.OpenLive(p.IntfNum, 65536, false, 50*time.Millisecond)
+		if err != nil {
+			// failure here may be ok as this may be SIM
+			if !strings.Contains(p.IntfNum, "SIM") {
+				fmt.Println("Error creating pcap OpenLive handle for port", p.PortNum, p.IntfNum, err)
+			}
+			return
+		}
+		p.LaPortLog(fmt.Sprintln("Creating Listener for intf", p.IntfNum))
+		//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
+		p.handle = handle
+		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+		in := src.Packets()
+		// start rx routine
+		LaRxMain(p.PortNum, in)
+		p.LaPortLog(fmt.Sprintln("Rx Main Started for port", p.PortNum))
+
+		// register the tx func
+		if sgi != nil {
+			sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, TxViaLinuxIf)
+		}
+	}
+}
+
+func (p *LaAggPort) DeleteRxTx() {
+	var a *LaAggregator
+	var sysId LacpSystem
+	if LaFindAggById(p.AggId, &a) {
+		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
+		sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
+		sysId.Actor_System_priority = a.Config.SystemPriority
+	}
+
+	sgi := LacpSysGlobalInfoByIdGet(sysId)
+	if sgi != nil {
+		sgi.LaSysGlobalDeRegisterTxCallback(p.IntfNum)
+	}
+	// close rx/tx processing
+	if p.handle != nil {
+		p.handle.Close()
+		fmt.Println("RX/TX handle closed for port", p.PortNum)
+	}
 }
 
 func (p *LaAggPort) EnableLogging(ena bool) {
@@ -555,23 +591,7 @@ func (p *LaAggPort) LaAggPortDelete() {
 
 func (p *LaAggPort) Stop() {
 
-	var a *LaAggregator
-	var sysId LacpSystem
-	if LaFindAggById(p.AggId, &a) {
-		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-		sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
-		sysId.Actor_System_priority = a.Config.SystemPriority
-	}
-
-	sgi := LacpSysGlobalInfoByIdGet(sysId)
-	if sgi != nil {
-		sgi.LaSysGlobalDeRegisterTxCallback(p.IntfNum)
-	}
-	// close rx/tx processing
-	if p.handle != nil {
-		p.handle.Close()
-		fmt.Println("RX/TX handle closed for port", p.PortNum)
-	}
+	p.DeleteRxTx()
 
 	//p.BEGIN(true)
 	// stop the State machines
