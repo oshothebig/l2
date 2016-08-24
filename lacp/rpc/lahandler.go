@@ -402,7 +402,7 @@ func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) 
 				ifindex := utils.GetIfIndexFromName(intfref)
 				conf := &lacp.LaAggPortConfig{
 					Id:       uint16(ifindex),
-					Prio:     uint16(a.Config.SystemPriority),
+					Prio:     uint16(conf.Lacp.SystemPriority),
 					Key:      uint16(conf.Key),
 					AggId:    int(conf.Id),
 					Enable:   conf.Enabled,
