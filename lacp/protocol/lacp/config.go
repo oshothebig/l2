@@ -555,18 +555,18 @@ func SetLaAggPortSystemInfoFromDistributedRelay(pId uint16, sysIdMac string, sys
 	// agg exists
 	if LaFindPortById(pId, &p) {
 		mac, ok := net.ParseMAC(sysIdMac)
-		utils.GlobalLogger.Info(fmt.Sprintf("%s Previous Agg Port %d OperKey %d New %d", drName, pId, p.ActorOper.Key, operKey))
 
+		// system Id has not been updated yet
+		macAddr := convertNetHwAddressToSysIdKey(mac)
 		if ok == nil &&
-			p.ActorOper.Key != operKey {
+			p.ActorOper.System.Actor_System != macAddr {
 			// update the port infot o point back to drni
 			p.DrniName = drName
 			p.DrniSynced = true
 			p.ActorOper.Key = uint16(operKey)
-
 			utils.GlobalLogger.Info(fmt.Sprintf("Setting DR %s info systemid %s priority %d and oper key %d on LAG port %d", drName, sysIdMac, sysPrio, operKey, pId))
-			macArr := convertNetHwAddressToSysIdKey(mac)
-			p.LaAggPortActorAdminInfoSet(macArr, sysPrio)
+
+			p.LaAggPortActorAdminInfoSet(macAddr, sysPrio)
 		}
 	} else {
 		utils.GlobalLogger.Info(fmt.Sprintf("ERROR: Unable to update system info on LAG port %d not found", pId))
