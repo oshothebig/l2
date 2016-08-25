@@ -376,7 +376,6 @@ func (a *LaAggregator) DeleteLaAgg() {
 	a.OperState = false
 
 	// notify DR that aggregator has been created
-	a.LacpAggLog(fmt.Sprintf("Do we need to Detach Aggregator from %s  %s", a.AggName, a.DrniName))
 	if a.DrniName != "" {
 		a.LacpAggLog(fmt.Sprintf("Registered for agg delete notification  %v", LacpCbDb.AggDeleteDbList))
 		if deletecb, ok := LacpCbDb.AggDeleteDbList[a.DrniName]; ok {

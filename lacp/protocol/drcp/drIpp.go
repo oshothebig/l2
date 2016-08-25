@@ -254,7 +254,7 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 
 func (p *DRCPIpp) CreateRxTx() {
 	if p.handle == nil {
-		handle, err := pcap.OpenLive(p.Name, 65536, false, 50*time.Millisecond)
+		handle, err := pcap.OpenLive(p.Name, 65536, true, 50*time.Millisecond)
 		if err != nil {
 			// failure here may be ok as this may be SIM
 			if !strings.Contains(p.Name, "SIM") {

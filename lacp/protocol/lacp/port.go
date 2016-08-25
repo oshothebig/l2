@@ -445,6 +445,8 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		}
 		p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.Actor_System))
 		p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
+		p.ActorOper.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.Actor_System))
+		p.ActorOper.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
 	}
 	p.ActorAdmin.Key = p.Key
 	p.ActorAdmin.port = p.PortNum
@@ -496,7 +498,7 @@ func (p *LaAggPort) CreateRxTx() {
 
 			sgi := LacpSysGlobalInfoByIdGet(sysId)
 
-			handle, err := pcap.OpenLive(p.IntfNum, 65536, false, 50*time.Millisecond)
+			handle, err := pcap.OpenLive(p.IntfNum, 65536, true, 50*time.Millisecond)
 			if err != nil {
 				// failure here may be ok as this may be SIM
 				if !strings.Contains(p.IntfNum, "SIM") {
@@ -536,6 +538,7 @@ func (p *LaAggPort) DeleteRxTx() {
 	if sgi != nil {
 		sgi.LaSysGlobalDeRegisterTxCallback(p.IntfNum)
 	}
+
 	// close rx/tx processing
 	if p.handle != nil {
 		p.handle.Close()

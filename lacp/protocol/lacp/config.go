@@ -685,8 +685,8 @@ func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 		// update selection to be unselected
 		p.checkConfigForSelection()
 
-		// lets setup the RX/TX for this port in case it has not already been set
-		p.DeleteRxTx()
+		// lets detach the RX/TX for this port in case it has been set
+		//p.DeleteRxTx()
 
 		// del reference to aggId
 		p.AggId = 0

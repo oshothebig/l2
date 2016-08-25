@@ -38,6 +38,9 @@ type MyMockAsicdClientMgr struct {
 func (mock *MyMockAsicdClientMgr) CreateLag(ifName string, hashType int32, ports string) (ifindex int32, err error) {
 	return 10, nil
 }
+func (m *MyMockAsicdClientMgr) GetPortLinkStatus(port int32) bool {
+	return true
+}
 
 func OnlyForTestSetup() {
 	logger, _ := logging.NewLogger("lacpd", "TEST", false)
@@ -45,13 +48,27 @@ func OnlyForTestSetup() {
 
 	utils.SetAsicDPlugin(&asicdmock.MockAsicdClientMgr{})
 }
+
+func MemoryCheck(t *testing.T) {
+	// memory check
+	for _, sgi := range LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
+}
+
 func OnlyForTestTeardown() {
 	utils.SetLaLogger(nil)
 	utils.DeleteAllAsicDPlugins()
+
 }
 
 func TestCreateDeleteLaAggregatorNoMembers(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	defer OnlyForTestTeardown()
 	// must be called to initialize the global
@@ -87,7 +104,7 @@ func TestCreateDeleteLaAggregatorNoMembers(t *testing.T) {
 }
 
 func TestCreateDeleteLaAggregatorWithMembers(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	defer OnlyForTestTeardown()
 	// must be called to initialize the global
@@ -125,6 +142,7 @@ func TestCreateDeleteLaAggregatorWithMembers(t *testing.T) {
 }
 
 func TestCreateDeleteFindByAggName(t *testing.T) {
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	defer OnlyForTestTeardown()
 	// must be called to initialize the global
@@ -183,7 +201,7 @@ func TestCreateDeleteFindByAggName(t *testing.T) {
 }
 
 func TestCreateDeleteFindById(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	defer OnlyForTestTeardown()
 	// must be called to initialize the global
@@ -242,7 +260,7 @@ func TestCreateDeleteFindById(t *testing.T) {
 }
 
 func TestCreateDeleteFindByKey(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	defer OnlyForTestTeardown()
 	// must be called to initialize the global
@@ -302,7 +320,7 @@ func TestCreateDeleteFindByKey(t *testing.T) {
 }
 
 func TestCreateDeleteFindLacpPortMember(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	defer OnlyForTestTeardown()
 	// must be called to initialize the global
@@ -369,7 +387,7 @@ func TestCreateDeleteFindLacpPortMember(t *testing.T) {
 }
 
 func TestDuplicateAdd(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	defer OnlyForTestTeardown()
 	// must be called to initialize the global
@@ -412,7 +430,7 @@ func TestDuplicateAdd(t *testing.T) {
 // Worst case is usually a single port lag and one per port
 // so lets test a 128 port switch
 func TestScaleAggCreate(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	defer OnlyForTestTeardown()
 	// must be called to initialize the global

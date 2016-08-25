@@ -96,7 +96,7 @@ func ChurnDetectionStateMachineSetup() {
 }
 
 func TestCdmNoActorChurnInvalidEvents(t *testing.T) {
-
+	defer MemoryCheck(t)
 	ChurnDetectionStateMachineSetup()
 	defer ChurnDetectionStateMachineTeardown()
 
@@ -139,7 +139,7 @@ func TestCdmNoActorChurnInvalidEvents(t *testing.T) {
 }
 
 func TestCdmNoPartnerChurnInvalidEvents(t *testing.T) {
-
+	defer MemoryCheck(t)
 	ChurnDetectionStateMachineSetup()
 	defer ChurnDetectionStateMachineTeardown()
 
@@ -184,7 +184,7 @@ func TestCdmNoPartnerChurnInvalidEvents(t *testing.T) {
 }
 
 func TestCdmActorChurnInvalidEvents(t *testing.T) {
-
+	defer MemoryCheck(t)
 	ChurnDetectionStateMachineSetup()
 	defer ChurnDetectionStateMachineTeardown()
 
@@ -228,7 +228,7 @@ func TestCdmActorChurnInvalidEvents(t *testing.T) {
 }
 
 func TestCdmPartnerChurnInvalidEvents(t *testing.T) {
-
+	defer MemoryCheck(t)
 	ChurnDetectionStateMachineSetup()
 	defer ChurnDetectionStateMachineTeardown()
 
@@ -269,7 +269,7 @@ func TestCdmPartnerChurnInvalidEvents(t *testing.T) {
 }
 
 func TestCdmActorChurnDetectionExpireEvents(t *testing.T) {
-
+	defer MemoryCheck(t)
 	ChurnDetectionStateMachineSetup()
 	defer ChurnDetectionStateMachineTeardown()
 
@@ -295,7 +295,7 @@ func TestCdmActorChurnDetectionExpireEvents(t *testing.T) {
 }
 
 func TestCdmPartnerChurnDetectionExpireEvents(t *testing.T) {
-
+	defer MemoryCheck(t)
 	ChurnDetectionStateMachineSetup()
 	defer ChurnDetectionStateMachineTeardown()
 
@@ -322,7 +322,7 @@ func TestCdmPartnerChurnDetectionExpireEvents(t *testing.T) {
 }
 
 func TestCdmActorChurnDebugCountDoesNotIncrementWhenStateReachedMoreThanFiveTimesInASecond(t *testing.T) {
-
+	defer MemoryCheck(t)
 	ChurnDetectionStateMachineSetup()
 	defer ChurnDetectionStateMachineTeardown()
 
@@ -371,7 +371,7 @@ func TestCdmActorChurnDebugCountDoesNotIncrementWhenStateReachedMoreThanFiveTime
 }
 
 func TestCdmPartnerChurnDebugCountDoesNotIncrementWhenStateReachedMoreThanFiveTimesInASecond(t *testing.T) {
-
+	defer MemoryCheck(t)
 	ChurnDetectionStateMachineSetup()
 	defer ChurnDetectionStateMachineTeardown()
 
@@ -433,7 +433,7 @@ func TestCdmPartnerChurnDebugCountDoesNotIncrementWhenStateReachedMoreThanFiveTi
 }
 
 func TestCdmActorChurnDebugCountIncrementsWhenStateReachMoreThanOneSecond(t *testing.T) {
-
+	defer MemoryCheck(t)
 	ChurnDetectionStateMachineSetup()
 	defer ChurnDetectionStateMachineTeardown()
 
@@ -482,7 +482,7 @@ func TestCdmActorChurnDebugCountIncrementsWhenStateReachMoreThanOneSecond(t *tes
 }
 
 func TestCdmPartnerChurnDebugCountIncrementsWhenStateReachMoreThanOneSecond(t *testing.T) {
-
+	defer MemoryCheck(t)
 	ChurnDetectionStateMachineSetup()
 	defer ChurnDetectionStateMachineTeardown()
 
