@@ -1050,8 +1050,8 @@ func (p *LaAggPort) LaAggPortActorOperInfoSet(sysIdMac [6]uint8, sysPrio uint16)
 	// only change the oper status if this is not owned by DR
 	// if it is owned by DR then will ignore as the oper status
 	// is based on the portal system info
-	p.ActorOper.System.Actor_System = p.ActorAdmin.System.Actor_System
-	p.ActorOper.System.Actor_System_priority = p.ActorAdmin.System.Actor_System_priority
+	p.ActorOper.System.Actor_System = sysIdMac
+	p.ActorOper.System.Actor_System_priority = sysPrio
 
 	p.aggSelected = LacpAggUnSelected
 
