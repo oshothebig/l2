@@ -651,6 +651,10 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 			createcb(int32(p.PortNum))
 		}
 
+		// lets setup the RX/TX for this port in case it has not already been set
+		if p.IsPortOperStatusUp() {
+			p.CreateRxTx()
+		}
 		// attach the port to the aggregator
 		//LacpStateSet(&p.ActorAdmin.State, LacpStateAggregationBit)
 
@@ -680,6 +684,9 @@ func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 
 		// update selection to be unselected
 		p.checkConfigForSelection()
+
+		// lets setup the RX/TX for this port in case it has not already been set
+		p.DeleteRxTx()
 
 		// del reference to aggId
 		p.AggId = 0

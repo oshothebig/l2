@@ -490,30 +490,33 @@ func (p *LaAggPort) CreateRxTx() {
 			mac, _ := net.ParseMAC(a.Config.SystemIdMac)
 			sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
 			sysId.Actor_System_priority = a.Config.SystemPriority
-		}
-		sgi := LacpSysGlobalInfoByIdGet(sysId)
 
-		handle, err := pcap.OpenLive(p.IntfNum, 65536, false, 50*time.Millisecond)
-		if err != nil {
-			// failure here may be ok as this may be SIM
-			if !strings.Contains(p.IntfNum, "SIM") {
-				fmt.Println("Error creating pcap OpenLive handle for port", p.PortNum, p.IntfNum, err)
+			sgi := LacpSysGlobalInfoByIdGet(sysId)
+
+			handle, err := pcap.OpenLive(p.IntfNum, 65536, false, 50*time.Millisecond)
+			if err != nil {
+				// failure here may be ok as this may be SIM
+				if !strings.Contains(p.IntfNum, "SIM") {
+					fmt.Println("Error creating pcap OpenLive handle for port", p.PortNum, p.IntfNum, err)
+				}
+				return
 			}
-			return
-		}
-		p.LaPortLog(fmt.Sprintln("Creating Listener for intf", p.IntfNum))
-		//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
-		p.handle = handle
-		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
-		in := src.Packets()
-		// start rx routine
-		LaRxMain(p.PortNum, in)
-		p.LaPortLog(fmt.Sprintln("Rx Main Started for port", p.PortNum, sysId))
+			p.LaPortLog(fmt.Sprintln("Creating Listener for intf", p.IntfNum))
+			//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
+			p.handle = handle
+			src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+			in := src.Packets()
+			// start rx routine
+			LaRxMain(p.PortNum, in)
+			p.LaPortLog(fmt.Sprintln("Rx Main Started for port", p.PortNum, sysId))
 
-		// register the tx func
-		if sgi != nil {
-			sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, TxViaLinuxIf)
+			// register the tx func
+			if sgi != nil {
+				sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, TxViaLinuxIf)
+			}
 		}
+	} else {
+		p.LaPortLog("Unabled to find AGG assocaited with this port")
 	}
 }
 
