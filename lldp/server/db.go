@@ -56,11 +56,13 @@ func (svr *LLDPServer) readLLDPIntfConfig() {
 		//return nil
 	}
 	// READ DB is always called before calling asicd get ports..
-	debug.Logger.Info("Objects from db are", objList)
+	debug.Logger.Debug("Objects from db are", objList)
 	for _, obj := range objList {
 		dbEntry := obj.(objects.LLDPIntf)
 		ifIndex, exists := svr.lldpIntfRef2IfIndexMap[dbEntry.IntfRef]
-		if exists {
+		if !exists {
+			debug.Logger.Debug("IfIndex", ifIndex, "IfName:", dbEntry.IntfRef,
+				"is not found in IntfRef to Index Map", dbEntry.Enable)
 			continue
 		}
 		gblInfo, _ := svr.lldpGblInfo[ifIndex]
