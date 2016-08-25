@@ -868,8 +868,13 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 			nextLagState.MinLinks = int16(a.AggMinLinks)
 			nextLagState.Interval = ConvertLaAggIntervalToLacpPeriod(a.Config.Interval)
 			nextLagState.LacpMode = ConvertLaAggModeToModelLacpMode(a.Config.Mode)
-			nextLagState.SystemIdMac = a.Config.SystemIdMac
-			nextLagState.SystemPriority = int16(a.Config.SystemPriority)
+			nextLagState.SystemIdMac = fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", a.AggMacAddr[0],
+				a.AggMacAddr[1],
+				a.AggMacAddr[2],
+				a.AggMacAddr[3],
+				a.AggMacAddr[4],
+				a.AggMacAddr[5])
+			nextLagState.SystemPriority = int16(a.AggPriority)
 			nextLagState.LagHash = int32(a.LagHash)
 			if len(a.PortNumList) > 0 {
 				nextLagState.IntfRefList = make([]string, 0)
