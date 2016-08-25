@@ -566,7 +566,7 @@ func SetLaAggPortSystemInfoFromDistributedRelay(pId uint16, sysIdMac string, sys
 			p.ActorOper.Key = uint16(operKey)
 			utils.GlobalLogger.Info(fmt.Sprintf("Setting DR %s info systemid %s priority %d and oper key %d on LAG port %d", drName, sysIdMac, sysPrio, operKey, pId))
 
-			p.LaAggPortActorAdminInfoSet(macAddr, sysPrio)
+			p.LaAggPortActorOperInfoSet(macAddr, sysPrio)
 		}
 	} else {
 		utils.GlobalLogger.Info(fmt.Sprintf("ERROR: Unable to update system info on LAG port %d not found", pId))

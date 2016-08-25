@@ -1044,6 +1044,30 @@ func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16
 
 }
 
+func (p *LaAggPort) LaAggPortActorOperInfoSet(sysIdMac [6]uint8, sysPrio uint16) {
+
+	p.LaPortLog(fmt.Sprintf("Changing Actor Oper SystemId: MAC: %+v Priority %d ", sysIdMac, sysPrio))
+	// only change the oper status if this is not owned by DR
+	// if it is owned by DR then will ignore as the oper status
+	// is based on the portal system info
+	p.ActorOper.System.Actor_System = p.ActorAdmin.System.Actor_System
+	p.ActorOper.System.Actor_System_priority = p.ActorAdmin.System.Actor_System_priority
+
+	p.aggSelected = LacpAggUnSelected
+
+	if p.ModeGet() == LacpModeOn ||
+		p.lacpEnabled == false ||
+		p.PortEnabled == false {
+		return
+	}
+
+	// partner info should be wrong so lets force sync to be off
+	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
+
+	p.checkConfigForSelection()
+
+}
+
 func (p *LaAggPort) TimeoutGet() time.Duration {
 	return p.PtxMachineFsm.PeriodicTxTimerInterval
 }
