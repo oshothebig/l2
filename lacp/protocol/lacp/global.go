@@ -222,7 +222,7 @@ func LaSysGlobalTxCallbackListGet(p *LaAggPort) []TxCallback {
 
 	// temporary function
 	x := func(port uint16, data interface{}) {
-		utils.GlobalLogger.Info(fmt.Sprintf("TX not registered for port\n", p.IntfNum, p.portId, sysId, gLacpSysGlobalInfo))
+		utils.GlobalLogger.Info(fmt.Sprintln("TX not registered for port\n", p.IntfNum, p.portId, sysId, gLacpSysGlobalInfo))
 		//lacp := data.(*layers.LACP)
 		//fmt.Printf("%#v\n", *lacp)
 	}

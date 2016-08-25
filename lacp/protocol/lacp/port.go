@@ -508,7 +508,7 @@ func (p *LaAggPort) CreateRxTx() {
 		in := src.Packets()
 		// start rx routine
 		LaRxMain(p.PortNum, in)
-		p.LaPortLog(fmt.Sprintln("Rx Main Started for port", p.PortNum))
+		p.LaPortLog(fmt.Sprintln("Rx Main Started for port", p.PortNum, sysId))
 
 		// register the tx func
 		if sgi != nil {

@@ -351,6 +351,11 @@ func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) 
 	}
 
 	nameKey := config.IntfRef
+	switchIdMac := config.SystemIdMac
+	if config.SystemIdMac == "00:00:00:00:00:00" {
+		tmpmac := utils.GetSwitchMac()
+		switchIdMac = fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", tmpmac[0], tmpmac[1], tmpmac[2], tmpmac[3], tmpmac[4], tmpmac[5])
+	}
 
 	var a *lacp.LaAggregator
 	if lacp.LaFindAggByName(nameKey, &a) {
@@ -372,7 +377,7 @@ func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) 
 			Lacp: lacp.LacpConfigInfo{
 				Interval:       ConvertModelLacpPeriodToLaAggInterval(config.Interval),
 				Mode:           ConvertModelLacpModeToLaAggMode(config.LacpMode),
-				SystemIdMac:    config.SystemIdMac,
+				SystemIdMac:    switchIdMac,
 				SystemPriority: uint16(config.SystemPriority),
 			},
 			HashMode: uint32(config.LagHash),

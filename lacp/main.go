@@ -63,6 +63,7 @@ func main() {
 	asicdPlugin := asicdClient.NewAsicdClientInit("Flexswitch", clientInfoFile, asicdHdl)
 
 	utils.SetAsicDPlugin(asicdPlugin)
+	utils.SaveSwitchMac(asicdPlugin.GetSwitchMAC(path))
 
 	// Start keepalive routine
 	go keepalive.InitKeepAlive("lacpd", path)
