@@ -1018,14 +1018,15 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 
 func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16) {
 
-	p.LaPortLog(fmt.Sprintf("Changing Actor SystemId: MAC: %+v Priority %d ", sysIdMac, sysPrio))
+	p.LaPortLog(fmt.Sprintf("Changing Actor Admin SystemId: MAC: %+v Priority %d ", sysIdMac, sysPrio))
 	p.ActorAdmin.System.Actor_System = sysIdMac
 	p.ActorAdmin.System.Actor_System_priority = sysPrio
 	// only change the oper status if this is not owned by DR
 	// if it is owned by DR then will ignore as the oper status
 	// is based on the portal system info
 	if p.DrniName == "" {
-		p.ActorOper = p.ActorOper
+		p.ActorOper.System.Actor_System = p.ActorAdmin.System.Actor_System
+		p.ActorOper.System.Actor_System_priority = p.ActorAdmin.System.Actor_System_priority
 	}
 
 	p.aggSelected = LacpAggUnSelected

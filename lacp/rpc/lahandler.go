@@ -877,10 +877,8 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 			if len(a.DistributedPortNumList) > 0 {
 				nextLagState.IntfRefListUpInBundle = make([]string, 0)
 			}
-			fmt.Println("Aggregator Port List: ", a.PortNumList)
 			for _, m := range a.PortNumList {
 				name := utils.GetNameFromIfIndex(int32(m))
-				fmt.Println("Aggregator Port Name: ", name)
 				if name != "" {
 					nextLagState.IntfRefList = append(nextLagState.IntfRefList, name)
 				}
@@ -909,7 +907,6 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 		moreRoutes = lacp.LaGetAggNext(&a)
 	}
 
-	fmt.Printf("Returning %d list of lagGroups\n", validCount)
 	obj.LaPortChannelStateList = returnLagStates
 	obj.StartIdx = fromIndex
 	obj.EndIdx = toIndex + 1
