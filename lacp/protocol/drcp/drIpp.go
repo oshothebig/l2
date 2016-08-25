@@ -268,7 +268,7 @@ func (p *DRCPIpp) CreateRxTx() {
 		in := src.Packets()
 		// start rx routine
 		DrRxMain(uint16(p.Id), p.dr.DrniPortalAddr.String(), in)
-		p.LaIppLog(fmt.Sprintf("Rx Main Started for ipp link port", p.Id))
+		p.LaIppLog(fmt.Sprintf("Rx Main Started for ipp link port %s", p.Name))
 
 		key := IppDbKey{
 			Name:   p.Name,
