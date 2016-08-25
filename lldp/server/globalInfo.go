@@ -119,6 +119,7 @@ const (
 	// Port Operation State
 	LLDP_PORT_STATE_DOWN = "DOWN"
 	LLDP_PORT_STATE_UP   = "UP"
+	LLDP_PORT_BROKEN_OUT = "Port broken out"
 
 	LLDP_BPF_FILTER                 = "ether proto 0x88cc"
 	LLDP_DEFAULT_TX_INTERVAL        = 30

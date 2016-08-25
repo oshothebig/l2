@@ -131,6 +131,8 @@ func (p *AsicPlugin) getPortStates() []*config.PortInfo {
 				port.MacAddr = pObj.MacAddr
 				port.Description = pObj.Description
 			}
+			debug.Logger.Debug("Adding port Name, OperState, IfIndex:", port.Name, port.OperState, port.IfIndex,
+				"to portStates")
 			portStates = append(portStates, port)
 		}
 		if more == false {
@@ -198,8 +200,7 @@ func (p *AsicPlugin) listenAsicdUpdates() {
 			var l2IntfStateNotifyMsg asicdCommonDefs.L2IntfStateNotifyMsg
 			err = json.Unmarshal(msg.Msg, &l2IntfStateNotifyMsg)
 			if err != nil {
-				debug.Logger.Err(fmt.Sprintln("Unable to Unmarshal l2 intf",
-					"state change:", msg.Msg))
+				debug.Logger.Err("Unable to Unmarshal l2 intf state change:", msg.Msg)
 				continue
 			}
 			if l2IntfStateNotifyMsg.IfState == asicdCommonDefs.INTF_STATE_UP {
