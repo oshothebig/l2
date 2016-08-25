@@ -148,8 +148,8 @@ type LaAggregator struct {
 	// Actor_Oper_Aggregator_Key
 	ActorOperKey uint16
 	//Aggregator_MAC_address
-	AggMacAddr    [6]uint8 // AggActorSystmID
-	AggPriority   uint16   // AggActorSystemPriority
+	AggMacAddr    [6]uint8 // ADMIN: AggActorSystmID
+	AggPriority   uint16   // ADMIN: AggActorSystemPriority
 	PortAlgorithm [4]uint8 // AggPortAlgorithm
 	PartnerDWC    bool
 	//AggConversationAdminLink [4096]uint16

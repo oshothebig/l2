@@ -434,8 +434,10 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		// DR is the owner of the systemid and priority and it set the aggregator
 		// mac and priority
 		p.LaPortLog(fmt.Sprintf("Aggregator  %s is an MLAG owned by DR %s, thus using DR SystemId %+v Priority %d", a.AggName, a.DrniName, a.AggMacAddr, a.AggPriority))
-		p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(a.AggMacAddr))
-		p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(a.AggPriority)
+		p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.Actor_System))
+		p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
+		p.ActorOper.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(a.AggMacAddr))
+		p.ActorOper.System.LacpSystemActorSystemPrioritySet(a.AggPriority)
 
 	} else {
 		if a != nil {
@@ -448,8 +450,9 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	p.ActorAdmin.port = p.PortNum
 	p.ActorAdmin.Port_pri = p.portPriority
 
-	// default actor oper same as admin
-	p.ActorOper = p.ActorAdmin
+	p.ActorOper.Key = p.ActorAdmin.Key
+	p.ActorOper.port = p.ActorAdmin.port
+	p.ActorOper.Port_pri = p.ActorAdmin.Port_pri
 
 	// port should be forced to unselected until the
 	// DRNI has negotiated the Key
@@ -1018,6 +1021,12 @@ func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16
 	p.LaPortLog(fmt.Sprintf("Changing Actor SystemId: MAC: %+v Priority %d ", sysIdMac, sysPrio))
 	p.ActorAdmin.System.Actor_System = sysIdMac
 	p.ActorAdmin.System.Actor_System_priority = sysPrio
+	// only change the oper status if this is not owned by DR
+	// if it is owned by DR then will ignore as the oper status
+	// is based on the portal system info
+	if p.DrniName == "" {
+		p.ActorOper = p.ActorOper
+	}
 
 	p.aggSelected = LacpAggUnSelected
 
