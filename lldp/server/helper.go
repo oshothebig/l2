@@ -33,6 +33,7 @@ import (
 	"l2/lldp/utils"
 	"models/objects"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -331,9 +332,21 @@ func (gblInfo LLDPGlobalInfo) DumpFrame() {
 /*  Api used to get entry.. This is mainly used by LLDP Server API Layer when it get config from
  *  North Bound Plugin...
  */
-func (svr *LLDPServer) EntryExist(ifIndex int32) bool {
-	_, exists := svr.lldpGblInfo[ifIndex]
-	return exists
+func (svr *LLDPServer) EntryExist(intfRef string) (int32, bool) {
+	// first check whether the input is all numbers
+	if ifIndex, err := strconv.Atoi(intfRef); err == nil {
+		_, exists := svr.lldpGblInfo[int32(ifIndex)]
+		if exists {
+			return int32(ifIndex), exists
+		}
+	} else {
+		// this is proper interface reference lets check the xRef
+		ifIndex, exists := svr.lldpIntfRef2IfIndexMap[intfRef]
+		if exists {
+			return ifIndex, exists
+		}
+	}
+	return -1, false
 }
 
 /*  Api to get System information used for TX Frame

@@ -79,9 +79,10 @@ type LLDPServer struct {
 	Global *config.Global
 
 	// lldp per port global info
-	lldpGblInfo          map[int32]LLDPGlobalInfo
-	lldpIntfStateSlice   []int32
-	lldpUpIntfStateSlice []int32
+	lldpGblInfo            map[int32]LLDPGlobalInfo
+	lldpIntfStateSlice     []int32
+	lldpUpIntfStateSlice   []int32
+	lldpIntfRef2IfIndexMap map[string]int32
 
 	// lldp pcap handler default config values
 	lldpSnapshotLen int32
@@ -95,7 +96,7 @@ type LLDPServer struct {
 	// lldp global config channel
 	GblCfgCh chan *config.Global
 	// lldp per port config
-	IntfCfgCh chan *config.Intf
+	IntfCfgCh chan *config.IntfConfig
 	// lldp asic notification channel
 	IfStateCh chan *config.PortState
 	// Update Cache notification channel
