@@ -29,7 +29,7 @@ package drcp
 import (
 	"bytes"
 	"fmt"
-	"l2/lacp/protocol/utils"
+	//"l2/lacp/protocol/utils"
 	"net"
 	"strings"
 
@@ -55,7 +55,7 @@ func DrRxMain(pId uint16, portaladdr string, rxPktChan chan gopacket.Packet) {
 
 				if ok {
 					//fmt.Println("RxMain: port", rxMainPort)
-					utils.GlobalLogger.Info(fmt.Sprintf("RX: %v", packet))
+					//utils.GlobalLogger.Info(fmt.Sprintf("RX: %v", packet))
 
 					if isdrcp := IsControlFrame(rxMainPort, packet); isdrcp {
 						if isdrcp {
@@ -153,7 +153,7 @@ func ProcessDrcpFrame(pId uint16, pa string, drcp *layers.DRCP) {
 					return
 				}
 			}
-			utils.GlobalLogger.Warning(fmt.Sprintf("RX: Received DRCP Packet on invalid Port %s with Portal Addr %s", pId, pa))
+			//utils.GlobalLogger.Warning(fmt.Sprintf("RX: Received DRCP Packet on invalid Port %s with Portal Addr %s", pId, pa))
 		}
 	}
 

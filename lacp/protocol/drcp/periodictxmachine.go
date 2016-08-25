@@ -25,12 +25,13 @@
 package drcp
 
 import (
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
 	"time"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 const PtxMachineModuleStr = "DRCP PTX Machine"
@@ -126,7 +127,7 @@ func (ptxm *PtxMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ptxm.Machine.Rules = r
 	ptxm.Machine.Curr = &utils.StateEvent{
 		StrStateMap: PtxmStateStrMap,
-		LogEna:      true,
+		LogEna:      false,
 		Logger:      ptxm.DrcpPtxmLog,
 		Owner:       PtxMachineModuleStr,
 	}
