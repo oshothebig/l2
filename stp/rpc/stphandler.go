@@ -266,7 +266,7 @@ func (s *STPDServiceHandler) DeleteStpBridgeInstance(config *stpd.StpBridgeInsta
 		Msgdata: brgconfig,
 	}
 	s.server.ConfigCh <- cfg
-	return false, nil
+	return true, nil
 }
 
 func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op []*stpd.PatchOpInfo) (bool, error) {
