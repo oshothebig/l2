@@ -323,8 +323,10 @@ func (psm *PsMachine) updateKey() {
 						for _, client := range utils.GetAsicDPluginList() {
 							for _, ippid := range dr.DrniIntraPortalLinkList {
 								inport := ippid & 0xffff
-								dr.LaDrLog(fmt.Sprintf("Blocking IPP %d to AggPort %d", inport, aggport))
-								client.IppIngressEgressDrop(int32(inport), int32(aggport))
+								if inport > 0 {
+									dr.LaDrLog(fmt.Sprintf("Blocking IPP %d to AggPort %d", inport, aggport))
+									client.IppIngressEgressDrop(int32(inport), int32(aggport))
+								}
 							}
 						}
 					}
