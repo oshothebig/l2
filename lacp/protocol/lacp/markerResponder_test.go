@@ -104,12 +104,8 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 	}
 
 	// lets create a port and start the machines
-	fmt.Println("Creating agg port 1")
 	CreateLaAggPort(p1conf)
-	fmt.Println("Done Creating agg port 1")
-	fmt.Println("Creating agg port 2")
 	CreateLaAggPort(p2conf)
-	fmt.Println("Done Creating agg port 2")
 
 	// port 1
 	LaRxMain(bridge.Port1, bridge.RxLacpPort1)

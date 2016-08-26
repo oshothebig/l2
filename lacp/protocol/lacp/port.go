@@ -455,6 +455,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	p.ActorOper.Key = p.ActorAdmin.Key
 	p.ActorOper.port = p.ActorAdmin.port
 	p.ActorOper.Port_pri = p.ActorAdmin.Port_pri
+	p.ActorOper.State = p.ActorAdmin.State
 
 	// port should be forced to unselected until the
 	// DRNI has negotiated the Key

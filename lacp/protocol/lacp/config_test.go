@@ -442,7 +442,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	}
 
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
-		t.Error("Mux State expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
+		t.Error("Mux State expected", MuxmStateStrMap[LacpMuxmStateAttached], "actual", MuxmStateStrMap[p.MuxMachineFsm.Machine.Curr.CurrentState()])
 	}
 
 	// TODO Check States of other State machines
