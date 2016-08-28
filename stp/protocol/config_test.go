@@ -43,7 +43,27 @@ func StpBridgeConfigSetup() *StpBridgeConfig {
 	return brg
 }
 
+func MemoryCheck(t *testing.T) {
+	if len(PortListTable) != 0 {
+		t.Error("Error cleaning of StpPort DB")
+	}
+
+	if len(PortMapTable) != 0 {
+		t.Error("Error cleaning of StpPort MAP DB")
+	}
+
+	if len(BridgeMapTable) != 0 {
+		t.Error("Error cleaning of Bridge MAP table DB")
+	}
+
+	if len(BridgeListTable) != 0 {
+		t.Error("Error cleaning of Bridge List table DB")
+	}
+
+}
+
 func StpPortConfigSetup(createbridge, update bool) (*StpPortConfig, *StpBridgeConfig) {
+
 	var brg *StpBridgeConfig
 	if createbridge {
 		brg = StpBridgeConfigSetup()
@@ -77,6 +97,7 @@ func StpPortConfigSetup(createbridge, update bool) (*StpPortConfig, *StpBridgeCo
 }
 
 func TestStpBridgeCreationDeletion(t *testing.T) {
+	defer MemoryCheck(t)
 	// when creating a bridge it is recommended that the following calls are made
 
 	// this is specific to test but config object should be filled in
@@ -100,6 +121,7 @@ func TestStpBridgeCreationDeletion(t *testing.T) {
 }
 
 func TestStpPortCreationDeletion(t *testing.T) {
+	defer MemoryCheck(t)
 	// when creating a bridge it is recommended that the following calls are made
 
 	// this is specific to test but config object should be filled in
@@ -172,6 +194,7 @@ func TestStpPortCreationDeletion(t *testing.T) {
 }
 
 func TestStpPortAdminEdgeCreationDeletion(t *testing.T) {
+	defer MemoryCheck(t)
 	// when creating a bridge it is recommended that the following calls are made
 
 	// this is specific to test but config object should be filled in
@@ -245,7 +268,7 @@ func TestStpPortAdminEdgeCreationDeletion(t *testing.T) {
 }
 
 func TestStpBridgeParamCheckPriority(t *testing.T) {
-
+	defer MemoryCheck(t)
 	// setup
 	brgcfg := StpBridgeConfigSetup()
 
@@ -289,10 +312,12 @@ func TestStpBridgeParamCheckPriority(t *testing.T) {
 	if err == nil {
 		t.Error("ERRROR Setting bridge priority to an invalid value", err)
 	}
+
+	StpBridgeDecd.lete(brgcfg)
 }
 
 func TestStpBridgeParamCheckMaxAge(t *testing.T) {
-
+	defer MemoryCheck(t)
 	// setup
 	brgcfg := StpBridgeConfigSetup()
 
@@ -344,7 +369,7 @@ func TestStpBridgeParamCheckMaxAge(t *testing.T) {
 }
 
 func TestStpBridgeParamCheckHelloTime(t *testing.T) {
-
+	defer MemoryCheck(t)
 	// setup
 	brgcfg := StpBridgeConfigSetup()
 
@@ -396,7 +421,7 @@ func TestStpBridgeParamCheckHelloTime(t *testing.T) {
 }
 
 func TestStpBridgeParamCheckFowardingDelay(t *testing.T) {
-
+	defer MemoryCheck(t)
 	// setup
 	brgcfg := StpBridgeConfigSetup()
 
@@ -448,7 +473,7 @@ func TestStpBridgeParamCheckFowardingDelay(t *testing.T) {
 }
 
 func TestStpBridgeParamCheckTxHoldCount(t *testing.T) {
-
+	defer MemoryCheck(t)
 	// setup
 	brgcfg := StpBridgeConfigSetup()
 
@@ -501,6 +526,7 @@ func TestStpBridgeParamCheckTxHoldCount(t *testing.T) {
 }
 
 func TestStpBridgeParamCheckVlan(t *testing.T) {
+	defer MemoryCheck(t)
 
 	// setup
 	brgcfg := StpBridgeConfigSetup()
@@ -524,6 +550,7 @@ func TestStpBridgeParamCheckVlan(t *testing.T) {
 }
 
 func TestStpBridgeParamCheckForceVersion(t *testing.T) {
+	defer MemoryCheck(t)
 
 	// setup
 	brgcfg := StpBridgeConfigSetup()
@@ -599,6 +626,7 @@ type StpPortConfig struct {
 */
 
 func TestStpPortParamBrgIfIndex(t *testing.T) {
+	defer MemoryCheck(t)
 	p, b := StpPortConfigSetup(false, false)
 	defer StpPortConfigDelete(p.IfIndex)
 
@@ -628,6 +656,7 @@ func TestStpPortParamBrgIfIndex(t *testing.T) {
 }
 
 func TestStpPortParamPriority(t *testing.T) {
+	defer MemoryCheck(t)
 
 	p, b := StpPortConfigSetup(true, false)
 	defer StpPortConfigDelete(p.IfIndex)
@@ -687,6 +716,7 @@ func TestStpPortParamPriority(t *testing.T) {
 }
 
 func TestStpPortParamAdminPathCost(t *testing.T) {
+	defer MemoryCheck(t)
 
 	p, b := StpPortConfigSetup(true, false)
 	defer StpPortConfigDelete(p.IfIndex)
@@ -733,6 +763,7 @@ func TestStpPortParamAdminPathCost(t *testing.T) {
 }
 
 func TestStpPortParamBridgeAssurance(t *testing.T) {
+	defer MemoryCheck(t)
 	p, b := StpPortConfigSetup(true, false)
 	defer StpPortConfigDelete(p.IfIndex)
 	if b != nil {
@@ -839,6 +870,7 @@ func TestStpPortParamBridgeAssurance(t *testing.T) {
 }
 
 func TestStpPortParamBpduGuard(t *testing.T) {
+	defer MemoryCheck(t)
 	p, b := StpPortConfigSetup(true, false)
 	defer StpPortConfigDelete(p.IfIndex)
 	if b != nil {
@@ -919,6 +951,7 @@ func TestStpPortParamBpduGuard(t *testing.T) {
 }
 
 func TestStpPortParamProtocolMigration(t *testing.T) {
+	defer MemoryCheck(t)
 	p, b := StpPortConfigSetup(true, false)
 	defer StpPortConfigDelete(p.IfIndex)
 	if b != nil {
@@ -975,6 +1008,7 @@ func TestStpPortParamProtocolMigration(t *testing.T) {
 }
 
 func TestStpPortPortEnable(t *testing.T) {
+	defer MemoryCheck(t)
 	p, b := StpPortConfigSetup(true, false)
 	defer StpPortConfigDelete(p.IfIndex)
 	if b != nil {
@@ -1036,6 +1070,7 @@ func TestStpPortPortEnable(t *testing.T) {
 }
 
 func TestStpPortLinkUpDown(t *testing.T) {
+	defer MemoryCheck(t)
 	p, b := StpPortConfigSetup(true, false)
 	defer StpPortConfigDelete(p.IfIndex)
 	if b != nil {

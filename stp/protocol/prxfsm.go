@@ -27,8 +27,9 @@ package stp
 import (
 	"fmt"
 	//"time"
-	"github.com/google/gopacket/layers"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 const PrxmMachineModuleStr = "PRXM"
@@ -79,8 +80,6 @@ type PrxmMachine struct {
 	// rx pkt
 	PrxmRxBpduPkt chan RxBpduPdu
 
-	// stop go routine
-	PrxmKillSignalEvent chan MachineEvent
 	// enable logging
 	PrxmLogEnableEvent chan bool
 }
@@ -96,11 +95,10 @@ func (m *PrxmMachine) GetPrevStateStr() string {
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewStpPrxmMachine(p *StpPort) *PrxmMachine {
 	prxm := &PrxmMachine{
-		p:                   p,
-		PrxmEvents:          make(chan MachineEvent, 50),
-		PrxmRxBpduPkt:       make(chan RxBpduPdu, 50),
-		PrxmKillSignalEvent: make(chan MachineEvent, 1),
-		PrxmLogEnableEvent:  make(chan bool)}
+		p:                  p,
+		PrxmEvents:         make(chan MachineEvent, 50),
+		PrxmRxBpduPkt:      make(chan RxBpduPdu, 50),
+		PrxmLogEnableEvent: make(chan bool)}
 
 	p.PrxmMachineFsm = prxm
 
@@ -135,24 +133,9 @@ func (prxm *PrxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (prxm *PrxmMachine) Stop() {
 
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if prxm.Machine.Curr.CurrentState() != PrxmStateNone {
-		wait := make(chan string, 1)
-		// stop the go routine
-		prxm.PrxmKillSignalEvent <- MachineEvent{
-			e:            PrxmEventBegin,
-			responseChan: wait,
-		}
-		<-wait
-	}
-
 	close(prxm.PrxmEvents)
 	close(prxm.PrxmRxBpduPkt)
 	close(prxm.PrxmLogEnableEvent)
-	close(prxm.PrxmKillSignalEvent)
-
 }
 
 // PrmMachineDiscard
@@ -250,32 +233,30 @@ func (p *StpPort) PrxmMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event := <-m.PrxmKillSignalEvent:
 
-				StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
-				if event.responseChan != nil {
-					SendResponse(PrxmMachineModuleStr, event.responseChan)
-				}
-				return
+			case event, ok := <-m.PrxmEvents:
 
-			case event := <-m.PrxmEvents:
+				if ok {
+					if m.Machine.Curr.CurrentState() == PrxmStateNone && event.e != PrxmEventBegin {
+						m.PrxmEvents <- event
+						break
+					}
 
-				if m.Machine.Curr.CurrentState() == PrxmStateNone && event.e != PrxmEventBegin {
-					m.PrxmEvents <- event
-					break
-				}
+					//fmt.Println("Event Rx", event.src, event.e)
+					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					if rv != nil {
+						StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+					} else {
+						// for faster state transitions
+						m.ProcessPostStateProcessing(event.data)
+					}
 
-				//fmt.Println("Event Rx", event.src, event.e)
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s state[%s]event[%d]\n", rv, PrxmStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+					if event.responseChan != nil {
+						SendResponse(PrxmMachineModuleStr, event.responseChan)
+					}
 				} else {
-					// for faster state transitions
-					m.ProcessPostStateProcessing(event.data)
-				}
-
-				if event.responseChan != nil {
-					SendResponse(PrxmMachineModuleStr, event.responseChan)
+					StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					return
 				}
 			case rx := <-m.PrxmRxBpduPkt:
 

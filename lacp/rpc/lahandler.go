@@ -320,6 +320,18 @@ func (la *LACPDServiceHandler) ReadConfigFromDB() error {
 	return nil
 }
 
+func (la *LACPDServiceHandler) CreateLacpGlobal(config *lacpd.LacpGlobal) (bool, error) {
+	return true, nil
+}
+
+func (la *LACPDServiceHandler) DeleteLacpGlobal(config *lacpd.LacpGlobal) (bool, error) {
+	return true, nil
+}
+
+func (la *LACPDServiceHandler) UpdateLacpGlobal(origconfig *lacpd.LacpGlobal, updateconfig *lacpd.LacpGlobal, attrset []bool, op []*lacpd.PatchOpInfo) (bool, error) {
+	return true, nil
+}
+
 // CreateLaPortChannel will create an lacp lag
 //	1 : i32 	LagType  (0 == LACP, 1 == STATIC)
 //	2 : string 	Description
@@ -1268,7 +1280,7 @@ func (la *LACPDServiceHandler) GetDistributedRelayState(drname string) (*lacpd.D
 		drs.PortalSystemNumber = int8(dr.DrniPortalSystemNumber)
 		for _, ifindex := range dr.DrniIntraPortalLinkList {
 			if ifindex != 0 {
-				drs.Intfreflist = append(drs.Intfreflist, utils.GetNameFromIfIndex(int32(ifindex)))
+				drs.IntfRefList = append(drs.IntfRefList, utils.GetNameFromIfIndex(int32(ifindex)))
 			}
 		}
 		drs.GatewayAlgorithm = dr.DrniGatewayAlgorithm.String()
@@ -1315,7 +1327,7 @@ func (la *LACPDServiceHandler) GetBulkDistributedRelayState(fromIndex lacpd.Int,
 			utils.GlobalLogger.Info(fmt.Sprintf("GetBulkDistributedRelay, IPP Port List %v", dr.DrniIntraPortalLinkList))
 			for _, ifindex := range dr.DrniIntraPortalLinkList {
 				if ifindex != 0 {
-					nextDrcpState.Intfreflist = append(nextDrcpState.Intfreflist, utils.GetNameFromIfIndex(int32(ifindex)))
+					nextDrcpState.IntfRefList = append(nextDrcpState.IntfRefList, utils.GetNameFromIfIndex(int32(ifindex)))
 				}
 			}
 			nextDrcpState.GatewayAlgorithm = dr.DrniGatewayAlgorithm.String()

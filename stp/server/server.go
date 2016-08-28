@@ -31,6 +31,8 @@ const (
 	STPConfigMsgUpdatePortAdminPathCost
 	STPConfigMsgUpdatePortBpduGuard
 	STPConfigMsgUpdatePortBridgeAssurance
+	STPConfigMsgGlobalEnable
+	STPConfigMsgGlobalDisable
 )
 
 type STPConfig struct {
@@ -178,7 +180,14 @@ func (server *STPServer) processStpConfig(conf STPConfig) {
 		stp.StpLogger("INFO", "CONFIG: Port Bridge Assurance")
 		config := conf.Msgdata.(*stp.StpPortConfig)
 		stp.StpPortBridgeAssuranceSet(config.IfIndex, config.BrgIfIndex, config.BridgeAssurance)
-
+		/*
+			case STPConfigMsgGlobalEnable:
+				stp.StpLogger("INFO", "CONFIG: Enable STP Global")
+				stp.StpGlobalStateSet(true)
+			case STPConfigMsgGlobalDisable:
+				stp.StpLogger("INFO", "CONFIG: Disable STP Global")
+				StpGlobalStateSet(false)
+		*/
 	}
 }
 

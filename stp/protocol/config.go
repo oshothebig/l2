@@ -293,16 +293,7 @@ func StpPortDelete(c *StpPortConfig) error {
 			StpPortDelFromBridge(c.IfIndex, p.BrgIfIndex)
 		}
 		DelStpPort(p)
-		foundPort := false
-		for _, ptmp := range PortListTable {
-			if ptmp.IfIndex == p.IfIndex {
-				foundPort = true
-			}
-		}
-		if !foundPort {
-			delete(StpPortConfigMap, c.IfIndex)
-		}
-
+		delete(StpPortConfigMap, c.IfIndex)
 	} else {
 		return errors.New(fmt.Sprintf("Invalid config, port %d bridge %d does not exists", c.IfIndex, c.BrgIfIndex))
 	}
@@ -355,6 +346,7 @@ func StpPortDelFromBridge(pId int32, brgifindex int32) {
 		for idx, ifindex := range b.StpPorts {
 			if ifindex == p.IfIndex {
 				b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+				break
 			}
 		}
 	} else {
@@ -389,6 +381,7 @@ func StpPortEnable(pId int32, bId int32, enable bool) error {
 func StpPortLinkUp(pId int32) {
 	for _, p := range PortListTable {
 		if p.IfIndex == pId {
+			p.CreateRxTx()
 			if p.AdminPortEnabled {
 				defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, true)
 				p.PortEnabled = true
@@ -400,6 +393,7 @@ func StpPortLinkUp(pId int32) {
 func StpPortLinkDown(pId int32) {
 	for _, p := range PortListTable {
 		if p.IfIndex == pId {
+			p.DeleteRxTx()
 			defer p.NotifyPortEnabled("LINK EVENT", p.PortEnabled, false)
 			p.PortEnabled = false
 		}

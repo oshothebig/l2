@@ -47,7 +47,7 @@ func NewSTPDServiceHandler(svr *server.STPServer) *STPDServiceHandler {
 		server: svr,
 	}
 	// lets read the db and replay the data
-	svchdl.ReadConfigFromDB()
+	svchdl.ReadConfigFromDB(stp.StpGlobalStateGet())
 	return svchdl
 }
 
@@ -82,10 +82,14 @@ func ConvertBoolToInt32(val bool) int32 {
 
 func ConvertThriftPortConfigToStpPortConfig(config *stpd.StpPort, portconfig *stp.StpPortConfig) {
 
-	portconfig.IfIndex = int32(config.IfIndex)
-	portconfig.BrgIfIndex = int32(config.BrgIfIndex)
+	portconfig.IfIndex = stp.GetIfIndexFromIntfRef(config.IntfRef)
+	portconfig.BrgIfIndex = int32(config.Vlan)
 	portconfig.Priority = uint16(config.Priority)
-	portconfig.Enable = ConvertInt32ToBool(config.Enable)
+	if config.AdminState == "UP" {
+		portconfig.Enable = true
+	} else {
+		portconfig.Enable = false
+	}
 	portconfig.PathCost = int32(config.PathCost)
 	portconfig.ProtocolMigration = int32(config.ProtocolMigration)
 	portconfig.AdminPointToPoint = int32(config.AdminPointToPoint)
@@ -157,39 +161,101 @@ func GetPortState(p *stp.StpPort) (state int32) {
 	return state
 }
 
-// CreateDot1dStpBridgeConfig
-func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInstance) (bool, error) {
+func (s *STPDServiceHandler) CreateStpGlobal(config *stpd.StpGlobal) (rv bool, err error) {
+	stp.StpLogger("INFO", fmt.Sprintf("CreateStpGlobal (server): %s", config.AdminState))
 
-	stp.StpLogger("INFO", "CreateStpBridgeInstance (server): created ")
-	stp.StpLogger("INFO", fmt.Sprintf("addr:", config.Address))
-	stp.StpLogger("INFO", fmt.Sprintf("prio:", config.Priority))
-	stp.StpLogger("INFO", fmt.Sprintf("vlan:", config.Vlan))
-	stp.StpLogger("INFO", fmt.Sprintf("age:", config.MaxAge))
-	stp.StpLogger("INFO", fmt.Sprintf("hello:", config.HelloTime))        // int32
-	stp.StpLogger("INFO", fmt.Sprintf("fwddelay:", config.ForwardDelay))  // int32
-	stp.StpLogger("INFO", fmt.Sprintf("version:", config.ForceVersion))   // int32
-	stp.StpLogger("INFO", fmt.Sprintf("txHoldCount", config.TxHoldCount)) //
-
-	brgconfig := &stp.StpBridgeConfig{}
-	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
-
-	if brgconfig.Vlan == 0 {
-		brgconfig.Vlan = stp.DEFAULT_STP_BRIDGE_VLAN
+	if config.AdminState == "UP" {
+		prevState := stp.StpGlobalStateGet()
+		stp.StpGlobalStateSet(stp.STP_GLOBAL_ENABLE)
+		s.ReadConfigFromDB(prevState)
+	} else if config.AdminState == "DOWN" {
+		stp.StpGlobalStateSet(stp.STP_GLOBAL_DISABLE)
 	}
-
-	err := stp.StpBrgConfigParamCheck(brgconfig)
-	if err == nil {
-		cfg := server.STPConfig{
-			Msgtype: server.STPConfigMsgCreateBridge,
-			Msgdata: brgconfig,
-		}
-		s.server.ConfigCh <- cfg
-		return true, err
-	}
-	return false, err
+	return rv, err
 }
 
-func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil) error {
+func (s *STPDServiceHandler) DeleteStpGlobal(config *stpd.StpGlobal) (bool, error) {
+	return true, nil
+}
+
+func (s *STPDServiceHandler) UpdateStpGlobal(origconfig *stpd.StpGlobal, updateconfig *stpd.StpGlobal, attrset []bool, op []*stpd.PatchOpInfo) (rv bool, err error) {
+	stp.StpLogger("INFO", fmt.Sprintf("UpdateStpGlobal (server): %s", updateconfig.AdminState))
+
+	prevState := stp.StpGlobalStateGet()
+
+	if updateconfig.AdminState == "UP" {
+		stp.StpGlobalStateSet(stp.STP_GLOBAL_ENABLE)
+	} else if updateconfig.AdminState == "DOWN" {
+		stp.StpGlobalStateSet(stp.STP_GLOBAL_DISABLE_PENDING)
+	}
+	if prevState != stp.StpGlobalStateGet() {
+		s.ReadConfigFromDB(prevState)
+		if updateconfig.AdminState == "DOWN" {
+			stp.StpGlobalStateSet(stp.STP_GLOBAL_DISABLE)
+		}
+	}
+	return rv, err
+}
+
+// CreateDot1dStpBridgeConfig
+func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInstance) (rv bool, err error) {
+
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
+		stp.StpLogger("INFO", "CreateStpBridgeInstance (server): created ")
+		stp.StpLogger("INFO", fmt.Sprintf("addr:", config.Address))
+		stp.StpLogger("INFO", fmt.Sprintf("prio:", config.Priority))
+		stp.StpLogger("INFO", fmt.Sprintf("vlan:", config.Vlan))
+		stp.StpLogger("INFO", fmt.Sprintf("age:", config.MaxAge))
+		stp.StpLogger("INFO", fmt.Sprintf("hello:", config.HelloTime))        // int32
+		stp.StpLogger("INFO", fmt.Sprintf("fwddelay:", config.ForwardDelay))  // int32
+		stp.StpLogger("INFO", fmt.Sprintf("version:", config.ForceVersion))   // int32
+		stp.StpLogger("INFO", fmt.Sprintf("txHoldCount", config.TxHoldCount)) //
+
+		brgconfig := &stp.StpBridgeConfig{}
+		ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
+
+		if brgconfig.Vlan == 0 {
+			brgconfig.Vlan = stp.DEFAULT_STP_BRIDGE_VLAN
+		}
+
+		err = stp.StpBrgConfigParamCheck(brgconfig)
+		if err == nil {
+			cfg := server.STPConfig{
+				Msgtype: server.STPConfigMsgCreateBridge,
+				Msgdata: brgconfig,
+			}
+			s.server.ConfigCh <- cfg
+			return true, err
+		}
+	} else {
+		rv = true
+	}
+	return rv, err
+}
+
+func (s *STPDServiceHandler) HandleDbReadStpGlobal(dbHdl *dbutils.DBUtil) error {
+	if dbHdl != nil {
+		var dbObj objects.StpGlobal
+		objList, err := dbHdl.GetAllObjFromDb(dbObj)
+		if err != nil {
+			stp.StpLogger("ERROR", "DB Query failed when retrieving StpPort objects")
+			return err
+		}
+		for idx := 0; idx < len(objList); idx++ {
+			obj := stpd.NewStpGlobal()
+			dbObject := objList[idx].(objects.StpGlobal)
+			objects.ConvertstpdStpGlobalObjToThrift(&dbObject, obj)
+			_, err = s.CreateStpGlobal(obj)
+			if err != nil {
+				return err
+			}
+
+		}
+	}
+	return nil
+}
+
+func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil, del bool) error {
 	if dbHdl != nil {
 		var dbObj objects.StpBridgeInstance
 		objList, err := dbHdl.GetAllObjFromDb(dbObj)
@@ -201,7 +267,11 @@ func (s *STPDServiceHandler) HandleDbReadStpBridgeInstance(dbHdl *dbutils.DBUtil
 			obj := stpd.NewStpBridgeInstance()
 			dbObject := objList[idx].(objects.StpBridgeInstance)
 			objects.ConvertstpdStpBridgeInstanceObjToThrift(&dbObject, obj)
-			_, err = s.CreateStpBridgeInstance(obj)
+			if !del {
+				_, err = s.CreateStpBridgeInstance(obj)
+			} else {
+				_, err = s.DeleteStpBridgeInstance(obj)
+			}
 			if err != nil {
 				return err
 			}
@@ -231,7 +301,7 @@ func (s *STPDServiceHandler) HandleDbReadStpPort(dbHdl *dbutils.DBUtil) error {
 	return nil
 }
 
-func (s *STPDServiceHandler) ReadConfigFromDB() error {
+func (s *STPDServiceHandler) ReadConfigFromDB(prevState int) error {
 
 	dbHdl := dbutils.NewDBUtil(stp.GetStpLogger())
 	err := dbHdl.Connect()
@@ -241,212 +311,253 @@ func (s *STPDServiceHandler) ReadConfigFromDB() error {
 	}
 	defer dbHdl.Disconnect()
 
-	if err := s.HandleDbReadStpBridgeInstance(dbHdl); err != nil {
-		stp.StpLogger("ERROR", "Error getting All StpBridgeInstance objects")
-		return err
+	// only need to call on bootup
+	if prevState == stp.STP_GLOBAL_INIT {
+		if err := s.HandleDbReadStpGlobal(dbHdl); err != nil {
+			stp.StpLogger("ERROR", "Error getting All StpGlobal objects")
+			return err
+		}
 	}
+	currState := stp.StpGlobalStateGet()
 
-	if err = s.HandleDbReadStpPort(dbHdl); err != nil {
-		stp.StpLogger("ERROR", "Error getting All StpPort objects")
-		return err
+	// going from enable to disable or stp is in enable state
+	if (prevState != currState && currState == stp.STP_GLOBAL_ENABLE) ||
+		currState == stp.STP_GLOBAL_ENABLE {
+		if err := s.HandleDbReadStpBridgeInstance(dbHdl, false); err != nil {
+			stp.StpLogger("ERROR", "Error getting All StpBridgeInstance objects")
+			return err
+		}
+
+		if err = s.HandleDbReadStpPort(dbHdl); err != nil {
+			stp.StpLogger("ERROR", "Error getting All StpPort objects")
+			return err
+		}
+	} else if currState == stp.STP_GLOBAL_DISABLE &&
+		prevState == stp.STP_GLOBAL_ENABLE {
+		// only need to delete the bridge instance
+		// this will trigger a delete of the ports within the server
+		if err := s.HandleDbReadStpBridgeInstance(dbHdl, true); err != nil {
+			stp.StpLogger("ERROR", "Error getting All StpBridgeInstance objects")
+			return err
+		}
 	}
-
 	return nil
 }
 
-func (s *STPDServiceHandler) DeleteStpBridgeInstance(config *stpd.StpBridgeInstance) (bool, error) {
+func (s *STPDServiceHandler) DeleteStpBridgeInstance(config *stpd.StpBridgeInstance) (rv bool, err error) {
+	rv = true
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE ||
+		stp.StpGlobalStateGet() == stp.STP_GLOBAL_DISABLE_PENDING {
 
-	// Aggregation found now lets delete
-	//lacp.DeleteLaAgg(GetIdByName(config.NameKey))
-	stp.StpLogger("INFO", "DeleteStpBridgeInstance (server): deleted ")
-	brgconfig := &stp.StpBridgeConfig{}
-	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
-	cfg := server.STPConfig{
-		Msgtype: server.STPConfigMsgDeleteBridge,
-		Msgdata: brgconfig,
+		// Aggregation found now lets delete
+		//lacp.DeleteLaAgg(GetIdByName(config.NameKey))
+		stp.StpLogger("INFO", "DeleteStpBridgeInstance (server): deleted ")
+		brgconfig := &stp.StpBridgeConfig{}
+		ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
+		cfg := server.STPConfig{
+			Msgtype: server.STPConfigMsgDeleteBridge,
+			Msgdata: brgconfig,
+		}
+		s.server.ConfigCh <- cfg
 	}
-	s.server.ConfigCh <- cfg
-	return false, nil
+	return rv, err
 }
 
-func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op []*stpd.PatchOpInfo) (bool, error) {
-	var b *stp.Bridge
-	brgconfig := &stp.StpBridgeConfig{}
-	objTyp := reflect.TypeOf(*origconfig)
+func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op []*stpd.PatchOpInfo) (rv bool, err error) {
+	rv = true
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
-	key := stp.BridgeKey{
-		Vlan: uint16(origconfig.Vlan),
-	}
-	// see if the bridge instance exists
-	if !stp.StpFindBridgeById(key, &b) {
-		return false, errors.New("Unknown Bridge in update config")
-	}
+		var b *stp.Bridge
+		brgconfig := &stp.StpBridgeConfig{}
+		objTyp := reflect.TypeOf(*origconfig)
 
-	// convert thrift struct to stp struct
-	ConvertThriftBrgConfigToStpBrgConfig(updateconfig, brgconfig)
-	// perform paramater checks to validate the config coming down
-	err := stp.StpBrgConfigParamCheck(brgconfig)
-	if err != nil {
-		return false, err
-	}
+		key := stp.BridgeKey{
+			Vlan: uint16(origconfig.Vlan),
+		}
+		// see if the bridge instance exists
+		if !stp.StpFindBridgeById(key, &b) {
+			return false, errors.New("Unknown Bridge in update config")
+		}
 
-	// config message data
-	cfg := server.STPConfig{
-		Msgdata: brgconfig,
-	}
+		// convert thrift struct to stp struct
+		ConvertThriftBrgConfigToStpBrgConfig(updateconfig, brgconfig)
+		// perform paramater checks to validate the config coming down
+		err = stp.StpBrgConfigParamCheck(brgconfig)
+		if err != nil {
+			return false, err
+		}
 
-	// attribute that user is allowed to update
-	attrMap := map[string]server.STPConfigMsgType{
-		"MaxAge":       server.STPConfigMsgUpdateBridgeMaxAge,
-		"HelloTime":    server.STPConfigMsgUpdateBridgeHelloTime,
-		"ForwardDelay": server.STPConfigMsgUpdateBridgeForwardDelay,
-		"TxHoldCount":  server.STPConfigMsgUpdateBridgeTxHoldCount,
-		"Priority":     server.STPConfigMsgUpdateBridgePriority,
-		"ForceVersion": server.STPConfigMsgUpdateBridgeForceVersion,
-	}
+		// config message data
+		cfg := server.STPConfig{
+			Msgdata: brgconfig,
+		}
 
-	// important to note that the attrset starts at index 0 which is the BaseObj
-	// which is not the first element on the thrift obj, thus we need to skip
-	// this attribute
-	for i := 0; i < objTyp.NumField(); i++ {
-		objName := objTyp.Field(i).Name
-		//fmt.Println("UpdateStpBridgeInstance (server): (index, objName) ", i, objName)
-		if attrset[i] {
-			stp.StpLogger("INFO", fmt.Sprintf("UpdateStpBridgeInstance (server): changed ", objName))
+		// attribute that user is allowed to update
+		attrMap := map[string]server.STPConfigMsgType{
+			"MaxAge":       server.STPConfigMsgUpdateBridgeMaxAge,
+			"HelloTime":    server.STPConfigMsgUpdateBridgeHelloTime,
+			"ForwardDelay": server.STPConfigMsgUpdateBridgeForwardDelay,
+			"TxHoldCount":  server.STPConfigMsgUpdateBridgeTxHoldCount,
+			"Priority":     server.STPConfigMsgUpdateBridgePriority,
+			"ForceVersion": server.STPConfigMsgUpdateBridgeForceVersion,
+		}
 
-			if msgtype, ok := attrMap[objName]; ok {
-				// set message type
-				cfg.Msgtype = msgtype
-				// send config message to server
-				s.server.ConfigCh <- cfg
+		// important to note that the attrset starts at index 0 which is the BaseObj
+		// which is not the first element on the thrift obj, thus we need to skip
+		// this attribute
+		for i := 0; i < objTyp.NumField(); i++ {
+			objName := objTyp.Field(i).Name
+			//fmt.Println("UpdateStpBridgeInstance (server): (index, objName) ", i, objName)
+			if attrset[i] {
+				stp.StpLogger("INFO", fmt.Sprintf("UpdateStpBridgeInstance (server): changed ", objName))
+
+				if msgtype, ok := attrMap[objName]; ok {
+					// set message type
+					cfg.Msgtype = msgtype
+					// send config message to server
+					s.server.ConfigCh <- cfg
+				}
 			}
 		}
 	}
-	return true, nil
+	return rv, err
 }
 
-func (s *STPDServiceHandler) CreateStpPort(config *stpd.StpPort) (bool, error) {
-	stp.StpLogger("INFO", fmt.Sprintf("CreateStpPort (server): created %#v", config))
-	portconfig := &stp.StpPortConfig{}
-	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
-	err := stp.StpPortConfigParamCheck(portconfig, false)
-	if err == nil {
+func (s *STPDServiceHandler) CreateStpPort(config *stpd.StpPort) (rv bool, err error) {
+	rv = true
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
+		stp.StpLogger("INFO", fmt.Sprintf("CreateStpPort (server): created %#v", config))
+		portconfig := &stp.StpPortConfig{}
+		ConvertThriftPortConfigToStpPortConfig(config, portconfig)
+		err = stp.StpPortConfigParamCheck(portconfig, false)
+		if err == nil {
+			cfg := server.STPConfig{
+				Msgtype: server.STPConfigMsgCreatePort,
+				Msgdata: portconfig,
+			}
+			s.server.ConfigCh <- cfg
+			return rv, err
+		} else {
+			return false, err
+		}
+	}
+	return rv, err
+}
+
+func (s *STPDServiceHandler) DeleteStpPort(config *stpd.StpPort) (rv bool, err error) {
+
+	rv = true
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
+
+		stp.StpLogger("INFO", "DeleteStpPort (server): deleted ")
+		portconfig := &stp.StpPortConfig{}
+		ConvertThriftPortConfigToStpPortConfig(config, portconfig)
+
 		cfg := server.STPConfig{
-			Msgtype: server.STPConfigMsgCreatePort,
+			Msgtype: server.STPConfigMsgDeletePort,
 			Msgdata: portconfig,
 		}
 		s.server.ConfigCh <- cfg
-		return true, nil
 	}
-	return false, err
+	return rv, err
 }
 
-func (s *STPDServiceHandler) DeleteStpPort(config *stpd.StpPort) (bool, error) {
-	stp.StpLogger("INFO", "DeleteStpPort (server): deleted ")
-	portconfig := &stp.StpPortConfig{}
-	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
+func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool, op []*stpd.PatchOpInfo) (rv bool, err error) {
+	rv = true
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
-	cfg := server.STPConfig{
-		Msgtype: server.STPConfigMsgDeletePort,
-		Msgdata: portconfig,
-	}
-	s.server.ConfigCh <- cfg
-	return true, nil
-}
+		var p *stp.StpPort
+		portconfig := &stp.StpPortConfig{}
+		objTyp := reflect.TypeOf(*origconfig)
+		//objVal := reflect.ValueOf(origconfig)
+		//updateObjVal := reflect.ValueOf(*updateconfig)
 
-func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool, op []*stpd.PatchOpInfo) (bool, error) {
-	var p *stp.StpPort
-	portconfig := &stp.StpPortConfig{}
-	objTyp := reflect.TypeOf(*origconfig)
-	//objVal := reflect.ValueOf(origconfig)
-	//updateObjVal := reflect.ValueOf(*updateconfig)
+		ifIndex := stp.GetIfIndexFromIntfRef(origconfig.IntfRef)
+		brgIfIndex := int32(origconfig.Vlan)
+		if !stp.StpFindPortByIfIndex(ifIndex, brgIfIndex, &p) {
+			return false, errors.New(fmt.Sprintf("Unknown Stp port in update config", origconfig.IntfRef))
+		}
 
-	ifIndex := int32(origconfig.IfIndex)
-	brgIfIndex := int32(origconfig.BrgIfIndex)
-	if stp.StpFindPortByIfIndex(ifIndex, brgIfIndex, &p) {
-		ifIndex = p.IfIndex
-	} else {
-		return false, errors.New("Unknown Stp port in update config")
-	}
+		ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
+		err = stp.StpPortConfigParamCheck(portconfig, true)
+		if err != nil {
+			return false, err
+		}
+		err = stp.StpPortConfigSave(portconfig, true)
+		if err != nil {
+			return false, err
+		}
 
-	ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
-	err := stp.StpPortConfigParamCheck(portconfig, true)
-	if err != nil {
-		return false, err
-	}
-	err = stp.StpPortConfigSave(portconfig, true)
-	if err != nil {
-		return false, err
-	}
+		// config message data
+		cfg := server.STPConfig{
+			Msgdata: portconfig,
+		}
 
-	// config message data
-	cfg := server.STPConfig{
-		Msgdata: portconfig,
-	}
+		attrMap := map[string]server.STPConfigMsgType{
+			"Priority":          server.STPConfigMsgUpdatePortPriority,
+			"Enable":            server.STPConfigMsgUpdatePortEnable,
+			"PathCost":          server.STPConfigMsgUpdatePortPathCost,
+			"ProtocolMigration": server.STPConfigMsgUpdatePortProtocolMigration,
+			"AdminPointToPoint": server.STPConfigMsgUpdatePortAdminPointToPoint,
+			"AdminEdge":         server.STPConfigMsgUpdatePortAdminEdge,
+			"AdminPathCost":     server.STPConfigMsgUpdatePortAdminPathCost,
+			"BpduGuard":         server.STPConfigMsgUpdatePortBpduGuard,
+			"BridgeAssurance":   server.STPConfigMsgUpdatePortBridgeAssurance,
+		}
 
-	attrMap := map[string]server.STPConfigMsgType{
-		"Priority":          server.STPConfigMsgUpdatePortPriority,
-		"Enable":            server.STPConfigMsgUpdatePortEnable,
-		"PathCost":          server.STPConfigMsgUpdatePortPathCost,
-		"ProtocolMigration": server.STPConfigMsgUpdatePortProtocolMigration,
-		"AdminPointToPoint": server.STPConfigMsgUpdatePortAdminPointToPoint,
-		"AdminEdge":         server.STPConfigMsgUpdatePortAdminEdge,
-		"AdminPathCost":     server.STPConfigMsgUpdatePortAdminPathCost,
-		"BpduGuard":         server.STPConfigMsgUpdatePortBpduGuard,
-		"BridgeAssurance":   server.STPConfigMsgUpdatePortBridgeAssurance,
-	}
+		// important to note that the attrset starts at index 0 which is the BaseObj
+		// which is not the first element on the thrift obj, thus we need to skip
+		// this attribute
+		for i := 0; i < objTyp.NumField(); i++ {
+			objName := objTyp.Field(i).Name
+			//fmt.Println("UpdateDot1dStpBridgeConfig (server): (index, objName) ", i, objName)
+			if attrset[i] {
+				stp.StpLogger("INFO", fmt.Sprintf("StpPort (server): changed ", objName))
 
-	// important to note that the attrset starts at index 0 which is the BaseObj
-	// which is not the first element on the thrift obj, thus we need to skip
-	// this attribute
-	for i := 0; i < objTyp.NumField(); i++ {
-		objName := objTyp.Field(i).Name
-		//fmt.Println("UpdateDot1dStpBridgeConfig (server): (index, objName) ", i, objName)
-		if attrset[i] {
-			stp.StpLogger("INFO", fmt.Sprintf("StpPort (server): changed ", objName))
-
-			if msgtype, ok := attrMap[objName]; ok {
-				// set message type
-				cfg.Msgtype = msgtype
-				// send config message to server
-				s.server.ConfigCh <- cfg
+				if msgtype, ok := attrMap[objName]; ok {
+					// set message type
+					cfg.Msgtype = msgtype
+					// send config message to server
+					s.server.ConfigCh <- cfg
+				}
 			}
 		}
 	}
-
-	return true, nil
+	return rv, err
 }
 
 func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState, error) {
 	sbs := &stpd.StpBridgeState{}
 
-	key := stp.BridgeKey{
-		Vlan: uint16(vlan),
-	}
-	var b *stp.Bridge
-	if stp.StpFindBridgeById(key, &b) {
-		sbs.BridgeHelloTime = int32(b.BridgeTimes.HelloTime)
-		sbs.TxHoldCount = stp.TransmitHoldCountDefault
-		sbs.BridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
-		sbs.BridgeMaxAge = int32(b.BridgeTimes.MaxAge)
-		sbs.Address = ConvertAddrToString(stp.GetBridgeAddrFromBridgeId(b.BridgePriority.DesignatedBridgeId))
-		sbs.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
-		sbs.IfIndex = b.BrgIfIndex
-		sbs.ProtocolSpecification = 2
-		//nextStpBridgeState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
-		//nextStpBridgeState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
-		sbs.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
-		sbs.RootCost = int32(b.BridgePriority.RootPathCost)
-		sbs.RootPort = int32(b.BridgePriority.DesignatedPortId)
-		sbs.MaxAge = int32(b.RootTimes.MaxAge)
-		sbs.HelloTime = int32(b.RootTimes.HelloTime)
-		sbs.HoldTime = int32(b.TxHoldCount)
-		sbs.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
-		sbs.Vlan = int16(b.Vlan)
-	} else {
-		return sbs, errors.New(fmt.Sprintf("STP: Error could not find bridge vlan %d", vlan))
-	}
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
+		key := stp.BridgeKey{
+			Vlan: uint16(vlan),
+		}
+		var b *stp.Bridge
+		if stp.StpFindBridgeById(key, &b) {
+			sbs.BridgeHelloTime = int32(b.BridgeTimes.HelloTime)
+			sbs.TxHoldCount = stp.TransmitHoldCountDefault
+			sbs.BridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
+			sbs.BridgeMaxAge = int32(b.BridgeTimes.MaxAge)
+			sbs.Address = ConvertAddrToString(stp.GetBridgeAddrFromBridgeId(b.BridgePriority.DesignatedBridgeId))
+			sbs.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
+			sbs.Vlan = int16(b.BrgIfIndex)
+			sbs.ProtocolSpecification = 2
+			//nextStpBridgeState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
+			//nextStpBridgeState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
+			sbs.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
+			sbs.RootCost = int32(b.BridgePriority.RootPathCost)
+			sbs.RootPort = int32(b.BridgePriority.DesignatedPortId)
+			sbs.MaxAge = int32(b.RootTimes.MaxAge)
+			sbs.HelloTime = int32(b.RootTimes.HelloTime)
+			sbs.HoldTime = int32(b.TxHoldCount)
+			sbs.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
+			sbs.Vlan = int16(b.Vlan)
+		} else {
+			return sbs, errors.New(fmt.Sprintf("STP: Error could not find bridge vlan %d", vlan))
+		}
+	}
 	return sbs, nil
 }
 
@@ -456,141 +567,145 @@ func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState
 // that at the time of this operation that no new aggragators are added,
 // otherwise can get inconsistent results
 func (s *STPDServiceHandler) GetBulkStpBridgeState(fromIndex stpd.Int, count stpd.Int) (obj *stpd.StpBridgeStateGetInfo, err error) {
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
-	var stpBridgeStateList []stpd.StpBridgeState = make([]stpd.StpBridgeState, count)
-	var nextStpBridgeState *stpd.StpBridgeState
-	var returnStpBridgeStates []*stpd.StpBridgeState
-	var returnStpBridgeStateGetInfo stpd.StpBridgeStateGetInfo
-	var b *stp.Bridge
-	validCount := stpd.Int(0)
-	toIndex := fromIndex
-	obj = &returnStpBridgeStateGetInfo
-	brgListLen := stpd.Int(len(stp.BridgeListTable))
-	for currIndex := fromIndex; validCount != count && currIndex < brgListLen; currIndex++ {
+		var stpBridgeStateList []stpd.StpBridgeState = make([]stpd.StpBridgeState, count)
+		var nextStpBridgeState *stpd.StpBridgeState
+		var returnStpBridgeStates []*stpd.StpBridgeState
+		var returnStpBridgeStateGetInfo stpd.StpBridgeStateGetInfo
+		var b *stp.Bridge
+		validCount := stpd.Int(0)
+		toIndex := fromIndex
+		obj = &returnStpBridgeStateGetInfo
+		brgListLen := stpd.Int(len(stp.BridgeListTable))
+		for currIndex := fromIndex; validCount != count && currIndex < brgListLen; currIndex++ {
 
-		b = stp.BridgeListTable[currIndex]
-		nextStpBridgeState = &stpBridgeStateList[validCount]
-		nextStpBridgeState.BridgeHelloTime = int32(b.BridgeTimes.HelloTime)
-		nextStpBridgeState.TxHoldCount = stp.TransmitHoldCountDefault
-		nextStpBridgeState.BridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
-		nextStpBridgeState.BridgeMaxAge = int32(b.BridgeTimes.MaxAge)
-		nextStpBridgeState.Address = ConvertAddrToString(stp.GetBridgeAddrFromBridgeId(b.BridgePriority.DesignatedBridgeId))
-		nextStpBridgeState.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
-		nextStpBridgeState.IfIndex = b.BrgIfIndex
-		nextStpBridgeState.ProtocolSpecification = 2
-		//nextStpBridgeState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
-		//nextStpBridgeState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
-		nextStpBridgeState.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
-		nextStpBridgeState.RootCost = int32(b.BridgePriority.RootPathCost)
-		nextStpBridgeState.RootPort = int32(b.BridgePriority.DesignatedPortId)
-		nextStpBridgeState.MaxAge = int32(b.RootTimes.MaxAge)
-		nextStpBridgeState.HelloTime = int32(b.RootTimes.HelloTime)
-		nextStpBridgeState.HoldTime = int32(b.TxHoldCount)
-		nextStpBridgeState.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
-		nextStpBridgeState.Vlan = int16(b.Vlan)
+			b = stp.BridgeListTable[currIndex]
+			nextStpBridgeState = &stpBridgeStateList[validCount]
+			nextStpBridgeState.BridgeHelloTime = int32(b.BridgeTimes.HelloTime)
+			nextStpBridgeState.TxHoldCount = stp.TransmitHoldCountDefault
+			nextStpBridgeState.BridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
+			nextStpBridgeState.BridgeMaxAge = int32(b.BridgeTimes.MaxAge)
+			nextStpBridgeState.Address = ConvertAddrToString(stp.GetBridgeAddrFromBridgeId(b.BridgePriority.DesignatedBridgeId))
+			nextStpBridgeState.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
+			nextStpBridgeState.Vlan = int16(b.BrgIfIndex)
+			nextStpBridgeState.ProtocolSpecification = 2
+			//nextStpBridgeState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
+			//nextStpBridgeState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
+			nextStpBridgeState.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
+			nextStpBridgeState.RootCost = int32(b.BridgePriority.RootPathCost)
+			nextStpBridgeState.RootPort = int32(b.BridgePriority.DesignatedPortId)
+			nextStpBridgeState.MaxAge = int32(b.RootTimes.MaxAge)
+			nextStpBridgeState.HelloTime = int32(b.RootTimes.HelloTime)
+			nextStpBridgeState.HoldTime = int32(b.TxHoldCount)
+			nextStpBridgeState.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
+			nextStpBridgeState.Vlan = int16(b.Vlan)
 
-		if len(returnStpBridgeStates) == 0 {
-			returnStpBridgeStates = make([]*stpd.StpBridgeState, 0)
+			if len(returnStpBridgeStates) == 0 {
+				returnStpBridgeStates = make([]*stpd.StpBridgeState, 0)
+			}
+			returnStpBridgeStates = append(returnStpBridgeStates, nextStpBridgeState)
+			validCount++
+			toIndex++
 		}
-		returnStpBridgeStates = append(returnStpBridgeStates, nextStpBridgeState)
-		validCount++
-		toIndex++
-	}
-	// lets try and get the next agg if one exists then there are more routes
-	moreRoutes := false
-	if fromIndex+count < brgListLen {
-		moreRoutes = true
-	}
+		// lets try and get the next agg if one exists then there are more routes
+		moreRoutes := false
+		if fromIndex+count < brgListLen {
+			moreRoutes = true
+		}
 
-	// lets try and get the next agg if one exists then there are more routes
-	obj.StpBridgeStateList = returnStpBridgeStates
-	obj.StartIdx = fromIndex
-	obj.EndIdx = toIndex + 1
-	obj.More = moreRoutes
-	obj.Count = validCount
-
+		// lets try and get the next agg if one exists then there are more routes
+		obj.StpBridgeStateList = returnStpBridgeStates
+		obj.StartIdx = fromIndex
+		obj.EndIdx = toIndex + 1
+		obj.More = moreRoutes
+		obj.Count = validCount
+	}
 	return obj, nil
 }
 
-func (s *STPDServiceHandler) GetStpPortState(ifIndex int32, brgIfIndex int32) (*stpd.StpPortState, error) {
+func (s *STPDServiceHandler) GetStpPortState(vlan int32, intfRef string) (*stpd.StpPortState, error) {
 	sps := &stpd.StpPortState{}
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
-	var p *stp.StpPort
-	if stp.StpFindPortByIfIndex(ifIndex, brgIfIndex, &p) {
+		var p *stp.StpPort
+		ifIndex := stp.GetIfIndexFromIntfRef(intfRef)
+		if stp.StpFindPortByIfIndex(ifIndex, vlan, &p) {
 
-		sps.OperPointToPoint = ConvertBoolToInt32(p.OperPointToPointMAC)
-		sps.BrgIfIndex = p.BrgIfIndex
-		sps.OperEdgePort = ConvertBoolToInt32(p.OperEdge)
-		sps.DesignatedPort = fmt.Sprintf("%d", p.PortPriority.DesignatedPortId)
-		sps.AdminEdgePort = ConvertBoolToInt32(p.AdminEdge)
-		sps.ForwardTransitions = int32(p.ForwardingTransitions)
-		//nextStpPortState.ProtocolMigration  int32  //When operating in RSTP (version 2) mode, writing true(1) to this object forces this port to transmit RSTP BPDUs. Any other operation on this object has no effect and it always returns false(2) when read.
-		sps.IfIndex = p.IfIndex
-		//nextStpPortState.PathCost = int32(p.PortPathCost) //The contribution of this port to the path cost of paths towards the spanning tree root which include this port.  802.1D-1998 recommends that the default value of this parameter be in inverse proportion to    the speed of the attached LAN.  New implementations should support PathCost32. If the port path costs exceeds the maximum value of this object then this object should report the maximum value, namely 65535.  Applications should try to read the PathCost32 object if this object reports the maximum value.
-		sps.Priority = int32(p.Priority) //The value of the priority field that is contained in the first (in network byte order) octet of the (2 octet long) Port ID.  The other octet of the Port ID is given by the value of IfIndex. On bridges supporting IEEE 802.1t or IEEE 802.1w, permissible values are 0-240, in steps of 16.
-		sps.DesignatedBridge = stp.CreateBridgeIdStr(p.PortPriority.DesignatedBridgeId)
-		//nextStpPortState.AdminPointToPoint  int32(p.)  //The administrative point-to-point status of the LAN segment attached to this port, using the enumeration values of the IEEE 802.1w clause.  A value of forceTrue(0) indicates that this port should always be treated as if it is connected to a point-to-point link.  A value of forceFalse(1) indicates that this port should be treated as having a shared media connection.  A value of auto(2) indicates that this port is considered to have a point-to-point link if it is an Aggregator and all of its    members are aggregatable, or if the MAC entity is configured for full duplex operation, either through auto-negotiation or by management means.  Manipulating this object changes the underlying adminPortToPortMAC.  The value of this object MUST be retained across reinitializations of the management system.
-		sps.State = GetPortState(p)
-		sps.Enable = ConvertBoolToInt32(p.PortEnabled)
-		sps.DesignatedRoot = stp.CreateBridgeIdStr(p.PortPriority.RootBridgeId)
-		sps.DesignatedCost = int32(p.PortPathCost)
-		//nextStpPortState.AdminPathCost = p.AdminPathCost
-		//nextStpPortState.PathCost32 = int32(p.PortPathCost)
-		// Bridge Assurance
-		sps.BridgeAssuranceInconsistant = ConvertBoolToInt32(p.BridgeAssuranceInconsistant)
-		sps.BridgeAssurance = ConvertBoolToInt32(p.BridgeAssurance)
-		// Bpdu Guard
-		sps.BpduGuard = ConvertBoolToInt32(p.BpduGuard)
-		sps.BpduGuardDetected = ConvertBoolToInt32(p.BPDUGuardTimer.GetCount() != 0)
-		// root timers
-		sps.MaxAge = int32(p.PortTimes.MaxAge)
-		sps.ForwardDelay = int32(p.PortTimes.ForwardingDelay)
-		sps.HelloTime = int32(p.PortTimes.HelloTime)
-		// counters
-		sps.StpInPkts = int64(p.StpRx)
-		sps.StpOutPkts = int64(p.StpTx)
-		sps.RstpInPkts = int64(p.RstpRx)
-		sps.RstpOutPkts = int64(p.RstpTx)
-		sps.TcInPkts = int64(p.TcRx)
-		sps.TcOutPkts = int64(p.TcTx)
-		sps.TcAckInPkts = int64(p.TcAckRx)
-		sps.TcAckOutPkts = int64(p.TcAckTx)
-		sps.PvstInPkts = int64(p.PvstRx)
-		sps.PvstOutPkts = int64(p.PvstTx)
-		sps.BpduInPkts = int64(p.BpduRx)
-		sps.BpduOutPkts = int64(p.BpduTx)
-		// fsm-states
-		sps.PimPrevState = p.PimMachineFsm.GetPrevStateStr()
-		sps.PimCurrState = p.PimMachineFsm.GetCurrStateStr()
-		sps.PrtmPrevState = p.PrtMachineFsm.GetPrevStateStr()
-		sps.PrtmCurrState = p.PrtMachineFsm.GetCurrStateStr()
-		sps.PrxmPrevState = p.PrxmMachineFsm.GetPrevStateStr()
-		sps.PrxmCurrState = p.PrxmMachineFsm.GetCurrStateStr()
-		sps.PstmPrevState = p.PstMachineFsm.GetPrevStateStr()
-		sps.PstmCurrState = p.PstMachineFsm.GetCurrStateStr()
-		sps.TcmPrevState = p.TcMachineFsm.GetPrevStateStr()
-		sps.TcmCurrState = p.TcMachineFsm.GetCurrStateStr()
-		sps.PpmPrevState = p.PpmmMachineFsm.GetPrevStateStr()
-		sps.PpmCurrState = p.PpmmMachineFsm.GetCurrStateStr()
-		sps.PtxmPrevState = p.PtxmMachineFsm.GetPrevStateStr()
-		sps.PtxmCurrState = p.PtxmMachineFsm.GetCurrStateStr()
-		sps.PtimPrevState = p.PtmMachineFsm.GetPrevStateStr()
-		sps.PtimCurrState = p.PtmMachineFsm.GetCurrStateStr()
-		sps.BdmPrevState = p.BdmMachineFsm.GetPrevStateStr()
-		sps.BdmCurrState = p.BdmMachineFsm.GetCurrStateStr()
-		// current counts
-		sps.EdgeDelayWhile = p.EdgeDelayWhileTimer.GetCount()
-		sps.FdWhile = p.FdWhileTimer.GetCount()
-		sps.HelloWhen = p.HelloWhenTimer.GetCount()
-		sps.MdelayWhile = p.MdelayWhiletimer.GetCount()
-		sps.RbWhile = p.RbWhileTimer.GetCount()
-		sps.RcvdInfoWhile = p.RcvdInfoWhiletimer.GetCount()
-		sps.RrWhile = p.RrWhileTimer.GetCount()
-		sps.TcWhile = p.TcWhileTimer.GetCount()
-		sps.BaWhile = p.BAWhileTimer.GetCount()
+			sps.OperPointToPoint = ConvertBoolToInt32(p.OperPointToPointMAC)
+			sps.Vlan = p.BrgIfIndex
+			sps.OperEdgePort = ConvertBoolToInt32(p.OperEdge)
+			sps.DesignatedPort = fmt.Sprintf("%d", p.PortPriority.DesignatedPortId)
+			sps.AdminEdgePort = ConvertBoolToInt32(p.AdminEdge)
+			sps.ForwardTransitions = int32(p.ForwardingTransitions)
+			//nextStpPortState.ProtocolMigration  int32  //When operating in RSTP (version 2) mode, writing true(1) to this object forces this port to transmit RSTP BPDUs. Any other operation on this object has no effect and it always returns false(2) when read.
+			sps.IntfRef = stp.GetPortNameFromIfIndex(p.IfIndex)
+			//nextStpPortState.PathCost = int32(p.PortPathCost) //The contribution of this port to the path cost of paths towards the spanning tree root which include this port.  802.1D-1998 recommends that the default value of this parameter be in inverse proportion to    the speed of the attached LAN.  New implementations should support PathCost32. If the port path costs exceeds the maximum value of this object then this object should report the maximum value, namely 65535.  Applications should try to read the PathCost32 object if this object reports the maximum value.
+			sps.Priority = int32(p.Priority) //The value of the priority field that is contained in the first (in network byte order) octet of the (2 octet long) Port ID.  The other octet of the Port ID is given by the value of IfIndex. On bridges supporting IEEE 802.1t or IEEE 802.1w, permissible values are 0-240, in steps of 16.
+			sps.DesignatedBridge = stp.CreateBridgeIdStr(p.PortPriority.DesignatedBridgeId)
+			//nextStpPortState.AdminPointToPoint  int32(p.)  //The administrative point-to-point status of the LAN segment attached to this port, using the enumeration values of the IEEE 802.1w clause.  A value of forceTrue(0) indicates that this port should always be treated as if it is connected to a point-to-point link.  A value of forceFalse(1) indicates that this port should be treated as having a shared media connection.  A value of auto(2) indicates that this port is considered to have a point-to-point link if it is an Aggregator and all of its    members are aggregatable, or if the MAC entity is configured for full duplex operation, either through auto-negotiation or by management means.  Manipulating this object changes the underlying adminPortToPortMAC.  The value of this object MUST be retained across reinitializations of the management system.
+			sps.State = GetPortState(p)
+			sps.Enable = ConvertBoolToInt32(p.PortEnabled)
+			sps.DesignatedRoot = stp.CreateBridgeIdStr(p.PortPriority.RootBridgeId)
+			sps.DesignatedCost = int32(p.PortPathCost)
+			//nextStpPortState.AdminPathCost = p.AdminPathCost
+			//nextStpPortState.PathCost32 = int32(p.PortPathCost)
+			// Bridge Assurance
+			sps.BridgeAssuranceInconsistant = ConvertBoolToInt32(p.BridgeAssuranceInconsistant)
+			sps.BridgeAssurance = ConvertBoolToInt32(p.BridgeAssurance)
+			// Bpdu Guard
+			sps.BpduGuard = ConvertBoolToInt32(p.BpduGuard)
+			sps.BpduGuardDetected = ConvertBoolToInt32(p.BPDUGuardTimer.GetCount() != 0)
+			// root timers
+			sps.MaxAge = int32(p.PortTimes.MaxAge)
+			sps.ForwardDelay = int32(p.PortTimes.ForwardingDelay)
+			sps.HelloTime = int32(p.PortTimes.HelloTime)
+			// counters
+			sps.StpInPkts = int64(p.StpRx)
+			sps.StpOutPkts = int64(p.StpTx)
+			sps.RstpInPkts = int64(p.RstpRx)
+			sps.RstpOutPkts = int64(p.RstpTx)
+			sps.TcInPkts = int64(p.TcRx)
+			sps.TcOutPkts = int64(p.TcTx)
+			sps.TcAckInPkts = int64(p.TcAckRx)
+			sps.TcAckOutPkts = int64(p.TcAckTx)
+			sps.PvstInPkts = int64(p.PvstRx)
+			sps.PvstOutPkts = int64(p.PvstTx)
+			sps.BpduInPkts = int64(p.BpduRx)
+			sps.BpduOutPkts = int64(p.BpduTx)
+			// fsm-states
+			sps.PimPrevState = p.PimMachineFsm.GetPrevStateStr()
+			sps.PimCurrState = p.PimMachineFsm.GetCurrStateStr()
+			sps.PrtmPrevState = p.PrtMachineFsm.GetPrevStateStr()
+			sps.PrtmCurrState = p.PrtMachineFsm.GetCurrStateStr()
+			sps.PrxmPrevState = p.PrxmMachineFsm.GetPrevStateStr()
+			sps.PrxmCurrState = p.PrxmMachineFsm.GetCurrStateStr()
+			sps.PstmPrevState = p.PstMachineFsm.GetPrevStateStr()
+			sps.PstmCurrState = p.PstMachineFsm.GetCurrStateStr()
+			sps.TcmPrevState = p.TcMachineFsm.GetPrevStateStr()
+			sps.TcmCurrState = p.TcMachineFsm.GetCurrStateStr()
+			sps.PpmPrevState = p.PpmmMachineFsm.GetPrevStateStr()
+			sps.PpmCurrState = p.PpmmMachineFsm.GetCurrStateStr()
+			sps.PtxmPrevState = p.PtxmMachineFsm.GetPrevStateStr()
+			sps.PtxmCurrState = p.PtxmMachineFsm.GetCurrStateStr()
+			sps.PtimPrevState = p.PtmMachineFsm.GetPrevStateStr()
+			sps.PtimCurrState = p.PtmMachineFsm.GetCurrStateStr()
+			sps.BdmPrevState = p.BdmMachineFsm.GetPrevStateStr()
+			sps.BdmCurrState = p.BdmMachineFsm.GetCurrStateStr()
+			// current counts
+			sps.EdgeDelayWhile = p.EdgeDelayWhileTimer.GetCount()
+			sps.FdWhile = p.FdWhileTimer.GetCount()
+			sps.HelloWhen = p.HelloWhenTimer.GetCount()
+			sps.MdelayWhile = p.MdelayWhiletimer.GetCount()
+			sps.RbWhile = p.RbWhileTimer.GetCount()
+			sps.RcvdInfoWhile = p.RcvdInfoWhiletimer.GetCount()
+			sps.RrWhile = p.RrWhileTimer.GetCount()
+			sps.TcWhile = p.TcWhileTimer.GetCount()
+			sps.BaWhile = p.BAWhileTimer.GetCount()
 
-	} else {
-		return sps, errors.New(fmt.Sprintf("STP: Error unabled to locate bridge ifindex %d stp port ifindex %d", brgIfIndex, ifIndex))
+		} else {
+			return sps, errors.New(fmt.Sprintf("STP: Error unabled to locate bridge vlan %d stp port intfref %s", vlan, intfRef))
+		}
 	}
 	return sps, nil
 }
@@ -599,112 +714,114 @@ func (s *STPDServiceHandler) GetStpPortState(ifIndex int32, brgIfIndex int32) (*
 // the lag members.
 func (s *STPDServiceHandler) GetBulkStpPortState(fromIndex stpd.Int, count stpd.Int) (obj *stpd.StpPortStateGetInfo, err error) {
 
-	var stpPortStateList []stpd.StpPortState = make([]stpd.StpPortState, count)
-	var nextStpPortState *stpd.StpPortState
-	var returnStpPortStates []*stpd.StpPortState
-	var returnStpPortStateGetInfo stpd.StpPortStateGetInfo
-	//var a *lacp.LaAggregator
-	validCount := stpd.Int(0)
-	toIndex := fromIndex
-	obj = &returnStpPortStateGetInfo
-	stpPortListLen := stpd.Int(len(stp.PortListTable))
-	stp.StpLogger("INFO", fmt.Sprintf("Total configured ports %d fromIndex %d count %d", stpPortListLen, fromIndex, count))
-	for currIndex := fromIndex; validCount != count && currIndex < stpPortListLen; currIndex++ {
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
-		//stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
+		var stpPortStateList []stpd.StpPortState = make([]stpd.StpPortState, count)
+		var nextStpPortState *stpd.StpPortState
+		var returnStpPortStates []*stpd.StpPortState
+		var returnStpPortStateGetInfo stpd.StpPortStateGetInfo
+		//var a *lacp.LaAggregator
+		validCount := stpd.Int(0)
+		toIndex := fromIndex
+		obj = &returnStpPortStateGetInfo
+		stpPortListLen := stpd.Int(len(stp.PortListTable))
+		stp.StpLogger("INFO", fmt.Sprintf("Total configured ports %d fromIndex %d count %d", stpPortListLen, fromIndex, count))
+		for currIndex := fromIndex; validCount != count && currIndex < stpPortListLen; currIndex++ {
 
-		p := stp.PortListTable[currIndex]
-		nextStpPortState = &stpPortStateList[validCount]
+			//stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
 
-		nextStpPortState.OperPointToPoint = ConvertBoolToInt32(p.OperPointToPointMAC)
-		nextStpPortState.BrgIfIndex = p.BrgIfIndex
-		nextStpPortState.OperEdgePort = ConvertBoolToInt32(p.OperEdge)
-		nextStpPortState.DesignatedPort = fmt.Sprintf("%d", p.PortPriority.DesignatedPortId)
-		nextStpPortState.AdminEdgePort = ConvertBoolToInt32(p.AdminEdge)
-		nextStpPortState.ForwardTransitions = int32(p.ForwardingTransitions)
-		//nextStpPortState.ProtocolMigration  int32  //When operating in RSTP (version 2) mode, writing true(1) to this object forces this port to transmit RSTP BPDUs. Any other operation on this object has no effect and it always returns false(2) when read.
-		nextStpPortState.IfIndex = p.IfIndex
-		//nextStpPortState.PathCost = int32(p.PortPathCost) //The contribution of this port to the path cost of paths towards the spanning tree root which include this port.  802.1D-1998 recommends that the default value of this parameter be in inverse proportion to    the speed of the attached LAN.  New implementations should support PathCost32. If the port path costs exceeds the maximum value of this object then this object should report the maximum value, namely 65535.  Applications should try to read the PathCost32 object if this object reports the maximum value.
-		nextStpPortState.Priority = int32(p.Priority) //The value of the priority field that is contained in the first (in network byte order) octet of the (2 octet long) Port ID.  The other octet of the Port ID is given by the value of IfIndex. On bridges supporting IEEE 802.1t or IEEE 802.1w, permissible values are 0-240, in steps of 16.
-		nextStpPortState.DesignatedBridge = stp.CreateBridgeIdStr(p.PortPriority.DesignatedBridgeId)
-		//nextStpPortState.AdminPointToPoint  int32(p.)  //The administrative point-to-point status of the LAN segment attached to this port, using the enumeration values of the IEEE 802.1w clause.  A value of forceTrue(0) indicates that this port should always be treated as if it is connected to a point-to-point link.  A value of forceFalse(1) indicates that this port should be treated as having a shared media connection.  A value of auto(2) indicates that this port is considered to have a point-to-point link if it is an Aggregator and all of its    members are aggregatable, or if the MAC entity is configured for full duplex operation, either through auto-negotiation or by management means.  Manipulating this object changes the underlying adminPortToPortMAC.  The value of this object MUST be retained across reinitializations of the management system.
-		nextStpPortState.State = GetPortState(p)
-		nextStpPortState.Enable = ConvertBoolToInt32(p.PortEnabled)
-		nextStpPortState.DesignatedRoot = stp.CreateBridgeIdStr(p.PortPriority.RootBridgeId)
-		nextStpPortState.DesignatedCost = int32(p.PortPathCost)
-		//nextStpPortState.AdminPathCost = p.AdminPathCost
-		//nextStpPortState.PathCost32 = int32(p.PortPathCost)
-		// Bridge Assurance
-		nextStpPortState.BridgeAssuranceInconsistant = ConvertBoolToInt32(p.BridgeAssuranceInconsistant)
-		nextStpPortState.BridgeAssurance = ConvertBoolToInt32(p.BridgeAssurance)
-		// Bpdu Guard
-		nextStpPortState.BpduGuard = ConvertBoolToInt32(p.BpduGuard)
-		nextStpPortState.BpduGuardDetected = ConvertBoolToInt32(p.BPDUGuardTimer.GetCount() != 0)
-		// root timers
-		nextStpPortState.MaxAge = int32(p.PortTimes.MaxAge)
-		nextStpPortState.ForwardDelay = int32(p.PortTimes.ForwardingDelay)
-		nextStpPortState.HelloTime = int32(p.PortTimes.HelloTime)
-		// counters
-		nextStpPortState.StpInPkts = int64(p.StpRx)
-		nextStpPortState.StpOutPkts = int64(p.StpTx)
-		nextStpPortState.RstpInPkts = int64(p.RstpRx)
-		nextStpPortState.RstpOutPkts = int64(p.RstpTx)
-		nextStpPortState.TcInPkts = int64(p.TcRx)
-		nextStpPortState.TcOutPkts = int64(p.TcTx)
-		nextStpPortState.TcAckInPkts = int64(p.TcAckRx)
-		nextStpPortState.TcAckOutPkts = int64(p.TcAckTx)
-		nextStpPortState.PvstInPkts = int64(p.PvstRx)
-		nextStpPortState.PvstOutPkts = int64(p.PvstTx)
-		nextStpPortState.BpduInPkts = int64(p.BpduRx)
-		nextStpPortState.BpduOutPkts = int64(p.BpduTx)
-		// fsm-states
-		nextStpPortState.PimPrevState = p.PimMachineFsm.GetPrevStateStr()
-		nextStpPortState.PimCurrState = p.PimMachineFsm.GetCurrStateStr()
-		nextStpPortState.PrtmPrevState = p.PrtMachineFsm.GetPrevStateStr()
-		nextStpPortState.PrtmCurrState = p.PrtMachineFsm.GetCurrStateStr()
-		nextStpPortState.PrxmPrevState = p.PrxmMachineFsm.GetPrevStateStr()
-		nextStpPortState.PrxmCurrState = p.PrxmMachineFsm.GetCurrStateStr()
-		nextStpPortState.PstmPrevState = p.PstMachineFsm.GetPrevStateStr()
-		nextStpPortState.PstmCurrState = p.PstMachineFsm.GetCurrStateStr()
-		nextStpPortState.TcmPrevState = p.TcMachineFsm.GetPrevStateStr()
-		nextStpPortState.TcmCurrState = p.TcMachineFsm.GetCurrStateStr()
-		nextStpPortState.PpmPrevState = p.PpmmMachineFsm.GetPrevStateStr()
-		nextStpPortState.PpmCurrState = p.PpmmMachineFsm.GetCurrStateStr()
-		nextStpPortState.PtxmPrevState = p.PtxmMachineFsm.GetPrevStateStr()
-		nextStpPortState.PtxmCurrState = p.PtxmMachineFsm.GetCurrStateStr()
-		nextStpPortState.PtimPrevState = p.PtmMachineFsm.GetPrevStateStr()
-		nextStpPortState.PtimCurrState = p.PtmMachineFsm.GetCurrStateStr()
-		nextStpPortState.BdmPrevState = p.BdmMachineFsm.GetPrevStateStr()
-		nextStpPortState.BdmCurrState = p.BdmMachineFsm.GetCurrStateStr()
-		// current counts
-		nextStpPortState.EdgeDelayWhile = p.EdgeDelayWhileTimer.GetCount()
-		nextStpPortState.FdWhile = p.FdWhileTimer.GetCount()
-		nextStpPortState.HelloWhen = p.HelloWhenTimer.GetCount()
-		nextStpPortState.MdelayWhile = p.MdelayWhiletimer.GetCount()
-		nextStpPortState.RbWhile = p.RbWhileTimer.GetCount()
-		nextStpPortState.RcvdInfoWhile = p.RcvdInfoWhiletimer.GetCount()
-		nextStpPortState.RrWhile = p.RrWhileTimer.GetCount()
-		nextStpPortState.TcWhile = p.TcWhileTimer.GetCount()
-		nextStpPortState.BaWhile = p.BAWhileTimer.GetCount()
+			p := stp.PortListTable[currIndex]
+			nextStpPortState = &stpPortStateList[validCount]
 
-		if len(returnStpPortStates) == 0 {
-			returnStpPortStates = make([]*stpd.StpPortState, 0)
+			nextStpPortState.OperPointToPoint = ConvertBoolToInt32(p.OperPointToPointMAC)
+			nextStpPortState.Vlan = p.BrgIfIndex
+			nextStpPortState.OperEdgePort = ConvertBoolToInt32(p.OperEdge)
+			nextStpPortState.DesignatedPort = fmt.Sprintf("%d", p.PortPriority.DesignatedPortId)
+			nextStpPortState.AdminEdgePort = ConvertBoolToInt32(p.AdminEdge)
+			nextStpPortState.ForwardTransitions = int32(p.ForwardingTransitions)
+			//nextStpPortState.ProtocolMigration  int32  //When operating in RSTP (version 2) mode, writing true(1) to this object forces this port to transmit RSTP BPDUs. Any other operation on this object has no effect and it always returns false(2) when read.
+			nextStpPortState.IntfRef = stp.GetPortNameFromIfIndex(p.IfIndex)
+			//nextStpPortState.PathCost = int32(p.PortPathCost) //The contribution of this port to the path cost of paths towards the spanning tree root which include this port.  802.1D-1998 recommends that the default value of this parameter be in inverse proportion to    the speed of the attached LAN.  New implementations should support PathCost32. If the port path costs exceeds the maximum value of this object then this object should report the maximum value, namely 65535.  Applications should try to read the PathCost32 object if this object reports the maximum value.
+			nextStpPortState.Priority = int32(p.Priority) //The value of the priority field that is contained in the first (in network byte order) octet of the (2 octet long) Port ID.  The other octet of the Port ID is given by the value of IfIndex. On bridges supporting IEEE 802.1t or IEEE 802.1w, permissible values are 0-240, in steps of 16.
+			nextStpPortState.DesignatedBridge = stp.CreateBridgeIdStr(p.PortPriority.DesignatedBridgeId)
+			//nextStpPortState.AdminPointToPoint  int32(p.)  //The administrative point-to-point status of the LAN segment attached to this port, using the enumeration values of the IEEE 802.1w clause.  A value of forceTrue(0) indicates that this port should always be treated as if it is connected to a point-to-point link.  A value of forceFalse(1) indicates that this port should be treated as having a shared media connection.  A value of auto(2) indicates that this port is considered to have a point-to-point link if it is an Aggregator and all of its    members are aggregatable, or if the MAC entity is configured for full duplex operation, either through auto-negotiation or by management means.  Manipulating this object changes the underlying adminPortToPortMAC.  The value of this object MUST be retained across reinitializations of the management system.
+			nextStpPortState.State = GetPortState(p)
+			nextStpPortState.Enable = ConvertBoolToInt32(p.PortEnabled)
+			nextStpPortState.DesignatedRoot = stp.CreateBridgeIdStr(p.PortPriority.RootBridgeId)
+			nextStpPortState.DesignatedCost = int32(p.PortPathCost)
+			//nextStpPortState.AdminPathCost = p.AdminPathCost
+			//nextStpPortState.PathCost32 = int32(p.PortPathCost)
+			// Bridge Assurance
+			nextStpPortState.BridgeAssuranceInconsistant = ConvertBoolToInt32(p.BridgeAssuranceInconsistant)
+			nextStpPortState.BridgeAssurance = ConvertBoolToInt32(p.BridgeAssurance)
+			// Bpdu Guard
+			nextStpPortState.BpduGuard = ConvertBoolToInt32(p.BpduGuard)
+			nextStpPortState.BpduGuardDetected = ConvertBoolToInt32(p.BPDUGuardTimer.GetCount() != 0)
+			// root timers
+			nextStpPortState.MaxAge = int32(p.PortTimes.MaxAge)
+			nextStpPortState.ForwardDelay = int32(p.PortTimes.ForwardingDelay)
+			nextStpPortState.HelloTime = int32(p.PortTimes.HelloTime)
+			// counters
+			nextStpPortState.StpInPkts = int64(p.StpRx)
+			nextStpPortState.StpOutPkts = int64(p.StpTx)
+			nextStpPortState.RstpInPkts = int64(p.RstpRx)
+			nextStpPortState.RstpOutPkts = int64(p.RstpTx)
+			nextStpPortState.TcInPkts = int64(p.TcRx)
+			nextStpPortState.TcOutPkts = int64(p.TcTx)
+			nextStpPortState.TcAckInPkts = int64(p.TcAckRx)
+			nextStpPortState.TcAckOutPkts = int64(p.TcAckTx)
+			nextStpPortState.PvstInPkts = int64(p.PvstRx)
+			nextStpPortState.PvstOutPkts = int64(p.PvstTx)
+			nextStpPortState.BpduInPkts = int64(p.BpduRx)
+			nextStpPortState.BpduOutPkts = int64(p.BpduTx)
+			// fsm-states
+			nextStpPortState.PimPrevState = p.PimMachineFsm.GetPrevStateStr()
+			nextStpPortState.PimCurrState = p.PimMachineFsm.GetCurrStateStr()
+			nextStpPortState.PrtmPrevState = p.PrtMachineFsm.GetPrevStateStr()
+			nextStpPortState.PrtmCurrState = p.PrtMachineFsm.GetCurrStateStr()
+			nextStpPortState.PrxmPrevState = p.PrxmMachineFsm.GetPrevStateStr()
+			nextStpPortState.PrxmCurrState = p.PrxmMachineFsm.GetCurrStateStr()
+			nextStpPortState.PstmPrevState = p.PstMachineFsm.GetPrevStateStr()
+			nextStpPortState.PstmCurrState = p.PstMachineFsm.GetCurrStateStr()
+			nextStpPortState.TcmPrevState = p.TcMachineFsm.GetPrevStateStr()
+			nextStpPortState.TcmCurrState = p.TcMachineFsm.GetCurrStateStr()
+			nextStpPortState.PpmPrevState = p.PpmmMachineFsm.GetPrevStateStr()
+			nextStpPortState.PpmCurrState = p.PpmmMachineFsm.GetCurrStateStr()
+			nextStpPortState.PtxmPrevState = p.PtxmMachineFsm.GetPrevStateStr()
+			nextStpPortState.PtxmCurrState = p.PtxmMachineFsm.GetCurrStateStr()
+			nextStpPortState.PtimPrevState = p.PtmMachineFsm.GetPrevStateStr()
+			nextStpPortState.PtimCurrState = p.PtmMachineFsm.GetCurrStateStr()
+			nextStpPortState.BdmPrevState = p.BdmMachineFsm.GetPrevStateStr()
+			nextStpPortState.BdmCurrState = p.BdmMachineFsm.GetCurrStateStr()
+			// current counts
+			nextStpPortState.EdgeDelayWhile = p.EdgeDelayWhileTimer.GetCount()
+			nextStpPortState.FdWhile = p.FdWhileTimer.GetCount()
+			nextStpPortState.HelloWhen = p.HelloWhenTimer.GetCount()
+			nextStpPortState.MdelayWhile = p.MdelayWhiletimer.GetCount()
+			nextStpPortState.RbWhile = p.RbWhileTimer.GetCount()
+			nextStpPortState.RcvdInfoWhile = p.RcvdInfoWhiletimer.GetCount()
+			nextStpPortState.RrWhile = p.RrWhileTimer.GetCount()
+			nextStpPortState.TcWhile = p.TcWhileTimer.GetCount()
+			nextStpPortState.BaWhile = p.BAWhileTimer.GetCount()
+
+			if len(returnStpPortStates) == 0 {
+				returnStpPortStates = make([]*stpd.StpPortState, 0)
+			}
+			returnStpPortStates = append(returnStpPortStates, nextStpPortState)
+			validCount++
+			toIndex++
 		}
-		returnStpPortStates = append(returnStpPortStates, nextStpPortState)
-		validCount++
-		toIndex++
+		// lets try and get the next agg if one exists then there are more routes
+		moreRoutes := false
+		if fromIndex+count < stpPortListLen {
+			moreRoutes = true
+		}
+		// lets try and get the next agg if one exists then there are more routes
+		obj.StpPortStateList = returnStpPortStates
+		obj.StartIdx = fromIndex
+		obj.EndIdx = toIndex + 1
+		obj.More = moreRoutes
+		obj.Count = validCount
 	}
-	// lets try and get the next agg if one exists then there are more routes
-	moreRoutes := false
-	if fromIndex+count < stpPortListLen {
-		moreRoutes = true
-	}
-	// lets try and get the next agg if one exists then there are more routes
-	obj.StpPortStateList = returnStpPortStates
-	obj.StartIdx = fromIndex
-	obj.EndIdx = toIndex + 1
-	obj.More = moreRoutes
-	obj.Count = validCount
-
 	return obj, nil
 }

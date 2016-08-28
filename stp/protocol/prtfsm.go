@@ -171,8 +171,6 @@ type PrtMachine struct {
 
 	// machine specific events
 	PrtEvents chan MachineEvent
-	// stop go routine
-	PrtKillSignalEvent chan MachineEvent
 	// enable logging
 	PrtLogEnableEvent chan bool
 }
@@ -188,10 +186,9 @@ func (m *PrtMachine) GetPrevStateStr() string {
 // NewStpPrtMachine will create a new instance of the LacpRxMachine
 func NewStpPrtMachine(p *StpPort) *PrtMachine {
 	prtm := &PrtMachine{
-		p:                  p,
-		PrtEvents:          make(chan MachineEvent, 50),
-		PrtKillSignalEvent: make(chan MachineEvent, 1),
-		PrtLogEnableEvent:  make(chan bool)}
+		p:                 p,
+		PrtEvents:         make(chan MachineEvent, 50),
+		PrtLogEnableEvent: make(chan bool)}
 
 	p.PrtMachineFsm = prtm
 
@@ -226,23 +223,8 @@ func (prtm *PrtMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (prtm *PrtMachine) Stop() {
 
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if prtm.Machine.Curr.CurrentState() != PrtStateNone {
-		wait := make(chan string, 1)
-		// stop the go routine
-		prtm.PrtKillSignalEvent <- MachineEvent{
-			e:            PrtEventBegin,
-			responseChan: wait,
-		}
-
-		<-wait
-	}
 	close(prtm.PrtEvents)
 	close(prtm.PrtLogEnableEvent)
-	close(prtm.PrtKillSignalEvent)
-
 }
 
 // PrtMachineInitPort
@@ -818,30 +800,30 @@ func (p *StpPort) PrtMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event := <-m.PrtKillSignalEvent:
-				StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
-				if event.responseChan != nil {
-					SendResponse(PrtMachineModuleStr, event.responseChan)
-				}
-				return
 
-			case event := <-m.PrtEvents:
-				//StpMachineLogger("INFO", PrtMachineModuleStr, m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
-				if m.Machine.Curr.CurrentState() == PrtStateNone && event.e != PrtEventBegin {
-					m.PrtEvents <- event
-					break
-				}
+			case event, ok := <-m.PrtEvents:
 
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, PrtStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+				if ok {
+					//StpMachineLogger("INFO", PrtMachineModuleStr, m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
+					if m.Machine.Curr.CurrentState() == PrtStateNone && event.e != PrtEventBegin {
+						m.PrtEvents <- event
+						break
+					}
+
+					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					if rv != nil {
+						StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, PrtStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+					} else {
+						// for faster state transitions
+						m.ProcessPostStateProcessing()
+					}
+
+					if event.responseChan != nil {
+						SendResponse(PrtMachineModuleStr, event.responseChan)
+					}
 				} else {
-					// for faster state transitions
-					m.ProcessPostStateProcessing()
-				}
-
-				if event.responseChan != nil {
-					SendResponse(PrtMachineModuleStr, event.responseChan)
+					StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					return
 				}
 
 			case ena := <-m.PrtLogEnableEvent:
