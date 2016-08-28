@@ -825,3 +825,108 @@ func (s *STPDServiceHandler) GetBulkStpPortState(fromIndex stpd.Int, count stpd.
 	}
 	return obj, nil
 }
+
+// GetBulkStpPort used for Auto-Discovery
+func (s *STPDServiceHandler) GetBulkStpPort(fromIndex stpd.Int, count stpd.Int) (obj *stpd.StpPortGetInfo, err error) {
+
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
+
+		var stpPortList []stpd.StpPort = make([]stpd.StpPort, count)
+		var nextStpPort *stpd.StpPort
+		var returnStpPorts []*stpd.StpPort
+		var returnStpPortGetInfo stpd.StpPortGetInfo
+		//var a *lacp.LaAggregator
+		validCount := stpd.Int(0)
+		toIndex := fromIndex
+		obj = &returnStpPortGetInfo
+		stpPortListLen := stpd.Int(len(stp.PortConfigMap))
+		stp.StpLogger("INFO", fmt.Sprintf("Total default ports %d fromIndex %d count %d", stpPortListLen, fromIndex, count))
+		for currIndex := fromIndex; validCount != count && currIndex < stpPortListLen; currIndex++ {
+
+			//stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
+
+			p := stp.PortConfigMap[int32(currIndex)]
+			nextStpPort = &stpPortList[validCount]
+
+			/*
+						1 : i32 Vlan
+						2 : string IntfRef
+						3 : i32 Priority
+						4 : string AdminState
+						5 : i32 PathCost
+						6 : i32 PathCost32
+						7 : i32 ProtocolMigration
+						8 : i32 AdminPointToPoint
+						9 : i32 AdminEdgePort
+						10 : i32 AdminPathCost
+						11 : i32 BpduGuard
+						12 : i32 BpduGuardInterval
+						13 : i32 BridgeAssurance
+
+							Vlan              int32  `SNAPROUTE: "KEY", ACCESS:"rw", MULTIPLICITY:"*", AUTODISCOVER:"true", DESCRIPTION: The value of instance of the vlan object,  for the bridge corresponding to this port., MIN: "0" ,  MAX: "4094"`
+				IntfRef           string `SNAPROUTE: "KEY", ACCESS:"rw", DESCRIPTION: The port number of the port for which this entry contains Spanning Tree Protocol management information. `
+				Priority          int32  `DESCRIPTION: The value of the priority field that is contained in the first in network byte order octet of the 2 octet long Port ID.  The other octet of the Port ID is given by the value of StpPort. On bridges supporting IEEE 802.1t or IEEE 802.1w, permissible values are 0-240, in steps of 16., MIN: "0" ,  MAX: "255", DEFAULT: 128`
+				AdminState        string `DESCRIPTION: The enabled/disabled status of the port., SELECTION: UP/DOWN, DEFAULT: UP`
+				PathCost          int32  `DESCRIPTION: The contribution of this port to the path cost of paths towards the spanning tree root which include this port.  802.1D-1998 recommends that the default value of this parameter be in inverse proportion to the speed of the attached LAN.  New implementations should support PathCost32. If the port path costs exceeds the maximum value of this object then this object should report the maximum value; namely 65535.  Applications should try to read the PathCost32 object if this object reports the maximum value.  Value of 1 will force node to auto discover the value        based on the ports capabilities., MIN: "1" ,  MAX: "65535", DEFAULT: 1`
+				PathCost32        int32  `DESCRIPTION: The contribution of this port to the path cost of paths towards the spanning tree root which include this port.  802.1D-1998 recommends that the default value of this parameter be in inverse proportion to the speed of the attached LAN.  This object replaces PathCost to support IEEE 802.1t. Value of 1 will force node to auto discover the value        based on the ports capabilities., MIN: "1" ,  MAX: "200000000", DEFAULT: 1`
+				ProtocolMigration int32  `DESCRIPTION: When operating in RSTP (version 2) mode writing true(1) to this object forces this port to transmit RSTP BPDUs. Any other operation on this object has no effect and it always returns false(2) when read., SELECTION: false(2)/true(1), DEFAULT: 1`
+				AdminPointToPoint int32  `DESCRIPTION: The administrative point-to-point status of the LAN segment attached to this port using the enumeration values of the IEEE 802.1w clause.  A value of forceTrue(0) indicates that this port should always be treated as if it is connected to a point-to-point link.  A value of forceFalse(1) indicates that this port should be treated as having a shared media connection.  A value of auto(2) indicates that this port is considered to have a point-to-point link if it is an Aggregator and all of its    members are aggregatable or if the MAC entity is configured for full duplex operation, either through auto-negotiation or by management means.  Manipulating this object changes the underlying adminPortToPortMAC.  The value of this object MUST be retained across reinitializations of the management system., SELECTION: forceTrue(0)/forceFalse(1)/auto(2), DEFAULT: 2`
+				AdminEdgePort     int32  `DESCRIPTION: The administrative value of the Edge Port parameter.  A value of true(1) indicates that this port should be assumed as an edge-port and a value of false(2) indicates that this port should be assumed as a non-edge-port.  Setting this object will also cause the corresponding instance of OperEdgePort to change to the same value.  Note that even when this object's value is true the value of the corresponding instance of OperEdgePort can be false if a BPDU has been received.  The value of this object MUST be retained across reinitializations of the management system., SELECTION: false(2)/true(1), DEFAULT: 2`
+				AdminPathCost     int32  `DESCRIPTION: The administratively assigned value for the contribution of this port to the path cost of paths toward the spanning tree root.  Writing a value of '0' assigns the automatically calculated default Path Cost value to the port.  If the default Path Cost is being used this object returns '0' when read.  This complements the object PathCost or PathCost32 which returns the operational value of the path cost.    The value of this object MUST be retained across reinitializations of the management system., MIN: "0" ,  MAX: "200000000", DEFAULT: 200000`
+				BpduGuard         int32  `DESCRIPTION: A Port as OperEdge which receives BPDU with BpduGuard enabled will shut the port down., SELECTION: false(2)/true(1), DEFAULT: 2`
+				BpduGuardInterval int32  `DESCRIPTION: The interval time to which a port will try to recover from BPDU Guard err-disable state.  If no BPDU frames are detected after this timeout plus 3 Times Hello Time then the port will transition back to Up state.  If condition is cleared manually then this operation is ignored.  If set to zero then timer is inactive and recovery is based on manual intervention. DEFAULT: 15`
+				BridgeAssurance   int32  `DESCRIPTION: When enabled BPDUs will be transmitted out of all stp ports regardless of state.  When an stp port fails to receive a BPDU the port should  transition to a Blocked state.  Upon reception of BDPU after shutdown  should transition port into the bridge., SELECTION: false(2)/true(1), DEFAULT: 2`
+
+			*/
+			// defaults according to model values, thus if model changes these should change as well
+			// perhaps we should consider opening the JSON genObjConfig.json file and filling
+			// in the values this way.  For now going to hard code.
+			nextStpPort.Vlan = int32(stp.DEFAULT_STP_BRIDGE_VLAN)
+			nextStpPort.IntfRef = p.Name
+			nextStpPort.Priority = int32(128)
+			if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
+				nextStpPort.AdminState = "UP"
+			} else {
+				nextStpPort.AdminState = "DOWN"
+			}
+			nextStpPort.PathCost = int32(1)
+			nextStpPort.PathCost32 = int32(1)
+			nextStpPort.ProtocolMigration = int32(1)
+			nextStpPort.AdminPointToPoint = int32(2)
+			nextStpPort.AdminEdgePort = int32(2)
+			nextStpPort.AdminPathCost = int32(200000)
+			nextStpPort.BpduGuard = int32(2)
+			nextStpPort.BpduGuardInterval = int32(15)
+			nextStpPort.BridgeAssurance = int32(2)
+
+			// lets create the object in the stack now
+			s.CreateStpPort(nextStpPort)
+
+			if len(returnStpPorts) == 0 {
+				returnStpPorts = make([]*stpd.StpPort, 0)
+			}
+			returnStpPorts = append(returnStpPorts, nextStpPort)
+			validCount++
+			toIndex++
+		}
+		// lets try and get the next agg if one exists then there are more routes
+		moreRoutes := false
+		if fromIndex+count < stpPortListLen {
+			moreRoutes = true
+		}
+		// lets try and get the next agg if one exists then there are more routes
+		obj.StpPortList = returnStpPorts
+		obj.StartIdx = fromIndex
+		obj.EndIdx = toIndex + 1
+		obj.More = moreRoutes
+		obj.Count = validCount
+	}
+	return obj, nil
+}
+
+// UNUSED: Actual call from user should be getting info from CONFD directly
+// as it will read the info from the DB
+func (s *STPDServiceHandler) GetStpPort(vlan int32, intfRef string) (*stpd.StpPort, error) {
+	sps := &stpd.StpPort{}
+	return sps, nil
+}
