@@ -884,11 +884,7 @@ func (s *STPDServiceHandler) GetBulkStpPort(fromIndex stpd.Int, count stpd.Int) 
 			nextStpPort.Vlan = int32(stp.DEFAULT_STP_BRIDGE_VLAN)
 			nextStpPort.IntfRef = p.Name
 			nextStpPort.Priority = int32(128)
-			if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
-				nextStpPort.AdminState = "UP"
-			} else {
-				nextStpPort.AdminState = "DOWN"
-			}
+			nextStpPort.AdminState = "UP"
 			nextStpPort.PathCost = int32(1)
 			nextStpPort.PathCost32 = int32(1)
 			nextStpPort.ProtocolMigration = int32(1)
