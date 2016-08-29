@@ -34,7 +34,6 @@ import (
 /* Go routine to recieve lldp frames. This go routine is created for all the
  * ports which are in up state.
  */
-//func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
 func (intf *LLDPGlobalInfo) ReceiveFrames(lldpRxPktCh chan InPktChannel) {
 	pktSrc := gopacket.NewPacketSource(intf.PcapHandle, intf.PcapHandle.LinkType())
 	in := pktSrc.Packets()
@@ -57,7 +56,6 @@ func (intf *LLDPGlobalInfo) ReceiveFrames(lldpRxPktCh chan InPktChannel) {
 /*  lldp server go routine to handle tx timer... once the timer fires we will
 *  send the ifindex on the channel to handle send info
  */
-//func (svr *LLDPServer) TransmitFrames(ifIndex int32) {
 func (intf *LLDPGlobalInfo) StartTxTimer(lldpTxPktCh chan SendPktChannel) {
 	var TxTimerHandler_func func()
 	TxTimerHandler_func = func() {

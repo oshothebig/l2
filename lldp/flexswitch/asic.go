@@ -103,7 +103,7 @@ func (p *AsicPlugin) getPortStates() []*config.PortInfo {
 	currMarker := int64(asicdCommonDefs.MIN_SYS_PORTS)
 	more := false
 	objCount := 0
-	count := 10
+	count := 500
 	portStates := make([]*config.PortInfo, 0)
 	for {
 		bulkInfo, err := p.asicdClient.GetBulkPortState(asicdServices.Int(currMarker), asicdServices.Int(count))

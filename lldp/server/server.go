@@ -69,15 +69,15 @@ func (svr *LLDPServer) InitGlobalDS() {
 	svr.lldpTxPktCh = make(chan SendPktChannel, LLDP_TX_PKT_CHANNEL_SIZE)
 	svr.lldpExit = make(chan bool)
 	svr.lldpSnapshotLen = 1024
-	svr.lldpPromiscuous = true
+	svr.lldpPromiscuous = false //true
 	// LLDP Notifications are atleast 5 seconds apart with default being
 	// 30 seconds. So, we can have the leavrage the pcap timeout (read from
 	// buffer) to be 1 second.
-	svr.lldpTimeout = 1 * time.Second
+	svr.lldpTimeout = 500 * time.Millisecond
 	svr.GblCfgCh = make(chan *config.Global, 20)
-	svr.IntfCfgCh = make(chan *config.IntfConfig, 20)
-	svr.IfStateCh = make(chan *config.PortState, 20)
-	svr.UpdateCacheCh = make(chan bool)
+	svr.IntfCfgCh = make(chan *config.IntfConfig, LLDP_PORT_CONFIG_CHANNEL_SIZE)
+	svr.IfStateCh = make(chan *config.PortState, LLDP_PORT_STATE_CHANGE_CHANNEL_SIZE)
+	svr.UpdateCacheCh = make(chan bool, 2)
 	svr.EventCh = make(chan config.EventInfo, 10)
 	// All Plugin Info
 }
@@ -157,16 +157,6 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 		svr.ReadDB()
 	}
 
-	// Only start rx/tx if, Globally LLDP is enabled, Interface LLDP is enabled and port is in UP state
-	// move RX/TX to Channel Handler
-	// The below step is really important for us.
-	// On Re-Start if lldp global is enable then we will start rx/tx for those ports which are in up state
-	// and at the same time we will start the loop for signal handler
-	// if fresh start then svr.Global is nil as no global config is done and hence it will be no-op
-	// however on re-start lets say you have 100 ports that have lldp running on it in that case your writer
-	// channel will create a deadlock as the reader is not yet started... To avoid this we spawn go-routine
-	// for handling Global Config before Channel Handler is started
-	go svr.handleGlobalConfig(true)
 	go svr.ChannelHanlder()
 }
 
@@ -220,7 +210,7 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 	}
 	if intf.PcapHandle != nil {
 		debug.Logger.Info("Pcap already exist means the port changed it states")
-		// Move the port to up state and continue
+		// Move the port to up state if not exists and continue
 		svr.AddPortToUpState(intf.Port.IfIndex)
 		return // returning because the go routine is already up and running for the port
 	}
@@ -485,4 +475,17 @@ func (svr *LLDPServer) ChannelHanlder() {
 			svr.SysPlugin.PublishEvent(eventInfo)
 		}
 	}
+}
+
+func (svr *LLDPServer) RunGlobalConfig() {
+	// Only start rx/tx if, Globally LLDP is enabled, Interface LLDP is enabled and port is in UP state
+	// move RX/TX to Channel Handler
+	// The below step is really important for us.
+	// On Re-Start if lldp global is enable then we will start rx/tx for those ports which are in up state
+	// and at the same time we will start the loop for signal handler
+	// if fresh start then svr.Global is nil as no global config is done and hence it will be no-op
+	// however on re-start lets say you have 100 ports that have lldp running on it in that case your writer
+	// channel will create a deadlock as the reader is not yet started... To avoid this we spawn go-routine
+	// for handling Global Config before Channel Handler is started
+	svr.handleGlobalConfig(true)
 }
