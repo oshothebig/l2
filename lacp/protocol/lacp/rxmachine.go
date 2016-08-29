@@ -26,13 +26,14 @@ package lacp
 
 import (
 	"fmt"
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 const RxMachineModuleStr = "Rx Machine"
@@ -756,7 +757,7 @@ func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *layers.LACP) bool {
 		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && LacpStateIsSet(p.ActorOper.State, LacpStateTimeoutBit)) ||
 		(LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit) && !LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit)) ||
 		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit) && LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit)) {
-		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper info different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.ActorOper))
+		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper state Timeout/Activity different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.ActorOper))
 		return true
 	}
 	return false
