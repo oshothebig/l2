@@ -103,8 +103,6 @@ type LLDPServer struct {
 	UpdateCacheCh chan bool
 	// Event Publish channel for server
 	EventCh chan config.EventInfo
-	// lldp exit
-	lldpExit chan bool
 }
 
 const (

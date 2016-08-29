@@ -182,7 +182,6 @@ func (p *AsicPlugin) connectSubSocket() error {
 
 func (p *AsicPlugin) listenAsicdUpdates() {
 	for {
-		debug.Logger.Debug(" Read on Asic Subscriber socket....")
 		rxBuf, err := p.asicdSubSocket.Recv(0)
 		if err != nil {
 			debug.Logger.Err(fmt.Sprintln(
@@ -203,6 +202,8 @@ func (p *AsicPlugin) listenAsicdUpdates() {
 				debug.Logger.Err("Unable to Unmarshal l2 intf state change:", msg.Msg)
 				continue
 			}
+			debug.Logger.Debug("Got Notification from Asicd Subscriber socket for ifIndex:", l2IntfStateNotifyMsg.IfIndex,
+				"State:", l2IntfStateNotifyMsg.IfState)
 			if l2IntfStateNotifyMsg.IfState == asicdCommonDefs.INTF_STATE_UP {
 				api.SendPortStateChange(l2IntfStateNotifyMsg.IfIndex, "UP")
 			} else {

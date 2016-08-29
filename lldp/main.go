@@ -87,7 +87,5 @@ func main() {
 			debug.Logger.Err(fmt.Sprintln("Cannot start lldp server", err))
 			return
 		}
-		// after everything is started then Do Rx/Tx Init
-		lldpSvr.RunGlobalConfig()
 	}
 }

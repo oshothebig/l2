@@ -24,7 +24,7 @@
 package server
 
 import (
-	"fmt"
+	_ "fmt"
 	"l2/lldp/config"
 	"l2/lldp/plugin"
 	"l2/lldp/utils"
@@ -67,9 +67,8 @@ func (svr *LLDPServer) InitGlobalDS() {
 	svr.lldpIntfRef2IfIndexMap = make(map[string]int32, LLDP_INITIAL_GLOBAL_INFO_CAPACITY)
 	svr.lldpRxPktCh = make(chan InPktChannel, LLDP_RX_PKT_CHANNEL_SIZE)
 	svr.lldpTxPktCh = make(chan SendPktChannel, LLDP_TX_PKT_CHANNEL_SIZE)
-	svr.lldpExit = make(chan bool)
 	svr.lldpSnapshotLen = 1024
-	svr.lldpPromiscuous = false //true
+	svr.lldpPromiscuous = true
 	// LLDP Notifications are atleast 5 seconds apart with default being
 	// 30 seconds. So, we can have the leavrage the pcap timeout (read from
 	// buffer) to be 1 second.
@@ -85,6 +84,9 @@ func (svr *LLDPServer) InitGlobalDS() {
 /* De-Allocate memory to all the object which are being used by LLDP server
  */
 func (svr *LLDPServer) DeInitGlobalDS() {
+	// close rx packet channel
+	close(svr.lldpRxPktCh)
+	close(svr.lldpTxPktCh)
 	svr.lldpRxPktCh = nil
 	svr.lldpTxPktCh = nil
 	svr.lldpGblInfo = nil
@@ -106,9 +108,6 @@ func (svr *LLDPServer) CloseAllPktHandlers() {
 		intf.DeInitRuntimeInfo()
 		svr.lldpGblInfo[key] = intf
 	}
-	// close rx packet channel
-	close(svr.lldpRxPktCh)
-	close(svr.lldpTxPktCh)
 	debug.Logger.Info("closed everything")
 }
 
@@ -157,6 +156,8 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 		svr.ReadDB()
 	}
 
+	// after everything is started then Do Rx/Tx Init
+	svr.RunGlobalConfig()
 	go svr.ChannelHanlder()
 }
 
@@ -177,7 +178,6 @@ func (svr *LLDPServer) SignalHandler(sigChannel <-chan os.Signal) {
 	signal := <-sigChannel
 	switch signal {
 	case syscall.SIGHUP:
-		svr.lldpExit <- true
 		debug.Logger.Alert("Received SIGHUP Signal")
 		svr.CloseAllPktHandlers()
 		svr.DeInitGlobalDS()
@@ -200,7 +200,7 @@ func (svr *LLDPServer) SignalHandler(sigChannel <-chan os.Signal) {
 func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 	intf, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
-		debug.Logger.Err(fmt.Sprintln("No entry for ifindex", ifIndex))
+		debug.Logger.Err("No entry for ifindex", ifIndex)
 		return
 	}
 	// if the port is disabled or lldp globally is disabled then no need to start rx/tx...
@@ -216,8 +216,8 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 	}
 	err := intf.CreatePcapHandler(svr.lldpSnapshotLen, svr.lldpPromiscuous, svr.lldpTimeout)
 	if err != nil {
-		debug.Logger.Alert("Creating Pcap Handler for " + intf.Port.Name +
-			" failed and hence we will not start LLDP on the port")
+		debug.Logger.Alert("Creating Pcap Handler for", intf.Port.Name,
+			"failed and hence we will not start LLDP on the port")
 		return
 	}
 
@@ -235,7 +235,7 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 func (svr *LLDPServer) StopRxTx(ifIndex int32) {
 	intf, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
-		debug.Logger.Err(fmt.Sprintln("No entry for ifIndex", ifIndex))
+		debug.Logger.Err("No entry for ifIndex", ifIndex)
 		return
 	}
 
@@ -336,13 +336,15 @@ func (svr *LLDPServer) handleGlobalConfig(restart bool) {
 		}
 		switch svr.Global.Enable {
 		case true:
-			debug.Logger.Debug("Global Config Enabled, enabling port rx tx for ifIndex", ifIndex)
+			debug.Logger.Debug("Global Config Enabled, enabling port rx tx for port:", intf.Port.Name,
+				"ifIndex", ifIndex)
 			svr.StartRxTx(ifIndex)
 		case false:
 			if restart {
 				continue
 			}
-			debug.Logger.Debug("Global Config Disable, disabling port rx tx for ifIndex", ifIndex)
+			debug.Logger.Debug("Global Config Disabled, disabling port rx tx for port:", intf.Port.Name,
+				"ifIndex", ifIndex)
 			// do not update the configuration enable/disable state...just stop packet handling
 			svr.StopRxTx(ifIndex)
 		}
@@ -354,7 +356,7 @@ func (svr *LLDPServer) handleGlobalConfig(restart bool) {
 func (svr *LLDPServer) handleIntfConfig(ifIndex int32, enable bool) {
 	intf, found := svr.lldpGblInfo[ifIndex]
 	if !found {
-		debug.Logger.Err(fmt.Sprintln("No entry for ifIndex", ifIndex, "in runtime information"))
+		debug.Logger.Err("No entry for ifIndex", ifIndex, "in runtime information")
 		return
 	}
 	switch enable {
@@ -382,13 +384,45 @@ func (svr *LLDPServer) SendFrame(ifIndex int32) {
 		if intf.TxInfo.UseCache() == false {
 			svr.GetSystemInfo()
 		}
-		rv := intf.WritePacket(intf.TxInfo.SendFrame(intf.Port, svr.SysInfo))
+		rv := intf.WritePacket(intf.TxInfo.Frame(intf.Port, svr.SysInfo))
 		if rv == false {
 			intf.TxInfo.SetCache(rv)
 		}
-		svr.lldpGblInfo[ifIndex] = intf
 	}
+	intf.StartTxTimer(svr.lldpTxPktCh)
+	svr.lldpGblInfo[ifIndex] = intf
 	//intf.TxDone <- true
+}
+
+func (svr *LLDPServer) ProcessRcvdPkt(rcvdInfo InPktChannel) {
+	intf, exists := svr.lldpGblInfo[rcvdInfo.ifIndex]
+	if !exists {
+		return
+	}
+	debug.Logger.Debug("Process Packet Received on port:", intf.Port.Name)
+	var err error
+	eventInfo := config.EventInfo{}
+	intf.RxLock.Lock()
+	eventInfo.EventType, err = intf.RxInfo.Process(intf.RxInfo, rcvdInfo.pkt)
+	if err != nil {
+		intf.RxLock.Unlock()
+		debug.Logger.Err("err", err, "while processing rx frame on port",
+			intf.Port.Name)
+		return
+	}
+	intf.RxLock.Unlock()
+	// reset/start timer for recipient information
+	intf.RxInfo.CheckPeerEntry(intf.Port.Name, svr.EventCh, rcvdInfo.ifIndex)
+	svr.lldpGblInfo[rcvdInfo.ifIndex] = intf
+	//eventInfo.Info = svr.GetIntfState(rcvdInfo.ifIndex)
+	eventInfo.IfIndex = rcvdInfo.ifIndex
+
+	if eventInfo.EventType != config.NoOp {
+		svr.SysPlugin.PublishEvent(eventInfo)
+	}
+	debug.Logger.Debug("Done Processing Packet for port:", intf.Port.Name)
+	// dump the frame
+	//intf.DumpFrame()
 }
 
 /* To handle all the channels in lldp server... For detail look at the
@@ -400,63 +434,31 @@ func (svr *LLDPServer) ChannelHanlder() {
 		select {
 		case rcvdInfo, ok := <-svr.lldpRxPktCh:
 			if !ok {
-				debug.Logger.Alert("RX Channel is closed, exit")
-				return // rx channel should be closed only on exit
+				continue // rx channel should be closed only on exit
 			}
-			intf, exists := svr.lldpGblInfo[rcvdInfo.ifIndex]
-			if exists {
-				var err error
-				eventInfo := config.EventInfo{}
-				intf.RxLock.Lock()
-				eventInfo.EventType, err = intf.RxInfo.Process(intf.RxInfo, rcvdInfo.pkt)
-				if err != nil {
-					intf.RxLock.Unlock()
-					debug.Logger.Err(fmt.Sprintln("err", err, "while processing rx frame on port",
-						intf.Port.Name))
-					continue
-				}
-				intf.RxLock.Unlock()
-				// reset/start timer for recipient information
-				intf.RxInfo.CheckPeerEntry(intf.Port.Name, svr.EventCh, rcvdInfo.ifIndex)
-				svr.lldpGblInfo[rcvdInfo.ifIndex] = intf
-				//eventInfo.Info = svr.GetIntfState(rcvdInfo.ifIndex)
-				eventInfo.IfIndex = rcvdInfo.ifIndex
-
-				if eventInfo.EventType != config.NoOp {
-					svr.SysPlugin.PublishEvent(eventInfo)
-				}
-				// dump the frame
-				//intf.DumpFrame()
-			}
-		case exit := <-svr.lldpExit:
-			if exit {
-				debug.Logger.Alert("lldp exiting stopping all" +
-					" channel handlers")
-				return
-			}
+			svr.ProcessRcvdPkt(rcvdInfo)
 		case info, ok := <-svr.lldpTxPktCh:
 			if !ok {
-				debug.Logger.Alert("TX Channel is closed, exit")
-				return
+				continue
 			}
 			svr.SendFrame(info.ifIndex)
 		case gbl, ok := <-svr.GblCfgCh: // Change in global config
 			if !ok {
 				continue
 			}
-			debug.Logger.Info(fmt.Sprintln("Server Received Global Config", gbl))
+			debug.Logger.Info("Server Received Global Config", gbl)
 			if svr.Global == nil {
 				svr.Global = &config.Global{}
 			}
 			svr.Global.Enable = gbl.Enable
 			svr.Global.Vrf = gbl.Vrf
 			// start all interface rx/tx in go routine only
-			go svr.handleGlobalConfig(false)
+			svr.handleGlobalConfig(false)
 		case intf, ok := <-svr.IntfCfgCh: // Change in interface config
 			if !ok {
 				continue
 			}
-			debug.Logger.Info(fmt.Sprintln("Server received Intf Config", intf))
+			debug.Logger.Info("Server received Intf Config", intf)
 			svr.handleIntfConfig(intf.IfIndex, intf.Enable)
 		case ifState, ok := <-svr.IfStateCh: // Change in Port State..
 			if !ok {

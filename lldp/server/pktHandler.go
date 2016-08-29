@@ -41,7 +41,6 @@ func (intf *LLDPGlobalInfo) ReceiveFrames(lldpRxPktCh chan InPktChannel) {
 	for {
 		select {
 		case pkt, ok := <-in:
-			//default:
 			if ok {
 				lldpRxPktCh <- InPktChannel{pkt, intf.Port.IfIndex}
 			}
@@ -57,17 +56,20 @@ func (intf *LLDPGlobalInfo) ReceiveFrames(lldpRxPktCh chan InPktChannel) {
 *  send the ifindex on the channel to handle send info
  */
 func (intf *LLDPGlobalInfo) StartTxTimer(lldpTxPktCh chan SendPktChannel) {
-	var TxTimerHandler_func func()
-	TxTimerHandler_func = func() {
-		lldpTxPktCh <- SendPktChannel{intf.Port.IfIndex}
-		// Wait until the packet is send out on the wire... Once done then reset the timer and
-		// update global info again
-		//<-intf.TxDone
+	if intf.TxInfo.TxTimer != nil {
 		intf.TxInfo.TxTimer.Reset(time.Duration(intf.TxInfo.MessageTxInterval) * time.Second)
+	} else {
+		var TxTimerHandler_func func()
+		TxTimerHandler_func = func() {
+			lldpTxPktCh <- SendPktChannel{intf.Port.IfIndex}
+			// Wait until the packet is send out on the wire... Once done then reset the timer and
+			// update global info again
+			//<-intf.TxDone
+		}
+		// Create an After Func and go routine for it, so that on timer stop TX is stopped automatically
+		intf.TxInfo.TxTimer = time.AfterFunc(time.Duration(intf.TxInfo.MessageTxInterval)*time.Second,
+			TxTimerHandler_func)
 	}
-	// Create an After Func and go routine for it, so that on timer stop TX is stopped automatically
-	intf.TxInfo.TxTimer = time.AfterFunc(time.Duration(intf.TxInfo.MessageTxInterval)*time.Second,
-		TxTimerHandler_func)
 }
 
 /*  Write packet is helper function to send packet on wire.

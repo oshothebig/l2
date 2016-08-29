@@ -75,7 +75,7 @@ func TxInit(interval, hold int) *TX {
  *		1) if it is first time send
  *		2) if there is config object update
  */
-func (t *TX) SendFrame(port config.PortInfo, sysInfo *objects.SystemParam) []byte {
+func (t *TX) Frame(port config.PortInfo, sysInfo *objects.SystemParam) []byte {
 	temp := make([]byte, 0)
 	// if cached then directly send the packet
 	if t.useCacheFrame {
@@ -285,5 +285,6 @@ func (t *TX) DeleteCacheFrame() {
 func (t *TX) StopTxTimer() {
 	if t.TxTimer != nil {
 		t.TxTimer.Stop()
+		t.TxTimer = nil
 	}
 }
