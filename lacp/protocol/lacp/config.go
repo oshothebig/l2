@@ -558,8 +558,10 @@ func SetLaAggPortSystemInfoFromDistributedRelay(pId uint16, sysIdMac string, sys
 
 		// system Id has not been updated yet
 		macAddr := convertNetHwAddressToSysIdKey(mac)
+
 		if ok == nil &&
-			p.ActorOper.System.Actor_System != macAddr {
+			(p.ActorOper.System.Actor_System != macAddr ||
+				p.ActorOper.Key != operKey) {
 			// update the port infot o point back to drni
 			p.DrniName = drName
 			p.DrniSynced = true

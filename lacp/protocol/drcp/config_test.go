@@ -1229,10 +1229,10 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 		lacp.LaFindPortById(p2conf.Id, &p2) {
 
 		go func() {
-			for i := 0; i < 20 &&
+			for i := 0; i < 10 &&
 				(p1.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing ||
 					p2.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing); i++ {
-				time.Sleep(time.Millisecond * 400)
+				time.Sleep(time.Second * 1)
 			}
 			testWait <- true
 		}()
@@ -1265,10 +1265,10 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 		lacp.LaFindPortById(p3conf.Id, &p2) {
 
 		go func() {
-			for i := 0; i < 20 &&
+			for i := 0; i < 10 &&
 				(p1.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing ||
 					p2.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing); i++ {
-				time.Sleep(time.Millisecond * 600)
+				time.Sleep(time.Second * 1)
 			}
 			testWait <- true
 		}()
