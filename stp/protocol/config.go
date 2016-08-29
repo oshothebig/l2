@@ -169,8 +169,8 @@ func StpBrgConfigParamCheck(c *StpBridgeConfig) error {
 
 	// if zero is used then we will convert this to use default
 	if c.Vlan != 0 {
-		if c.Vlan > 4094 {
-			return errors.New(fmt.Sprintf("Invalid Bridge Vlan %d valid range 1 - 4094", c.TxHoldCount))
+		if c.Vlan > 4095 {
+			return errors.New(fmt.Sprintf("Invalid Bridge Vlan %d valid range 1 - 4094", c.Vlan))
 		}
 	}
 
