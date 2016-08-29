@@ -388,7 +388,7 @@ func (svr *LLDPServer) SendFrame(ifIndex int32) {
 		}
 		svr.lldpGblInfo[ifIndex] = intf
 	}
-	intf.TxDone <- true
+	//intf.TxDone <- true
 }
 
 /* To handle all the channels in lldp server... For detail look at the

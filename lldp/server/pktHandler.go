@@ -62,7 +62,7 @@ func (intf *LLDPGlobalInfo) StartTxTimer(lldpTxPktCh chan SendPktChannel) {
 		lldpTxPktCh <- SendPktChannel{intf.Port.IfIndex}
 		// Wait until the packet is send out on the wire... Once done then reset the timer and
 		// update global info again
-		<-intf.TxDone
+		//<-intf.TxDone
 		intf.TxInfo.TxTimer.Reset(time.Duration(intf.TxInfo.MessageTxInterval) * time.Second)
 	}
 	// Create an After Func and go routine for it, so that on timer stop TX is stopped automatically
