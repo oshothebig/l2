@@ -162,6 +162,7 @@ func GetPortState(p *stp.StpPort) (state int32) {
 }
 
 func (s *STPDServiceHandler) CreateStpGlobal(config *stpd.StpGlobal) (rv bool, err error) {
+	rv = true
 	stp.StpLogger("INFO", fmt.Sprintf("CreateStpGlobal (server): %s", config.AdminState))
 
 	if config.AdminState == "UP" {
