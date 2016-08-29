@@ -68,7 +68,7 @@ func main() {
 	// Start keepalive routine
 	go keepalive.InitKeepAlive("lacpd", path)
 
-	laServer.StartLaConfigNotificationListener()
+	laServer.InitServer()
 	confIface := rpc.NewLACPDServiceHandler(laServer)
 	logger.Info("Starting LACP Thrift daemon")
 	rpc.StartServer(utils.GetLaLogger(), confIface, *paramsDir)

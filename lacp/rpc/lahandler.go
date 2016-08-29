@@ -20,6 +20,9 @@
 // |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
 // |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
 //
+// This file contains the Thrift server handle for config objects.
+// This file also contains logic for restart, and global state change for
+// config objects
 
 // lahandler
 package rpc
@@ -54,7 +57,8 @@ func NewLACPDServiceHandler(svr *server.LAServer) *LACPDServiceHandler {
 	handle := &LACPDServiceHandler{
 		svr: svr,
 	}
-	handle.ReadConfigFromDB()
+	prevState := utils.LacpGlobalStateGet()
+	handle.ReadConfigFromDB(prevState)
 	return handle
 }
 
@@ -282,7 +286,53 @@ func GetKeyByAggName(AggName string) uint16 {
 	return Key
 }
 
-func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) error {
+func (la *LACPDServiceHandler) HandleDbReadLacpGlobal(dbHdl *dbutils.DBUtil) error {
+	if dbHdl != nil {
+		var dbObj objects.LacpGlobal
+		objList, err := dbObj.GetAllObjFromDb(dbHdl)
+		if err != nil {
+			fmt.Println("DB Query failed when retrieving LacpGlobal objects")
+			return err
+		}
+		for idx := 0; idx < len(objList); idx++ {
+			obj := lacpd.NewLacpGlobal()
+			dbObject := objList[idx].(objects.LacpGlobal)
+			objects.ConvertlacpdLacpGlobalObjToThrift(&dbObject, obj)
+			_, err = la.CreateLacpGlobal(obj)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (la *LACPDServiceHandler) HandleDbReadDistributedRelay(dbHdl *dbutils.DBUtil, del bool) error {
+	if dbHdl != nil {
+		var dbObj objects.DistributedRelay
+		objList, err := dbObj.GetAllObjFromDb(dbHdl)
+		if err != nil {
+			fmt.Println("DB Query failed when retrieving LaPortChannel objects")
+			return err
+		}
+		for idx := 0; idx < len(objList); idx++ {
+			obj := lacpd.NewDistributedRelay()
+			dbObject := objList[idx].(objects.DistributedRelay)
+			objects.ConvertlacpdDistributedRelayObjToThrift(&dbObject, obj)
+			if !del {
+				_, err = la.CreateDistributedRelay(obj)
+			} else {
+				_, err = la.DeleteDistributedRelay(obj)
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil, del bool) error {
 	if dbHdl != nil {
 		var dbObj objects.LaPortChannel
 		objList, err := dbObj.GetAllObjFromDb(dbHdl)
@@ -294,7 +344,11 @@ func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) 
 			obj := lacpd.NewLaPortChannel()
 			dbObject := objList[idx].(objects.LaPortChannel)
 			objects.ConvertlacpdLaPortChannelObjToThrift(&dbObject, obj)
-			_, err = la.CreateLaPortChannel(obj)
+			if !del {
+				_, err = la.CreateLaPortChannel(obj)
+			} else {
+				_, err = la.DeleteLaPortChannel(obj)
+			}
 			if err != nil {
 				return err
 			}
@@ -303,7 +357,7 @@ func (la *LACPDServiceHandler) HandleDbReadLaPortChannel(dbHdl *dbutils.DBUtil) 
 	return nil
 }
 
-func (la *LACPDServiceHandler) ReadConfigFromDB() error {
+func (la *LACPDServiceHandler) ReadConfigFromDB(prevState int) error {
 	dbHdl := dbutils.NewDBUtil(utils.GetLaLogger())
 	err := dbHdl.Connect()
 	if err != nil {
@@ -312,23 +366,74 @@ func (la *LACPDServiceHandler) ReadConfigFromDB() error {
 	}
 	defer dbHdl.Disconnect()
 
-	if err := la.HandleDbReadLaPortChannel(dbHdl); err != nil {
-		fmt.Println("Error getting All AggregationLacpConfig objects")
-		return err
-	}
+	if prevState == utils.LACP_GLOBAL_INIT {
 
+		if err := la.HandleDbReadLacpGlobal(dbHdl); err != nil {
+			fmt.Println("Error getting All LacpGlobal objects")
+			return err
+		}
+	}
+	currState := utils.LacpGlobalStateGet()
+
+	if (prevState != currState && currState == utils.LACP_GLOBAL_ENABLE) ||
+		currState == utils.LACP_GLOBAL_ENABLE {
+
+		if err := la.HandleDbReadDistributedRelay(dbHdl, false); err != nil {
+			fmt.Println("Error getting All DistributedRelay objects")
+			return err
+		}
+
+		if err := la.HandleDbReadLaPortChannel(dbHdl, false); err != nil {
+			fmt.Println("Error getting All LaPortChannel objects")
+			return err
+		}
+	} else if currState == utils.LACP_GLOBAL_DISABLE &&
+		prevState == utils.LACP_GLOBAL_ENABLE {
+
+		// lets delete the Aggregator first
+		if err := la.HandleDbReadLaPortChannel(dbHdl, true); err != nil {
+			fmt.Println("Error getting All LaPortChannel objects")
+			return err
+		}
+
+		if err := la.HandleDbReadDistributedRelay(dbHdl, true); err != nil {
+			fmt.Println("Error getting All DistributedRelay objects")
+			return err
+		}
+	}
 	return nil
 }
 
 func (la *LACPDServiceHandler) CreateLacpGlobal(config *lacpd.LacpGlobal) (bool, error) {
+	if config.AdminState == "UP" {
+		prevState := utils.LacpGlobalStateGet()
+		utils.LacpGlobalStateSet(utils.LACP_GLOBAL_ENABLE)
+		la.ReadConfigFromDB(prevState)
+	} else if config.AdminState == "DOWN" {
+		utils.LacpGlobalStateSet(utils.LACP_GLOBAL_DISABLE)
+	}
 	return true, nil
 }
 
+// can't delete an autocreated object
 func (la *LACPDServiceHandler) DeleteLacpGlobal(config *lacpd.LacpGlobal) (bool, error) {
 	return true, nil
 }
 
 func (la *LACPDServiceHandler) UpdateLacpGlobal(origconfig *lacpd.LacpGlobal, updateconfig *lacpd.LacpGlobal, attrset []bool, op []*lacpd.PatchOpInfo) (bool, error) {
+	prevState := utils.LacpGlobalStateGet()
+
+	if updateconfig.AdminState == "UP" {
+		utils.LacpGlobalStateSet(utils.LACP_GLOBAL_ENABLE)
+	} else if updateconfig.AdminState == "DOWN" {
+		utils.LacpGlobalStateSet(utils.LACP_GLOBAL_DISABLE_PENDING)
+	}
+	if prevState != utils.LacpGlobalStateGet() {
+		la.ReadConfigFromDB(prevState)
+		if updateconfig.AdminState == "DOWN" {
+			utils.LacpGlobalStateSet(utils.LACP_GLOBAL_DISABLE)
+		}
+	}
 	return true, nil
 }
 

@@ -57,11 +57,36 @@ func NewSTPServer(logger *logging.Writer) *STPServer {
 func (server *STPServer) InitServer() {
 	//stp.ConnectToClients()
 	stp.ConstructPortConfigMap()
+	// TODO
+	//go server.ListenToClientStateChanges()
+	server.StartSTPSConfigNotificationListener()
 }
 
+/*
+TODO
+func (server *STPServer) ListenToClientStateChanges() {
+	clientStatusListener := keepalive.InitDaemonStatusListener()
+	if clientStatusListener != nil {
+		go clientStatusListener.StartDaemonStatusListner()
+		for {
+			select {
+			case clientStatus := <-clientStatusListener.DaemonStatusCh:
+				mgr.logger.Info(fmt.Sprintln("Received client status: ", clientStatus.Name, clientStatus.Status))
+				if mgr.IsReady() {
+					switch clientStatus.Status {
+					case sysdCommonDefs.STOPPED, sysdCommonDefs.RESTARTING:
+						go mgr.DisconnectFromClient(clientStatus.Name)
+					case sysdCommonDefs.UP:
+						go mgr.ConnectToClient(clientStatus.Name)
+					}
+				}
+			}
+		}
+	}
+}
+*/
 // StartSTPSConfigNotificationListener
 func (server *STPServer) StartSTPSConfigNotificationListener() {
-	server.InitServer()
 	//server.InitDone <- true
 	go func(s *STPServer) {
 		stp.StpLogger("INFO", "Starting Config Event Listener")

@@ -3,10 +3,12 @@ package server
 import (
 	"asicd/asicdCommonDefs"
 	"fmt"
+	//"infra/sysd/sysdCommonDefs"
 	"l2/lacp/protocol/drcp"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"utils/commonDefs"
+	//"utils/keepalive"
 	"utils/logging"
 )
 
@@ -54,12 +56,37 @@ func NewLAServer(logger *logging.Writer) *LAServer {
 
 func (server *LAServer) InitServer() {
 	utils.ConstructPortConfigMap()
+	// TODO
+	//go server.ListenToClientStateChanges()
+	server.StartLaConfigNotificationListener()
 	drcp.GetAllCVIDConversations()
 }
 
+/*
+TODO
+func (server *LAServer) ListenToClientStateChanges() {
+	clientStatusListener := keepalive.InitDaemonStatusListener()
+	if clientStatusListener != nil {
+		go clientStatusListener.StartDaemonStatusListner()
+		for {
+			select {
+			case clientStatus := <-clientStatusListener.DaemonStatusCh:
+				svr.logger.Info(fmt.Sprintln("Received client status: ", clientStatus.Name, clientStatus.Status))
+				if svr.IsReady() {
+					switch clientStatus.Status {
+					case sysdCommonDefs.STOPPED, sysdCommonDefs.RESTARTING:
+						go svr.DisconnectFromClient(clientStatus.Name)
+					case sysdCommonDefs.UP:
+						go svr.ConnectToClient(clientStatus.Name)
+					}
+				}
+			}
+		}
+	}
+}
+*/
 // StartSTPSConfigNotificationListener
 func (s *LAServer) StartLaConfigNotificationListener() {
-	s.InitServer()
 	//server.InitDone <- true
 	go func(svr *LAServer) {
 		svr.logger.Info("Starting LA Config Event Listener")
