@@ -431,15 +431,18 @@ func (s *STPDServiceHandler) CreateStpPort(config *stpd.StpPort) (rv bool, err e
 		portconfig := &stp.StpPortConfig{}
 		ConvertThriftPortConfigToStpPortConfig(config, portconfig)
 		err = stp.StpPortConfigParamCheck(portconfig, false)
-		if err == nil {
-			cfg := server.STPConfig{
-				Msgtype: server.STPConfigMsgCreatePort,
-				Msgdata: portconfig,
+		// only create the instance if it up
+		if config.AdminState == "UP" {
+			if err == nil {
+				cfg := server.STPConfig{
+					Msgtype: server.STPConfigMsgCreatePort,
+					Msgdata: portconfig,
+				}
+				s.server.ConfigCh <- cfg
+				return rv, err
+			} else {
+				return false, err
 			}
-			s.server.ConfigCh <- cfg
-			return rv, err
-		} else {
-			return false, err
 		}
 	}
 	return rv, err
@@ -450,15 +453,23 @@ func (s *STPDServiceHandler) DeleteStpPort(config *stpd.StpPort) (rv bool, err e
 	rv = true
 	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
-		stp.StpLogger("INFO", "DeleteStpPort (server): deleted ")
+		stp.StpLogger("INFO", "DeleteStpPort (server): deleted")
 		portconfig := &stp.StpPortConfig{}
 		ConvertThriftPortConfigToStpPortConfig(config, portconfig)
 
-		cfg := server.STPConfig{
-			Msgtype: server.STPConfigMsgDeletePort,
-			Msgdata: portconfig,
+		// assume that if the port exists that you can delete it otherwise
+		// it may have been a port which Admin DOWN
+		ifIndex := stp.GetIfIndexFromIntfRef(config.IntfRef)
+		brgIfIndex := int32(config.Vlan)
+		var p *stp.StpPort
+		if stp.StpFindPortByIfIndex(ifIndex, brgIfIndex, &p) {
+
+			cfg := server.STPConfig{
+				Msgtype: server.STPConfigMsgDeletePort,
+				Msgdata: config,
+			}
+			s.server.ConfigCh <- cfg
 		}
-		s.server.ConfigCh <- cfg
 	}
 	return rv, err
 }
@@ -476,7 +487,9 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 		ifIndex := stp.GetIfIndexFromIntfRef(origconfig.IntfRef)
 		brgIfIndex := int32(origconfig.Vlan)
 		if !stp.StpFindPortByIfIndex(ifIndex, brgIfIndex, &p) {
-			return false, errors.New(fmt.Sprintf("Unknown Stp port in update config", origconfig.IntfRef))
+			if updateconfig.AdminState == "DOWN" {
+				return rv, nil
+			}
 		}
 
 		ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
@@ -496,7 +509,7 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 
 		attrMap := map[string]server.STPConfigMsgType{
 			"Priority":          server.STPConfigMsgUpdatePortPriority,
-			"Enable":            server.STPConfigMsgUpdatePortEnable,
+			"AdminState":        server.STPConfigMsgUpdatePortEnable,
 			"PathCost":          server.STPConfigMsgUpdatePortPathCost,
 			"ProtocolMigration": server.STPConfigMsgUpdatePortProtocolMigration,
 			"AdminPointToPoint": server.STPConfigMsgUpdatePortAdminPointToPoint,
@@ -509,6 +522,24 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 		// important to note that the attrset starts at index 0 which is the BaseObj
 		// which is not the first element on the thrift obj, thus we need to skip
 		// this attribute
+
+		// check to see if AdminState is being changed
+		for i := 0; i < objTyp.NumField(); i++ {
+			objName := objTyp.Field(i).Name
+			if objName == "AdminState" {
+
+				if updateconfig.AdminState == "UP" {
+					cfg.Msgtype = server.STPConfigMsgCreatePort
+				} else { // DOWN
+					cfg.Msgtype = server.STPConfigMsgDeletePort
+				}
+				// send config message to server
+				s.server.ConfigCh <- cfg
+				return rv, err
+			}
+		}
+
+		// handle all other attribute updates
 		for i := 0; i < objTyp.NumField(); i++ {
 			objName := objTyp.Field(i).Name
 			//fmt.Println("UpdateDot1dStpBridgeConfig (server): (index, objName) ", i, objName)

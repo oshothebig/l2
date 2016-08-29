@@ -994,7 +994,8 @@ func (prtm *PrtMachine) NotifyNewInfoChanged(oldnewinfo bool, newnewinfo bool) {
 
 func (prtm *PrtMachine) ProcessPostStateInitPort() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateInitPort {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateInitPort {
 		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateInitPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
@@ -1008,7 +1009,8 @@ func (prtm *PrtMachine) ProcessPostStateInitPort() {
 
 func (prtm *PrtMachine) ProcessingPostStateRootProposed() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootProposed {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootProposed {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1021,7 +1023,8 @@ func (prtm *PrtMachine) ProcessingPostStateRootProposed() {
 
 func (prtm *PrtMachine) ProcessingPostStateRootAgreed() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootAgreed {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootAgreed {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1034,7 +1037,8 @@ func (prtm *PrtMachine) ProcessingPostStateRootAgreed() {
 
 func (prtm *PrtMachine) ProcessingPostStateReRoot() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateReRoot {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateReRoot {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1047,7 +1051,8 @@ func (prtm *PrtMachine) ProcessingPostStateReRoot() {
 
 func (prtm *PrtMachine) ProcessingPostStateRootForward() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootForward {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootForward {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1060,7 +1065,8 @@ func (prtm *PrtMachine) ProcessingPostStateRootForward() {
 
 func (prtm *PrtMachine) ProcessingPostStateRootLearn() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootLearn {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootLearn {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1073,7 +1079,8 @@ func (prtm *PrtMachine) ProcessingPostStateRootLearn() {
 
 func (prtm *PrtMachine) ProcessingPostStateReRooted() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateReRooted {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateReRooted {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1087,7 +1094,8 @@ func (prtm *PrtMachine) ProcessingPostStateReRooted() {
 func (prtm *PrtMachine) ProcessPostStateRootPort() {
 	p := prtm.p
 	b := p.b
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
 		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("PrtStateRootPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if p.Proposed &&
@@ -1203,7 +1211,8 @@ func (prtm *PrtMachine) ProcessPostStateRootPort() {
 
 func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
 		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateDesignatedPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Synced[%t] Sync[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if !p.Forwarding &&
@@ -1495,7 +1504,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 
 func (prtm *PrtMachine) ProcessingPostStateDesignatedPropose() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPropose {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPropose {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1506,7 +1516,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPropose() {
 }
 func (prtm *PrtMachine) ProcessingPostStateDesignatedSynced() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedSynced {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedSynced {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1517,7 +1528,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedSynced() {
 }
 func (prtm *PrtMachine) ProcessingPostStateDesignatedRetired() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedRetired {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedRetired {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1528,7 +1540,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedRetired() {
 }
 func (prtm *PrtMachine) ProcessingPostStateDesignatedForward() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedForward {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedForward {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1539,7 +1552,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedForward() {
 }
 func (prtm *PrtMachine) ProcessingPostStateDesignatedLearn() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedLearn {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedLearn {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1550,7 +1564,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedLearn() {
 }
 func (prtm *PrtMachine) ProcessingPostStateDesignatedDiscard() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedDiscard {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedDiscard {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1562,7 +1577,8 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedDiscard() {
 
 func (prtm *PrtMachine) ProcessingPostStateBlockedPort() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateBlockPort {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateBlockPort {
 		if !p.Learning &&
 			!p.Forwarding &&
 			p.Selected &&
@@ -1579,7 +1595,8 @@ func (prtm *PrtMachine) ProcessingPostStateBlockedPort() {
 
 func (prtm *PrtMachine) ProcessingPostStateAlternateProposed() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternateProposed {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternateProposed {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1591,7 +1608,8 @@ func (prtm *PrtMachine) ProcessingPostStateAlternateProposed() {
 
 func (prtm *PrtMachine) ProcessingPostStateAlternateAgreed() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternateAgreed {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternateAgreed {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1603,7 +1621,8 @@ func (prtm *PrtMachine) ProcessingPostStateAlternateAgreed() {
 
 func (prtm *PrtMachine) ProcessingPostStateBackupPort() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateBackupPort {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateBackupPort {
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
 			StpMachineLogger("ERROR", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s post state[%s]event[%d]\n", rv, PrtStateStrMap[prtm.Machine.Curr.CurrentState()], PrtEventUnconditionallFallThrough))
@@ -1615,7 +1634,8 @@ func (prtm *PrtMachine) ProcessingPostStateBackupPort() {
 
 func (prtm *PrtMachine) ProcessingPostStateAlternatePort() {
 	p := prtm.p
-	if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
+	if p.PrtMachineFsm != nil &&
+		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateAlternatePort {
 		if p.Proposed &&
 			!p.Agree &&
 			p.Selected &&
@@ -1698,7 +1718,8 @@ func (prtm *PrtMachine) ProcessingPostStateAlternatePort() {
 
 func (prtm *PrtMachine) ProcessingPostStateDisable() {
 	p := prtm.p
-	if prtm.Machine.Curr.CurrentState() == PrtStateDisablePort {
+	if p.PrtMachineFsm != nil &&
+		prtm.Machine.Curr.CurrentState() == PrtStateDisablePort {
 		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateDisablePort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 
@@ -1718,7 +1739,8 @@ func (prtm *PrtMachine) ProcessingPostStateDisable() {
 
 func (prtm *PrtMachine) ProcessingPostStateDisabled() {
 	p := prtm.p
-	if prtm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
+	if p.PrtMachineFsm != nil &&
+		prtm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
 		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateDisabledPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if p.FdWhileTimer.count != int32(p.PortTimes.MaxAge) &&
@@ -1795,7 +1817,8 @@ func (prtm *PrtMachine) NotifyReRootChanged(oldreroot bool, newreroot bool) {
 	// only need to handle reroot == true cases
 	// because this is triggered via setReRootTree which needs to notify
 	// all other ports
-	if oldreroot != newreroot {
+	if oldreroot != newreroot &&
+		p.PrtMachineFsm != nil {
 		if p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
 			if p.ReRoot &&
 				p.Selected &&
@@ -1864,7 +1887,8 @@ func (prtm *PrtMachine) NotifySyncChanged(oldsync bool, newsync bool) {
 	// only need to handle sync == true cases
 	// because this is triggered via setSyncTree which needs to notify
 	// all other ports
-	if oldsync != newsync {
+	if oldsync != newsync &&
+		p.PrtMachineFsm != nil {
 		/*StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("notifySyncChanged: state[%s] synced[%t] operedge[%t] learn[%t] forward[%t] selected[%t] updtInfo[%t]",
 		PrtStateStrMap[p.PrtMachineFsm.Machine.Curr.CurrentState()],
 		p.Synced,

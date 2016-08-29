@@ -313,7 +313,7 @@ func TestStpBridgeParamCheckPriority(t *testing.T) {
 		t.Error("ERRROR Setting bridge priority to an invalid value", err)
 	}
 
-	StpBridgeDecd.lete(brgcfg)
+	StpBridgeDelete(brgcfg)
 }
 
 func TestStpBridgeParamCheckMaxAge(t *testing.T) {
@@ -532,7 +532,7 @@ func TestStpBridgeParamCheckVlan(t *testing.T) {
 	brgcfg := StpBridgeConfigSetup()
 
 	// set bad value
-	brgcfg.Vlan = 4095
+	brgcfg.Vlan = 4096
 	err := StpBrgConfigParamCheck(brgcfg)
 	if err == nil {
 		t.Error("ERROR an invalid vlan was set should have errored", brgcfg.Vlan)
@@ -713,6 +713,10 @@ func TestStpPortParamPriority(t *testing.T) {
 	if err == nil {
 		t.Error("ERROR: set an ivalid port priority 50 should have failed", err)
 	}
+
+	// give test time to complete
+	time.Sleep(time.Millisecond * 10)
+
 }
 
 func TestStpPortParamAdminPathCost(t *testing.T) {
@@ -867,6 +871,8 @@ func TestStpPortParamBridgeAssurance(t *testing.T) {
 		t.Error("ERROR: failed to set port as an admin edge port because Bridge Assurance is enabled", err)
 	}
 
+	// give test time to complete
+	time.Sleep(time.Millisecond * 10)
 }
 
 func TestStpPortParamBpduGuard(t *testing.T) {
@@ -948,6 +954,10 @@ func TestStpPortParamBpduGuard(t *testing.T) {
 	if err != nil {
 		t.Error("ERROR: valid port config bpdu Guard is no longer enabled set should not have errored", p.AdminEdgePort, p.BpduGuard, err)
 	}
+
+	// give test time to complete
+	time.Sleep(time.Millisecond * 10)
+
 }
 
 func TestStpPortParamProtocolMigration(t *testing.T) {
@@ -1067,6 +1077,15 @@ func TestStpPortPortEnable(t *testing.T) {
 	if err != nil {
 		t.Error("ERROR: invalid port config port enable not enabled", err)
 	}
+
+	// lets give the test some time to complete
+	// otherwise a crash may occur due to an event
+	// being processed when the port id being deleted.
+	// This is unlikely to happen from external user
+	// however should be noted that a true solution
+	// is needed
+	time.Sleep(time.Millisecond * 10)
+
 }
 
 func TestStpPortLinkUpDown(t *testing.T) {
@@ -1095,5 +1114,13 @@ func TestStpPortLinkUpDown(t *testing.T) {
 
 	// link down
 	StpPortLinkDown(p.IfIndex)
+
+	// lets give the test some time to complete
+	// otherwise a crash may occur due to an event
+	// being processed when the port id being deleted.
+	// This is unlikely to happen from external user
+	// however should be noted that a true solution
+	// is needed
+	time.Sleep(time.Millisecond * 10)
 
 }
