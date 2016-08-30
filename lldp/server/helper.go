@@ -131,8 +131,8 @@ func (intf *LLDPGlobalInfo) FreeDynamicMemory() {
 
 /*  Create Pcap Handler
  */
-func (intf *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
-	lldpPromiscuous bool, lldpTimeout time.Duration) error {
+func (intf *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32, lldpPromiscuous bool, lldpTimeout time.Duration) error {
+	debug.Logger.Debug("Creating Pcap for port:", intf.Port.Name, "ifIndex:", intf.Port.IfIndex)
 	pcapHdl, err := pcap.OpenLive(intf.Port.Name, lldpSnapshotLen, lldpPromiscuous, lldpTimeout)
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Creating Pcap Handler failed for", intf.Port.Name, "Error:", err))
@@ -140,11 +140,12 @@ func (intf *LLDPGlobalInfo) CreatePcapHandler(lldpSnapshotLen int32,
 	}
 	err = pcapHdl.SetBPFFilter(LLDP_BPF_FILTER)
 	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("setting filter", LLDP_BPF_FILTER, "for", intf.Port.Name,
+		debug.Logger.Err(fmt.Sprintln("setting filter:", LLDP_BPF_FILTER, "for", intf.Port.Name,
 			"failed with error:", err))
 		return errors.New("Setting BPF Filter Failed")
 	}
 	intf.PcapHandle = pcapHdl
+	debug.Logger.Debug("Pcap Created for port:", intf.Port.Name, "ifIndex:", intf.Port.IfIndex)
 	return nil
 }
 

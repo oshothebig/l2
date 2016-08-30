@@ -36,6 +36,7 @@ func (svr *LLDPServer) InitDB() error {
 	err = svr.lldpDbHdl.Connect()
 	if err != nil {
 		debug.Logger.Err(fmt.Sprintln("Failed to Create DB Handle", err))
+		svr.lldpDbHdl = nil
 		return err
 	}
 	debug.Logger.Info("DB connection is established, error:", err)

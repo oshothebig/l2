@@ -67,7 +67,7 @@ func (p *RX) VerifyFrame(lldpInfo *layers.LinkLayerDiscovery) error {
 	return nil
 }
 
-func (p *RX) Process(gblInfo *RX, pkt gopacket.Packet) (int, error) {
+func (p *RX) Process(rxInfo *RX, pkt gopacket.Packet) (int, error) {
 	event := config.NoOp
 	ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
 	if ethernetLayer == nil {
@@ -75,8 +75,8 @@ func (p *RX) Process(gblInfo *RX, pkt gopacket.Packet) (int, error) {
 	}
 	eth := ethernetLayer.(*layers.Ethernet)
 	// copy src mac and dst mac
-	gblInfo.SrcMAC = eth.SrcMAC
-	if gblInfo.DstMAC.String() != eth.DstMAC.String() {
+	rxInfo.SrcMAC = eth.SrcMAC
+	if rxInfo.DstMAC.String() != eth.DstMAC.String() {
 		return event, errors.New("Invalid DST MAC in rx frame")
 	}
 	// Get lldp manadatory layer and optional info
@@ -93,28 +93,28 @@ func (p *RX) Process(gblInfo *RX, pkt gopacket.Packet) (int, error) {
 		return event, err
 	}
 	// Update last packet byte for cacheing...
-	if len(gblInfo.LastPkt) == 0 || gblInfo.LastPkt == nil {
+	if len(rxInfo.LastPkt) == 0 || rxInfo.LastPkt == nil {
 		//this is new cache set event state to be learned
-		gblInfo.LastPkt = pkt.Data()
+		rxInfo.LastPkt = pkt.Data()
 		event = config.Learned
 	} else {
 		// if incoming packet has difference then it means that we need to publish event
-		if bytes.Compare(gblInfo.LastPkt, pkt.Data()) != 0 {
+		if bytes.Compare(rxInfo.LastPkt, pkt.Data()) != 0 {
 			event = config.Updated
 		}
 	}
 
-	if gblInfo.RxFrame == nil {
-		gblInfo.RxFrame = new(layers.LinkLayerDiscovery)
+	if rxInfo.RxFrame == nil {
+		rxInfo.RxFrame = new(layers.LinkLayerDiscovery)
 	}
 	// Store lldp frame information received from direct connection
-	*gblInfo.RxFrame = *lldpLayer.(*layers.LinkLayerDiscovery)
+	*rxInfo.RxFrame = *lldpLayer.(*layers.LinkLayerDiscovery)
 
-	if gblInfo.RxLinkInfo == nil {
-		gblInfo.RxLinkInfo = new(layers.LinkLayerDiscoveryInfo)
+	if rxInfo.RxLinkInfo == nil {
+		rxInfo.RxLinkInfo = new(layers.LinkLayerDiscoveryInfo)
 	}
 	// Store lldp link layer optional tlv information
-	*gblInfo.RxLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
+	*rxInfo.RxLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
 
 	return event, nil
 }
@@ -123,27 +123,26 @@ func (p *RX) Process(gblInfo *RX, pkt gopacket.Packet) (int, error) {
  *  Handle TTL timer. Once the timer expires, we will delete the remote entry
  *  if timer is running then reset the value
  */
-func (gblInfo *RX) CheckPeerEntry(port string, eCh chan config.EventInfo, ifIndex int32) {
-	//func (gblInfo *RX) CheckPeerEntry(port string) {
-	if gblInfo.ClearCacheTimer != nil {
+func (rxInfo *RX) CheckPeerEntry(port string, eCh chan config.EventInfo, ifIndex int32) {
+	if rxInfo.ClearCacheTimer != nil {
 		// timer is running reset the time so that it doesn't expire
-		gblInfo.ClearCacheTimer.Reset(time.Duration(gblInfo.RxFrame.TTL) * time.Second)
+		rxInfo.ClearCacheTimer.Reset(time.Duration(rxInfo.RxFrame.TTL) * time.Second)
 	} else {
 		var clearPeerInfo_func func()
 		// On timer expiration we will delete peer info and set it to nil
 		clearPeerInfo_func = func() {
 			debug.Logger.Info("Recipient info delete timer expired for " + "peer connected to port " +
 				port + " and hence deleting peer information from runtime")
-			gblInfo.RxFrame = nil
-			gblInfo.RxLinkInfo = nil
-			gblInfo.LastPkt = nil
+			rxInfo.RxFrame = nil
+			rxInfo.RxLinkInfo = nil
+			rxInfo.LastPkt = nil
 			eCh <- config.EventInfo{
 				EventType: config.Removed,
 				IfIndex:   ifIndex,
 			}
 		}
 		// First time start function
-		gblInfo.ClearCacheTimer = time.AfterFunc(time.Duration(gblInfo.RxFrame.TTL)*time.Second,
+		rxInfo.ClearCacheTimer = time.AfterFunc(time.Duration(rxInfo.RxFrame.TTL)*time.Second,
 			clearPeerInfo_func)
 	}
 }

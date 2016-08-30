@@ -103,8 +103,6 @@ type LLDPServer struct {
 	UpdateCacheCh chan bool
 	// Event Publish channel for server
 	EventCh chan config.EventInfo
-	// lldp exit
-	lldpExit chan bool
 }
 
 const (
@@ -112,9 +110,11 @@ const (
 	LLDP_CPU_PROFILE_FILE = "/var/log/lldp.prof"
 
 	// Consts Init Size/Capacity
-	LLDP_INITIAL_GLOBAL_INFO_CAPACITY = 100
-	LLDP_RX_PKT_CHANNEL_SIZE          = 30
-	LLDP_TX_PKT_CHANNEL_SIZE          = 30
+	LLDP_INITIAL_GLOBAL_INFO_CAPACITY   = 100
+	LLDP_RX_PKT_CHANNEL_SIZE            = 30
+	LLDP_TX_PKT_CHANNEL_SIZE            = 30
+	LLDP_PORT_STATE_CHANGE_CHANNEL_SIZE = 200
+	LLDP_PORT_CONFIG_CHANNEL_SIZE       = 5
 
 	// Port Operation State
 	LLDP_PORT_STATE_DOWN = "DOWN"
