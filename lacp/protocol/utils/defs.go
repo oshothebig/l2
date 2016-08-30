@@ -25,10 +25,13 @@
 package utils
 
 import (
+	"net"
 	"strconv"
 	"strings"
 	"utils/fsm"
 )
+
+var LaSwitchMac [6]uint8
 
 // MachineEvent machine events will be sent
 // with this struct and will provide extra data
@@ -81,4 +84,13 @@ func (se *StateEvent) SetState(s fsm.State) {
 	if se.IsLoggerEna() && se.ps != se.s {
 		se.Logger((strings.Join([]string{"Src", se.esrc, "OldState", se.StrStateMap[se.ps], "Evt", strconv.Itoa(int(se.e)), "NewState", se.StrStateMap[s]}, ":")))
 	}
+}
+
+func SaveSwitchMac(switchMac string) {
+	netAddr, _ := net.ParseMAC(switchMac)
+	LaSwitchMac = [6]uint8{netAddr[0], netAddr[1], netAddr[2], netAddr[3], netAddr[4], netAddr[5]}
+}
+
+func GetSwitchMac() [6]uint8 {
+	return LaSwitchMac
 }

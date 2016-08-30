@@ -28,16 +28,17 @@
 package lacp
 
 import (
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"net"
 	"testing"
 	"time"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	var msg string
 	var portchan chan string
@@ -511,7 +512,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 }
 
 func TestLaAggPortRxMachineInvalidStateTransitions(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	// must be called to initialize the global
 	// must be called to initialize the global

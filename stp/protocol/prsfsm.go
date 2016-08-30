@@ -78,8 +78,6 @@ type PrsMachine struct {
 
 	// machine specific events
 	PrsEvents chan MachineEvent
-	// stop go routine
-	PrsKillSignalEvent chan MachineEvent
 	// enable logging
 	PrsLogEnableEvent chan bool
 }
@@ -95,11 +93,10 @@ func (m *PrsMachine) GetPrevStateStr() string {
 // NewStpPimMachine will create a new instance of the LacpRxMachine
 func NewStpPrsMachine(b *Bridge) *PrsMachine {
 	prsm := &PrsMachine{
-		b:                  b,
-		debugLevel:         b.DebugLevel,
-		PrsEvents:          make(chan MachineEvent, 50),
-		PrsKillSignalEvent: make(chan MachineEvent, 1),
-		PrsLogEnableEvent:  make(chan bool)}
+		b:                 b,
+		debugLevel:        b.DebugLevel,
+		PrsEvents:         make(chan MachineEvent, 50),
+		PrsLogEnableEvent: make(chan bool)}
 
 	b.PrsMachineFsm = prsm
 
@@ -134,24 +131,8 @@ func (prsm *PrsMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (prsm *PrsMachine) Stop() {
 
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if prsm.Machine.Curr.CurrentState() != PrsStateNone {
-		wait := make(chan string, 1)
-		// stop the go routine
-		prsm.PrsKillSignalEvent <- MachineEvent{
-			e:            PrsEventBegin,
-			responseChan: wait,
-		}
-
-		<-wait
-	}
-
 	close(prsm.PrsEvents)
 	close(prsm.PrsLogEnableEvent)
-	close(prsm.PrsKillSignalEvent)
-
 }
 
 // PrsMachineInitBridge
@@ -211,31 +192,28 @@ func (b *Bridge) PrsMachineMain() {
 		defer m.b.wg.Done()
 		for {
 			select {
-			case event := <-m.PrsKillSignalEvent:
-				StpMachineLogger("INFO", PrsMachineModuleStr, -1, b.BrgIfIndex, "Machine End")
-				if event.responseChan != nil {
-					SendResponse(PrsMachineModuleStr, event.responseChan)
-				}
-				return
-
-			case event := <-m.PrsEvents:
+			case event, ok := <-m.PrsEvents:
 				//fmt.Println("Event Rx", event.src, event.e)
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", PrsMachineModuleStr, -1, b.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PrsStateStrMap[m.Machine.Curr.CurrentState()]))
-				} else {
-					if m.Machine.Curr.CurrentState() == PrsStateInitBridge {
-						rv := m.Machine.ProcessEvent(PrsMachineModuleStr, PrsEventUnconditionallFallThrough, nil)
-						if rv != nil {
-							StpMachineLogger("ERROR", PrsMachineModuleStr, -1, b.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PrsStateStrMap[m.Machine.Curr.CurrentState()]))
+				if ok {
+					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					if rv != nil {
+						StpMachineLogger("ERROR", PrsMachineModuleStr, -1, b.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PrsStateStrMap[m.Machine.Curr.CurrentState()]))
+					} else {
+						if m.Machine.Curr.CurrentState() == PrsStateInitBridge {
+							rv := m.Machine.ProcessEvent(PrsMachineModuleStr, PrsEventUnconditionallFallThrough, nil)
+							if rv != nil {
+								StpMachineLogger("ERROR", PrsMachineModuleStr, -1, b.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PrsStateStrMap[m.Machine.Curr.CurrentState()]))
+							}
 						}
 					}
-				}
 
-				if event.responseChan != nil {
-					SendResponse(PrsMachineModuleStr, event.responseChan)
+					if event.responseChan != nil {
+						SendResponse(PrsMachineModuleStr, event.responseChan)
+					}
+				} else {
+					StpMachineLogger("INFO", PrsMachineModuleStr, -1, b.BrgIfIndex, "Machine End")
+					return
 				}
-
 			case ena := <-m.PrsLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}
@@ -297,9 +275,7 @@ func (prsm *PrsMachine) updtRolesTree() {
 	// lets find the root port
 	for _, pId := range b.StpPorts {
 		if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
-			if prsm.debugLevel > 1 {
-				StpMachineLogger("INFO", PrsMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("updtRolesTree: InfoIs %d", p.InfoIs))
-			}
+			StpMachineLogger("DEBUG", PrsMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("updtRolesTree: InfoIs %d", p.InfoIs))
 			// 17.21.25 (a)
 			if p.InfoIs == PortInfoStateReceived {
 

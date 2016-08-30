@@ -26,14 +26,15 @@ package lacp
 
 import (
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"l2/lacp/protocol/utils"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 )
 
 type PortProperties struct {
@@ -433,8 +434,10 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		// DR is the owner of the systemid and priority and it set the aggregator
 		// mac and priority
 		p.LaPortLog(fmt.Sprintf("Aggregator  %s is an MLAG owned by DR %s, thus using DR SystemId %+v Priority %d", a.AggName, a.DrniName, a.AggMacAddr, a.AggPriority))
-		p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(a.AggMacAddr))
-		p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(a.AggPriority)
+		p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.Actor_System))
+		p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
+		p.ActorOper.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(a.AggMacAddr))
+		p.ActorOper.System.LacpSystemActorSystemPrioritySet(a.AggPriority)
 
 	} else {
 		if a != nil {
@@ -442,13 +445,17 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		}
 		p.ActorAdmin.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.Actor_System))
 		p.ActorAdmin.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
+		p.ActorOper.System.LacpSystemActorSystemIdSet(convertSysIdKeyToNetHwAddress(sgi.SystemDefaultParams.Actor_System))
+		p.ActorOper.System.LacpSystemActorSystemPrioritySet(sgi.SystemDefaultParams.Actor_System_priority)
 	}
 	p.ActorAdmin.Key = p.Key
 	p.ActorAdmin.port = p.PortNum
 	p.ActorAdmin.Port_pri = p.portPriority
 
-	// default actor oper same as admin
-	p.ActorOper = p.ActorAdmin
+	p.ActorOper.Key = p.ActorAdmin.Key
+	p.ActorOper.port = p.ActorAdmin.port
+	p.ActorOper.Port_pri = p.ActorAdmin.Port_pri
+	p.ActorOper.State = p.ActorAdmin.State
 
 	// port should be forced to unselected until the
 	// DRNI has negotiated the Key
@@ -472,31 +479,77 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 
 	sgi.PortList = append(sgi.PortList, p)
 
-	handle, err := pcap.OpenLive(p.IntfNum, 65536, false, 50*time.Millisecond)
-	if err != nil {
-		// failure here may be ok as this may be SIM
-		if !strings.Contains(p.IntfNum, "SIM") {
-			fmt.Println("Error creating pcap OpenLive handle for port", p.PortNum, p.IntfNum, err)
-		}
-		return p
+	linkStatus := p.IsPortOperStatusUp()
+	p.LaPortLog(fmt.Sprintf("Link Status %s", linkStatus))
+	if linkStatus {
+		p.CreateRxTx()
 	}
-	fmt.Println("Creating Listener for intf", p.IntfNum)
-	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
-	p.handle = handle
-	src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
-	in := src.Packets()
-	// start rx routine
-	LaRxMain(p.PortNum, in)
-	fmt.Println("Rx Main Started for port", p.PortNum)
-
-	// register the tx func
-	sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, TxViaLinuxIf)
-
-	fmt.Println("Tx Callback Registered with")
-
-	//fmt.Println("New Port:\n%#v", *p)
 
 	return p
+}
+
+func (p *LaAggPort) CreateRxTx() {
+	if p.handle == nil {
+		var a *LaAggregator
+		var sysId LacpSystem
+		if LaFindAggById(p.AggId, &a) {
+			mac, _ := net.ParseMAC(a.Config.SystemIdMac)
+			sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
+			sysId.Actor_System_priority = a.Config.SystemPriority
+
+			sgi := LacpSysGlobalInfoByIdGet(sysId)
+
+			handle, err := pcap.OpenLive(p.IntfNum, 65536, true, 50*time.Millisecond)
+			if err != nil {
+				// failure here may be ok as this may be SIM
+				if !strings.Contains(p.IntfNum, "SIM") {
+					fmt.Println("Error creating pcap OpenLive handle for port", p.PortNum, p.IntfNum, err)
+				}
+				return
+			}
+			filter := fmt.Sprintf(`ether dst 01:80:C2:00:00:02`)
+			err = handle.SetBPFFilter(filter)
+			if err != nil {
+				p.LaPortLog(fmt.Sprintln("Unable to set bpf filter to pcap handler", err))
+			}
+			p.LaPortLog(fmt.Sprintln("Creating Listener for intf", p.IntfNum))
+			//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
+			p.handle = handle
+			src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+			in := src.Packets()
+			// start rx routine
+			LaRxMain(p.PortNum, in)
+			p.LaPortLog(fmt.Sprintln("Rx Main Started for port", p.PortNum, sysId))
+
+			// register the tx func
+			if sgi != nil {
+				sgi.LaSysGlobalRegisterTxCallback(p.IntfNum, TxViaLinuxIf)
+			}
+		}
+	} else {
+		p.LaPortLog("Unabled to find AGG assocaited with this port")
+	}
+}
+
+func (p *LaAggPort) DeleteRxTx() {
+	var a *LaAggregator
+	var sysId LacpSystem
+	if LaFindAggById(p.AggId, &a) {
+		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
+		sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
+		sysId.Actor_System_priority = a.Config.SystemPriority
+	}
+
+	sgi := LacpSysGlobalInfoByIdGet(sysId)
+	if sgi != nil {
+		sgi.LaSysGlobalDeRegisterTxCallback(p.IntfNum)
+	}
+
+	// close rx/tx processing
+	if p.handle != nil {
+		p.handle.Close()
+		fmt.Println("RX/TX handle closed for port", p.PortNum)
+	}
 }
 
 func (p *LaAggPort) EnableLogging(ena bool) {
@@ -555,23 +608,7 @@ func (p *LaAggPort) LaAggPortDelete() {
 
 func (p *LaAggPort) Stop() {
 
-	var a *LaAggregator
-	var sysId LacpSystem
-	if LaFindAggById(p.AggId, &a) {
-		mac, _ := net.ParseMAC(a.Config.SystemIdMac)
-		sysId.Actor_System = convertNetHwAddressToSysIdKey(mac)
-		sysId.Actor_System_priority = a.Config.SystemPriority
-	}
-
-	sgi := LacpSysGlobalInfoByIdGet(sysId)
-	if sgi != nil {
-		sgi.LaSysGlobalDeRegisterTxCallback(p.IntfNum)
-	}
-	// close rx/tx processing
-	if p.handle != nil {
-		p.handle.Close()
-		fmt.Println("RX/TX handle closed for port", p.PortNum)
-	}
+	p.DeleteRxTx()
 
 	//p.BEGIN(true)
 	// stop the State machines
@@ -990,9 +1027,40 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 
 func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16) {
 
-	p.LaPortLog(fmt.Sprintf("Changing Actor SystemId: MAC: %+v Priority %d ", sysIdMac, sysPrio))
+	p.LaPortLog(fmt.Sprintf("Changing Actor Admin SystemId: MAC: %+v Priority %d ", sysIdMac, sysPrio))
 	p.ActorAdmin.System.Actor_System = sysIdMac
 	p.ActorAdmin.System.Actor_System_priority = sysPrio
+	// only change the oper status if this is not owned by DR
+	// if it is owned by DR then will ignore as the oper status
+	// is based on the portal system info
+	if p.DrniName == "" {
+		p.ActorOper.System.Actor_System = p.ActorAdmin.System.Actor_System
+		p.ActorOper.System.Actor_System_priority = p.ActorAdmin.System.Actor_System_priority
+	}
+
+	p.aggSelected = LacpAggUnSelected
+
+	if p.ModeGet() == LacpModeOn ||
+		p.lacpEnabled == false ||
+		p.PortEnabled == false {
+		return
+	}
+
+	// partner info should be wrong so lets force sync to be off
+	LacpStateClear(&p.PartnerOper.State, LacpStateSyncBit)
+
+	p.checkConfigForSelection()
+
+}
+
+func (p *LaAggPort) LaAggPortActorOperInfoSet(sysIdMac [6]uint8, sysPrio uint16) {
+
+	p.LaPortLog(fmt.Sprintf("Changing Actor Oper SystemId: MAC: %+v Priority %d ", sysIdMac, sysPrio))
+	// only change the oper status if this is not owned by DR
+	// if it is owned by DR then will ignore as the oper status
+	// is based on the portal system info
+	p.ActorOper.System.Actor_System = sysIdMac
+	p.ActorOper.System.Actor_System_priority = sysPrio
 
 	p.aggSelected = LacpAggUnSelected
 

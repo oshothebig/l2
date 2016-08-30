@@ -555,18 +555,20 @@ func SetLaAggPortSystemInfoFromDistributedRelay(pId uint16, sysIdMac string, sys
 	// agg exists
 	if LaFindPortById(pId, &p) {
 		mac, ok := net.ParseMAC(sysIdMac)
-		utils.GlobalLogger.Info(fmt.Sprintf("%s Previous Agg Port %d OperKey %d New %d", drName, pId, p.ActorOper.Key, operKey))
+
+		// system Id has not been updated yet
+		macAddr := convertNetHwAddressToSysIdKey(mac)
 
 		if ok == nil &&
-			p.ActorOper.Key != operKey {
+			(p.ActorOper.System.Actor_System != macAddr ||
+				p.ActorOper.Key != operKey) {
 			// update the port infot o point back to drni
 			p.DrniName = drName
 			p.DrniSynced = true
 			p.ActorOper.Key = uint16(operKey)
-
 			utils.GlobalLogger.Info(fmt.Sprintf("Setting DR %s info systemid %s priority %d and oper key %d on LAG port %d", drName, sysIdMac, sysPrio, operKey, pId))
-			macArr := convertNetHwAddressToSysIdKey(mac)
-			p.LaAggPortActorAdminInfoSet(macArr, sysPrio)
+
+			p.LaAggPortActorOperInfoSet(macAddr, sysPrio)
 		}
 	} else {
 		utils.GlobalLogger.Info(fmt.Sprintf("ERROR: Unable to update system info on LAG port %d not found", pId))
@@ -651,6 +653,10 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 			createcb(int32(p.PortNum))
 		}
 
+		// lets setup the RX/TX for this port in case it has not already been set
+		if p.IsPortOperStatusUp() {
+			p.CreateRxTx()
+		}
 		// attach the port to the aggregator
 		//LacpStateSet(&p.ActorAdmin.State, LacpStateAggregationBit)
 
@@ -680,6 +686,9 @@ func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 
 		// update selection to be unselected
 		p.checkConfigForSelection()
+
+		// lets detach the RX/TX for this port in case it has been set
+		//p.DeleteRxTx()
 
 		// del reference to aggId
 		p.AggId = 0

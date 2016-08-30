@@ -246,26 +246,56 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 
 	ipp.LaIppLog(fmt.Sprintf("Created IPP port %+v\n", ipp))
 
-	handle, err := pcap.OpenLive(ipp.Name, 65536, false, 50*time.Millisecond)
-	if err != nil {
-		// failure here may be ok as this may be SIM
-		if !strings.Contains(ipp.Name, "SIM") {
-			ipp.LaIppLog(fmt.Sprintf("Error creating pcap OpenLive handle for port", ipp.Id, ipp.Name, err))
-		}
-		return ipp
+	if ipp.OperState {
+		ipp.CreateRxTx()
 	}
-	fmt.Println("Creating Listener for intf ", ipp.Name)
-	ipp.handle = handle
-	src := gopacket.NewPacketSource(ipp.handle, layers.LayerTypeEthernet)
-	in := src.Packets()
-	// start rx routine
-	DrRxMain(uint16(ipp.Id), ipp.dr.DrniPortalAddr.String(), in)
-	ipp.LaIppLog(fmt.Sprintf("Rx Main Started for ipp link port", ipp.Id))
-
-	// register the tx func
-	DRGlobalSystem.DRSystemGlobalRegisterTxCallback(key, TxViaLinuxIf)
-
 	return ipp
+}
+
+func (p *DRCPIpp) CreateRxTx() {
+	if p.handle == nil {
+		handle, err := pcap.OpenLive(p.Name, 65536, true, 50*time.Millisecond)
+		if err != nil {
+			// failure here may be ok as this may be SIM
+			if !strings.Contains(p.Name, "SIM") {
+				p.LaIppLog(fmt.Sprintf("Error creating pcap OpenLive handle for port", p.Id, p.Name, err))
+			}
+			return
+		}
+		fmt.Println("Creating Listener for intf ", p.Name)
+		p.handle = handle
+		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+		in := src.Packets()
+		// start rx routine
+		DrRxMain(uint16(p.Id), p.dr.DrniPortalAddr.String(), in)
+		p.LaIppLog(fmt.Sprintf("Rx Main Started for ipp link port %s", p.Name))
+
+		key := IppDbKey{
+			Name:   p.Name,
+			DrName: p.dr.DrniName,
+		}
+
+		// register the tx func
+		DRGlobalSystem.DRSystemGlobalRegisterTxCallback(key, TxViaLinuxIf)
+	}
+}
+
+func (p *DRCPIpp) DeleteRxTx() {
+
+	key := IppDbKey{
+		Name:   p.Name,
+		DrName: p.dr.DrniName,
+	}
+	// De-register the tx function
+	DRGlobalSystem.DRSystemGlobalDeRegisterTxCallback(key)
+
+	// close rx/tx processing
+	if p.handle != nil {
+		p.handle.Close()
+		p.LaIppLog(fmt.Sprintf("RX/TX handle closed for port", p.Id))
+
+	}
+
 }
 
 //
@@ -305,6 +335,7 @@ func (p *DRCPIpp) SetupDRCPMacCapture(mac string) {
 	} else {
 		MacCaptureCount[key] = 1
 		for _, client := range utils.GetAsicDPluginList() {
+			p.LaIppLog(fmt.Sprintf("Enabling Pkt Capture in HW IPP port %s with mac %s", p.Name, mac))
 			client.EnablePacketReception(mac, 0, int32(p.Id))
 		}
 	}
@@ -323,6 +354,7 @@ func (p *DRCPIpp) TeardownDRCPMacCapture(mac string) {
 		MacCaptureCount[key]--
 		if MacCaptureCount[key] == 0 {
 			for _, client := range utils.GetAsicDPluginList() {
+				p.LaIppLog(fmt.Sprintf("Disabling Pkt Capture in HW IPP port %s with mac %s", p.Name, mac))
 				client.DisablePacketReception(mac, 0, int32(p.Id))
 			}
 		}
@@ -333,20 +365,7 @@ func (p *DRCPIpp) TeardownDRCPMacCapture(mac string) {
 // Stop the port services and state machines
 func (p *DRCPIpp) Stop() {
 
-	key := IppDbKey{
-		Name:   p.Name,
-		DrName: p.dr.DrniName,
-	}
-	// De-register the tx function
-	DRGlobalSystem.DRSystemGlobalDeRegisterTxCallback(key)
-
-	// close rx/tx processing
-	if p.handle != nil {
-		p.handle.Close()
-		p.LaIppLog(fmt.Sprintf("RX/TX handle closed for port", p.Id))
-
-	}
-
+	p.DeleteRxTx()
 	// Stop the State Machines
 
 	// Ptxm
@@ -483,6 +502,8 @@ func (p *DRCPIpp) BEGIN(restart bool) {
 // DrIppLinkUp distribute link up event
 func (p *DRCPIpp) DrIppLinkUp() {
 
+	p.CreateRxTx()
+
 	mEvtChan := make([]chan utils.MachineEvent, 0)
 	evt := make([]utils.MachineEvent, 0)
 
@@ -506,6 +527,9 @@ func (p *DRCPIpp) DrIppLinkUp() {
 
 // DrIppLinkDown distributelink down event
 func (p *DRCPIpp) DrIppLinkDown() {
+
+	p.DeleteRxTx()
+
 	mEvtChan := make([]chan utils.MachineEvent, 0)
 	evt := make([]utils.MachineEvent, 0)
 

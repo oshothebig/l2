@@ -67,10 +67,9 @@ func main() {
 	// Start keepalive routine
 	go keepalive.InitKeepAlive("stpd", path)
 
-	stp.StpLogger("INFO", "Starting STP Config Notification Listener")
 	// this must be called before creating service handler as
 	// the service handle instanciation will start the read config from db
-	stpServer.StartSTPSConfigNotificationListener()
+	stpServer.InitServer()
 	confIface := rpc.NewSTPDServiceHandler(stpServer)
 	stp.StpLogger("INFO", "Starting STP Thrift daemon")
 	rpc.StartServer(stp.GetStpLogger(), confIface, *paramsDir)

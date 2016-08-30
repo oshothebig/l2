@@ -26,12 +26,13 @@ package drcp
 
 import (
 	"fmt"
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 const PsMachineModuleStr = "Portal System Machine"
@@ -286,21 +287,21 @@ func (psm *PsMachine) updateKey() {
 		for _, ipp := range dr.Ipplinks {
 
 			if dr.DRFHomeAdminAggregatorKey != 0 &&
-				(dr.DRFHomeAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) &&
-				(dr.DRFHomeAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
+				(dr.DRFHomeAdminAggregatorKey <= ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) &&
+				(dr.DRFHomeAdminAggregatorKey <= ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
 				if operKey == 0 || dr.DRFHomeAdminAggregatorKey < operKey {
 					operKey = dr.DRFHomeAdminAggregatorKey
 				}
 			} else if ipp.DRFNeighborAdminAggregatorKey != 0 &&
-				(ipp.DRFNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
-				(ipp.DRFNeighborAdminAggregatorKey < ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
+				(ipp.DRFNeighborAdminAggregatorKey <= dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
+				(ipp.DRFNeighborAdminAggregatorKey <= ipp.DRFOtherNeighborAdminAggregatorKey || ipp.DRFOtherNeighborAdminAggregatorKey == 0) {
 				if operKey == 0 || ipp.DRFNeighborAdminAggregatorKey < operKey {
 					operKey = ipp.DRFNeighborAdminAggregatorKey
 				}
 			} else if ipp.DRFOtherNeighborAdminAggregatorKey != 0 &&
-				(ipp.DRFOtherNeighborAdminAggregatorKey < dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
-				(ipp.DRFOtherNeighborAdminAggregatorKey < ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) {
-				if operKey == 0 || ipp.DRFOtherNeighborAdminAggregatorKey < operKey {
+				(ipp.DRFOtherNeighborAdminAggregatorKey <= dr.DRFHomeAdminAggregatorKey || dr.DRFHomeAdminAggregatorKey == 0) &&
+				(ipp.DRFOtherNeighborAdminAggregatorKey <= ipp.DRFNeighborAdminAggregatorKey || ipp.DRFNeighborAdminAggregatorKey == 0) {
+				if operKey == 0 || ipp.DRFOtherNeighborAdminAggregatorKey <= operKey {
 					operKey = ipp.DRFOtherNeighborAdminAggregatorKey
 				}
 			}
@@ -318,6 +319,17 @@ func (psm *PsMachine) updateKey() {
 				a.ActorOperKey = operKey
 
 				for _, aggport := range a.PortNumList {
+					if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
+						for _, client := range utils.GetAsicDPluginList() {
+							for _, ippid := range dr.DrniIntraPortalLinkList {
+								inport := ippid & 0xffff
+								if inport > 0 {
+									dr.LaDrLog(fmt.Sprintf("Blocking IPP %d to AggPort %d", inport, aggport))
+									client.IppIngressEgressDrop(int32(inport), int32(aggport))
+								}
+							}
+						}
+					}
 					lacp.SetLaAggPortSystemInfoFromDistributedRelay(
 						uint16(aggport),
 						fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",

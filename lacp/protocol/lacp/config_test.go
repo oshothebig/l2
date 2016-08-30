@@ -29,12 +29,13 @@ package lacp
 
 import (
 	"fmt"
-	"github.com/google/gopacket"
 	"l2/lacp/protocol/utils"
 	"net"
 	"testing"
 	"time"
 	"utils/fsm"
+
+	"github.com/google/gopacket"
 )
 
 func ConfigSetup() {
@@ -92,7 +93,7 @@ func InvalidStateCheck(p *LaAggPort, invalidStates []fsm.Event, prevState fsm.St
 }
 
 func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
-
+	defer MemoryCheck(t)
 	var p *LaAggPort
 
 	ConfigSetup()
@@ -178,7 +179,7 @@ func TestLaAggPortCreateAndBeginEvent(t *testing.T) {
 }
 
 func TestLaAggPortCreateDifferentModes(t *testing.T) {
-
+	defer MemoryCheck(t)
 	var p *LaAggPort
 
 	ConfigSetup()
@@ -267,6 +268,7 @@ func TestLaAggPortCreateDifferentModes(t *testing.T) {
 }
 
 func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
+	defer MemoryCheck(t)
 	var p *LaAggPort
 
 	ConfigSetup()
@@ -333,7 +335,7 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 }
 
 func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
-
+	defer MemoryCheck(t)
 	var p *LaAggPort
 	ConfigSetup()
 	// must be called to initialize the global
@@ -384,7 +386,7 @@ func TestLaAggPortCreateWithoutKeySetNoAgg(t *testing.T) {
 }
 
 func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
-
+	defer MemoryCheck(t)
 	var p *LaAggPort
 	ConfigSetup()
 	// must be called to initialize the global
@@ -440,7 +442,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	}
 
 	if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateAttached {
-		t.Error("Mux State expected", LacpMuxmStateAttached, "actual", p.MuxMachineFsm.Machine.Curr.CurrentState())
+		t.Error("Mux State expected", MuxmStateStrMap[LacpMuxmStateAttached], "actual", MuxmStateStrMap[p.MuxMachineFsm.Machine.Curr.CurrentState()])
 	}
 
 	// TODO Check States of other State machines
@@ -466,7 +468,7 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 // - attach port
 // - enable port
 func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
-
+	defer MemoryCheck(t)
 	var p *LaAggPort
 	ConfigSetup()
 	// must be called to initialize the global
@@ -548,6 +550,7 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 
 // Enable port post creation
 func TestLaAggPortEnable(t *testing.T) {
+	defer MemoryCheck(t)
 	var p *LaAggPort
 	ConfigSetup()
 	// must be called to initialize the global
@@ -625,7 +628,7 @@ func TestLaAggPortEnable(t *testing.T) {
 }
 
 func TestTwoAggsBackToBackSinglePort(t *testing.T) {
-
+	defer MemoryCheck(t)
 	const LaAggPortActor = 10
 	const LaAggPortPeer = 20
 	LaAggPortActorIf := "SIMeth0"
@@ -790,7 +793,7 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 // two ports to sync up then force a timeout by disabling
 // one end of the connection by setting the mode to "ON"
 func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	const LaAggPortActor = 11
 	const LaAggPortPeer = 21
@@ -989,7 +992,7 @@ func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 
 // TestLaAggCallSaveLaAggConfig No logic just coverage
 func TestLaAggCallSaveLaAggConfig(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	aconf := &LaAggConfig{
 		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
@@ -1020,7 +1023,7 @@ func TestLaAggCallSaveLaAggConfig(t *testing.T) {
 // TestTwoAggsBackToBackSingleDisableEnableLaAgg will allow for
 // two ports to sync up then disable one end of the lag
 func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	const LaAggPortActor = 11
 	const LaAggPortPeer = 21
@@ -1251,7 +1254,7 @@ func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
 }
 
 func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	const LaAggPortActor = 10
 	const LaAggPortPeer = 20
@@ -1468,7 +1471,7 @@ func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
 }
 
 func TestSetLaAggPortSystemInfo(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	p1conf := &LaAggPortConfig{
 		Id:      LaAggChurnPortActor,

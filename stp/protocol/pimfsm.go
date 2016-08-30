@@ -103,8 +103,6 @@ type PimMachine struct {
 
 	// machine specific events
 	PimEvents chan MachineEvent
-	// stop go routine
-	PimKillSignalEvent chan MachineEvent
 	// enable logging
 	PimLogEnableEvent chan bool
 }
@@ -120,10 +118,9 @@ func (m *PimMachine) GetPrevStateStr() string {
 // NewStpPimMachine will create a new instance of the LacpRxMachine
 func NewStpPimMachine(p *StpPort) *PimMachine {
 	pim := &PimMachine{
-		p:                  p,
-		PimEvents:          make(chan MachineEvent, 50),
-		PimKillSignalEvent: make(chan MachineEvent, 1),
-		PimLogEnableEvent:  make(chan bool)}
+		p:                 p,
+		PimEvents:         make(chan MachineEvent, 50),
+		PimLogEnableEvent: make(chan bool)}
 
 	p.PimMachineFsm = pim
 
@@ -158,24 +155,8 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (pim *PimMachine) Stop() {
 
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if pim.Machine.Curr.CurrentState() != PimStateNone {
-		wait := make(chan string, 1)
-		// stop the go routine
-		pim.PimKillSignalEvent <- MachineEvent{
-			e:            PimEventBegin,
-			responseChan: wait,
-		}
-
-		<-wait
-	}
-
 	close(pim.PimEvents)
 	close(pim.PimLogEnableEvent)
-	close(pim.PimKillSignalEvent)
-
 }
 
 // PimMachineDisabled
@@ -443,30 +424,28 @@ func (p *StpPort) PimMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event := <-m.PimKillSignalEvent:
-				StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
-				if event.responseChan != nil {
-					SendResponse(PimMachineModuleStr, event.responseChan)
-				}
-				return
+			case event, ok := <-m.PimEvents:
 
-			case event := <-m.PimEvents:
+				if ok {
+					if m.Machine.Curr.CurrentState() == PimStateNone && event.e != PimEventBegin {
+						m.PimEvents <- event
+						break
+					}
 
-				if m.Machine.Curr.CurrentState() == PimStateNone && event.e != PimEventBegin {
-					m.PimEvents <- event
-					break
-				}
-
-				//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
-				rv := m.Machine.ProcessEvent(event.src, event.e, event.data)
-				if rv != nil {
-					StpMachineLogger("ERROR", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+					//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
+					rv := m.Machine.ProcessEvent(event.src, event.e, event.data)
+					if rv != nil {
+						StpMachineLogger("ERROR", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
+					} else {
+						// POST events
+						m.ProcessPostStateProcessing(event.data)
+					}
+					if event.responseChan != nil {
+						SendResponse(PimMachineModuleStr, event.responseChan)
+					}
 				} else {
-					// POST events
-					m.ProcessPostStateProcessing(event.data)
-				}
-				if event.responseChan != nil {
-					SendResponse(PimMachineModuleStr, event.responseChan)
+					StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					return
 				}
 
 			case ena := <-m.PimLogEnableEvent:

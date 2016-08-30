@@ -63,11 +63,12 @@ func main() {
 	asicdPlugin := asicdClient.NewAsicdClientInit("Flexswitch", clientInfoFile, asicdHdl)
 
 	utils.SetAsicDPlugin(asicdPlugin)
+	utils.SaveSwitchMac(asicdPlugin.GetSwitchMAC(path))
 
 	// Start keepalive routine
 	go keepalive.InitKeepAlive("lacpd", path)
 
-	laServer.StartLaConfigNotificationListener()
+	laServer.InitServer()
 	confIface := rpc.NewLACPDServiceHandler(laServer)
 	logger.Info("Starting LACP Thrift daemon")
 	rpc.StartServer(utils.GetLaLogger(), confIface, *paramsDir)

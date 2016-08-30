@@ -28,11 +28,13 @@ import (
 	"asicd/asicdCommonDefs"
 	"asicd/pluginManager/pluginCommon"
 	"fmt"
+
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	//"github.com/vishvananda/netlink"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	//"syscall"
@@ -198,18 +200,6 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	*/
 	enabled := c.Enable
 	if enabled {
-		/*
-			netif, err := netlink.LinkByName(PortConfigMap[c.].Name)
-			StpLogger("INFO", fmt.Sprintf("LinkByName err %#v", err))
-
-			if err == nil {
-				netifattr := netif.Attrs()
-				//if netifattr.Flags&syscall.IFF_RUNNING == syscall.IFF_RUNNING {
-				if (netifattr.Flags & 1) == 1 {
-					enabled = true
-				}
-			}
-		*/
 		for i, client := range GetAsicDPluginList() {
 			if i == 0 {
 				enabled = client.GetPortLinkStatus(c.IfIndex)
@@ -304,20 +294,12 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	}
 	PortListTable = append(PortListTable, p)
 
-	// lets setup the port receive/transmit handle
 	ifName, _ := PortConfigMap[p.IfIndex]
-	handle, err := pcap.OpenLive(ifName.Name, 65536, false, 50*time.Millisecond)
-	if err != nil {
-		// failure here may be ok as this may be SIM
-		if !strings.Contains(ifName.Name, "SIM") {
-			StpLogger("ERROR", fmt.Sprintf("Error creating pcap OpenLive handle for port %d %s %s\n", p.IfIndex, ifName.Name, err))
-		}
-		return p
-	}
-	StpLogger("INFO", fmt.Sprintf("Creating STP Listener for intf %d %s\n", p.IfIndex, ifName.Name))
-	//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
-	p.handle = handle
 	StpLogger("INFO", fmt.Sprintf("NEW PORT: ifname %s %#v\n", ifName.Name, p))
+
+	if p.PortEnabled {
+		p.CreateRxTx()
+	}
 
 	/*
 		if strings.Contains(ifName.Name, "eth") ||
@@ -409,10 +391,11 @@ func (p *StpPort) Stop() {
 		p.PollingTimer = nil
 	}
 
-	// close rx/tx processing
-	if p.handle != nil {
-		p.handle.Close()
-		StpLogger("INFO", fmt.Sprintf("RX/TX handle closed for port %d\n", p.IfIndex))
+	p.DeleteRxTx()
+
+	if p.PimMachineFsm != nil {
+		p.PimMachineFsm.Stop()
+		p.PimMachineFsm = nil
 	}
 
 	if p.PrxmMachineFsm != nil {
@@ -433,11 +416,6 @@ func (p *StpPort) Stop() {
 	if p.PtxmMachineFsm != nil {
 		p.PtxmMachineFsm.Stop()
 		p.PtxmMachineFsm = nil
-	}
-
-	if p.PimMachineFsm != nil {
-		p.PimMachineFsm.Stop()
-		p.PimMachineFsm = nil
 	}
 
 	if p.BdmMachineFsm != nil {
@@ -502,10 +480,10 @@ func (p *StpPort) BEGIN(restart bool) {
 		evt = append(evt, MachineEvent{e: PrxmEventBegin,
 			src: PortConfigModuleStr})
 
-		// start rx routine
-		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
-		in := src.Packets()
-		BpduRxMain(p.IfIndex, p.b.BrgIfIndex, in)
+		if p.handle != nil {
+			p.CreateRxTx()
+
+		}
 	}
 
 	// Ptm
@@ -579,6 +557,45 @@ func (p *StpPort) BEGIN(restart bool) {
 	}
 	StpMachineLogger("INFO", PortConfigModuleStr, p.IfIndex, p.BrgIfIndex, "BEGIN complete")
 	p.begin = false
+}
+
+func (p *StpPort) CreateRxTx() {
+
+	if p.handle == nil {
+		// lets setup the port receive/transmit handle
+		ifName, _ := PortConfigMap[p.IfIndex]
+		handle, err := pcap.OpenLive(ifName.Name, 65536, true, 50*time.Millisecond)
+		if err != nil {
+			// failure here may be ok as this may be SIM
+			if !strings.Contains(ifName.Name, "SIM") {
+				StpLogger("ERROR", fmt.Sprintf("Error creating pcap OpenLive handle for port %d %s %s\n", p.IfIndex, ifName.Name, err))
+			}
+			return
+		}
+		filter := fmt.Sprintf(`ether dst 01:80:C2:00:00:00`)
+		err = handle.SetBPFFilter(filter)
+		if err != nil {
+			StpLogger("ERROR", fmt.Sprintln("Unable to set bpf filter to pcap handler", p.IfIndex, ifName.Name, err))
+			return
+		}
+
+		StpLogger("INFO", fmt.Sprintf("Creating STP Listener for intf %d %s\n", p.IfIndex, ifName.Name))
+		//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
+		p.handle = handle
+
+		// start rx routine
+		src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+		in := src.Packets()
+		BpduRxMain(p.IfIndex, p.b.BrgIfIndex, in)
+	}
+}
+
+func (p *StpPort) DeleteRxTx() {
+	if p.handle != nil {
+		p.handle.Close()
+		p.handle = nil
+		StpLogger("INFO", fmt.Sprintf("RX/TX handle closed for port %d\n", p.IfIndex))
+	}
 }
 
 // DistributeMachineEvents will distribute the events in parrallel
@@ -1513,7 +1530,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 	// 2) Port Role Transitions
 	// 3) Port Transmit
 	if oldselected != newselected {
-		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedChanged Role[%d] SelectedRole[%d] Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		StpMachineLogger("DEBUG", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedChanged Role[%d] SelectedRole[%d] Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 			p.Role, p.SelectedRole, p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 
 		// PI
@@ -2262,4 +2279,26 @@ func ConstructPortConfigMap() {
 			}
 		}
 	}
+}
+
+func GetPortNameFromIfIndex(ifindex int32) string {
+	if p, ok := PortConfigMap[ifindex]; ok {
+		return p.Name
+	}
+	return ""
+}
+
+// IntfRef can be string number or fpPort
+func GetIfIndexFromIntfRef(intfref string) int32 {
+
+	for _, p := range PortConfigMap {
+		if p.Name == intfref {
+			return p.IfIndex
+		} else if s, err := strconv.Atoi(intfref); err == nil {
+			if int32(s) == p.IfIndex {
+				return p.IfIndex
+			}
+		}
+	}
+	return 0
 }

@@ -82,8 +82,6 @@ type PtxmMachine struct {
 
 	// machine specific events
 	PtxmEvents chan MachineEvent
-	// stop go routine
-	PtxmKillSignalEvent chan MachineEvent
 	// enable logging
 	PtxmLogEnableEvent chan bool
 }
@@ -99,10 +97,9 @@ func (m *PtxmMachine) GetPrevStateStr() string {
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewStpPtxmMachine(p *StpPort) *PtxmMachine {
 	ptxm := &PtxmMachine{
-		p:                   p,
-		PtxmEvents:          make(chan MachineEvent, 50),
-		PtxmKillSignalEvent: make(chan MachineEvent, 1),
-		PtxmLogEnableEvent:  make(chan bool)}
+		p:                  p,
+		PtxmEvents:         make(chan MachineEvent, 50),
+		PtxmLogEnableEvent: make(chan bool)}
 
 	p.PtxmMachineFsm = ptxm
 
@@ -137,23 +134,8 @@ func (ptxm *PtxmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (ptxm *PtxmMachine) Stop() {
 
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if ptxm.Machine.Curr.CurrentState() != PpmmStateNone {
-		wait := make(chan string, 1)
-		// stop the go routine
-		ptxm.PtxmKillSignalEvent <- MachineEvent{
-			e:            PtxmEventBegin,
-			responseChan: wait,
-		}
-		<-wait
-	}
-
 	close(ptxm.PtxmEvents)
 	close(ptxm.PtxmLogEnableEvent)
-	close(ptxm.PtxmKillSignalEvent)
-
 }
 
 // PtxmMachineTransmitInit
@@ -274,33 +256,29 @@ func (p *StpPort) PtxmMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event := <-m.PtxmKillSignalEvent:
-				StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+			case event, ok := <-m.PtxmEvents:
 
-				if event.responseChan != nil {
-					SendResponse(PtxmMachineModuleStr, event.responseChan)
-				}
-				return
+				if ok {
+					if m.Machine.Curr.CurrentState() == PtxmStateNone && event.e != PtxmEventBegin {
+						m.PtxmEvents <- event
+						break
+					}
 
-			case event := <-m.PtxmEvents:
+					//StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
+					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					if rv != nil {
+						StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
+					} else {
+						m.ProcessPostStateProcessing()
+					}
 
-				if m.Machine.Curr.CurrentState() == PtxmStateNone && event.e != PtxmEventBegin {
-					m.PtxmEvents <- event
-					break
-				}
-
-				//StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s\n", rv))
+					if event.responseChan != nil {
+						SendResponse(PtxmMachineModuleStr, event.responseChan)
+					}
 				} else {
-					m.ProcessPostStateProcessing()
+					StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					return
 				}
-
-				if event.responseChan != nil {
-					SendResponse(PtxmMachineModuleStr, event.responseChan)
-				}
-
 			case ena := <-m.PtxmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}

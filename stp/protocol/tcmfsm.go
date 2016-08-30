@@ -92,8 +92,6 @@ type TcMachine struct {
 
 	// machine specific events
 	TcEvents chan MachineEvent
-	// stop go routine
-	TcKillSignalEvent chan MachineEvent
 	// enable logging
 	TcLogEnableEvent chan bool
 }
@@ -109,10 +107,9 @@ func (m *TcMachine) GetPrevStateStr() string {
 // NewStpTcMachine will create a new instance of the LacpRxMachine
 func NewStpTcMachine(p *StpPort) *TcMachine {
 	tcm := &TcMachine{
-		p:                 p,
-		TcEvents:          make(chan MachineEvent, 10),
-		TcKillSignalEvent: make(chan MachineEvent, 1),
-		TcLogEnableEvent:  make(chan bool)}
+		p:                p,
+		TcEvents:         make(chan MachineEvent, 10),
+		TcLogEnableEvent: make(chan bool)}
 
 	p.TcMachineFsm = tcm
 
@@ -147,22 +144,8 @@ func (tcm *TcMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (tcm *TcMachine) Stop() {
 
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if tcm.Machine.Curr.CurrentState() != TcStateNone {
-		wait := make(chan string, 1)
-		// stop the go routine
-		tcm.TcKillSignalEvent <- MachineEvent{
-			e:            TcEventBegin,
-			responseChan: wait,
-		}
-		<-wait
-	}
 	close(tcm.TcEvents)
 	close(tcm.TcLogEnableEvent)
-	close(tcm.TcKillSignalEvent)
-
 }
 
 // TcmMachineInactive
@@ -345,33 +328,30 @@ func (p *StpPort) TcMachineMain() {
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event := <-m.TcKillSignalEvent:
-				StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
-				if event.responseChan != nil {
-					SendResponse(TcMachineModuleStr, event.responseChan)
-				}
-				return
+			case event, ok := <-m.TcEvents:
 
-			case event := <-m.TcEvents:
+				if ok {
+					if m.Machine.Curr.CurrentState() == TcStateNone && event.e != TcEventBegin {
+						m.TcEvents <- event
+						break
+					}
 
-				if m.Machine.Curr.CurrentState() == TcStateNone && event.e != TcEventBegin {
-					m.TcEvents <- event
-					break
-				}
+					//fmt.Println("Event Rx", event.src, event.e)
+					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					if rv != nil {
+						StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, TcStateStrMap[m.Machine.Curr.CurrentState()]))
+					} else {
+						// for faster transitions lets check all state events
+						m.ProcessPostStateProcessing()
+					}
 
-				//fmt.Println("Event Rx", event.src, event.e)
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, TcStateStrMap[m.Machine.Curr.CurrentState()]))
+					if event.responseChan != nil {
+						SendResponse(TcMachineModuleStr, event.responseChan)
+					}
 				} else {
-					// for faster transitions lets check all state events
-					m.ProcessPostStateProcessing()
+					StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					return
 				}
-
-				if event.responseChan != nil {
-					SendResponse(TcMachineModuleStr, event.responseChan)
-				}
-
 			case ena := <-m.TcLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}
