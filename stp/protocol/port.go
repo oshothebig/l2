@@ -1530,7 +1530,7 @@ func (p *StpPort) NotifySelectedChanged(src string, oldselected bool, newselecte
 	// 2) Port Role Transitions
 	// 3) Port Transmit
 	if oldselected != newselected {
-		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedChanged Role[%d] SelectedRole[%d] Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		StpMachineLogger("DEBUG", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedChanged Role[%d] SelectedRole[%d] Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 			p.Role, p.SelectedRole, p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 
 		// PI
