@@ -1024,6 +1024,9 @@ func (la *LACPDServiceHandler) GetLaPortChannelIntfRefListState(intfref string) 
 			//		pcms.Mode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)
 		}
 
+		pcms.DrniName = p.DrniName
+		pcms.DrniSynced = p.DrniSynced
+
 		// partner info
 		pcms.PartnerId = p.PartnerOper.System.LacpSystemConvertSystemIdToString()
 		pcms.PartnerKey = int16(p.PartnerOper.Key)
