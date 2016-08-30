@@ -137,6 +137,12 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 	svr.OSSignalHandle()
 
 	svr.paramsDir = paramsDir
+	// Initialize DB
+	err := svr.InitDB()
+	if err != nil {
+		debug.Logger.Err("DB init failed")
+	}
+
 	// Start asicd plugin before you do get bulk
 	svr.asicPlugin.Start()
 	svr.SysPlugin.Start()
@@ -147,14 +153,8 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 		svr.InitL2PortInfo(port)
 	}
 
-	// Initialize DB
-	err := svr.InitDB()
-	if err != nil {
-		debug.Logger.Err("DB init failed")
-	} else {
-		// Populate Gbl Configs
-		svr.ReadDB()
-	}
+	// Populate Gbl Configs
+	svr.ReadDB()
 
 	// after everything is started then Do Rx/Tx Init
 	svr.RunGlobalConfig()
