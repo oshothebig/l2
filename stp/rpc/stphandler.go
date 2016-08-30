@@ -333,7 +333,7 @@ func (s *STPDServiceHandler) ReadConfigFromDB(prevState int) error {
 			stp.StpLogger("ERROR", "Error getting All StpPort objects")
 			return err
 		}
-	} else if currState == stp.STP_GLOBAL_DISABLE &&
+	} else if currState == stp.STP_GLOBAL_DISABLE_PENDING ||
 		prevState == stp.STP_GLOBAL_ENABLE {
 		// only need to delete the bridge instance
 		// this will trigger a delete of the ports within the server
