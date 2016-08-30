@@ -432,6 +432,9 @@ func (la *LACPDServiceHandler) UpdateLacpGlobal(origconfig *lacpd.LacpGlobal, up
 	} else if updateconfig.AdminState == "DOWN" {
 		utils.LacpGlobalStateSet(utils.LACP_GLOBAL_DISABLE_PENDING)
 	}
+	logger := utils.GetLaLogger()
+	logger.Info(fmt.Sprintf("Global State Update AdminState %s prev %d curr %d", updateconfig.AdminState, prevState, utils.LacpGlobalStateGet()))
+
 	if prevState != utils.LacpGlobalStateGet() {
 		la.ReadConfigFromDB(prevState)
 		if updateconfig.AdminState == "DOWN" {
