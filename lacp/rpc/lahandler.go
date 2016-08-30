@@ -555,6 +555,8 @@ func (la *LACPDServiceHandler) DeleteLaPortChannel(config *lacpd.LaPortChannel) 
 	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_ENABLE ||
 		utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_DISABLE_PENDING {
 
+		logger := utils.GetLaLogger()
+		logger.Info(fmt.Sprintln("Deleting La PortChannel", config.IntfRef))
 		//nameKey := fmt.Sprintf("agg-%d", config.LagId)
 		id := GetKeyByAggName(config.IntfRef)
 		conf := &lacp.LaAggConfig{
@@ -1216,119 +1218,126 @@ func (la *LACPDServiceHandler) convertDbObjDataToDRCPData(objData *objects.Distr
 
 func (la *LACPDServiceHandler) CreateDistributedRelay(config *lacpd.DistributedRelay) (bool, error) {
 
-	data := &objects.DistributedRelay{}
-	objects.ConvertThriftTolacpdDistributedRelayObj(config, data)
+	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_ENABLE {
+		data := &objects.DistributedRelay{}
+		objects.ConvertThriftTolacpdDistributedRelayObj(config, data)
 
-	conf := &drcp.DistrubtedRelayConfig{}
-	// convert to drcp module config data
-	la.convertDbObjDataToDRCPData(data, conf)
-	err := drcp.DistrubtedRelayConfigParamCheck(conf)
-	if err != nil {
-		return false, err
-	} else {
-		cfg := server.LAConfig{
-			Msgtype: server.LAConfigMsgCreateDistributedRelay,
-			Msgdata: conf,
+		conf := &drcp.DistrubtedRelayConfig{}
+		// convert to drcp module config data
+		la.convertDbObjDataToDRCPData(data, conf)
+		err := drcp.DistrubtedRelayConfigParamCheck(conf)
+		if err != nil {
+			return false, err
+		} else {
+			cfg := server.LAConfig{
+				Msgtype: server.LAConfigMsgCreateDistributedRelay,
+				Msgdata: conf,
+			}
+			la.svr.ConfigCh <- cfg
 		}
-		la.svr.ConfigCh <- cfg
 	}
 
 	return true, nil
 }
 func (la *LACPDServiceHandler) UpdateDistributedRelay(origconfig *lacpd.DistributedRelay, updateconfig *lacpd.DistributedRelay, attrset []bool, op []*lacpd.PatchOpInfo) (bool, error) {
 
-	objTyp := reflect.TypeOf(*origconfig)
-	olddata := &objects.DistributedRelay{}
-	objects.ConvertThriftTolacpdDistributedRelayObj(origconfig, olddata)
+	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_ENABLE {
+		objTyp := reflect.TypeOf(*origconfig)
+		olddata := &objects.DistributedRelay{}
+		objects.ConvertThriftTolacpdDistributedRelayObj(origconfig, olddata)
 
-	newdata := &objects.DistributedRelay{}
-	objects.ConvertThriftTolacpdDistributedRelayObj(updateconfig, newdata)
+		newdata := &objects.DistributedRelay{}
+		objects.ConvertThriftTolacpdDistributedRelayObj(updateconfig, newdata)
 
-	oldconf := &drcp.DistrubtedRelayConfig{}
-	// convert to drcp module config data
-	la.convertDbObjDataToDRCPData(olddata, oldconf)
-	newconf := &drcp.DistrubtedRelayConfig{}
-	// convert to drcp module config data
-	la.convertDbObjDataToDRCPData(newdata, newconf)
-	err := drcp.DistrubtedRelayConfigParamCheck(newconf)
-	if err != nil {
-		return false, err
-	} else {
-		// TODO set valid attribute updates
-		attrMap := map[string]server.LaConfigMsgType{}
-		// lets deal with Members attribute first
-		for i := 0; i < objTyp.NumField(); i++ {
-			objName := objTyp.Field(i).Name
-			//fmt.Println("UpdateDistributedRelay (server): (index, objName) ", i, objName)
-			if attrset[i] {
-				fmt.Println("UpdateDistributedRelay (server): changed ", objName)
+		oldconf := &drcp.DistrubtedRelayConfig{}
+		// convert to drcp module config data
+		la.convertDbObjDataToDRCPData(olddata, oldconf)
+		newconf := &drcp.DistrubtedRelayConfig{}
+		// convert to drcp module config data
+		la.convertDbObjDataToDRCPData(newdata, newconf)
+		err := drcp.DistrubtedRelayConfigParamCheck(newconf)
+		if err != nil {
+			return false, err
+		} else {
+			// TODO set valid attribute updates
+			attrMap := map[string]server.LaConfigMsgType{}
+			// lets deal with Members attribute first
+			for i := 0; i < objTyp.NumField(); i++ {
+				objName := objTyp.Field(i).Name
+				//fmt.Println("UpdateDistributedRelay (server): (index, objName) ", i, objName)
+				if attrset[i] {
+					fmt.Println("UpdateDistributedRelay (server): changed ", objName)
 
-				if msgtype, ok := attrMap[objName]; ok {
-					// set message type
-					cfg := server.LAConfig{
-						Msgdata: newconf,
-						Msgtype: msgtype,
+					if msgtype, ok := attrMap[objName]; ok {
+						// set message type
+						cfg := server.LAConfig{
+							Msgdata: newconf,
+							Msgtype: msgtype,
+						}
+						la.svr.ConfigCh <- cfg
 					}
-					la.svr.ConfigCh <- cfg
 				}
 			}
 		}
 	}
-
 	return true, nil
 }
 func (la *LACPDServiceHandler) DeleteDistributedRelay(config *lacpd.DistributedRelay) (bool, error) {
-	data := &objects.DistributedRelay{}
-	objects.ConvertThriftTolacpdDistributedRelayObj(config, data)
 
-	conf := &drcp.DistrubtedRelayConfig{}
-	// convert to drcp module config data
-	la.convertDbObjDataToDRCPData(data, conf)
-	err := drcp.DistrubtedRelayConfigParamCheck(conf)
-	if err != nil {
-		return false, err
-	} else {
-		cfg := server.LAConfig{
-			Msgtype: server.LAConfigMsgDeleteDistributedRelay,
-			Msgdata: conf,
+	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_ENABLE {
+		data := &objects.DistributedRelay{}
+		objects.ConvertThriftTolacpdDistributedRelayObj(config, data)
+
+		conf := &drcp.DistrubtedRelayConfig{}
+		// convert to drcp module config data
+		la.convertDbObjDataToDRCPData(data, conf)
+		err := drcp.DistrubtedRelayConfigParamCheck(conf)
+		if err != nil {
+			return false, err
+		} else {
+			cfg := server.LAConfig{
+				Msgtype: server.LAConfigMsgDeleteDistributedRelay,
+				Msgdata: conf,
+			}
+			la.svr.ConfigCh <- cfg
 		}
-		la.svr.ConfigCh <- cfg
 	}
-
 	return true, nil
 }
 
 func (la *LACPDServiceHandler) GetDistributedRelayState(drname string) (*lacpd.DistributedRelayState, error) {
 
 	drs := &lacpd.DistributedRelayState{}
-	var dr *drcp.DistributedRelay
-	if drcp.DrFindByName(drname, &dr) {
+	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_ENABLE {
+		var dr *drcp.DistributedRelay
+		if drcp.DrFindByName(drname, &dr) {
 
-		var a *lacp.LaAggregator
-		aggName := ""
-		if lacp.LaFindAggById(int(dr.DrniAggregator), &a) {
-			aggName = a.AggName
-		}
-
-		drs.DrniName = dr.DrniName
-		drs.IntfRef = aggName
-		drs.PortalAddress = dr.DrniPortalAddr.String()
-		drs.PortalPriority = int16(dr.DrniPortalPriority)
-		drs.ThreePortalSystem = dr.DrniThreeSystemPortal
-		drs.PortalSystemNumber = int8(dr.DrniPortalSystemNumber)
-		for _, ifindex := range dr.DrniIntraPortalLinkList {
-			if ifindex != 0 {
-				drs.IntfRefList = append(drs.IntfRefList, utils.GetNameFromIfIndex(int32(ifindex)))
+			var a *lacp.LaAggregator
+			aggName := ""
+			if lacp.LaFindAggById(int(dr.DrniAggregator), &a) {
+				aggName = a.AggName
 			}
-		}
-		drs.GatewayAlgorithm = dr.DrniGatewayAlgorithm.String()
-		drs.NeighborGatewayAlgorithm = dr.DrniNeighborAdminGatewayAlgorithm.String()
-		drs.NeighborPortAlgorithm = dr.DrniNeighborAdminPortAlgorithm.String()
-		drs.NeighborAdminDRCPState = fmt.Sprintf("%s", strconv.FormatInt(int64(dr.DrniNeighborAdminDRCPState), 2))
-		drs.EncapMethod = dr.DrniEncapMethod.String()
-		drs.PSI = dr.DrniPSI
-		drs.IntraPortalPortProtocolDA = dr.DrniPortalPortProtocolIDA.String()
 
+			drs.DrniName = dr.DrniName
+			drs.IntfRef = aggName
+			drs.PortalAddress = dr.DrniPortalAddr.String()
+			drs.PortalPriority = int16(dr.DrniPortalPriority)
+			drs.ThreePortalSystem = dr.DrniThreeSystemPortal
+			drs.PortalSystemNumber = int8(dr.DrniPortalSystemNumber)
+			for _, ifindex := range dr.DrniIntraPortalLinkList {
+				if ifindex != 0 {
+					drs.IntfRefList = append(drs.IntfRefList, utils.GetNameFromIfIndex(int32(ifindex)))
+				}
+			}
+			drs.GatewayAlgorithm = dr.DrniGatewayAlgorithm.String()
+			drs.NeighborGatewayAlgorithm = dr.DrniNeighborAdminGatewayAlgorithm.String()
+			drs.NeighborPortAlgorithm = dr.DrniNeighborAdminPortAlgorithm.String()
+			drs.NeighborAdminDRCPState = fmt.Sprintf("%s", strconv.FormatInt(int64(dr.DrniNeighborAdminDRCPState), 2))
+			drs.EncapMethod = dr.DrniEncapMethod.String()
+			drs.PSI = dr.DrniPSI
+			drs.IntraPortalPortProtocolDA = dr.DrniPortalPortProtocolIDA.String()
+
+		}
 	}
 	return drs, nil
 }
