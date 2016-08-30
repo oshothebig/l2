@@ -391,7 +391,7 @@ func (la *LACPDServiceHandler) ReadConfigFromDB(prevState int) error {
 			fmt.Println("Error getting All LaPortChannel objects")
 			return err
 		}
-	} else if currState == utils.LACP_GLOBAL_DISABLE &&
+	} else if (currState == utils.LACP_GLOBAL_DISABLE_PENDING) &&
 		prevState == utils.LACP_GLOBAL_ENABLE {
 
 		// lets delete the Aggregator first
