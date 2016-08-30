@@ -572,6 +572,13 @@ func (p *StpPort) CreateRxTx() {
 			}
 			return
 		}
+		filter := fmt.Sprintf(`ether dst 01:80:C2:00:00:00`)
+		err = handle.SetBPFFilter(filter)
+		if err != nil {
+			StpLogger("ERROR", fmt.Sprintln("Unable to set bpf filter to pcap handler", p.IfIndex, ifName.Name, err))
+			return
+		}
+
 		StpLogger("INFO", fmt.Sprintf("Creating STP Listener for intf %d %s\n", p.IfIndex, ifName.Name))
 		//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
 		p.handle = handle

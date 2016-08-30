@@ -507,6 +507,11 @@ func (p *LaAggPort) CreateRxTx() {
 				}
 				return
 			}
+			filter := fmt.Sprintf(`ether dst 01:80:C2:00:00:02`)
+			err = handle.SetBPFFilter(filter)
+			if err != nil {
+				p.LaPortLog(fmt.Sprintln("Unable to set bpf filter to pcap handler", err))
+			}
 			p.LaPortLog(fmt.Sprintln("Creating Listener for intf", p.IntfNum))
 			//p.LaPortLog(fmt.Sprintf("Creating Listener for intf", p.IntfNum))
 			p.handle = handle
