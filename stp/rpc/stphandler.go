@@ -181,7 +181,7 @@ func (s *STPDServiceHandler) DeleteStpGlobal(config *stpd.StpGlobal) (bool, erro
 
 func (s *STPDServiceHandler) UpdateStpGlobal(origconfig *stpd.StpGlobal, updateconfig *stpd.StpGlobal, attrset []bool, op []*stpd.PatchOpInfo) (rv bool, err error) {
 	stp.StpLogger("INFO", fmt.Sprintf("UpdateStpGlobal (server): %s", updateconfig.AdminState))
-
+	rv = true
 	prevState := stp.StpGlobalStateGet()
 
 	if updateconfig.AdminState == "UP" {
