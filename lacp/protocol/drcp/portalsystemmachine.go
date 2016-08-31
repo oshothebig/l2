@@ -277,7 +277,7 @@ func (psm *PsMachine) updateKey() {
 	if a != nil &&
 		a.PartnerDWC {
 		dr.DRFHomeOperAggregatorKey = ((dr.DRFHomeAdminAggregatorKey & 0x3fff) | 0x6000)
-	} else if dr.PSI &&
+	} else if dr.DrniPSI &&
 		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) {
 		dr.DRFHomeOperAggregatorKey = (dr.DRFHomeAdminAggregatorKey & 0x3fff)
 	} else {
@@ -371,9 +371,9 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		}
 	}
 	if allippactivitynotset {
-		dr.PSI = true
+		dr.DrniPSI = true
 	} else {
-		dr.PSI = false
+		dr.DrniPSI = false
 	}
 
 	// update the digests
@@ -431,7 +431,7 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 
 	// Portal System is Isolated, which means IPP link is down
 	// take down the AGGs
-	if dr.PSI &&
+	if dr.DrniPSI &&
 		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) {
 		// LaAggregator processing
 		for _, intfref := range a.PortNumList {
