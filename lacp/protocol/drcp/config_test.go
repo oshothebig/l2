@@ -457,7 +457,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 	<-waitChan
 
 	if dr.AMachineFsm == nil ||
-		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate {
+		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortInitialize {
 		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", AmStateStrMap[dr.AMachineFsm.Machine.Curr.CurrentState()])
 	}
 
