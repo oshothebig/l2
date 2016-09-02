@@ -73,7 +73,7 @@ func (svr *LLDPServer) InitGlobalDS() {
 	// 30 seconds. So, we can have the leavrage the pcap timeout (read from
 	// buffer) to be 1 second.
 	svr.lldpTimeout = 500 * time.Millisecond
-	svr.GblCfgCh = make(chan *config.Global, 20)
+	svr.GblCfgCh = make(chan *config.Global, 2)
 	svr.IntfCfgCh = make(chan *config.IntfConfig, LLDP_PORT_CONFIG_CHANNEL_SIZE)
 	svr.IfStateCh = make(chan *config.PortState, LLDP_PORT_STATE_CHANGE_CHANNEL_SIZE)
 	svr.UpdateCacheCh = make(chan bool, 2)
@@ -317,10 +317,16 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(ifIndex int32, state string) {
 
 /*  handle global lldp enable/disable, which will enable/disable lldp for all the ports
  */
-func (svr *LLDPServer) handleGlobalConfig(restart bool) {
+func (svr *LLDPServer) handleGlobalConfig() {
 	if svr.Global == nil {
 		return
 	}
+	if len(svr.lldpIntfStateSlice) == 0 {
+		debug.Logger.Err("No ports on the system")
+		return
+	}
+	debug.Logger.Debug("Doing global init for all the ports in up state", svr.lldpIntfStateSlice,
+		"global Info:", *svr.Global)
 	// iterate over all the entries in the gblInfo and change the state accordingly
 	for _, ifIndex := range svr.lldpIntfStateSlice {
 		intf, found := svr.lldpGblInfo[ifIndex]
@@ -328,6 +334,8 @@ func (svr *LLDPServer) handleGlobalConfig(restart bool) {
 			debug.Logger.Err("No entry for ifIndex", ifIndex, "in runtime information")
 			continue
 		}
+		debug.Logger.Debug("Init for intf:", intf.Port.Name, "and intf information is",
+			intf.isDisabled(), intf.Port.OperState)
 		// faster operation
 		if intf.isDisabled() || intf.Port.OperState != LLDP_PORT_STATE_UP {
 			debug.Logger.Debug("Cannot start LLDP rx/tx for port", intf.Port.Name,
@@ -340,9 +348,6 @@ func (svr *LLDPServer) handleGlobalConfig(restart bool) {
 				"ifIndex", ifIndex)
 			svr.StartRxTx(ifIndex)
 		case false:
-			if restart {
-				continue
-			}
 			debug.Logger.Debug("Global Config Disabled, disabling port rx tx for port:", intf.Port.Name,
 				"ifIndex", ifIndex)
 			// do not update the configuration enable/disable state...just stop packet handling
@@ -444,16 +449,18 @@ func (svr *LLDPServer) ChannelHanlder() {
 			svr.SendFrame(info.ifIndex)
 		case gbl, ok := <-svr.GblCfgCh: // Change in global config
 			if !ok {
+				debug.Logger.Err("Invalid Value Received on Global Config Channel")
 				continue
 			}
-			debug.Logger.Info("Server Received Global Config", gbl)
+			debug.Logger.Info("Server Received Global Config", *gbl)
 			if svr.Global == nil {
+				debug.Logger.Info("Doing Global Config during auto-create")
 				svr.Global = &config.Global{}
 			}
 			svr.Global.Enable = gbl.Enable
 			svr.Global.Vrf = gbl.Vrf
 			// start all interface rx/tx in go routine only
-			svr.handleGlobalConfig(false)
+			svr.handleGlobalConfig()
 		case intf, ok := <-svr.IntfCfgCh: // Change in interface config
 			if !ok {
 				continue
@@ -464,6 +471,8 @@ func (svr *LLDPServer) ChannelHanlder() {
 			if !ok {
 				continue
 			}
+			debug.Logger.Info("Server received L2 Intf State Changes for ifIndex:", ifState.IfIndex,
+				"state:", ifState.IfState)
 			svr.UpdateL2IntfStateChange(ifState.IfIndex, ifState.IfState)
 		case _, ok := <-svr.UpdateCacheCh:
 			if !ok {
@@ -489,5 +498,7 @@ func (svr *LLDPServer) RunGlobalConfig() {
 	// however on re-start lets say you have 100 ports that have lldp running on it in that case your writer
 	// channel will create a deadlock as the reader is not yet started... To avoid this we spawn go-routine
 	// for handling Global Config before Channel Handler is started
-	svr.handleGlobalConfig(true)
+	if svr.Global != nil {
+		svr.handleGlobalConfig()
+	}
 }
