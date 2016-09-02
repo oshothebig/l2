@@ -181,7 +181,7 @@ func (s *STPDServiceHandler) DeleteStpGlobal(config *stpd.StpGlobal) (bool, erro
 
 func (s *STPDServiceHandler) UpdateStpGlobal(origconfig *stpd.StpGlobal, updateconfig *stpd.StpGlobal, attrset []bool, op []*stpd.PatchOpInfo) (rv bool, err error) {
 	stp.StpLogger("INFO", fmt.Sprintf("UpdateStpGlobal (server): %s", updateconfig.AdminState))
-
+	rv = true
 	prevState := stp.StpGlobalStateGet()
 
 	if updateconfig.AdminState == "UP" {
@@ -333,7 +333,7 @@ func (s *STPDServiceHandler) ReadConfigFromDB(prevState int) error {
 			stp.StpLogger("ERROR", "Error getting All StpPort objects")
 			return err
 		}
-	} else if currState == stp.STP_GLOBAL_DISABLE &&
+	} else if currState == stp.STP_GLOBAL_DISABLE_PENDING ||
 		prevState == stp.STP_GLOBAL_ENABLE {
 		// only need to delete the bridge instance
 		// this will trigger a delete of the ports within the server
@@ -858,6 +858,85 @@ func (s *STPDServiceHandler) GetBulkStpPortState(fromIndex stpd.Int, count stpd.
 	return obj, nil
 }
 
+// UNUSED: Actual call from user should be getting info from CONFD directly
+// as it will read the info from the DB
+func (s *STPDServiceHandler) GetStpBridgeInstance(vlan int16) (*stpd.StpBridgeInstance, error) {
+	sps := &stpd.StpBridgeInstance{}
+	return sps, nil
+}
+
+func (s *STPDServiceHandler) GetBulkStpBridgeInstance(fromIndex stpd.Int, count stpd.Int) (obj *stpd.StpBridgeInstanceGetInfo, err error) {
+	var stpBridgeInstanceList []stpd.StpBridgeInstance = make([]stpd.StpBridgeInstance, count)
+	var nextStpBridgeInstance *stpd.StpBridgeInstance
+	var returnStpBridgeInstances []*stpd.StpBridgeInstance
+	var returnStpBridgeInstanceGetInfo stpd.StpBridgeInstanceGetInfo
+	//var a *lacp.LaAggregator
+	validCount := stpd.Int(0)
+	toIndex := fromIndex
+	obj = &returnStpBridgeInstanceGetInfo
+	stpDefaultBridgeListLen := stpd.Int(1)
+	stp.StpLogger("INFO", fmt.Sprintf("GetBulkStpPort (server):"))
+	stp.StpLogger("INFO", fmt.Sprintf("Total default ports %d fromIndex %d count %d", stpDefaultBridgeListLen, fromIndex, count))
+	for currIndex := fromIndex; validCount != count && currIndex < stpDefaultBridgeListLen; currIndex++ {
+
+		//stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
+
+		nextStpBridgeInstance = &stpBridgeInstanceList[validCount]
+
+		/*
+			1 : i16 Vlan
+			2 : string Address
+			3 : i32 Priority
+			4 : i32 MaxAge
+			5 : i32 HelloTime
+			6 : i32 ForwardDelay
+			7 : i32 ForceVersion
+			8 : i32 TxHoldCount
+
+			Vlan         uint16 `SNAPROUTE: "KEY",  ACCESS:"w",  MULTIPLICITY:"*", AUTODISCOVER: "true", DEFAULT: "4095", DESCRIPTION: Each bridge is associated with a domain.  Typically this domain is represented as the vlan; The default domain is 4095, MIN: "1" ,  MAX: "4095"`
+			Address      string `DESCRIPTION: The bridge identifier of the root of the spanning tree as determined by the Spanning Tree Protocol as executed by this node.  This value is used as the Root Identifier parameter in all Configuration Bridge PDUs originated by this node.,  DEFAULT: "00:00:00:00:00:00"`
+			Priority     int32  `DESCRIPTION: The value of the write-able portion of the Bridge ID i.e. the first two octets of the 8 octet long Bridge ID.  The other last 6 octets of the Bridge ID are given by the value of Address. On bridges supporting IEEE 802.1t or IEEE 802.1w permissible values are 0-61440 in steps of 4096.  Extended Priority is enabled when the lower 12 bits are set using the Bridges VLAN id, MIN: "0" ,  MAX: "65535", DEFAULT: 32768`
+			MaxAge       int32  `DESCRIPTION: The value that all bridges use for MaxAge when this bridge is acting as the root.  Note that 802.1D-1998 specifies that the range for this parameter is related to the value of HelloTime.  The granularity of this timer is specified by 802.1D-1998 to be 1 second.  An agent may return a badValue error if a set is attempted to a value that is not a whole number of seconds., MIN: "6" ,  MAX: "40", DEFAULT: 20`
+			HelloTime    int32  `DESCRIPTION: The value that all bridges use for HelloTime when this bridge is acting as the root.  The granularity of this timer is specified by 802.1D-1998 to be 1 second.  An agent may return a badValue error if a set is attempted    to a value that is not a whole number of seconds., MIN: "1" ,  MAX: "2", DEFAULT: 2`
+			ForwardDelay int32  `DESCRIPTION: The value that all bridges use for ForwardDelay when this bridge is acting as the root.  Note that 802.1D-1998 specifies that the range for this parameter is related to the value of MaxAge.  The granularity of this timer is specified by 802.1D-1998 to be 1 second.  An agent may return a badValue error if a set is attempted to a value that is not a whole number of seconds., MIN: "3" ,  MAX: "30", DEFAULT: 15`
+			ForceVersion int32  `DESCRIPTION: Stp Version, SELECTION: stp(1)/rstp-pvst(2)/mstp(3), DEFAULT: 2`
+			TxHoldCount  int32  `DESCRIPTION: Configures the number of BPDUs that can be sent before pausing for 1 second., MIN: "1" ,  MAX: "10", DEFAULT: 6`
+
+		*/
+		// defaults according to model values, thus if model changes these should change as well
+		// perhaps we should consider opening the JSON genObjConfig.json file and filling
+		// in the values this way.  For now going to hard code.
+		nextStpBridgeInstance.Vlan = int16(stp.DEFAULT_STP_BRIDGE_VLAN)
+		nextStpBridgeInstance.Address = "00:00:00:00:00:00" // use switch mac
+		nextStpBridgeInstance.MaxAge = int32(20)
+		nextStpBridgeInstance.HelloTime = int32(2)
+		nextStpBridgeInstance.ForwardDelay = int32(15)
+		nextStpBridgeInstance.TxHoldCount = int32(6)
+		// lets create the object in the stack now
+		// we are going to create based on CONFD creating StpGlobal
+		//s.CreateStpPort(nextStpPort)
+
+		if len(returnStpBridgeInstances) == 0 {
+			returnStpBridgeInstances = make([]*stpd.StpBridgeInstance, 0)
+		}
+		returnStpBridgeInstances = append(returnStpBridgeInstances, nextStpBridgeInstance)
+		validCount++
+		toIndex++
+	}
+	// lets try and get the next agg if one exists then there are more routes
+	moreRoutes := false
+	if fromIndex+count < stpDefaultBridgeListLen {
+		moreRoutes = true
+	}
+	// lets try and get the next agg if one exists then there are more routes
+	obj.StpBridgeInstanceList = returnStpBridgeInstances
+	obj.StartIdx = fromIndex
+	obj.EndIdx = toIndex + 1
+	obj.More = moreRoutes
+	obj.Count = validCount
+	return obj, nil
+}
+
 // GetBulkStpPort used for Auto-Discovery
 func (s *STPDServiceHandler) GetBulkStpPort(fromIndex stpd.Int, count stpd.Int) (obj *stpd.StpPortGetInfo, err error) {
 
@@ -927,7 +1006,8 @@ func (s *STPDServiceHandler) GetBulkStpPort(fromIndex stpd.Int, count stpd.Int) 
 		nextStpPort.BridgeAssurance = int32(2)
 
 		// lets create the object in the stack now
-		s.CreateStpPort(nextStpPort)
+		// we are going to create based on CONFD creating StpGlobal
+		//s.CreateStpPort(nextStpPort)
 
 		if len(returnStpPorts) == 0 {
 			returnStpPorts = make([]*stpd.StpPort, 0)

@@ -43,21 +43,22 @@ func (a *LaAggregator) LacpAggLog(msg string) {
 func (txm *LacpTxMachine) LacpTxmLog(msg string) {
 	if txm.Machine.Curr.IsLoggerEna() {
 		p := txm.p
-		utils.GlobalLogger.Info(strings.Join([]string{p.IntfNum, "TXM", msg}, ":"))
+		// always set to debug as this will be an excessive log
+		utils.GlobalLogger.Debug(strings.Join([]string{p.IntfNum, "TXM", msg}, ":"))
 	}
 }
 
 func (cdm *LacpCdMachine) LacpCdmLog(msg string) {
 	if cdm.Machine.Curr.IsLoggerEna() {
 		p := cdm.p
-		utils.GlobalLogger.Info(strings.Join([]string{p.IntfNum, "CDM", msg}, ":"))
+		utils.GlobalLogger.Debug(strings.Join([]string{p.IntfNum, "CDM", msg}, ":"))
 	}
 }
 
 func (cdm *LacpPartnerCdMachine) LacpCdmLog(msg string) {
 	if cdm.Machine.Curr.IsLoggerEna() {
 		p := cdm.p
-		utils.GlobalLogger.Info(strings.Join([]string{p.IntfNum, "PCDM", msg}, ":"))
+		utils.GlobalLogger.Debug(strings.Join([]string{p.IntfNum, "PCDM", msg}, ":"))
 	}
 }
 
@@ -71,7 +72,8 @@ func (ptxm *LacpPtxMachine) LacpPtxmLog(msg string) {
 func (rxm *LacpRxMachine) LacpRxmLog(msg string) {
 	if rxm.Machine.Curr.IsLoggerEna() {
 		p := rxm.p
-		utils.GlobalLogger.Info(strings.Join([]string{p.IntfNum, "RXM", msg}, ":"))
+		// always set to debug as this will be an excessive log
+		utils.GlobalLogger.Debug(strings.Join([]string{p.IntfNum, "RXM", msg}, ":"))
 	}
 }
 

@@ -144,7 +144,6 @@ type DistributedRelayFunction struct {
 	// range 1..3
 	DRFPortalSystemNumber uint8
 	DRFHomeOperDRCPState  layers.DRCPState
-	PSI                   bool
 
 	// 9.3.3.2
 	DrniPortalSystemGatewayConversation [MAX_CONVERSATION_IDS]bool
@@ -356,6 +355,7 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 		DistributedRelayFunction: DistributedRelayFunction{
 			DRFHomeState: StateVectorInfo{mutex: &sync.Mutex{}},
 		},
+		DrniPSI: true, // by default this is true until the neighbor pkt is received
 	}
 
 	neighborPortalSystemNumber := uint32(2)
@@ -981,6 +981,9 @@ func (dr *DistributedRelay) DetachAggregatorFromDistributedRelay(aggId int32) {
 			a.ActorOperKey = a.ActorAdminKey
 		}
 		lacp.DeRegisterLaAggCbAll(dr.DrniName)
+		for _, ipp := range dr.Ipplinks {
+			ipp.Stop()
+		}
 		dr.Stop()
 		dr.a = nil
 	}

@@ -28,12 +28,13 @@ package drcp
 
 import (
 	"fmt"
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"math"
 	"strconv"
 	"strings"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 const TxMachineModuleStr = "DRCP Tx Machine"

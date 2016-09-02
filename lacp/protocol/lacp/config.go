@@ -646,6 +646,7 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 		// add reference to aggId
 		p.AggId = a.AggId
 		p.DrniName = a.DrniName
+		p.AggAttached = a
 
 		// notify DR that port has been created
 		for name, createcb := range LacpCbDb.PortCreateDbList {
@@ -700,7 +701,7 @@ func DeleteLaAggPortFromAgg(Key uint16, pId uint16) {
 				a.PortNumList = append(a.PortNumList[:idx], a.PortNumList[idx+1:]...)
 			}
 		}
-
+		p.AggAttached = nil
 	}
 }
 
