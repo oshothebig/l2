@@ -300,11 +300,15 @@ func (p *DRCPIpp) DeleteRxTx() {
 
 //
 func (p *DRCPIpp) DeleteDRCPIpp() {
+	dr := p.dr
 	// remove the packet capture rule if this is the last reference to it
 	p.TeardownDRCPMacCapture(p.dr.DrniPortalPortProtocolIDA.String())
 
 	// stop all state machines
-	p.Stop()
+	// if agg is attached but maybe we are just deleting the ipp link
+	if dr.a != nil {
+		p.Stop()
+	}
 
 	// cleanup the global tables hosting the port
 	key := IppDbKey{

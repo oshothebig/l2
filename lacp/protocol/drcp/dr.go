@@ -981,6 +981,9 @@ func (dr *DistributedRelay) DetachAggregatorFromDistributedRelay(aggId int32) {
 			a.ActorOperKey = a.ActorAdminKey
 		}
 		lacp.DeRegisterLaAggCbAll(dr.DrniName)
+		for _, ipp := range dr.Ipplinks {
+			ipp.Stop()
+		}
 		dr.Stop()
 		dr.a = nil
 	}
