@@ -123,6 +123,7 @@ func (h *ConfigHandler) GetBulkLLDPIntf(fromIndex lldpd.Int, count lldpd.Int) (*
 }
 
 func (h *ConfigHandler) CreateLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err error) {
+	debug.Logger.Debug("LLDP listener received create lldp global config", *config)
 	return api.SendGlobalConfig(config.Vrf, config.Enable)
 }
 
@@ -134,6 +135,7 @@ func (h *ConfigHandler) UpdateLLDPGlobal(origconfig *lldpd.LLDPGlobal,
 	newconfig *lldpd.LLDPGlobal, attrset []bool, op []*lldpd.PatchOpInfo) (r bool, err error) {
 	// On update we do not care for old config... just push the new config to api layer
 	// and let the api layer handle the information
+	debug.Logger.Debug("LLDP listener received update lldp global orig", *origconfig, "new config", *newconfig)
 	return api.UpdateGlobalConfig(newconfig.Vrf, newconfig.Enable)
 }
 
