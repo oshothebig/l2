@@ -33,17 +33,7 @@ import (
 
 func (p *SystemPlugin) PublishEvent(info config.EventInfo) {
 	eventType := info.EventType
-	//entry := info.Info
 	evtKey := events.LLDPIntfKey{info.IfIndex}
-	/*
-			LocalPort:           entry.LocalPort,
-			NeighborPort:        entry.Port,
-			NeighborMac:         entry.PeerMac,
-			HoldTime:            entry.HoldTime,
-			SystemCapabilities:  entry.SystemCapabilities,
-			EnabledCapabilities: entry.EnabledCapabilities,
-		}
-	*/
 	txEvt := eventUtils.TxEvent{
 		Key:            evtKey,
 		AdditionalInfo: "",
