@@ -411,6 +411,9 @@ func (p *DRCPIpp) DrcpRxMachineMain() {
 					if rx.responseChan != nil {
 						utils.SendResponse(RxMachineModuleStr, rx.responseChan)
 					}
+				} else {
+					m.DrcpRxmLog("Machine End")
+					return
 				}
 			}
 		}
@@ -1246,6 +1249,8 @@ func (rxm *RxMachine) saveRcvHomeGatewayVector(portalSystemNum uint8, drcpPduInf
 			dr.HomeGatewayVectorTransmit = true
 		}
 		p.DrniNeighborState[portalSystemNum].mutex.Unlock()
+		dr.DrniPortalSystemState[portalSystemNum].mutex.Unlock()
+
 	}
 }
 
