@@ -26,13 +26,14 @@ package drcp
 
 import (
 	"fmt"
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 const RxMachineModuleStr = "DRCP Rx Machine"
@@ -410,6 +411,9 @@ func (p *DRCPIpp) DrcpRxMachineMain() {
 					if rx.responseChan != nil {
 						utils.SendResponse(RxMachineModuleStr, rx.responseChan)
 					}
+				} else {
+					m.DrcpRxmLog("Machine End")
+					return
 				}
 			}
 		}
@@ -627,10 +631,12 @@ func (rxm *RxMachine) recordDefaultDRCPDU() {
 	p.DRFNeighborConversationPortListDigest = dr.DRFNeighborAdminConversationPortListDigest
 	p.DRFNeighborConversationGatewayListDigest = dr.DRFNeighborAdminConversationGatewayListDigest
 	p.DRFNeighborOperDRCPState = dr.DRFNeighborAdminDRCPState
-	p.DRFNeighborAggregatorPriority = uint16(a.PartnerSystemPriority)
-	p.DRFNeighborAggregatorId = a.PartnerSystemId
-	p.DrniNeighborPortalPriority = uint16(a.PartnerSystemPriority)
-	p.DrniNeighborPortalAddr = a.PartnerSystemId
+	if a != nil {
+		p.DRFNeighborAggregatorPriority = uint16(a.PartnerSystemPriority)
+		p.DRFNeighborAggregatorId = a.PartnerSystemId
+		p.DrniNeighborPortalPriority = uint16(a.PartnerSystemPriority)
+		p.DrniNeighborPortalAddr = a.PartnerSystemId
+	}
 	p.DRFNeighborPortalSystemNumber = p.DRFHomeConfNeighborPortalSystemNumber
 	p.DRFNeighborConfPortalSystemNumber = dr.DRFPortalSystemNumber
 	p.DRFNeighborState.mutex.Lock()
@@ -1110,7 +1116,8 @@ func (rxm *RxMachine) saveRcvNeighborGatewayVector(portalSystemNum uint8, drcpPd
 		// clear all entries == NULL
 		p.DRFRcvNeighborGatewayConversationMask = [MAX_CONVERSATION_IDS]bool{}
 	} else {
-
+		dr.DRFHomeOperDRCPState.SetState(layers.DRCPStateNeighborGatewayBit)
+		// TLV being present is indicator that it existed in the pkt
 		if drcpPduInfo.HomeGatewayVector.TlvTypeLength.GetTlv() == layers.DRCPTLVTypeHomeGatewayVector {
 			if len(drcpPduInfo.HomeGatewayVector.Vector) == 512 {
 				vector := make([]bool, MAX_CONVERSATION_IDS)
@@ -1242,7 +1249,8 @@ func (rxm *RxMachine) saveRcvHomeGatewayVector(portalSystemNum uint8, drcpPduInf
 			dr.HomeGatewayVectorTransmit = true
 		}
 		p.DrniNeighborState[portalSystemNum].mutex.Unlock()
-		p.DrniNeighborState[portalSystemNum].mutex.Unlock()
+		dr.DrniPortalSystemState[portalSystemNum].mutex.Unlock()
+
 	}
 }
 

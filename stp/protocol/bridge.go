@@ -70,6 +70,9 @@ type Bridge struct {
 	// store the previous bridge id
 	OldRootBridgeIdentifier BridgeId
 
+	// IntfRef
+	IntfRef string
+
 	// bridge ifIndex
 	BrgIfIndex int32
 	// hw stgId

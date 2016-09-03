@@ -26,16 +26,17 @@ package lacp
 
 import (
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 )
 
 func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
-
+	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	const LaAggPortActor = 10
 	const LaAggPortPeer = 20
@@ -74,7 +75,7 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 			Mtu:    1500,
 		},
 		IntfId:   LaAggPortActorIf,
-		TraceEna: false,
+		TraceEna: true,
 	}
 
 	utils.PortConfigMap[int32(p1conf.Id)] = utils.PortConfig{Name: LaAggPortActorIf,
@@ -95,10 +96,10 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 			Mtu:    1500,
 		},
 		IntfId:   LaAggPortPeerIf,
-		TraceEna: false,
+		TraceEna: true,
 	}
 
-	utils.PortConfigMap[int32(p1conf.Id)] = utils.PortConfig{Name: LaAggPortPeerIf,
+	utils.PortConfigMap[int32(p2conf.Id)] = utils.PortConfig{Name: LaAggPortPeerIf,
 		HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x11, 0x22, 0x22, 0x33},
 	}
 

@@ -457,7 +457,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 	<-waitChan
 
 	if dr.AMachineFsm == nil ||
-		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortUpdate {
+		dr.AMachineFsm.Machine.Curr.CurrentState() != AmStateDRNIPortInitialize {
 		t.Error("ERROR BEGIN Initial Aggregator System Machine state is not correct", AmStateStrMap[dr.AMachineFsm.Machine.Curr.CurrentState()])
 	}
 
@@ -1265,7 +1265,7 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 		lacp.LaFindPortById(p3conf.Id, &p2) {
 
 		go func() {
-			for i := 0; i < 20 &&
+			for i := 0; i < 10 &&
 				(p1.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing ||
 					p2.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing); i++ {
 				time.Sleep(time.Second * 1)

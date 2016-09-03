@@ -148,8 +148,8 @@ type LaAggregator struct {
 	// Actor_Oper_Aggregator_Key
 	ActorOperKey uint16
 	//Aggregator_MAC_address
-	AggMacAddr    [6]uint8 // AggActorSystmID
-	AggPriority   uint16   // AggActorSystemPriority
+	AggMacAddr    [6]uint8 // ADMIN: AggActorSystmID
+	AggPriority   uint16   // ADMIN: AggActorSystemPriority
 	PortAlgorithm [4]uint8 // AggPortAlgorithm
 	PartnerDWC    bool
 	//AggConversationAdminLink [4096]uint16
@@ -376,7 +376,6 @@ func (a *LaAggregator) DeleteLaAgg() {
 	a.OperState = false
 
 	// notify DR that aggregator has been created
-	a.LacpAggLog(fmt.Sprintf("Do we need to Detach Aggregator from %s  %s", a.AggName, a.DrniName))
 	if a.DrniName != "" {
 		a.LacpAggLog(fmt.Sprintf("Registered for agg delete notification  %v", LacpCbDb.AggDeleteDbList))
 		if deletecb, ok := LacpCbDb.AggDeleteDbList[a.DrniName]; ok {

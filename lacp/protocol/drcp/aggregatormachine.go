@@ -92,7 +92,7 @@ func NewDrcpAMachine(dr *DistributedRelay) *AMachine {
 	am := &AMachine{
 		dr:            dr,
 		PreviousState: AmStateNone,
-		AmEvents:      make(chan utils.MachineEvent, 10),
+		AmEvents:      make(chan utils.MachineEvent, 50),
 	}
 
 	dr.AMachineFsm = am

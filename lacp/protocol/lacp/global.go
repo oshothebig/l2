@@ -32,6 +32,7 @@ import (
 )
 
 var LacpStartTime time.Time
+var MacCaptureSet bool = false
 
 type TxCallback func(port uint16, data interface{})
 
@@ -124,6 +125,15 @@ func LacpSysGlobalInfoInit(sysId LacpSystem) *LacpSysGlobalInfo {
 	sysKey := sysId
 
 	if _, ok := gLacpSysGlobalInfo[sysKey]; !ok {
+
+		defaultSysId := LacpSystem{}
+		if sysId != defaultSysId &&
+			!MacCaptureSet {
+			for _, client := range utils.GetAsicDPluginList() {
+				client.EnablePacketReception("01:80:C2:00:00:02", 0, 0)
+			}
+		}
+
 		gLacpSysGlobalInfo[sysKey] = &LacpSysGlobalInfo{
 			LacpEnabled:                true,
 			PortMap:                    make(map[PortIdKey]*LaAggPort),
@@ -156,6 +166,16 @@ func LacpSysGlobalInfoDestroy(sysId LacpSystem) {
 		for i, sys2 := range gLacpSysGlobalInfoList {
 			if sys == sys2 {
 				gLacpSysGlobalInfoList = append(gLacpSysGlobalInfoList[:i], gLacpSysGlobalInfoList[i+1:]...)
+
+				defaultSysId := LacpSystem{}
+
+				if sysId != defaultSysId &&
+					MacCaptureSet {
+					for _, client := range utils.GetAsicDPluginList() {
+						client.DisablePacketReception("01:80:C2:00:00:02", 0, 0)
+					}
+				}
+
 			}
 		}
 	}
@@ -222,7 +242,7 @@ func LaSysGlobalTxCallbackListGet(p *LaAggPort) []TxCallback {
 
 	// temporary function
 	x := func(port uint16, data interface{}) {
-		utils.GlobalLogger.Info(fmt.Sprintf("TX not registered for port\n", p.IntfNum, p.portId, sysId, gLacpSysGlobalInfo))
+		utils.GlobalLogger.Info(fmt.Sprintln("TX not registered for port\n", p.IntfNum, p.portId, sysId, gLacpSysGlobalInfo))
 		//lacp := data.(*layers.LACP)
 		//fmt.Printf("%#v\n", *lacp)
 	}

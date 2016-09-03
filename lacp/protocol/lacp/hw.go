@@ -26,7 +26,8 @@ package lacp
 
 import (
 	hwconst "asicd/asicdCommonDefs"
-	"strings"
+	"fmt"
+	"l2/lacp/protocol/utils"
 )
 
 // convert the lacp port names name to asic format string list
@@ -36,13 +37,9 @@ func asicDPortBmpFormatGet(distPortList []string) string {
 
 	for i := 0; i < dLength; i++ {
 		var num string
-		if strings.Contains(distPortList[i], "-") {
-			num = strings.Split(distPortList[i], "-")[1]
-		} else if strings.HasPrefix(distPortList[i], "eth") {
-			num = strings.TrimLeft(distPortList[i], "eth")
-		} else if strings.HasPrefix(distPortList[i], "fpPort") {
-			num = strings.TrimLeft(distPortList[i], "fpPort")
-		}
+
+		ifindex := utils.GetIfIndexFromName(distPortList[i])
+		num = fmt.Sprintf("%d", ifindex)
 		if i == dLength-1 {
 			s += num
 		} else {

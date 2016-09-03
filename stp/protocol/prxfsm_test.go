@@ -27,10 +27,11 @@ package stp
 
 import (
 	//"fmt"
+	"net"
+
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"net"
 	//"strconv"
 	//"strings"
 	"testing"
@@ -200,7 +201,7 @@ func UsedForTestOnlyPrxTestTeardown(p *StpPort, t *testing.T) {
 
 func UsedForTestOnlySendValidStpTopoFrame(txifindex int32, t *testing.T) {
 	ifname, _ := PortConfigMap[TEST_TX_PORT_CONFIG_IFINDEX]
-	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	handle, err := pcap.OpenLive(ifname.Name, 65536, true, 50*time.Millisecond)
 	if err != nil {
 		t.Error("Error opening pcap TX interface", TEST_TX_PORT_CONFIG_IFINDEX, ifname.Name, err)
 		return
@@ -247,7 +248,7 @@ func UsedForTestOnlySendValidStpTopoFrame(txifindex int32, t *testing.T) {
 
 func UsedForTestOnlySendValidStpFrame(txifindex int32, t *testing.T) {
 	ifname, _ := PortConfigMap[TEST_TX_PORT_CONFIG_IFINDEX]
-	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	handle, err := pcap.OpenLive(ifname.Name, 65536, true, 50*time.Millisecond)
 	if err != nil {
 		t.Error("Error opening pcap TX interface", TEST_TX_PORT_CONFIG_IFINDEX, ifname.Name, err)
 		return
@@ -303,7 +304,7 @@ func UsedForTestOnlySendValidStpFrame(txifindex int32, t *testing.T) {
 
 func UsedForTestOnlySendValidRStpFrame(txifindex int32, t *testing.T) {
 	ifname, _ := PortConfigMap[TEST_TX_PORT_CONFIG_IFINDEX]
-	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	handle, err := pcap.OpenLive(ifname.Name, 65536, true, 50*time.Millisecond)
 	if err != nil {
 		t.Error("Error opening pcap TX interface", TEST_TX_PORT_CONFIG_IFINDEX, ifname.Name, err)
 		return
@@ -364,7 +365,7 @@ func UsedForTestOnlySendValidRStpFrame(txifindex int32, t *testing.T) {
 
 func UsedForTestOnlySendValidPVSTFrame(txifindex int32, pvstvlan uint16, t *testing.T) {
 	ifname, _ := PortConfigMap[TEST_TX_PORT_CONFIG_IFINDEX]
-	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	handle, err := pcap.OpenLive(ifname.Name, 65536, true, 50*time.Millisecond)
 	if err != nil {
 		t.Error("Error opening pcap TX interface", TEST_TX_PORT_CONFIG_IFINDEX, ifname.Name, err)
 		return
@@ -441,7 +442,7 @@ func UsedForTestOnlySendValidPVSTFrame(txifindex int32, pvstvlan uint16, t *test
 
 func UsedForTestOnlySendInvalidStpFrame(txifindex int32, stp *layers.STP, t *testing.T) {
 	ifname, _ := PortConfigMap[TEST_TX_PORT_CONFIG_IFINDEX]
-	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	handle, err := pcap.OpenLive(ifname.Name, 65536, true, 50*time.Millisecond)
 	if err != nil {
 		t.Error("Error opening pcap TX interface", TEST_TX_PORT_CONFIG_IFINDEX, ifname.Name, err)
 		return
@@ -485,7 +486,7 @@ func UsedForTestOnlySendInvalidStpFrame(txifindex int32, stp *layers.STP, t *tes
 
 func UsedForTestOnlySendInvalidRStpFrame(txifindex int32, rstp *layers.RSTP, t *testing.T) {
 	ifname, _ := PortConfigMap[TEST_TX_PORT_CONFIG_IFINDEX]
-	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	handle, err := pcap.OpenLive(ifname.Name, 65536, true, 50*time.Millisecond)
 	if err != nil {
 		t.Error("Error opening pcap TX interface", TEST_TX_PORT_CONFIG_IFINDEX, ifname.Name, err)
 		return
