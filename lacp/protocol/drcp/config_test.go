@@ -26,8 +26,6 @@ package drcp
 import (
 	"fmt"
 
-	"github.com/google/gopacket"
-	//"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
@@ -36,6 +34,9 @@ import (
 	asicdmock "utils/asicdClient/mock"
 	"utils/commonDefs"
 	"utils/logging"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 )
 
 // first two bytes are priority but in case of ipp this is the neighbor system number
@@ -1293,40 +1294,98 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 	} else {
 		t.Error("Unable to find port just created")
 	}
-
 	var dr *DistributedRelay
-	if !DrFindByAggregator(int32(cfg2.DrniAggregator), &dr) {
+	if !DrFindByAggregator(int32(cfg.DrniAggregator), &dr) {
 		t.Error("Error could not find te DR by local aggregator")
 	}
+
+	var dr2 *DistributedRelay
+	if !DrFindByAggregator(int32(cfg2.DrniAggregator), &dr2) {
+		t.Error("Error could not find te DR by local aggregator")
+	}
+	testWait = make(chan bool)
+
+	go func() {
+
+		for i := 0; i < 10 &&
+			(!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync)); i++ {
+			time.Sleep(time.Second * 1)
+		}
+		testWait <- true
+	}()
+
+	<-testWait
+	close(testWait)
+	testWait = make(chan bool)
+
+	go func() {
+
+		for i := 0; i < 10 &&
+			(!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync)); i++ {
+			time.Sleep(time.Second * 1)
+		}
+		testWait <- true
+	}()
+
+	<-testWait
+	close(testWait)
 
 	if len(dr.DRAggregatorDistributedList) != 1 {
 		t.Error("Error Distributed Ports does not equal", dr.DRAggregatorDistributedList)
 	} else {
 
-		if dr.DRAggregatorDistributedList[0] != LaAggPort2NeighborActor {
+		if dr.DRAggregatorDistributedList[0] != LaAggPort1NeighborActor {
 			t.Error("Error Distributed Ports Incorrect port found", dr.DRAggregatorDistributedList[0])
 		}
 	}
 
-	/*
-		// TODO fix this as the sync the seetings is not currently working
-		if !dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
-			!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
-			!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
-			!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
-			t.Error("Error IPP HOME did not sync up as expected current state ", dr.DRFHomeOperDRCPState.String())
-		}
+	if !dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
+		t.Error("Error IPP HOME did not sync up as expected current state ", dr.DRFHomeOperDRCPState.String())
+	}
 
-		for _, ipp := range dr.Ipplinks {
-
-			if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
-				!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
-				!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
-				!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
-				t.Error("Error IPP NEIGHBOR did not sync up as expected current state ", ipp.DRFNeighborOperDRCPState.String())
-			}
+	for _, ipp := range dr.Ipplinks {
+		if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
+			t.Error("Error IPP NEIGHBOR did not sync up as expected current state ", ipp.DRFNeighborOperDRCPState.String())
 		}
-	*/
+	}
+
+	if len(dr2.DRAggregatorDistributedList) != 1 {
+		t.Error("Error Distributed Ports does not equal", dr2.DRAggregatorDistributedList)
+	} else {
+
+		if dr2.DRAggregatorDistributedList[0] != LaAggPort2NeighborActor {
+			t.Error("Error Distributed Ports Incorrect port found", dr2.DRAggregatorDistributedList[0])
+		}
+	}
+
+	if !dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
+		t.Error("Error IPP HOME did not sync up as expected current state ", dr2.DRFHomeOperDRCPState.String())
+	}
+
+	for _, ipp := range dr2.Ipplinks {
+		if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
+			t.Error("Error IPP NEIGHBOR did not sync up as expected current state ", ipp.DRFNeighborOperDRCPState.String())
+		}
+	}
+
 	// cleanup the provisioning
 	close(bridge1.RxLacpPort1)
 	close(bridge1.RxLacpPort2)

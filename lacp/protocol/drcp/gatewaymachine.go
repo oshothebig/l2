@@ -131,7 +131,6 @@ func (gm *GMachine) DrcpGMachineDRNIGatewayInitialize(m fsm.Machine, data interf
 // State transition to DRNI_GATEWAY_UPDATE
 func (gm *GMachine) DrcpGMachineDRNIGatewayUpdate(m fsm.Machine, data interface{}) fsm.State {
 	dr := gm.dr
-
 	dr.GatewayConversationUpdate = false
 	gm.updatePortalState()
 	gm.setIPPGatewayUpdate()

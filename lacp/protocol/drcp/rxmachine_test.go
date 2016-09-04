@@ -36,6 +36,7 @@ import (
 	"time"
 	"utils/fsm"
 	"utils/logging"
+
 	"github.com/google/gopacket/layers"
 )
 
@@ -60,15 +61,17 @@ func OnlyForRxMachineTestSetup() {
 	GetAllCVIDConversations()
 }
 
-func OnlyForRxMachineTestTeardown() {
+func OnlyForRxMachineTestTeardown(t *testing.T) {
 
-	utils.SetLaLogger(nil)
-	utils.DeleteAllAsicDPlugins()
-	ConversationIdMap[100].Valid = false
-	ConversationIdMap[100].PortList = nil
-	ConversationIdMap[100].Cvlan = 0
-	ConversationIdMap[100].Refcnt = 0
-	ConversationIdMap[100].Idtype = [4]uint8{}
+	//utils.SetLaLogger(nil)
+	//utils.DeleteAllAsicDPlugins()
+	//ConversationIdMap[100].Valid = false
+	//ConversationIdMap[100].PortList = nil
+	//ConversationIdMap[100].Cvlan = 0
+	//ConversationIdMap[100].Refcnt = 0
+	//ConversationIdMap[100].Idtype = [4]uint8{}
+	OnlyForTestTeardown(t)
+
 }
 
 func OnlyForRxMachineCreateValidDRCPPacket() *layers.DRCP {
@@ -223,9 +226,9 @@ func RxMachineTestSetup() {
 		HardwareAddr: net.HardwareAddr{0x00, 0x66, 0x11, 0x22, 0x22, 0x33},
 	}
 }
-func RxMachineTestTeardwon() {
+func RxMachineTestTeardown(t *testing.T) {
 
-	OnlyForRxMachineTestTeardown()
+	OnlyForRxMachineTestTeardown(t)
 	delete(utils.PortConfigMap, ipplink1)
 	delete(utils.PortConfigMap, aggport1)
 	delete(utils.PortConfigMap, aggport2)
@@ -364,9 +367,10 @@ func TestRxMachineRxValidDRCPDUNeighborPkt(t *testing.T) {
 
 		eventReceived = true
 	*/
-	ipp.RxMachineFsm.Stop()
+	//ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 func TestRxMachineRxValidDRCPDUNeighborPktThenTimeout(t *testing.T) {
@@ -527,9 +531,10 @@ func TestRxMachineRxValidDRCPDUNeighborPktThenTimeout(t *testing.T) {
 		t.Error("ERROR Oper STate should have Expired Set because we timed out twice")
 	}
 
-	ipp.RxMachineFsm.Stop()
+	//ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorPriority(t *testing.T) {
@@ -639,9 +644,9 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorPriority(t *testi
 	if !strings.Contains(ipp.DifferPortalReason, "Neighbor Aggregator Priority") {
 		t.Error("ERROR Portal Difference Detected", ipp.DifferPortalReason)
 	}
-	ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorAddr(t *testing.T) {
@@ -751,9 +756,9 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorAddr(t *testing.T
 	if !strings.Contains(ipp.DifferPortalReason, "Neighbor Aggregator Id") {
 		t.Error("ERROR Portal Difference Detected", ipp.DifferPortalReason)
 	}
-	ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferOperAggregatorKey(t *testing.T) {
@@ -917,9 +922,9 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferOperAggregatorKey(t *testin
 		t.Error("ERROR Portal Difference Detected", ipp.DifferPortalReason)
 	}
 
-	ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferThreeSystemPortalDiff(t *testing.T) {
@@ -1074,9 +1079,9 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferThreeSystemPortalDiff(t *te
 		}
 		eventReceived = true
 	*/
-	ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferNeighborPortalSystemNumDiff(t *testing.T) {
@@ -1212,9 +1217,9 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferNeighborPortalSystemNumDiff
 
 	eventReceived = true
 
-	ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayAlgorithmDiff(t *testing.T) {
@@ -1321,9 +1326,9 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayAlgorithmDiff(t *tes
 		t.Error("ERROR Portal Difference Detected", ipp.DifferPortalReason)
 	}
 
-	ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortAlgorithmDiff(t *testing.T) {
@@ -1430,9 +1435,9 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortAlgorithmDiff(t *testin
 		t.Error("ERROR Portal Difference Detected", ipp.DifferPortalReason)
 	}
 
-	ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 // TODO investigate why this test is hanging when running with full test suite
@@ -1542,9 +1547,9 @@ func xTestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayDigestDiff(t *testi
 		t.Error("ERROR Portal Difference Detected", ipp.DifferPortalReason)
 	}
 
-	ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 // TODO investigate why this test is hanging when running with full test suite
@@ -1654,7 +1659,7 @@ func xTestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortDigestDiff(t *testing.
 		t.Error("ERROR Portal Difference Detected", ipp.DifferPortalReason)
 	}
 
-	ipp.RxMachineFsm.Stop()
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }

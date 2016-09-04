@@ -26,9 +26,10 @@ package lacp
 
 import (
 	"fmt"
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"sync"
+
+	"github.com/google/gopacket/layers"
 )
 
 /*
@@ -311,7 +312,9 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 		if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
 			p.ActorOper.Key == a.ActorOperKey &&
-			p.PortEnabled {
+			p.PortEnabled &&
+			(p.DrniName == "" ||
+				p.DrniName != "" && p.DrniSynced) {
 
 			p.LaPortLog("checkConfigForSelection: selected")
 

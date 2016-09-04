@@ -92,7 +92,7 @@ func NewDrcpAMachine(dr *DistributedRelay) *AMachine {
 	am := &AMachine{
 		dr:            dr,
 		PreviousState: AmStateNone,
-		AmEvents:      make(chan utils.MachineEvent, 10),
+		AmEvents:      make(chan utils.MachineEvent, 50),
 	}
 
 	dr.AMachineFsm = am
@@ -133,7 +133,6 @@ func (am *AMachine) DrcpAMachineDRNIPortInitialize(m fsm.Machine, data interface
 // State transition to DRNI_PORT_UPDATE
 func (am *AMachine) DrcpAMachineDRNIPortUpdate(m fsm.Machine, data interface{}) fsm.State {
 	dr := am.dr
-
 	dr.PortConversationUpdate = false
 	am.updatePortalState()
 	am.setIPPPortUpdate()

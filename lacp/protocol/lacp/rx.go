@@ -167,9 +167,10 @@ func ProcessLacpFrame(pId uint16, lacp *layers.LACP) {
 				pdu: lacp,
 				src: RxModuleStr}
 		}
-	} else {
-		fmt.Println("LACP: Unable to find port", pId)
 	}
+	//else {
+	//	fmt.Println("LACP: Unable to find port", pId)
+	//}
 }
 
 func ProcessLampFrame(pId uint16, lamp *layers.LAMP) {

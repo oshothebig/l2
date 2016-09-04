@@ -28,12 +28,13 @@ package drcp
 
 import (
 	"fmt"
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"math"
 	"strconv"
 	"strings"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 const TxMachineModuleStr = "DRCP Tx Machine"
@@ -425,11 +426,13 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 
 			//portMtu := uint32(utils.PortConfigMap[int32(p.Id)].Mtu)
 			portMtu := uint32(32768)
-			//fmt.Printf("TX: HomeGatewayVectorTransmit %t OtherGatewayVectorTRansmit %t pktlength %d mtu %d\n",
-			//	dr.HomeGatewayVectorTransmit,
-			//	dr.OtherGatewayVectorTransmit,
-			//	pktLength,
-			//	portMtu)
+			/*
+				fmt.Printf("TX: HomeGatewayVectorTransmit %t OtherGatewayVectorTRansmit %t pktlength %d mtu %d\n",
+					dr.HomeGatewayVectorTransmit,
+					dr.OtherGatewayVectorTransmit,
+					pktLength,
+					portMtu)
+			*/
 			if (dr.HomeGatewayVectorTransmit ||
 				dr.OtherGatewayVectorTransmit) &&
 				pktLength < portMtu {
@@ -509,6 +512,7 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				Name:   p.Name,
 				DrName: p.dr.DrniName,
 			}
+			//fmt.Printf("TX: %+v", drcp)
 			// transmit the packet(s)
 			for _, txfunc := range DRGlobalSystem.TxCallbacks[key] {
 				txfunc(key, p.dr.DrniPortalPortProtocolIDA, &drcp)

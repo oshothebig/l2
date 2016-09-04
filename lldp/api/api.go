@@ -27,6 +27,7 @@ import (
 	"errors"
 	"l2/lldp/config"
 	"l2/lldp/server"
+	"l2/lldp/utils"
 	"sync"
 )
 
@@ -88,7 +89,9 @@ func SendGlobalConfig(vrf string, enable bool) (bool, error) {
 	if lldpapi.server.Global != nil {
 		return false, errors.New("Create/Delete on Global Object is not allowed, please do Update")
 	}
+	debug.Logger.Debug("LLDP API received auto-create global config:", vrf, enable)
 	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable}
+	debug.Logger.Debug("LLDP API pushed the global config on channel and returning true to confgMgr for create")
 	return true, nil
 }
 
@@ -96,7 +99,9 @@ func UpdateGlobalConfig(vrf string, enable bool) (bool, error) {
 	if lldpapi.server.Global == nil {
 		return false, errors.New("Update can only be performed if the global object for LLDP is created")
 	}
+	debug.Logger.Debug("LLDP API received global config:", vrf, enable)
 	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable}
+	debug.Logger.Debug("LLDP API pushed the global config on channel and returning true to confgMgr")
 	return true, nil
 }
 
