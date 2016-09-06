@@ -281,7 +281,7 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 				dr.LaDrLog(fmt.Sprintf("Adding New Gateway Conversation %d portallist[%+v]", cid, dr.DrniConvAdminGateway[cid]))
 			}
 			buf := new(bytes.Buffer)
-			utils.GlobalLogger.Info("Adding to Gateway Digest:", conv.Cvlan, math.Mod(float64(conv.Cvlan), 2), []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
+			//dr.LaDrLog(fmt.Sprintf("Adding to Gateway Digest:", conv.Cvlan, math.Mod(float64(conv.Cvlan), 2), []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)}))
 			// network byte order
 			binary.Write(buf, binary.BigEndian, []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
 			ghash.Write(buf.Bytes())
@@ -688,13 +688,11 @@ func (dr *DistributedRelay) updatePortalState() {
 			if ipp.DRFNeighborState.OpState {
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFNeighborState.OpState
 				seqvector := ipp.DRFNeighborState.GatewayVector[0]
-				/*
-					dr.LaDrLog(fmt.Sprintf("updatePortalSystem: DrniPortalSystemState[%d] from DRFNeighborState OpState %t updating vector sequence %d portList %v",
-						ipp.DRFNeighborPortalSystemNumber,
-						ipp.DRFNeighborState.OpState,
-						seqvector.Sequence,
-						ipp.DRFNeighborState.PortIdList))
-				*/
+				dr.LaDrLog(fmt.Sprintf("updatePortalState: DrniPortalSystemState[%d] from DRFNeighborState OpState %t updating vector sequence %d portList %v",
+					ipp.DRFNeighborPortalSystemNumber,
+					ipp.DRFNeighborState.OpState,
+					seqvector.Sequence,
+					ipp.DRFNeighborState.PortIdList))
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = ipp.DRFNeighborState.PortIdList
 
@@ -755,7 +753,9 @@ func (dr *DistributedRelay) updatePortalState() {
 			//ipp.IppPortalSystemState = make([]StateVectorInfo, 0)
 			ipp.DRFNeighborState.mutex.Lock()
 			if ipp.DRFNeighborState.OpState {
-				ipp.IppPortalSystemState = append(ipp.IppPortalSystemState, ipp.DRFNeighborState)
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = true
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(ipp.DRFNeighborState.GatewayVector[0].Sequence, ipp.DRFNeighborState.GatewayVector[0].Vector)
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = ipp.DRFNeighborState.PortIdList
 				// TODO add the any other portal state info from received DRCP here
 				// Not being done today because should only be one other system in 2P config
 			}

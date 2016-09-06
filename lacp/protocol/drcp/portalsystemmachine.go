@@ -432,10 +432,10 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		// if this event occured it means that the aggregator ports now in distributing
 		// state has changeds.  Lets trigger and NTT update so that the partner
 		// has the correct view of the system
-
+		dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStatePortSync)
+		psm.DrcpPsmLog("Clearing Port Sync")
 		for _, ipp := range dr.Ipplinks {
 			// clear the port sync as the neighbor should not know about this update
-			dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStatePortSync)
 			defer ipp.NotifyNTTDRCPUDChange(PsMachineModuleStr, ipp.NTTDRCPDU, true)
 			ipp.NTTDRCPDU = true
 		}

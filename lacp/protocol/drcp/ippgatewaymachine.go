@@ -322,40 +322,37 @@ func (igm *IGMachine) updateIPPGatewayConversationDirection() {
 					(dr.DrniGatewayConversation[conid][0] != dr.DrniPortalSystemNumber ||
 						dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME) {
 
-					if p.IppPortalSystemState != nil {
-						for _, statevector := range p.IppPortalSystemState {
-							if statevector.OpState {
-								if statevector.GatewayVector != nil {
-									for _, seqvector := range statevector.GatewayVector {
-										if seqvector.Vector != nil {
-											if seqvector.Vector[conid] &&
-												!p.IppGatewayConversationPasses[conid] {
-												p.IppGatewayConversationPasses[conid] = true
-												if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
-													// TODO  Set the Vlan Membership for each conversation that is valid
-													igm.DrcpIGmLog(fmt.Sprintf("Setting Vlan Membership for Conversation Id %d ipp port %d\n", conid, p.Id))
-													for _, client := range utils.GetAsicDPluginList() {
-														err := client.IppVlanConversationSet(uint16(conid), int32(p.Id))
-														if err != nil {
-															igm.DrcpIGmLog(fmt.Sprintf("ERROR setting Vlan membership %v", err))
-														}
-													}
+					for _, statevector := range p.IppPortalSystemState {
+						if statevector.OpState {
+							if statevector.GatewayVector != nil {
+								seqvector := statevector.GatewayVector[0]
+								if seqvector.Vector != nil {
+									if seqvector.Vector[conid] &&
+										!p.IppGatewayConversationPasses[conid] {
+										p.IppGatewayConversationPasses[conid] = true
+										if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
+											// TODO  Set the Vlan Membership for each conversation that is valid
+											igm.DrcpIGmLog(fmt.Sprintf("Setting Vlan Membership for Conversation Id %d ipp port %d\n", conid, p.Id))
+											for _, client := range utils.GetAsicDPluginList() {
+												err := client.IppVlanConversationSet(uint16(conid), int32(p.Id))
+												if err != nil {
+													igm.DrcpIGmLog(fmt.Sprintf("ERROR setting Vlan membership %v", err))
 												}
-											} else if !seqvector.Vector[conid] {
-												if p.IppGatewayConversationPasses[conid] &&
-													dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
-													// TODO  Set the Vlan Membership for each conversation that is valid
-													igm.DrcpIGmLog(fmt.Sprintf("Clearing Vlan Membership for Conversation Id %d ipp port %d\n", conid, p.Id))
-													for _, client := range utils.GetAsicDPluginList() {
-														err := client.IppVlanConversationClear(uint16(conid), int32(p.Id))
-														if err != nil {
-															igm.DrcpIGmLog(fmt.Sprintf("ERROR clearing Vlan membership %v", err))
-														}
-													}
-												}
-												p.IppGatewayConversationPasses[conid] = false
 											}
 										}
+									} else if !seqvector.Vector[conid] {
+										if p.IppGatewayConversationPasses[conid] &&
+											dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
+											// TODO  Set the Vlan Membership for each conversation that is valid
+											igm.DrcpIGmLog(fmt.Sprintf("Clearing Vlan Membership for Conversation Id %d ipp port %d\n", conid, p.Id))
+											for _, client := range utils.GetAsicDPluginList() {
+												err := client.IppVlanConversationClear(uint16(conid), int32(p.Id))
+												if err != nil {
+													igm.DrcpIGmLog(fmt.Sprintf("ERROR clearing Vlan membership %v", err))
+												}
+											}
+										}
+										p.IppGatewayConversationPasses[conid] = false
 									}
 								}
 							}

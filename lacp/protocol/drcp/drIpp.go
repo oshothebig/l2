@@ -149,7 +149,7 @@ type DRCPIntraPortal struct {
 	IppOtherGatewayConversation          [MAX_CONVERSATION_IDS]uint8
 	IppOtherPortConversationPortalSystem [MAX_CONVERSATION_IDS]uint8
 	IppPortEnabled                       bool
-	IppPortalSystemState                 []StateVectorInfo // this is probably wrong
+	IppPortalSystemState                 [4]StateVectorInfo
 	MissingRcvGatewayConVector           bool
 	MissingRcvPortConVector              bool
 	NTTDRCPDU                            bool
@@ -210,8 +210,7 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 			AdminState: true,
 		},
 		DRCPIntraPortal: DRCPIntraPortal{
-			DRCPEnabled:          true,
-			IppPortalSystemState: make([]StateVectorInfo, 0),
+			DRCPEnabled: true,
 			// neighbor system id contained in the port id
 			DRFHomeConfNeighborPortalSystemNumber: neighborPortalSystemNum,
 			DRFHomeNetworkIPLSharingMethod:        dr.DrniEncapMethod,

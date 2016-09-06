@@ -451,15 +451,17 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 						j := 0
 						for i, vector := range gatewayvector.Vector {
 							index := uint(math.Mod(float64(i), 8))
+							if index == 0 && i != 0 {
+								j++
+							}
 							if vector {
 								if drcp.HomeGatewayVector.Vector == nil {
 									drcp.HomeGatewayVector.Vector = make([]uint8, 512)
 								}
 								drcp.HomeGatewayVector.Vector[j] |= uint8(1 << (7 - index))
+								//fmt.Printf("Adding Vector[%d] pkt %d = %d index %d\n", i, j, drcp.HomeGatewayVector.Vector[j], index)
 							}
-							if index == 0 && i != 0 {
-								j++
-							}
+
 						}
 					}
 				}
