@@ -261,8 +261,6 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 			if dr.DrniConvAdminGateway[cid] == nil {
 				dr.DrniConvAdminGateway[cid] = make([]uint8, 0)
 				isNewConversation = true
-				dr.LaDrLog(fmt.Sprintf("Adding New Gateway Conversation %d", cid))
-
 				// Fixed algorithm for 2P system
 				// Because we only support sharing by time we don't really care which
 				// system is the "gateway" of the conversation because all conversations
@@ -280,6 +278,7 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 					dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 1)
 					dr.DrniConvAdminGateway[cid] = append(dr.DrniConvAdminGateway[cid], 2)
 				}
+				dr.LaDrLog(fmt.Sprintf("Adding New Gateway Conversation %d portallist[%+v]", cid, dr.DrniConvAdminGateway[cid]))
 			}
 			buf := new(bytes.Buffer)
 			utils.GlobalLogger.Info("Adding to Gateway Digest:", conv.Cvlan, math.Mod(float64(conv.Cvlan), 2), []uint8{dr.DrniConvAdminGateway[cid][0], dr.DrniConvAdminGateway[cid][1], uint8(cid >> 8 & 0xff), uint8(cid & 0xff)})
@@ -458,6 +457,7 @@ func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
 	DistributedRelayDBList = append(DistributedRelayDBList, dr)
 
 	dr.LaDrLog(fmt.Sprintf("Created Distributed Relay %+v\n", dr))
+	dr.LaDrLog(fmt.Sprintf("Created Distributed Relay portal %d\n", dr.DrniPortalSystemNumber))
 
 	for _, ippid := range dr.DrniIntraPortalLinkList {
 		portid := ippid & 0xffff
@@ -688,11 +688,13 @@ func (dr *DistributedRelay) updatePortalState() {
 			if ipp.DRFNeighborState.OpState {
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFNeighborState.OpState
 				seqvector := ipp.DRFNeighborState.GatewayVector[0]
-				dr.LaDrLog(fmt.Sprintf("updatePortalSystem: DrniPortalSystemState[%d] from DRFNeighborState OpState %t updating vector sequence %d portList %v",
-					ipp.DRFNeighborPortalSystemNumber,
-					ipp.DRFNeighborState.OpState,
-					seqvector.Sequence,
-					ipp.DRFNeighborState.PortIdList))
+				/*
+					dr.LaDrLog(fmt.Sprintf("updatePortalSystem: DrniPortalSystemState[%d] from DRFNeighborState OpState %t updating vector sequence %d portList %v",
+						ipp.DRFNeighborPortalSystemNumber,
+						ipp.DRFNeighborState.OpState,
+						seqvector.Sequence,
+						ipp.DRFNeighborState.PortIdList))
+				*/
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(seqvector.Sequence, seqvector.Vector)
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = ipp.DRFNeighborState.PortIdList
 
@@ -750,7 +752,7 @@ func (dr *DistributedRelay) updatePortalState() {
 		// Ipp portal state contains the neighbor state as first entry and if there
 		// are any other portals received on this IPP they will follow
 		for _, ipp := range dr.Ipplinks {
-			ipp.IppPortalSystemState = make([]StateVectorInfo, 0)
+			//ipp.IppPortalSystemState = make([]StateVectorInfo, 0)
 			ipp.DRFNeighborState.mutex.Lock()
 			if ipp.DRFNeighborState.OpState {
 				ipp.IppPortalSystemState = append(ipp.IppPortalSystemState, ipp.DRFNeighborState)
@@ -889,8 +891,11 @@ func (dr *DistributedRelay) AttachAggregatorToDistributedRelay(aggId int32) {
 								for _, ippid := range dr.DrniIntraPortalLinkList {
 									inport := ippid & 0xffff
 									if inport > 0 {
-										dr.LaDrLog(fmt.Sprintf("Blocking IPP %d to AggPort %d", inport, aggport))
-										client.IppIngressEgressDrop(int32(inport), int32(aggport))
+										dr.LaDrLog(fmt.Sprintf("AttachAgg: Blocking IPP %d to AggPort %d", inport, aggport))
+										err := client.IppIngressEgressDrop(int32(inport), int32(aggport))
+										if err != nil {
+											dr.LaDrLog(fmt.Sprintf("ERROR (AttachAgg) setting Block from %s tolag port %s", utils.GetNameFromIfIndex(int32(inport)), int32(aggport)))
+										}
 									}
 								}
 							}

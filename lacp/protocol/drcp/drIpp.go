@@ -198,9 +198,9 @@ type DRCPIpp struct {
 
 func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 
-	neighborPortalSystemNum := uint8(1)
-	if id>>16&0x3 == 1 {
-		neighborPortalSystemNum = 2
+	neighborPortalSystemNum := uint8(2)
+	if dr.DrniPortalSystemNumber == 2 {
+		neighborPortalSystemNum = 1
 	}
 
 	ipp := &DRCPIpp{

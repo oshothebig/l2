@@ -1007,6 +1007,7 @@ func (rxm *RxMachine) recordPortalConfValuesSavePortalConfInfo(drcpPduInfo *laye
 	// Portal System Machine expects DRFNeighborAdminAggregatorKey to be set, so lets
 	// grab it from the HomePortsInfo, Possible bug in standard
 	p.DRFNeighborAdminAggregatorKey = drcpPduInfo.HomePortsInfo.AdminAggKey
+	p.DRFNeighborOperPartnerAggregatorKey = drcpPduInfo.HomePortsInfo.OperPartnerAggKey
 
 }
 
@@ -1022,6 +1023,7 @@ func (rxm *RxMachine) recordPortalConfValuesSavePortalConfInfo(drcpPduInfo *laye
 func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 	p := rxm.p
 	dr := p.dr
+	a := dr.a
 
 	// lets be complete according to definition of ChangePortal
 	isset := p.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity)
@@ -1034,54 +1036,65 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 	p.DRFNeighborOperDRCPState.SetState(layers.DRCPStateIPPActivity)
 
 	// extract the neighbor system number
-	neighborSystemNum := uint8(drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyStatePortalSystemNum))
-	p.DRFNeighborPortalSystemNumber = neighborSystemNum
+	//neighborSystemNum := uint8(drcpPduInfo.PortalConfigInfo.TopologyState.GetState(layers.DRCPTopologyStatePortalSystemNum))
+	//p.DRFNeighborPortalSystemNumber = neighborSystemNum
 
-	if neighborSystemNum > 0 &&
-		neighborSystemNum <= MAX_PORTAL_SYSTEM_IDS {
+	// save gateway vector information
+	rxm.saveRcvNeighborGatewayVector(p.DRFNeighborPortalSystemNumber, drcpPduInfo)
+	rxm.saveRcvHomeGatewayVector(dr.DrniPortalSystemNumber, drcpPduInfo)
+	rxm.saveRcvOtherGatewayVector(drcpPduInfo)
 
-		// save gateway vector information
-		rxm.saveRcvNeighborGatewayVector(neighborSystemNum, drcpPduInfo)
-		rxm.saveRcvHomeGatewayVector(dr.DrniPortalSystemNumber, drcpPduInfo)
-		rxm.saveRcvOtherGatewayVector(drcpPduInfo)
-
-		if drcpPduInfo.State.State.GetState(layers.DRCPStatePortSync) {
-			p.DRFNeighborOperDRCPState.SetState(layers.DRCPStatePortSync)
-		} else {
-			p.DRFNeighborOperDRCPState.ClearState(layers.DRCPStatePortSync)
-		}
-
-		if drcpPduInfo.HomePortsInfo.TlvTypeLength.GetTlv() == layers.DRCPTLVTypeHomePortsInfo {
-			// Active_Home_Ports in the Home Ports Information TLV, carried in a
-			// received DRCPDU on the IPP, are used as the current values for the DRF_Neighbor_State on
-			// this IPP and are associated with the Portal System identified by DRF_Neighbor_Portal_System_Number;
-			p.DrniNeighborState[neighborSystemNum].mutex.Lock()
-			p.DrniNeighborState[neighborSystemNum].PortIdList = drcpPduInfo.HomePortsInfo.ActiveHomePorts
-			p.DrniNeighborState[neighborSystemNum].mutex.Unlock()
-
-			p.DRFNeighborState.mutex.Lock()
-			p.DRFNeighborState.PortIdList = drcpPduInfo.HomePortsInfo.ActiveHomePorts
-			p.DRFNeighborState.mutex.Unlock()
-		}
-
-		if drcpPduInfo.NeighborPortsInfo.TlvTypeLength.GetTlv() == layers.DRCPTLVTypeNeighborPortsInfo {
-			// Active_Home_Ports in the Home Ports Information TLV, carried in a
-			// received DRCPDU on the IPP, are used as the current values for the DRF_Neighbor_State on
-			// this IPP and are associated with the Portal System identified by DRF_Neighbor_Portal_System_Number;
-			p.DrniNeighborState[dr.DrniPortalSystemNumber].mutex.Lock()
-			p.DrniNeighborState[dr.DrniPortalSystemNumber].PortIdList = drcpPduInfo.NeighborPortsInfo.ActiveNeighborPorts
-			p.DrniNeighborState[dr.DrniPortalSystemNumber].mutex.Unlock()
-
-		}
-
-		rxm.compareOtherPortsInfo(drcpPduInfo)
-
-		// Network / IPL sharing by time (9.3.2.1) is supported
-		rxm.compareNetworkIPLMethod(drcpPduInfo)
-		rxm.compareNetworkIPLSharingEncapsulation(drcpPduInfo)
-		rxm.compareGatewayOperGatewayVector()
-		rxm.comparePortIds()
+	if drcpPduInfo.State.State.GetState(layers.DRCPStatePortSync) {
+		p.DRFNeighborOperDRCPState.SetState(layers.DRCPStatePortSync)
+	} else {
+		p.DRFNeighborOperDRCPState.ClearState(layers.DRCPStatePortSync)
 	}
+
+	if drcpPduInfo.HomePortsInfo.TlvTypeLength.GetTlv() == layers.DRCPTLVTypeHomePortsInfo {
+		// Active_Home_Ports in the Home Ports Information TLV, carried in a
+		// received DRCPDU on the IPP, are used as the current values for the DRF_Neighbor_State on
+		// this IPP and are associated with the Portal System identified by DRF_Neighbor_Portal_System_Number;
+		p.DrniNeighborState[p.DRFNeighborPortalSystemNumber].mutex.Lock()
+		p.DrniNeighborState[p.DRFNeighborPortalSystemNumber].PortIdList = drcpPduInfo.HomePortsInfo.ActiveHomePorts
+		p.DrniNeighborState[p.DRFNeighborPortalSystemNumber].mutex.Unlock()
+
+		p.DRFNeighborState.mutex.Lock()
+		// TODO
+		// Is this the correct place to unlock the block?
+		// This would be the fastest point of entry
+		if len(p.DRFNeighborState.PortIdList) > 0 &&
+			len(drcpPduInfo.HomePortsInfo.ActiveHomePorts) == 0 &&
+			a != nil {
+			for _, client := range utils.GetAsicDPluginList() {
+				for _, aggport := range a.PortNumList {
+					err := client.IppIngressEgressPass(int32(p.Id), int32(aggport))
+					if err != nil {
+						dr.LaDrLog(fmt.Sprintf("ERROR (AttachAgg) setting Block from %s tolag port %s", utils.GetNameFromIfIndex(int32(p.Id)), int32(aggport)))
+					}
+				}
+			}
+		}
+		p.DRFNeighborState.PortIdList = drcpPduInfo.HomePortsInfo.ActiveHomePorts
+		p.DRFNeighborState.mutex.Unlock()
+	}
+
+	if drcpPduInfo.NeighborPortsInfo.TlvTypeLength.GetTlv() == layers.DRCPTLVTypeNeighborPortsInfo {
+		// Active_Home_Ports in the Home Ports Information TLV, carried in a
+		// received DRCPDU on the IPP, are used as the current values for the DRF_Neighbor_State on
+		// this IPP and are associated with the Portal System identified by DRF_Neighbor_Portal_System_Number;
+		p.DrniNeighborState[dr.DrniPortalSystemNumber].mutex.Lock()
+		p.DrniNeighborState[dr.DrniPortalSystemNumber].PortIdList = drcpPduInfo.NeighborPortsInfo.ActiveNeighborPorts
+		p.DrniNeighborState[dr.DrniPortalSystemNumber].mutex.Unlock()
+
+	}
+
+	rxm.compareOtherPortsInfo(drcpPduInfo)
+
+	// Network / IPL sharing by time (9.3.2.1) is supported
+	rxm.compareNetworkIPLMethod(drcpPduInfo)
+	rxm.compareNetworkIPLSharingEncapsulation(drcpPduInfo)
+	rxm.compareGatewayOperGatewayVector()
+	rxm.comparePortIds()
 }
 
 // saveRcvNeighborGatewayVector will save the received Home Gateway Vector Info if the following
@@ -1156,6 +1169,7 @@ func (rxm *RxMachine) saveRcvNeighborGatewayVector(portalSystemNum uint8, drcpPd
 					vector[j+7] = drcpPduInfo.HomeGatewayVector.Vector[i]>>0&0x1 == 1
 					p.DRFRcvNeighborGatewayConversationMask[j+7] = drcpPduInfo.HomeGatewayVector.Vector[i]>>0&0x1 == 1
 				}
+
 				p.DrniNeighborState[portalSystemNum].mutex.Lock()
 				//fmt.Printf("saveRcvNeighborGatewayVector: DrniNeighborState[%d] homeportal[%d] from pkt homegatewayvector Sequence %d\n", portalSystemNum, dr.DrniPortalSystemNumber, drcpPduInfo.HomeGatewayVector.Sequence)
 				p.DrniNeighborState[portalSystemNum].OpState = true
@@ -1569,9 +1583,12 @@ func (rxm *RxMachine) comparePortIds() {
 	dr := p.dr
 	portListDiffer := false
 
-	for i := 1; i <= MAX_PORTAL_SYSTEM_IDS && !portListDiffer; i++ {
+	// only need to check 1, 2 as we only support 2P systems
+	for i := 1; i < MAX_PORTAL_SYSTEM_IDS && !portListDiffer; i++ {
 		dr.DrniPortalSystemState[i].mutex.Lock()
 		p.DrniNeighborState[i].mutex.Lock()
+		//rxm.DrcpRxmLog(fmt.Sprintf("comparePortIds: localPortal[%d] Portal PortList %v neighbor view PortList %v\n",
+		//	dr.DrniPortalSystemNumber, dr.DrniPortalSystemState[i].PortIdList, p.DrniNeighborState[i].PortIdList))
 		if len(dr.DrniPortalSystemState[i].PortIdList) == len(p.DrniNeighborState[i].PortIdList) {
 			// make sure the lists are sorted
 			sort.Sort(sortPortList(dr.DrniPortalSystemState[i].PortIdList))

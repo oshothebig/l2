@@ -192,7 +192,6 @@ func (dr *DistributedRelay) DrcpPsMachineMain() {
 		for {
 			select {
 			case event, ok := <-m.PsmEvents:
-				m.DrcpPsmLog(fmt.Sprintf("Received Event %+v", event))
 				if ok {
 					rv := m.Machine.ProcessEvent(event.Src, event.E, nil)
 					if rv == nil {
@@ -324,8 +323,11 @@ func (psm *PsMachine) updateKey() {
 							for _, ippid := range dr.DrniIntraPortalLinkList {
 								inport := ippid & 0xffff
 								if inport > 0 {
-									dr.LaDrLog(fmt.Sprintf("Blocking IPP %d to AggPort %d", inport, aggport))
-									client.IppIngressEgressDrop(int32(inport), int32(aggport))
+									dr.LaDrLog(fmt.Sprintf("updateKey: Blocking IPP %d to AggPort %d", inport, aggport))
+									err := client.IppIngressEgressDrop(int32(inport), int32(aggport))
+									if err != nil {
+										dr.LaDrLog(fmt.Sprintf("ERROR (updateKey) setting Block from %s tolag port %s", utils.GetNameFromIfIndex(int32(inport)), int32(aggport)))
+									}
 								}
 							}
 						}
@@ -426,6 +428,16 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 				E:   AmEventPortConversationUpdate,
 				Src: PsMachineModuleStr,
 			}
+		}
+		// if this event occured it means that the aggregator ports now in distributing
+		// state has changeds.  Lets trigger and NTT update so that the partner
+		// has the correct view of the system
+
+		for _, ipp := range dr.Ipplinks {
+			// clear the port sync as the neighbor should not know about this update
+			dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStatePortSync)
+			defer ipp.NotifyNTTDRCPUDChange(PsMachineModuleStr, ipp.NTTDRCPDU, true)
+			ipp.NTTDRCPDU = true
 		}
 	}
 

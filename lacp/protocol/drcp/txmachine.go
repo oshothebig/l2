@@ -405,22 +405,23 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 					}
 				}
 			}
-			homePortsInfoLength += uint32(4 + (4 * len(drcp.HomePortsInfo.ActiveHomePorts)))
+			homePortsInfoLength += uint32(4 * len(drcp.HomePortsInfo.ActiveHomePorts))
 			drcp.HomePortsInfo.TlvTypeLength.SetLength(uint16(homePortsInfoLength))
 			pktLength += uint32(homePortsInfoLength) + uint32(layers.DRCPTlvAndLengthSize)
 
 			drcp.NeighborPortsInfo = layers.DRCPNeighborPortsInfoTlv{
-				AdminAggKey:       p.DRFNeighborOperAggregatorKey,
+				AdminAggKey:       p.DRFNeighborAdminAggregatorKey,
 				OperPartnerAggKey: p.DRFNeighborOperPartnerAggregatorKey,
 			}
 
-			dr.DrniPortalSystemState[p.DRFNeighborConfPortalSystemNumber].mutex.Lock()
-			if dr.DrniPortalSystemState[p.DRFNeighborConfPortalSystemNumber].OpState {
-				for _, portId := range dr.DrniPortalSystemState[p.DRFNeighborConfPortalSystemNumber].PortIdList {
+			dr.DrniPortalSystemState[p.DRFNeighborPortalSystemNumber].mutex.Lock()
+			//txm.DrcpTxmLog(fmt.Sprintf("TX: homeportal[%d] neighbor portal[%d]\n", dr.DrniPortalSystemNumber, p.DRFNeighborPortalSystemNumber))
+			if dr.DrniPortalSystemState[p.DRFNeighborPortalSystemNumber].OpState {
+				for _, portId := range dr.DrniPortalSystemState[p.DRFNeighborPortalSystemNumber].PortIdList {
 					drcp.NeighborPortsInfo.ActiveNeighborPorts = append(drcp.NeighborPortsInfo.ActiveNeighborPorts, portId)
 				}
 			}
-			dr.DrniPortalSystemState[p.DRFNeighborConfPortalSystemNumber].mutex.Unlock()
+			dr.DrniPortalSystemState[p.DRFNeighborPortalSystemNumber].mutex.Unlock()
 			drcp.NeighborPortsInfo.TlvTypeLength.SetTlv(uint16(layers.DRCPTLVTypeNeighborPortsInfo))
 			drcp.NeighborPortsInfo.TlvTypeLength.SetLength(uint16(4 + (4 * len(drcp.NeighborPortsInfo.ActiveNeighborPorts))))
 
@@ -454,9 +455,9 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 								if drcp.HomeGatewayVector.Vector == nil {
 									drcp.HomeGatewayVector.Vector = make([]uint8, 512)
 								}
-								drcp.HomeGatewayVector.Vector[j] |= uint8(1 << index)
+								drcp.HomeGatewayVector.Vector[j] |= uint8(1 << (7 - index))
 							}
-							if index == 0 {
+							if index == 0 && i != 0 {
 								j++
 							}
 						}
@@ -512,7 +513,7 @@ func (txm *TxMachine) DrcpTxMachineOn(m fsm.Machine, data interface{}) fsm.State
 				Name:   p.Name,
 				DrName: p.dr.DrniName,
 			}
-			//fmt.Printf("TX: %+v", drcp)
+			//txm.DrcpTxmLog(fmt.Sprintf("\nTX:%d  %+v\n", dr.DrniPortalSystemNumber, drcp))
 			// transmit the packet(s)
 			for _, txfunc := range DRGlobalSystem.TxCallbacks[key] {
 				txfunc(key, p.dr.DrniPortalPortProtocolIDA, &drcp)
