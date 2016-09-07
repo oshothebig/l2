@@ -25,17 +25,18 @@ package drcp
 
 import (
 	"fmt"
-
-	"github.com/google/gopacket"
-	//"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
+	"sort"
 	"testing"
 	"time"
 	asicdmock "utils/asicdClient/mock"
 	"utils/commonDefs"
 	"utils/logging"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 )
 
 // first two bytes are priority but in case of ipp this is the neighbor system number
@@ -84,6 +85,31 @@ func (m *MyTestMock) GetBulkVlan(curMark, count int) (*commonDefs.VlanGetInfo, e
 
 func (m *MyTestMock) GetPortLinkStatus(port int32) bool {
 	return true
+}
+
+var testBlockMap map[int32][]uint32 = make(map[int32][]uint32, 0)
+
+func (m *MyTestMock) IppIngressEgressDrop(inport, aggport int32) error {
+
+	if _, ok := testBlockMap[inport]; ok {
+		testBlockMap[inport] = append(testBlockMap[inport], uint32(aggport))
+	}
+	return nil
+}
+
+func (m *MyTestMock) IppIngressEgressPass(inport, aggport int32) error {
+
+	if _, ok := testBlockMap[inport]; ok {
+		for i, p := range testBlockMap[inport] {
+			if p == uint32(aggport) {
+				testBlockMap[inport] = append(testBlockMap[inport][:i], testBlockMap[inport][i+1:]...)
+				if len(testBlockMap[inport]) == 0 {
+					delete(testBlockMap, inport)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func OnlyForTestSetup() {
@@ -994,13 +1020,66 @@ func FullBackToBackConfigTestTeardown(t *testing.T) {
 	delete(utils.PortConfigMap, DRNeighborIpp2)
 }
 
-// 3 node system where two neighbors are connected to 1 peer device
-func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
+type ThreeNodeConfig struct {
+	neighborbridge SimulationNeighborBridge
+	bridge1        lacp.SimulationBridge
+	bridge2        lacp.SimulationBridge
+	cfg            DistrubtedRelayConfig
+	cfg2           DistrubtedRelayConfig
+	a1conf         *lacp.LaAggConfig
+	a2conf         *lacp.LaAggConfig
+	a3conf         *lacp.LaAggConfig
+	p1conf         *lacp.LaAggPortConfig
+	p2conf         *lacp.LaAggPortConfig
+	p3conf         *lacp.LaAggPortConfig
+	p4conf         *lacp.LaAggPortConfig
+}
 
-	FullBackToBackConfigTestSetup()
+func Teardown3NodeMlag(mlagcfg *ThreeNodeConfig, t *testing.T) {
+	// cleanup the provisioning
+	close(mlagcfg.bridge1.RxLacpPort1)
+	close(mlagcfg.bridge1.RxLacpPort2)
+	close(mlagcfg.bridge2.RxLacpPort1)
+	close(mlagcfg.bridge2.RxLacpPort2)
+	mlagcfg.bridge1.RxLacpPort1 = nil
+	mlagcfg.bridge1.RxLacpPort2 = nil
+	mlagcfg.bridge2.RxLacpPort1 = nil
+	mlagcfg.bridge2.RxLacpPort2 = nil
+	lacp.DeleteLaAgg(mlagcfg.a1conf.Id)
+	lacp.DeleteLaAgg(mlagcfg.a2conf.Id)
+	lacp.DeleteLaAgg(mlagcfg.a3conf.Id)
+	for _, sgi := range lacp.LacpSysGlobalInfoGet() {
+		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
+			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
+		}
+		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
+			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
+		}
+	}
 
+	DeleteDistributedRelay(mlagcfg.cfg.DrniName)
+	DeleteDistributedRelay(mlagcfg.cfg2.DrniName)
+
+	// must be called to initialize the global
+	LaSystem1NeighborActor := lacp.LacpSystem{Actor_System_priority: 128,
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x01, 0x64}}
+	LaSystem2NeighborActor := lacp.LacpSystem{Actor_System_priority: 128,
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x02, 0x64}}
+
+	LaSystemPeer := lacp.LacpSystem{Actor_System_priority: 128,
+		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
+
+	lacp.LacpSysGlobalInfoDestroy(LaSystem1NeighborActor)
+	lacp.LacpSysGlobalInfoDestroy(LaSystem2NeighborActor)
+	lacp.LacpSysGlobalInfoDestroy(LaSystemPeer)
+
+	delete(testBlockMap, LaAggPort1NeighborActor)
+	delete(testBlockMap, LaAggPort2NeighborActor)
+}
+func Setup3NodeMlag() *ThreeNodeConfig {
+	threenodecfg := &ThreeNodeConfig{}
 	// actor1 to actor2
-	neighborbridge := SimulationNeighborBridge{
+	threenodecfg.neighborbridge = SimulationNeighborBridge{
 		Port1:      DRNeighborIpp1,
 		Port2:      DRNeighborIpp2,
 		RxIppPort1: make(chan gopacket.Packet, 10),
@@ -1015,14 +1094,14 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 		DrName: "DR-2",
 	}
 
-	DRGlobalSystem.DRSystemGlobalRegisterTxCallback(ipp1Key, neighborbridge.TxViaGoChannel)
-	DRGlobalSystem.DRSystemGlobalRegisterTxCallback(ipp2Key, neighborbridge.TxViaGoChannel)
+	DRGlobalSystem.DRSystemGlobalRegisterTxCallback(ipp1Key, threenodecfg.neighborbridge.TxViaGoChannel)
+	DRGlobalSystem.DRSystemGlobalRegisterTxCallback(ipp2Key, threenodecfg.neighborbridge.TxViaGoChannel)
 
-	DrRxMain(uint16(DRNeighborIpp1), "00:00:DE:AD:BE:EF", neighborbridge.RxIppPort1)
-	DrRxMain(uint16(DRNeighborIpp2), "00:00:DE:AD:BE:EF", neighborbridge.RxIppPort2)
+	DrRxMain(uint16(DRNeighborIpp1), "00:00:DE:AD:BE:EF", threenodecfg.neighborbridge.RxIppPort1)
+	DrRxMain(uint16(DRNeighborIpp2), "00:00:DE:AD:BE:EF", threenodecfg.neighborbridge.RxIppPort2)
 
 	// Lets create the Distributed Relay
-	cfg := &DistrubtedRelayConfig{
+	threenodecfg.cfg = DistrubtedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -1040,16 +1119,16 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 	}
 
 	// create first drni
-	CreateDistributedRelay(cfg)
+	CreateDistributedRelay(&threenodecfg.cfg)
 
-	cfg2 := *cfg
+	threenodecfg.cfg2 = threenodecfg.cfg
 
 	// create second drni
-	cfg2.DrniName = "DR-2"
-	cfg2.DrniPortalSystemNumber = 2
-	cfg2.DrniAggregator = 101
-	cfg2.DrniIntraPortalLinkList = [3]uint32{uint32(DRNeighborIpp2)}
-	CreateDistributedRelay(&cfg2)
+	threenodecfg.cfg2.DrniName = "DR-2"
+	threenodecfg.cfg2.DrniPortalSystemNumber = 2
+	threenodecfg.cfg2.DrniAggregator = 500
+	threenodecfg.cfg2.DrniIntraPortalLinkList = [3]uint32{uint32(DRNeighborIpp2)}
+	CreateDistributedRelay(&threenodecfg.cfg2)
 
 	// must be called to initialize the global
 	LaSystem1NeighborActor := lacp.LacpSystem{Actor_System_priority: 128,
@@ -1061,14 +1140,14 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 		Actor_System: [6]uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0xC8}}
 
 	// actor1 to peer
-	bridge1 := lacp.SimulationBridge{
+	threenodecfg.bridge1 = lacp.SimulationBridge{
 		Port1:       LaAggPort1NeighborActor,
 		Port2:       LaAggPort1Peer,
 		RxLacpPort1: make(chan gopacket.Packet, 10),
 		RxLacpPort2: make(chan gopacket.Packet, 10),
 	}
 	// actor2 to peer
-	bridge2 := lacp.SimulationBridge{
+	threenodecfg.bridge2 = lacp.SimulationBridge{
 		Port1:       LaAggPort2NeighborActor,
 		Port2:       LaAggPort2Peer,
 		RxLacpPort1: make(chan gopacket.Packet, 10),
@@ -1079,25 +1158,25 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 	Actor2System := lacp.LacpSysGlobalInfoInit(LaSystem2NeighborActor)
 	PeerSystem := lacp.LacpSysGlobalInfoInit(LaSystemPeer)
 	// la and ipp ports
-	Actor1System.LaSysGlobalRegisterTxCallback(LaAggPortNeighborActor1If, bridge1.TxViaGoChannel)
+	Actor1System.LaSysGlobalRegisterTxCallback(LaAggPortNeighborActor1If, threenodecfg.bridge1.TxViaGoChannel)
 	// la and ipp ports
-	Actor2System.LaSysGlobalRegisterTxCallback(LaAggPortNeighborActor2If, bridge2.TxViaGoChannel)
+	Actor2System.LaSysGlobalRegisterTxCallback(LaAggPortNeighborActor2If, threenodecfg.bridge2.TxViaGoChannel)
 	// la ports
-	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeerIf1, bridge1.TxViaGoChannel)
-	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeerIf2, bridge2.TxViaGoChannel)
+	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeerIf1, threenodecfg.bridge1.TxViaGoChannel)
+	PeerSystem.LaSysGlobalRegisterTxCallback(LaAggPortPeerIf2, threenodecfg.bridge2.TxViaGoChannel)
 
 	// port 1
-	lacp.LaRxMain(bridge1.Port1, bridge1.RxLacpPort1)
+	lacp.LaRxMain(threenodecfg.bridge1.Port1, threenodecfg.bridge1.RxLacpPort1)
 	// port 2
-	lacp.LaRxMain(bridge1.Port2, bridge1.RxLacpPort2)
+	lacp.LaRxMain(threenodecfg.bridge1.Port2, threenodecfg.bridge1.RxLacpPort2)
 
 	// port 1
-	lacp.LaRxMain(bridge2.Port1, bridge2.RxLacpPort1)
+	lacp.LaRxMain(threenodecfg.bridge2.Port1, threenodecfg.bridge2.RxLacpPort1)
 	// port 2
-	lacp.LaRxMain(bridge2.Port2, bridge2.RxLacpPort2)
+	lacp.LaRxMain(threenodecfg.bridge2.Port2, threenodecfg.bridge2.RxLacpPort2)
 
 	// lag system 1 actor && lag system 2 actor
-	a1conf := &lacp.LaAggConfig{
+	threenodecfg.a1conf = &lacp.LaAggConfig{
 		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
 		Id:   100,
 		Name: "agg1",
@@ -1108,11 +1187,11 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 			SystemPriority: 128},
 	}
 
-	a2conf := &lacp.LaAggConfig{
+	threenodecfg.a2conf = &lacp.LaAggConfig{
 		Mac:  [6]uint8{0x00, 0x00, 0x02, 0x01, 0x01, 0x01},
-		Id:   101,
+		Id:   500,
 		Name: "agg2",
-		Key:  101,
+		Key:  500,
 		Lacp: lacp.LacpConfigInfo{Interval: lacp.LacpSlowPeriodicTime,
 			Mode:           lacp.LacpModeActive,
 			SystemIdMac:    "00:00:00:00:02:64",
@@ -1120,7 +1199,7 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 	}
 
 	// lag sytem 3 peer
-	a3conf := &lacp.LaAggConfig{
+	threenodecfg.a3conf = &lacp.LaAggConfig{
 		Mac:  [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
 		Id:   200,
 		Name: "agg3",
@@ -1132,14 +1211,14 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 	}
 
 	// Create Aggregation
-	lacp.CreateLaAgg(a1conf)
-	lacp.CreateLaAgg(a2conf)
-	lacp.CreateLaAgg(a3conf)
+	lacp.CreateLaAgg(threenodecfg.a1conf)
+	lacp.CreateLaAgg(threenodecfg.a2conf)
+	lacp.CreateLaAgg(threenodecfg.a3conf)
 
 	// actor        peer
 	// p1config <-> p2config
 	// p3config <-> p4config
-	p1conf := &lacp.LaAggPortConfig{
+	threenodecfg.p1conf = &lacp.LaAggPortConfig{
 		Id:     LaAggPort1NeighborActor,
 		Prio:   0x80,
 		Key:    100,
@@ -1156,7 +1235,7 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 		IntfId:   LaAggPortNeighborActor1If,
 		TraceEna: true,
 	}
-	p2conf := &lacp.LaAggPortConfig{
+	threenodecfg.p2conf = &lacp.LaAggPortConfig{
 		Id:     LaAggPort1Peer,
 		Prio:   0x80,
 		Key:    200,
@@ -1173,11 +1252,11 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 		TraceEna: true,
 	}
 
-	p3conf := &lacp.LaAggPortConfig{
+	threenodecfg.p3conf = &lacp.LaAggPortConfig{
 		Id:     LaAggPort2NeighborActor,
 		Prio:   0x80,
-		Key:    101,
-		AggId:  101,
+		Key:    500,
+		AggId:  500,
 		Enable: true,
 		Mode:   lacp.LacpModeActive,
 		//Timeout: LacpFastPeriodicTime,
@@ -1191,7 +1270,7 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 		TraceEna: true,
 	}
 
-	p4conf := &lacp.LaAggPortConfig{
+	threenodecfg.p4conf = &lacp.LaAggPortConfig{
 		Id:     LaAggPort2Peer,
 		Prio:   0x80,
 		Key:    200,
@@ -1209,39 +1288,43 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 	}
 
 	// actor / neighbor
-	lacp.CreateLaAggPort(p1conf)
+	lacp.CreateLaAggPort(threenodecfg.p1conf)
 	// peer
-	lacp.CreateLaAggPort(p2conf)
+	lacp.CreateLaAggPort(threenodecfg.p2conf)
 
 	// actor / neighbor
-	lacp.CreateLaAggPort(p3conf)
+	lacp.CreateLaAggPort(threenodecfg.p3conf)
 	// peer
-	lacp.CreateLaAggPort(p4conf)
+	lacp.CreateLaAggPort(threenodecfg.p4conf)
 
-	//time.Sleep(time.Second * 30)
+	return threenodecfg
+}
+
+func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, t *testing.T) {
 	testWait := make(chan bool)
 
 	var p1 *lacp.LaAggPort
 	var p2 *lacp.LaAggPort
 	// TODO this should fail as the ports should not sync up with the peer because the agg key does not agree between
 	// the ports
-	if lacp.LaFindPortById(p1conf.Id, &p1) &&
-		lacp.LaFindPortById(p2conf.Id, &p2) {
-
-		go func() {
+	if lacp.LaFindPortById(mlagcfg.p1conf.Id, &p1) &&
+		lacp.LaFindPortById(mlagcfg.p2conf.Id, &p2) {
+		//fmt.Println("Checking for port to come up in distributed state (0)")
+		go func(wc chan bool) {
 			for i := 0; i < 10 &&
 				(p1.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing ||
 					p2.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing); i++ {
+				//fmt.Println("waiting for distrubuted (0)")
 				time.Sleep(time.Second * 1)
 			}
-			testWait <- true
-		}()
+			wc <- true
+		}(testWait)
 
 		<-testWait
 		close(testWait)
 
-		State1 := lacp.GetLaAggPortActorOperState(p1conf.Id)
-		State2 := lacp.GetLaAggPortActorOperState(p2conf.Id)
+		State1 := lacp.GetLaAggPortActorOperState(mlagcfg.p1conf.Id)
+		State2 := lacp.GetLaAggPortActorOperState(mlagcfg.p2conf.Id)
 
 		const portUpState = lacp.LacpStateActivityBit | lacp.LacpStateAggregationBit |
 			lacp.LacpStateSyncBit | lacp.LacpStateCollectingBit | lacp.LacpStateDistributingBit
@@ -1261,23 +1344,24 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 	testWait = make(chan bool)
 	// TODO this should fail as the ports should not sync up with the peer because the agg key does not agree between
 	// the ports
-	if lacp.LaFindPortById(p2conf.Id, &p1) &&
-		lacp.LaFindPortById(p3conf.Id, &p2) {
-
-		go func() {
+	if lacp.LaFindPortById(mlagcfg.p2conf.Id, &p1) &&
+		lacp.LaFindPortById(mlagcfg.p3conf.Id, &p2) {
+		//fmt.Println("Checking for port to come up in distributed state (1)")
+		go func(wc chan bool) {
 			for i := 0; i < 10 &&
 				(p1.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing ||
 					p2.MuxMachineFsm.Machine.Curr.CurrentState() != lacp.LacpMuxmStateDistributing); i++ {
+				//fmt.Println("waiting for distrubuted (1)")
 				time.Sleep(time.Second * 1)
 			}
-			testWait <- true
-		}()
+			wc <- true
+		}(testWait)
 
 		<-testWait
 		close(testWait)
 
-		State1 := lacp.GetLaAggPortActorOperState(p3conf.Id)
-		State2 := lacp.GetLaAggPortActorOperState(p4conf.Id)
+		State1 := lacp.GetLaAggPortActorOperState(mlagcfg.p3conf.Id)
+		State2 := lacp.GetLaAggPortActorOperState(mlagcfg.p4conf.Id)
 
 		const portUpState = lacp.LacpStateActivityBit | lacp.LacpStateAggregationBit |
 			lacp.LacpStateSyncBit | lacp.LacpStateCollectingBit | lacp.LacpStateDistributingBit
@@ -1293,66 +1377,306 @@ func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
 	} else {
 		t.Error("Unable to find port just created")
 	}
-
 	var dr *DistributedRelay
-	if !DrFindByAggregator(int32(cfg2.DrniAggregator), &dr) {
+	if !DrFindByAggregator(int32(mlagcfg.cfg.DrniAggregator), &dr) {
 		t.Error("Error could not find te DR by local aggregator")
 	}
+	var dr2 *DistributedRelay
+	if !DrFindByAggregator(int32(mlagcfg.cfg2.DrniAggregator), &dr2) {
+		t.Error("Error could not find te DR by local aggregator")
+	}
+	testWait = make(chan bool)
+
+	go func(wc chan bool) {
+
+		for i := 0; i < 10 &&
+			(!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
+				len(dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].PortIdList) != 1 ||
+				len(dr.DrniPortalSystemState[dr.Ipplinks[0].DRFNeighborPortalSystemNumber].PortIdList) != 1); i++ {
+			//fmt.Println("waiting for dr2 state to converge", dr.DRFHomeOperDRCPState.String(), i)
+			time.Sleep(time.Second * 1)
+		}
+		wc <- true
+	}(testWait)
+
+	<-testWait
+	//fmt.Println("after wait for dr state to converge", dr.DRFHomeOperDRCPState.String())
+	close(testWait)
+	testWait = make(chan bool)
+
+	go func(wc chan bool) {
+
+		for i := 0; i < 10 &&
+			(!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
+				len(dr2.DrniPortalSystemState[dr.DrniPortalSystemNumber].PortIdList) != 1 ||
+				len(dr2.DrniPortalSystemState[dr.Ipplinks[0].DRFNeighborPortalSystemNumber].PortIdList) != 1); i++ {
+			//fmt.Println("waiting for dr2 state to converge", dr2.DRFHomeOperDRCPState.String(), i)
+			time.Sleep(time.Second * 1)
+		}
+		wc <- true
+	}(testWait)
+
+	<-testWait
+	//fmt.Println("after wait for dr2 state to converge", dr2.DRFHomeOperDRCPState.String())
+	close(testWait)
 
 	if len(dr.DRAggregatorDistributedList) != 1 {
 		t.Error("Error Distributed Ports does not equal", dr.DRAggregatorDistributedList)
 	} else {
-
-		if dr.DRAggregatorDistributedList[0] != LaAggPort2NeighborActor {
+		if dr.DRAggregatorDistributedList[0] != LaAggPort1NeighborActor {
 			t.Error("Error Distributed Ports Incorrect port found", dr.DRAggregatorDistributedList[0])
 		}
 	}
 
-	/*
-		// TODO fix this as the sync the seetings is not currently working
-		if !dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
-			!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
-			!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
-			!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
-			t.Error("Error IPP HOME did not sync up as expected current state ", dr.DRFHomeOperDRCPState.String())
+	if !dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
+		t.Error("Error IPP HOME did not sync up as expected current state ", dr.DRFHomeOperDRCPState.String())
+	}
+
+	for _, ipp := range dr.Ipplinks {
+		if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
+			t.Error("Error IPP NEIGHBOR did not sync up as expected current state ", ipp.DRFNeighborOperDRCPState.String())
 		}
+		if !ipp.IppGatewayConversationPasses[100] {
+			t.Error("Error IPP Neighbor did not set conversation passes for 100 ")
+		}
+		sort.Sort(sortPortList(testBlockMap[int32(ipp.Id)]))
+		tmpPortList := make([]uint32, 0)
 
-		for _, ipp := range dr.Ipplinks {
+		for _, p := range dr.a.PortNumList {
+			tmpPortList = append(tmpPortList, uint32(p))
+		}
+		sort.Sort(sortPortList(tmpPortList))
 
-			if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
-				!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
-				!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
-				!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
-				t.Error("Error IPP NEIGHBOR did not sync up as expected current state ", ipp.DRFNeighborOperDRCPState.String())
+		//if len(testBlockMap[int32(ipp.Id)]) != len(tmpPortList) {
+		//	t.Error("Error Block Map not set correctly, expected ", dr.a.PortNumList, "found", tmpPortList, "len1", len(testBlockMap[int32(ipp.Id)]), "len2", len(tmpPortList))
+		//}
+
+		for _, p1 := range testBlockMap[int32(ipp.Id)] {
+			for _, p2 := range tmpPortList {
+				if p1 != uint32(p2) {
+					t.Error("Error (2) Block Map not set correctly, expected ", dr.a.PortNumList, "found", testBlockMap[int32(ipp.Id)])
+				}
 			}
-		}
-	*/
-	// cleanup the provisioning
-	close(bridge1.RxLacpPort1)
-	close(bridge1.RxLacpPort2)
-	close(bridge2.RxLacpPort1)
-	close(bridge2.RxLacpPort2)
-	bridge1.RxLacpPort1 = nil
-	bridge1.RxLacpPort2 = nil
-	bridge2.RxLacpPort1 = nil
-	bridge2.RxLacpPort2 = nil
-	lacp.DeleteLaAgg(a1conf.Id)
-	lacp.DeleteLaAgg(a2conf.Id)
-	lacp.DeleteLaAgg(a3conf.Id)
-	for _, sgi := range lacp.LacpSysGlobalInfoGet() {
-		if len(sgi.AggList) > 0 || len(sgi.AggMap) > 0 {
-			t.Error("System Agg List or Map is not empty", sgi.AggList, sgi.AggMap)
-		}
-		if len(sgi.PortList) > 0 || len(sgi.PortMap) > 0 {
-			t.Error("System Port List or Map is not empty", sgi.PortList, sgi.PortMap)
 		}
 	}
 
-	DeleteDistributedRelay(cfg.DrniName)
-	DeleteDistributedRelay(cfg2.DrniName)
+	if len(dr2.DRAggregatorDistributedList) != 1 {
+		t.Error("Error Distributed Ports does not equal", dr2.DRAggregatorDistributedList)
+	} else {
 
-	lacp.LacpSysGlobalInfoDestroy(LaSystem1NeighborActor)
-	lacp.LacpSysGlobalInfoDestroy(LaSystem2NeighborActor)
-	lacp.LacpSysGlobalInfoDestroy(LaSystemPeer)
+		if dr2.DRAggregatorDistributedList[0] != LaAggPort2NeighborActor {
+			t.Error("Error Distributed Ports Incorrect port found", dr2.DRAggregatorDistributedList[0])
+		}
+	}
+
+	if !dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
+		t.Error("Error IPP HOME did not sync up as expected current state ", dr2.DRFHomeOperDRCPState.String())
+	}
+
+	for _, ipp := range dr2.Ipplinks {
+		if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
+			t.Error("Error IPP NEIGHBOR did not sync up as expected current state ", ipp.DRFNeighborOperDRCPState.String())
+		}
+
+		if !ipp.IppGatewayConversationPasses[100] {
+			t.Error("Error IPP Neighbor did not set conversation passes for 100 ")
+		}
+		sort.Sort(sortPortList(testBlockMap[int32(ipp.Id)]))
+		tmpPortList := make([]uint32, 0)
+
+		for _, p := range dr2.a.PortNumList {
+			tmpPortList = append(tmpPortList, uint32(p))
+		}
+		sort.Sort(sortPortList(tmpPortList))
+
+		//if len(testBlockMap[int32(ipp.Id)]) != len(tmpPortList) {
+		//	t.Error("Error Block Map not set correctly, expected ", dr2.a.PortNumList, "found", tmpPortList)
+		//}
+
+		for _, p1 := range testBlockMap[int32(ipp.Id)] {
+			for _, p2 := range tmpPortList {
+				if p1 != uint32(p2) {
+					t.Error("Error Block Map not set correctly, expected ", dr2.a.PortNumList, "found", testBlockMap[int32(ipp.Id)])
+				}
+			}
+		}
+	}
+}
+
+// 3 node system where two neighbors are connected to 1 peer device
+func TestConfigCreateBackToBackMLagAndPeer(t *testing.T) {
+
+	FullBackToBackConfigTestSetup()
+
+	mlagcfg := Setup3NodeMlag()
+	//time.Sleep(time.Second * 20)
+
+	// basic verify
+	Verify3NodeMlag(mlagcfg, t)
+	Teardown3NodeMlag(mlagcfg, t)
+
+	FullBackToBackConfigTestTeardown(t)
+}
+
+// Add a new conversation to both MLAG's
+func TestConfigCreateBackToBackMLagAndPeerValidAddNewVlan(t *testing.T) {
+
+	FullBackToBackConfigTestSetup()
+
+	mlagcfg := Setup3NodeMlag()
+	//time.Sleep(time.Second * 20)
+
+	// basic verify
+	Verify3NodeMlag(mlagcfg, t)
+
+	var dr *DistributedRelay
+	if !DrFindByAggregator(int32(mlagcfg.cfg.DrniAggregator), &dr) {
+		t.Error("Error could not find te DR by local aggregator")
+	}
+	var dr2 *DistributedRelay
+	if !DrFindByAggregator(int32(mlagcfg.cfg2.DrniAggregator), &dr2) {
+		t.Error("Error could not find te DR by local aggregator")
+	}
+
+	// Add a new conversation vlan 200, with port list created with conversation
+	cfg := &DRConversationConfig{
+		DrniName: mlagcfg.cfg.DrniName,
+		Idtype:   GATEWAY_ALGORITHM_CVID,
+		Cvlan:    200,
+	}
+
+	for _, aggport := range dr.a.PortNumList {
+		cfg.PortList = append(cfg.PortList, int32(aggport))
+	}
+
+	CreateConversationId(cfg)
+
+	cfg = &DRConversationConfig{
+		DrniName: mlagcfg.cfg2.DrniName,
+		Idtype:   GATEWAY_ALGORITHM_CVID,
+		Cvlan:    200,
+	}
+	for _, aggport := range dr2.a.PortNumList {
+		cfg.PortList = append(cfg.PortList, int32(aggport))
+	}
+
+	CreateConversationId(cfg)
+
+	Verify3NodeMlag(mlagcfg, t)
+
+	testWait := make(chan bool)
+
+	go func(wc chan bool) {
+
+		for i := 0; i < 10 &&
+			(!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
+				len(dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].PortIdList) != 1 ||
+				len(dr.DrniPortalSystemState[dr.Ipplinks[0].DRFNeighborPortalSystemNumber].PortIdList) != 1); i++ {
+			//fmt.Println("waiting for dr2 state to converge", dr.DRFHomeOperDRCPState.String(), i)
+			time.Sleep(time.Second * 1)
+		}
+		wc <- true
+	}(testWait)
+
+	<-testWait
+	//fmt.Println("after wait for dr state to converge", dr.DRFHomeOperDRCPState.String())
+	close(testWait)
+	testWait = make(chan bool)
+
+	go func(wc chan bool) {
+
+		for i := 0; i < 10 &&
+			(!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
+				len(dr2.DrniPortalSystemState[dr.DrniPortalSystemNumber].PortIdList) != 1 ||
+				len(dr2.DrniPortalSystemState[dr.Ipplinks[0].DRFNeighborPortalSystemNumber].PortIdList) != 1); i++ {
+			//fmt.Println("waiting for dr2 state to converge", dr2.DRFHomeOperDRCPState.String(), i)
+			time.Sleep(time.Second * 1)
+		}
+		wc <- true
+	}(testWait)
+
+	<-testWait
+	//fmt.Println("after wait for dr2 state to converge", dr2.DRFHomeOperDRCPState.String())
+	close(testWait)
+
+	allippList := make([]*DRCPIpp, 0)
+	for _, p := range dr.Ipplinks {
+		allippList = append(allippList, p)
+	}
+	for _, p := range dr2.Ipplinks {
+		allippList = append(allippList, p)
+	}
+
+	for _, ipp := range allippList {
+		testWait = make(chan bool)
+
+		go func(wc chan bool) {
+
+			for i := 0; i < 10 &&
+				(ipp.IppGatewayConversationPasses[100] ||
+					!ipp.IppGatewayConversationPasses[200]); i++ {
+				//fmt.Println("waiting for dr2 state to converge", dr2.DRFHomeOperDRCPState.String(), i)
+				time.Sleep(time.Second * 1)
+			}
+			wc <- true
+		}(testWait)
+
+		<-testWait
+
+		if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
+			t.Error("Error IPP NEIGHBOR did not sync up as expected current state ", ipp.DRFNeighborOperDRCPState.String())
+		}
+
+		if !ipp.IppGatewayConversationPasses[100] {
+			t.Error("Error IPP Neighbor did not set conversation passes for 100 ", ipp.Id)
+		}
+		if !ipp.IppGatewayConversationPasses[200] {
+			t.Error("Error IPP Neighbor did not set conversation passes for 200 ", ipp.Id)
+		}
+	}
+
+	if !dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
+		t.Error("Error IPP HOME did not sync up as expected current state ", dr.DRFHomeOperDRCPState.String())
+	}
+
+	if !dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
+		t.Error("Error IPP HOME did not sync up as expected current state ", dr2.DRFHomeOperDRCPState.String())
+	}
+
+	Teardown3NodeMlag(mlagcfg, t)
+
 	FullBackToBackConfigTestTeardown(t)
 }

@@ -248,6 +248,7 @@ func TestConversationIdVlanMembershipCreateNoPorts(t *testing.T) {
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
+	dr.DeleteDistributedRelay()
 	ConversationIdTestTeardwon()
 }
 
@@ -388,7 +389,8 @@ func TestConversationIdVlanMembershipCreateNoPortsThenAddDelPort(t *testing.T) {
 	}
 
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }
 
 func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
@@ -530,5 +532,6 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 	}
 	eventReceived = true
 	lacp.DeleteLaAgg(a.AggId)
-	RxMachineTestTeardwon()
+	dr.DeleteDistributedRelay()
+	RxMachineTestTeardown(t)
 }

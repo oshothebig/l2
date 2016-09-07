@@ -110,7 +110,7 @@ type DRCPIntraPortal struct {
 	DRFNeighborConversationPortListDigest    Md5Digest
 	DRFNeighborGatewayAlgorithm              [4]uint8
 	DRFNeighborGatewayConversationMask       [MAX_CONVERSATION_IDS]bool
-	DRFNeighborGatewaySequence               uint16
+	DRFNeighborGatewaySequence               uint32
 	DRFNeighborNetworkIPLIPLEncapDigest      Md5Digest
 	DRFNeighborNetworkIPLNetEncapDigest      Md5Digest
 	DRFNeighborNetworkIPLSharingMethod       EncapMethod
@@ -149,7 +149,7 @@ type DRCPIntraPortal struct {
 	IppOtherGatewayConversation          [MAX_CONVERSATION_IDS]uint8
 	IppOtherPortConversationPortalSystem [MAX_CONVERSATION_IDS]uint8
 	IppPortEnabled                       bool
-	IppPortalSystemState                 []StateVectorInfo // this is probably wrong
+	IppPortalSystemState                 [4]StateVectorInfo
 	MissingRcvGatewayConVector           bool
 	MissingRcvPortConVector              bool
 	NTTDRCPDU                            bool
@@ -198,9 +198,9 @@ type DRCPIpp struct {
 
 func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 
-	neighborPortalSystemNum := uint8(1)
-	if id>>16&0x3 == 1 {
-		neighborPortalSystemNum = 2
+	neighborPortalSystemNum := uint8(2)
+	if dr.DrniPortalSystemNumber == 2 {
+		neighborPortalSystemNum = 1
 	}
 
 	ipp := &DRCPIpp{
@@ -210,8 +210,7 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 			AdminState: true,
 		},
 		DRCPIntraPortal: DRCPIntraPortal{
-			DRCPEnabled:          true,
-			IppPortalSystemState: make([]StateVectorInfo, 0),
+			DRCPEnabled: true,
 			// neighbor system id contained in the port id
 			DRFHomeConfNeighborPortalSystemNumber: neighborPortalSystemNum,
 			DRFHomeNetworkIPLSharingMethod:        dr.DrniEncapMethod,
@@ -605,7 +604,8 @@ func (p *DRCPIpp) DistributeMachineEvents(mec []chan utils.MachineEvent, e []uti
 // NotifyNTTDRCPUDChange
 func (p *DRCPIpp) NotifyNTTDRCPUDChange(src string, oldval, newval bool) {
 	if oldval != newval &&
-		newval {
+		newval &&
+		p.TxMachineFsm != nil {
 		p.TxMachineFsm.TxmEvents <- utils.MachineEvent{
 			E:   TxmEventNtt,
 			Src: src,
@@ -636,7 +636,7 @@ func DRFindPortByKey(key IppDbKey, p **DRCPIpp) bool {
 // Gateway_Sequence in increasing sequence number order
 func (nsi *StateVectorInfo) updateGatewayVector(sequence uint32, vector []bool) {
 
-	//fmt.Printf("updateGatewayVector: GatewayVector vector[100]=%t\n", vector[100])
+	//fmt.Printf("updateGatewayVector: GatewayVector sequence %d vector[100]=%t\n", sequence, vector[100])
 
 	if len(nsi.GatewayVector) > 0 {
 

@@ -133,7 +133,6 @@ func (am *AMachine) DrcpAMachineDRNIPortInitialize(m fsm.Machine, data interface
 // State transition to DRNI_PORT_UPDATE
 func (am *AMachine) DrcpAMachineDRNIPortUpdate(m fsm.Machine, data interface{}) fsm.State {
 	dr := am.dr
-
 	dr.PortConversationUpdate = false
 	am.updatePortalState()
 	am.setIPPPortUpdate()

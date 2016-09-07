@@ -93,6 +93,18 @@ func CreateConversationId(cfg *DRConversationConfig) {
 			if ConversationIdMap[cfg.Cvlan].Valid {
 				ent := ConversationIdMap[cfg.Cvlan]
 				ent.Refcnt++
+				// add any new ports into the ConversationIdMap
+				for _, p := range cfg.PortList {
+					foundEntry := false
+					for _, p2 := range ent.PortList {
+						if p == p2 {
+							foundEntry = true
+						}
+					}
+					if !foundEntry {
+						ent.PortList = append(ent.PortList, p)
+					}
+				}
 				ConversationIdMap[cfg.Cvlan] = ent
 			} else {
 				ent := ConversationIdMap[cfg.Cvlan]
