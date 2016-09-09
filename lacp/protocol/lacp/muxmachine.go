@@ -314,6 +314,11 @@ func (muxm *LacpMuxMachine) LacpMuxmCollecting(m fsm.Machine, data interface{}) 
 	//muxm.LacpMuxmLog("Clearing Actor Distributing Bit")
 	LacpStateClear(&p.ActorOper.State, LacpStateDistributingBit)
 
+	if p.AggAttached != nil &&
+		len(p.AggAttached.DistributedPortNumList) == 0 {
+		p.AggAttached.OperState = false
+	}
+
 	// indicate that NTT = TRUE
 	defer muxm.SendTxMachineNtt()
 
@@ -330,6 +335,9 @@ func (muxm *LacpMuxMachine) LacpMuxmDistributing(m fsm.Machine, data interface{}
 
 	// Enabled Distributing
 	muxm.EnableDistributing()
+	if p.AggAttached != nil {
+		p.AggAttached.OperState = true
+	}
 
 	// indicate that NTT = TRUE
 	defer muxm.SendTxMachineNtt()
