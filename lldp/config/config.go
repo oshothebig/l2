@@ -24,8 +24,9 @@
 package config
 
 type Global struct {
-	Vrf    string
-	Enable bool
+	Vrf             string
+	Enable          bool
+	TranmitInterval int32
 }
 
 // this is used for auto-discovery
@@ -57,6 +58,8 @@ type IntfState struct {
 	IntfRef             string
 	IfIndex             int32
 	Enable              bool
+	SendFrames          int32
+	ReceivedFrames      int32
 	LocalPort           string
 	PeerMac             string
 	PeerPort            string
@@ -67,10 +70,18 @@ type IntfState struct {
 	EnabledCapabilities string
 }
 
+type GlobalState struct {
+	Vrf             string
+	Enable          bool
+	TranmitInterval int32
+	Neighbors       int32
+	TotalTxFrames   int32
+	TotalRxFrames   int32
+}
+
 type EventInfo struct {
 	IfIndex   int32
 	EventType int
-	//Info      *IntfState
 }
 
 const (

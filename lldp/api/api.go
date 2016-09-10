@@ -85,22 +85,22 @@ func UpdateIntfConfig(intfRef string, enable bool) (bool, error) {
 	return proceed, err
 }
 
-func SendGlobalConfig(vrf string, enable bool) (bool, error) {
+func SendGlobalConfig(vrf string, enable bool, tranmitInterval int32) (bool, error) {
 	if lldpapi.server.Global != nil {
 		return false, errors.New("Create/Delete on Global Object is not allowed, please do Update")
 	}
-	debug.Logger.Debug("LLDP API received auto-create global config:", vrf, enable)
-	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable}
+	debug.Logger.Debug("LLDP API received auto-create global config:", vrf, enable, tranmitInterval)
+	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable, tranmitInterval}
 	debug.Logger.Debug("LLDP API pushed the global config on channel and returning true to confgMgr for create")
 	return true, nil
 }
 
-func UpdateGlobalConfig(vrf string, enable bool) (bool, error) {
+func UpdateGlobalConfig(vrf string, enable bool, tranmitInterval int32) (bool, error) {
 	if lldpapi.server.Global == nil {
 		return false, errors.New("Update can only be performed if the global object for LLDP is created")
 	}
-	debug.Logger.Debug("LLDP API received global config:", vrf, enable)
-	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable}
+	debug.Logger.Debug("LLDP API received global config:", vrf, enable, tranmitInterval)
+	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable, tranmitInterval}
 	debug.Logger.Debug("LLDP API pushed the global config on channel and returning true to confgMgr")
 	return true, nil
 }
@@ -119,11 +119,14 @@ func GetIntfStates(idx int, cnt int) (int, int, []config.IntfState) {
 	return n, c, result
 }
 
-//func GetIntfState(ifIndex int32) *config.IntfState {
 func GetIntfState(intfRef string) *config.IntfState {
 	return lldpapi.server.GetIntfState(intfRef)
 }
 
 func UpdateCache() {
 	lldpapi.server.UpdateCacheCh <- true
+}
+
+func GetLLDPGlobalState(vrf string) (*config.GlobalState, error) {
+	return lldpapi.server.GetGlobalState(vrf), nil
 }

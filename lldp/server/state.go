@@ -34,30 +34,32 @@ import (
  *  format to string
  */
 func (svr *LLDPServer) PopulateTLV(ifIndex int32, entry *config.IntfState) bool {
-	gblInfo, exists := svr.lldpGblInfo[ifIndex]
+	intf, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
 		debug.Logger.Err(fmt.Sprintln("Entry not found for", ifIndex))
 		return exists
 	}
-	gblInfo.RxLock.RLock()
-	defer gblInfo.RxLock.RUnlock()
-	entry.LocalPort = gblInfo.Port.Name
-	if gblInfo.RxInfo.RxFrame != nil {
-		entry.PeerMac = gblInfo.GetChassisIdInfo()
-		entry.PeerPort = gblInfo.GetPortIdInfo()
-		entry.HoldTime = strconv.Itoa(int(gblInfo.RxInfo.RxFrame.TTL))
+	intf.RxLock.RLock()
+	defer intf.RxLock.RUnlock()
+	entry.LocalPort = intf.Port.Name
+	if intf.RxInfo.RxFrame != nil {
+		entry.PeerMac = intf.GetChassisIdInfo()
+		entry.PeerPort = intf.GetPortIdInfo()
+		entry.HoldTime = strconv.Itoa(int(intf.RxInfo.RxFrame.TTL))
 	}
 
-	if gblInfo.RxInfo.RxLinkInfo != nil {
-		entry.SystemCapabilities = gblInfo.GetSystemCap()
-		entry.EnabledCapabilities = gblInfo.GetEnabledCap()
-		entry.PeerHostName = gblInfo.GetPeerHostName()
-		entry.SystemDescription = gblInfo.GetSystemDescription()
+	if intf.RxInfo.RxLinkInfo != nil {
+		entry.SystemCapabilities = intf.GetSystemCap()
+		entry.EnabledCapabilities = intf.GetEnabledCap()
+		entry.PeerHostName = intf.GetPeerHostName()
+		entry.SystemDescription = intf.GetSystemDescription()
 	}
 
-	entry.IfIndex = gblInfo.Port.IfIndex
-	entry.Enable = gblInfo.enable
-	entry.IntfRef = gblInfo.Port.Name
+	entry.IfIndex = intf.Port.IfIndex
+	entry.Enable = intf.enable
+	entry.IntfRef = intf.Port.Name
+	entry.SendFrames = intf.counter.Send
+	entry.ReceivedFrames = intf.counter.Rcvd
 	return exists
 }
 
@@ -76,11 +78,10 @@ func (svr *LLDPServer) GetIntfs(idx, cnt int) (int, int, []config.Intf) {
 	var i, j int
 	for i, j = 0, idx; i < cnt && j < length; {
 		key := svr.lldpIntfStateSlice[j]
-		gblInfo, exists := svr.lldpGblInfo[key]
+		intf, exists := svr.lldpGblInfo[key]
 		if exists {
-			//result[i].IfIndex = gblInfo.Port.IfIndex
-			result[i].IntfRef = gblInfo.Port.Name
-			result[i].Enable = gblInfo.enable
+			result[i].IntfRef = intf.Port.Name
+			result[i].Enable = intf.enable
 			i++
 			j++
 		}
@@ -140,4 +141,18 @@ func (svr *LLDPServer) GetIntfState(intfRef string) *config.IntfState {
 		return &entry
 	}
 	return nil
+}
+
+/*   Server get lldp global state
+ */
+func (svr *LLDPServer) GetGlobalState(vrf string) *config.GlobalState {
+	gblState := config.GlobalState{}
+	gblState.Vrf = vrf
+	gblState.TotalRxFrames = svr.counter.Rcvd
+	gblState.TotalTxFrames = svr.counter.Send
+	gblState.Neighbors = int32(len(svr.lldpUpIntfStateSlice))
+	// @TODO: Fixme
+	gblState.Enable = svr.Global.Enable
+	gblState.TranmitInterval = svr.Global.TranmitInterval
+	return &gblState
 }

@@ -78,6 +78,8 @@ func (svr *LLDPServer) InitGlobalDS() {
 	svr.IfStateCh = make(chan *config.PortState, LLDP_PORT_STATE_CHANGE_CHANNEL_SIZE)
 	svr.UpdateCacheCh = make(chan bool, 2)
 	svr.EventCh = make(chan config.EventInfo, 10)
+	svr.counter.Send = 0
+	svr.counter.Rcvd = 0
 	// All Plugin Info
 }
 
@@ -245,6 +247,8 @@ func (svr *LLDPServer) StopRxTx(ifIndex int32) {
 	intf.DeletePcapHandler()
 	// invalid the cache information
 	intf.TxInfo.DeleteCacheFrame()
+	intf.counter.Rcvd = 0
+	intf.counter.Send = 0
 	svr.lldpGblInfo[ifIndex] = intf
 	debug.Logger.Info("Stop lldp frames rx/tx for port:", intf.Port.Name, "ifIndex:", intf.Port.IfIndex)
 	svr.DeletePortFromUpState(ifIndex)
@@ -354,6 +358,11 @@ func (svr *LLDPServer) handleGlobalConfig() {
 			svr.StopRxTx(ifIndex)
 		}
 	}
+
+	if svr.Global.Enable == false {
+		svr.counter.Rcvd = 0
+		svr.counter.Send = 0
+	}
 }
 
 /*  handle configuration coming from user, which will enable/disable lldp per port
@@ -394,9 +403,11 @@ func (svr *LLDPServer) SendFrame(ifIndex int32) {
 			intf.TxInfo.SetCache(rv)
 		}
 	}
+	debug.Logger.Debug("Frame send from port:", intf.Port.Name)
 	intf.StartTxTimer(svr.lldpTxPktCh)
+	intf.counter.Send++
+	svr.counter.Send++
 	svr.lldpGblInfo[ifIndex] = intf
-	//intf.TxDone <- true
 }
 
 func (svr *LLDPServer) ProcessRcvdPkt(rcvdInfo InPktChannel) {
@@ -415,6 +426,8 @@ func (svr *LLDPServer) ProcessRcvdPkt(rcvdInfo InPktChannel) {
 			intf.Port.Name)
 		return
 	}
+	intf.counter.Rcvd++
+	svr.counter.Rcvd++
 	intf.RxLock.Unlock()
 	// reset/start timer for recipient information
 	intf.RxInfo.CheckPeerEntry(intf.Port.Name, svr.EventCh, rcvdInfo.ifIndex)
@@ -426,8 +439,6 @@ func (svr *LLDPServer) ProcessRcvdPkt(rcvdInfo InPktChannel) {
 		svr.SysPlugin.PublishEvent(eventInfo)
 	}
 	debug.Logger.Debug("Done Processing Packet for port:", intf.Port.Name)
-	// dump the frame
-	//intf.DumpFrame()
 }
 
 /* To handle all the channels in lldp server... For detail look at the
@@ -459,7 +470,9 @@ func (svr *LLDPServer) ChannelHanlder() {
 			}
 			svr.Global.Enable = gbl.Enable
 			svr.Global.Vrf = gbl.Vrf
+			svr.Global.TranmitInterval = gbl.TranmitInterval
 			// start all interface rx/tx in go routine only
+			// @TODO: jgheewala fixme for update in transmit interval
 			svr.handleGlobalConfig()
 		case intf, ok := <-svr.IntfCfgCh: // Change in interface config
 			if !ok {
