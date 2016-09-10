@@ -96,6 +96,7 @@ func (svr *LLDPServer) readLLDPGlobalConfig() {
 		}
 		svr.Global.Vrf = dbEntry.Vrf
 		svr.Global.Enable = dbEntry.Enable
+		svr.Global.TranmitInterval = dbEntry.TranmitInterval
 	}
 	debug.Logger.Info("Done with LLDPGlobal")
 }

@@ -61,6 +61,13 @@ type LLDPGlobalInfo struct {
 	// Go Routine Killer Channels
 	RxKill chan bool
 	TxDone chan bool
+	// counter for total frames rx/tx
+	counter Frame
+}
+
+type Frame struct {
+	Send int32
+	Rcvd int32
 }
 
 type LLDPServer struct {
@@ -103,6 +110,9 @@ type LLDPServer struct {
 	UpdateCacheCh chan bool
 	// Event Publish channel for server
 	EventCh chan config.EventInfo
+
+	// Frames Counter
+	counter Frame
 }
 
 const (
