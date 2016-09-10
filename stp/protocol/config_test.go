@@ -306,6 +306,10 @@ func TestStpBridgeParamCheckPriority(t *testing.T) {
 	if err != nil {
 		t.Error("ERRROR Setting bridge priority to a valid value", err)
 	}
+	prio := GetBridgePriorityFromBridgeId(b.BridgeIdentifier)
+	if prio != (4096 | brgcfg.Vlan) {
+		t.Error("ERROR Bridge Priority not set properly in packet", prio, b.BridgeIdentifier)
+	}
 
 	// lets update the bridge priority attribute to an invalid value
 	err = StpBrgPrioritySet(b.BrgIfIndex, 400)

@@ -295,7 +295,7 @@ func GetBridgeVlanFromBridgeId(b BridgeId) (vlan uint16) {
 }
 
 func GetBridgePriorityFromBridgeId(b BridgeId) uint16 {
-	return uint16(b[0]<<8) | uint16(b[1])
+	return uint16(b[0])<<8 | uint16(b[1])
 }
 
 // Compare BridgeId
