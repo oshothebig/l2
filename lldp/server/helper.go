@@ -373,7 +373,7 @@ func (svr *LLDPServer) GetSystemInfo() {
 			dbObject := objList[idx].(objects.SystemParam)
 			svr.SysInfo.SwitchMac = dbObject.SwitchMac
 			svr.SysInfo.MgmtIp = dbObject.MgmtIp
-			svr.SysInfo.Version = dbObject.Version
+			svr.SysInfo.SwVersion = dbObject.SwVersion
 			svr.SysInfo.Description = dbObject.Description
 			svr.SysInfo.Hostname = dbObject.Hostname
 			svr.SysInfo.Vrf = dbObject.Vrf
