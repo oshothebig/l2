@@ -121,7 +121,12 @@ func (p *SystemPlugin) Start() {
 
 func (p *SystemPlugin) GetSystemInfo(dbHdl *dbutils.DBUtil) *config.SystemInfo {
 	sysInfo := &config.SystemInfo{}
+	count := 0
 	for {
+		if count%10000 == 0 {
+			debug.Logger.Info("Still trying to get db info for System Param")
+		}
+		count++
 		if dbHdl == nil {
 			time.Sleep(250 * time.Millisecond)
 			continue
