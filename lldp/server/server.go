@@ -76,7 +76,7 @@ func (svr *LLDPServer) InitGlobalDS() {
 	svr.GblCfgCh = make(chan *config.Global, 2)
 	svr.IntfCfgCh = make(chan *config.IntfConfig, LLDP_PORT_CONFIG_CHANNEL_SIZE)
 	svr.IfStateCh = make(chan *config.PortState, LLDP_PORT_STATE_CHANGE_CHANNEL_SIZE)
-	svr.UpdateCacheCh = make(chan bool, 2)
+	svr.UpdateCacheCh = make(chan *config.SystemInfo, 1)
 	svr.EventCh = make(chan config.EventInfo, 10)
 	svr.counter.Send = 0
 	svr.counter.Rcvd = 0
@@ -154,6 +154,8 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 	for _, port := range portsInfo {
 		svr.InitL2PortInfo(port)
 	}
+	// Get System Information from Sysd, before we start anything
+	svr.SysInfo = svr.SysPlugin.GetSystemInfo(svr.lldpDbHdl)
 
 	// Populate Gbl Configs
 	svr.ReadDB()
@@ -395,9 +397,9 @@ func (svr *LLDPServer) SendFrame(ifIndex int32) {
 	intf, exists := svr.lldpGblInfo[ifIndex]
 	// extra check for pcap handle
 	if exists && intf.PcapHandle != nil {
-		if intf.TxInfo.UseCache() == false {
-			svr.GetSystemInfo()
-		}
+		//if intf.TxInfo.UseCache() == false {
+		//	svr.GetSystemInfo()
+		//}
 		rv := intf.WritePacket(intf.TxInfo.Frame(intf.Port, svr.SysInfo))
 		if rv == false {
 			intf.TxInfo.SetCache(rv)
@@ -432,7 +434,6 @@ func (svr *LLDPServer) ProcessRcvdPkt(rcvdInfo InPktChannel) {
 	// reset/start timer for recipient information
 	intf.RxInfo.CheckPeerEntry(intf.Port.Name, svr.EventCh, rcvdInfo.ifIndex)
 	svr.lldpGblInfo[rcvdInfo.ifIndex] = intf
-	//eventInfo.Info = svr.GetIntfState(rcvdInfo.ifIndex)
 	eventInfo.IfIndex = rcvdInfo.ifIndex
 
 	if eventInfo.EventType != config.NoOp {
@@ -487,11 +488,11 @@ func (svr *LLDPServer) ChannelHanlder() {
 			debug.Logger.Info("Server received L2 Intf State Changes for ifIndex:", ifState.IfIndex,
 				"state:", ifState.IfState)
 			svr.UpdateL2IntfStateChange(ifState.IfIndex, ifState.IfState)
-		case _, ok := <-svr.UpdateCacheCh:
+		case sysInfo, ok := <-svr.UpdateCacheCh:
 			if !ok {
 				continue
 			}
-			svr.UpdateCache()
+			svr.UpdateCache(sysInfo)
 		case eventInfo, ok := <-svr.EventCh: //used only for delete
 			if !ok {
 				continue

@@ -24,11 +24,13 @@ package flexswitch
 
 import (
 	"encoding/json"
-	"fmt"
 	nanomsg "github.com/op/go-nanomsg"
 	"infra/sysd/sysdCommonDefs"
 	"l2/lldp/api"
+	"l2/lldp/config"
 	"l2/lldp/utils"
+	"models/objects"
+	"time"
 	"utils/dbutils"
 	"utils/eventUtils"
 )
@@ -41,7 +43,7 @@ func NewSystemPlugin(fileName string, db *dbutils.DBUtil) (*SystemPlugin, error)
 	mgr := &SystemPlugin{}
 	err := eventUtils.InitEvents("LLDPD", db, db, debug.Logger, 1000)
 	if err != nil {
-		debug.Logger.Info(fmt.Sprintln("unable to initialize event utils", err))
+		debug.Logger.Info("unable to initialize event utils", err)
 	}
 	return mgr, nil
 }
@@ -51,27 +53,25 @@ func (p *SystemPlugin) connectSubSocket() error {
 	address := sysdCommonDefs.PUB_SOCKET_ADDR
 	debug.Logger.Info(" setting up sysd update listener")
 	if p.sysdSubSocket, err = nanomsg.NewSubSocket(); err != nil {
-		debug.Logger.Err(fmt.Sprintln("Failed to create SYS subscribe socket, error:",
-			err))
+		debug.Logger.Err("Failed to create SYS subscribe socket, error:", err)
 		return err
 	}
 
 	if err = p.sysdSubSocket.Subscribe(""); err != nil {
-		debug.Logger.Err(fmt.Sprintln("Failed to subscribe to SYS subscribe socket",
-			"error:", err))
+		debug.Logger.Err("Failed to subscribe to SYS subscribe socket error:", err)
 		return err
 	}
 
 	if _, err = p.sysdSubSocket.Connect(address); err != nil {
-		debug.Logger.Err(fmt.Sprintln("Failed to connect to SYS publisher socket",
-			"address:", address, "error:", err))
+		debug.Logger.Err("Failed to connect to SYS publisher socket",
+			"address:", address, "error:", err)
 		return err
 	}
 
-	debug.Logger.Info(fmt.Sprintln(" Connected to SYS publisher at address:", address))
+	debug.Logger.Info("Connected to SYS publisher at address:", address)
 	if err = p.sysdSubSocket.SetRecvBuffer(1024 * 1024); err != nil {
-		debug.Logger.Err(fmt.Sprintln(" Failed to set the buffer size for SYS publisher",
-			"socket, error:", err))
+		debug.Logger.Err(" Failed to set the buffer size for SYS publisher",
+			"socket, error:", err)
 		return err
 	}
 	debug.Logger.Info("sysd update listener is set")
@@ -80,22 +80,33 @@ func (p *SystemPlugin) connectSubSocket() error {
 
 func (p *SystemPlugin) listenSystemdUpdates() {
 	for {
-		debug.Logger.Debug(" Read on System Subscriber socket....")
+		debug.Logger.Debug("Read on System Subscriber socket....")
 		rxBuf, err := p.sysdSubSocket.Recv(0)
 		if err != nil {
-			debug.Logger.Err(fmt.Sprintln(
-				"Recv on sysd Subscriber socket failed with error:", err))
+			debug.Logger.Err("Recv on sysd Subscriber socket failed with error:", err)
 			continue
 		}
 		var msg sysdCommonDefs.Notification
 		err = json.Unmarshal(rxBuf, &msg)
 		if err != nil {
-			debug.Logger.Err(fmt.Sprintln("Unable to Unmarshal sysd err:", err))
+			debug.Logger.Err("Unable to Unmarshal sysd err:", err)
 			continue
 		}
+		debug.Logger.Debug("LLDP recv msg type:", msg.Type)
 		switch msg.Type {
 		case sysdCommonDefs.SYSTEM_Info:
-			api.UpdateCache()
+			var systemInfo objects.SystemParam
+			err = json.Unmarshal(msg.Payload, &systemInfo)
+			sysInfo := config.SystemInfo{
+				Vrf:         systemInfo.Vrf,
+				MgmtIp:      systemInfo.MgmtIp,
+				Hostname:    systemInfo.Hostname,
+				SwitchMac:   systemInfo.SwitchMac,
+				SwVersion:   systemInfo.SwVersion,
+				Description: systemInfo.Description,
+			}
+			debug.Logger.Debug("LLDP received system update:", sysInfo)
+			api.UpdateCache(&sysInfo)
 		}
 	}
 }
@@ -106,4 +117,32 @@ func (p *SystemPlugin) Start() {
 		return
 	}
 	go p.listenSystemdUpdates()
+}
+
+func (p *SystemPlugin) GetSystemInfo(dbHdl *dbutils.DBUtil) *config.SystemInfo {
+	sysInfo := &config.SystemInfo{}
+	for {
+		if dbHdl == nil {
+			time.Sleep(250 * time.Millisecond)
+			continue
+		}
+
+		var dbObj objects.SystemParam
+		objList, err := dbHdl.GetAllObjFromDb(dbObj)
+		if err != nil {
+			debug.Logger.Err("DB query failed for System Info, retry in next 250 Millisecond")
+			time.Sleep(250 * time.Millisecond)
+			continue
+		}
+		for idx := 0; idx < len(objList); idx++ {
+			dbObject := objList[idx].(objects.SystemParam)
+			sysInfo.SwitchMac = dbObject.SwitchMac
+			sysInfo.MgmtIp = dbObject.MgmtIp
+			sysInfo.SwVersion = dbObject.SwVersion
+			sysInfo.Description = dbObject.Description
+			sysInfo.Hostname = dbObject.Hostname
+			sysInfo.Vrf = dbObject.Vrf
+			return sysInfo
+		}
+	}
 }

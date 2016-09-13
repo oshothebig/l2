@@ -25,6 +25,7 @@ package plugin
 
 import (
 	"l2/lldp/config"
+	"utils/dbutils"
 )
 
 type AsicIntf interface {
@@ -38,5 +39,6 @@ type ConfigIntf interface {
 
 type SystemIntf interface {
 	Start()
-	PublishEvent(config.EventInfo) //int, *config.IntfState)
+	GetSystemInfo(dbHdl *dbutils.DBUtil) *config.SystemInfo
+	PublishEvent(config.EventInfo)
 }
