@@ -31,7 +31,6 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/utils"
-	"models/objects"
 	"net"
 	"strconv"
 	"strings"
@@ -320,17 +319,12 @@ func (intf *LLDPGlobalInfo) GetSystemDescription() string {
 func (intf LLDPGlobalInfo) DumpFrame() {
 	intf.RxLock.RLock()
 	defer intf.RxLock.RUnlock()
-	debug.Logger.Debug(fmt.Sprintln("L2 Port:", intf.Port.IfIndex, "Port IfIndex:",
-		intf.Port.IfIndex))
-	debug.Logger.Debug(fmt.Sprintln("SrcMAC:", intf.RxInfo.SrcMAC.String(),
-		"DstMAC:", intf.RxInfo.DstMAC.String()))
-	debug.Logger.Debug(fmt.Sprintln("ChassisID info is",
-		intf.RxInfo.RxFrame.ChassisID))
-	debug.Logger.Debug(fmt.Sprintln("PortID info is",
-		intf.RxInfo.RxFrame.PortID))
-	debug.Logger.Debug(fmt.Sprintln("TTL info is", intf.RxInfo.RxFrame.TTL))
-	debug.Logger.Debug(fmt.Sprintln("Optional Values is",
-		intf.RxInfo.RxLinkInfo))
+	debug.Logger.Debug("L2 Port:", intf.Port.IfIndex, "Port IfIndex:", intf.Port.IfIndex)
+	debug.Logger.Debug("SrcMAC:", intf.RxInfo.SrcMAC.String(), "DstMAC:", intf.RxInfo.DstMAC.String())
+	debug.Logger.Debug("ChassisID info is", intf.RxInfo.RxFrame.ChassisID)
+	debug.Logger.Debug("PortID info is", intf.RxInfo.RxFrame.PortID)
+	debug.Logger.Debug("TTL info is", intf.RxInfo.RxFrame.TTL)
+	debug.Logger.Debug("Optional Values is", intf.RxInfo.RxLinkInfo)
 }
 
 /*  Api used to get entry.. This is mainly used by LLDP Server API Layer when it get config from
@@ -353,42 +347,11 @@ func (svr *LLDPServer) EntryExist(intfRef string) (int32, bool) {
 	return -1, false
 }
 
-/*  Api to get System information used for TX Frame
- */
-func (svr *LLDPServer) GetSystemInfo() {
-	if svr.SysInfo != nil {
-		return
-	}
-	svr.SysInfo = &objects.SystemParam{}
-	debug.Logger.Info("Reading System Information From Db")
-	dbHdl := svr.lldpDbHdl
-	if dbHdl != nil {
-		var dbObj objects.SystemParam
-		objList, err := dbHdl.GetAllObjFromDb(dbObj)
-		if err != nil {
-			debug.Logger.Err("DB query failed for System Info")
-			return
-		}
-		for idx := 0; idx < len(objList); idx++ {
-			dbObject := objList[idx].(objects.SystemParam)
-			svr.SysInfo.SwitchMac = dbObject.SwitchMac
-			svr.SysInfo.MgmtIp = dbObject.MgmtIp
-			svr.SysInfo.SwVersion = dbObject.SwVersion
-			svr.SysInfo.Description = dbObject.Description
-			svr.SysInfo.Hostname = dbObject.Hostname
-			svr.SysInfo.Vrf = dbObject.Vrf
-			break
-		}
-	}
-	debug.Logger.Info(fmt.Sprintln("reading system info from db done", svr.SysInfo))
-	return
-}
-
 /*  Api to update system cache on next send frame
  */
-func (svr *LLDPServer) UpdateCache() {
-	// set sysInfo to nil
-	svr.SysInfo = nil
+func (svr *LLDPServer) UpdateCache(sysInfo *config.SystemInfo) {
+	svr.SysInfo = sysInfo
+	debug.Logger.Debug("Updated system information:", *svr.SysInfo)
 	for _, ifIndex := range svr.lldpUpIntfStateSlice {
 		intf, exists := svr.lldpGblInfo[ifIndex]
 		if !exists {

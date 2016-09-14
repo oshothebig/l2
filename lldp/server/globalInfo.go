@@ -29,7 +29,6 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/plugin"
-	"models/objects"
 	"sync"
 	"time"
 	"utils/dbutils"
@@ -80,7 +79,7 @@ type LLDPServer struct {
 	SysPlugin  plugin.SystemIntf
 
 	//System Information
-	SysInfo *objects.SystemParam
+	SysInfo *config.SystemInfo
 
 	// Global LLDP Information
 	Global *config.Global
@@ -107,7 +106,7 @@ type LLDPServer struct {
 	// lldp asic notification channel
 	IfStateCh chan *config.PortState
 	// Update Cache notification channel
-	UpdateCacheCh chan bool
+	UpdateCacheCh chan *config.SystemInfo
 	// Event Publish channel for server
 	EventCh chan config.EventInfo
 
