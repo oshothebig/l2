@@ -61,6 +61,13 @@ type LLDPGlobalInfo struct {
 	// Go Routine Killer Channels
 	RxKill chan bool
 	TxDone chan bool
+	// counter for total frames rx/tx
+	counter Frame
+}
+
+type Frame struct {
+	Send int32
+	Rcvd int32
 }
 
 type LLDPServer struct {
@@ -79,9 +86,10 @@ type LLDPServer struct {
 	Global *config.Global
 
 	// lldp per port global info
-	lldpGblInfo          map[int32]LLDPGlobalInfo
-	lldpIntfStateSlice   []int32
-	lldpUpIntfStateSlice []int32
+	lldpGblInfo            map[int32]LLDPGlobalInfo
+	lldpIntfStateSlice     []int32
+	lldpUpIntfStateSlice   []int32
+	lldpIntfRef2IfIndexMap map[string]int32
 
 	// lldp pcap handler default config values
 	lldpSnapshotLen int32
@@ -95,15 +103,16 @@ type LLDPServer struct {
 	// lldp global config channel
 	GblCfgCh chan *config.Global
 	// lldp per port config
-	IntfCfgCh chan *config.Intf
+	IntfCfgCh chan *config.IntfConfig
 	// lldp asic notification channel
 	IfStateCh chan *config.PortState
 	// Update Cache notification channel
 	UpdateCacheCh chan bool
 	// Event Publish channel for server
 	EventCh chan config.EventInfo
-	// lldp exit
-	lldpExit chan bool
+
+	// Frames Counter
+	counter Frame
 }
 
 const (
@@ -111,13 +120,16 @@ const (
 	LLDP_CPU_PROFILE_FILE = "/var/log/lldp.prof"
 
 	// Consts Init Size/Capacity
-	LLDP_INITIAL_GLOBAL_INFO_CAPACITY = 100
-	LLDP_RX_PKT_CHANNEL_SIZE          = 10
-	LLDP_TX_PKT_CHANNEL_SIZE          = 10
+	LLDP_INITIAL_GLOBAL_INFO_CAPACITY   = 100
+	LLDP_RX_PKT_CHANNEL_SIZE            = 30
+	LLDP_TX_PKT_CHANNEL_SIZE            = 30
+	LLDP_PORT_STATE_CHANGE_CHANNEL_SIZE = 200
+	LLDP_PORT_CONFIG_CHANNEL_SIZE       = 5
 
 	// Port Operation State
 	LLDP_PORT_STATE_DOWN = "DOWN"
 	LLDP_PORT_STATE_UP   = "UP"
+	LLDP_PORT_BROKEN_OUT = "Port broken out"
 
 	LLDP_BPF_FILTER                 = "ether proto 0x88cc"
 	LLDP_DEFAULT_TX_INTERVAL        = 30

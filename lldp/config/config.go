@@ -24,11 +24,19 @@
 package config
 
 type Global struct {
-	Vrf    string
-	Enable bool
+	Vrf             string
+	Enable          bool
+	TranmitInterval int32
 }
 
+// this is used for auto-discovery
 type Intf struct {
+	IntfRef string
+	Enable  bool
+}
+
+// this is used to update configuration request coming from client to server
+type IntfConfig struct {
 	IfIndex int32
 	Enable  bool
 }
@@ -47,21 +55,33 @@ type PortState struct {
 }
 
 type IntfState struct {
+	IntfRef             string
 	IfIndex             int32
 	Enable              bool
+	SendFrames          int32
+	ReceivedFrames      int32
 	LocalPort           string
 	PeerMac             string
 	PeerPort            string
 	PeerHostName        string
 	HoldTime            string
+	SystemDescription   string
 	SystemCapabilities  string
 	EnabledCapabilities string
+}
+
+type GlobalState struct {
+	Vrf             string
+	Enable          bool
+	TranmitInterval int32
+	Neighbors       int32
+	TotalTxFrames   int32
+	TotalRxFrames   int32
 }
 
 type EventInfo struct {
 	IfIndex   int32
 	EventType int
-	//Info      *IntfState
 }
 
 const (

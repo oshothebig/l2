@@ -58,7 +58,7 @@ func (p *NBPlugin) Start() error {
 	if err != nil || clientJson == nil {
 		return err
 	}
-	debug.Logger.Info(fmt.Sprintln("Got Client Info for", clientJson.Name, " port", clientJson.Port))
+	debug.Logger.Info("Got Client Info for", clientJson.Name, " port", clientJson.Port)
 	// create processor, transport and protocol for server
 	processor := lldpd.NewLLDPDServicesProcessor(p.handler)
 	transportFactory := thrift.NewTBufferedTransportFactory(8192)
@@ -66,21 +66,20 @@ func (p *NBPlugin) Start() error {
 	transport, err := thrift.NewTServerSocket("localhost:" +
 		strconv.Itoa(clientJson.Port))
 	if err != nil {
-		debug.Logger.Info(fmt.Sprintln("StartServer: NewTServerSocket failed with error:", err))
+		debug.Logger.Info("StartServer: NewTServerSocket failed with error:", err)
 		return err
 	}
-	server := thrift.NewTSimpleServer4(processor, transport,
-		transportFactory, protocolFactory)
+	server := thrift.NewTSimpleServer4(processor, transport, transportFactory, protocolFactory)
 	err = server.Serve()
 	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("Failed to start the listener, err:", err))
+		debug.Logger.Err("Failed to start the listener, err:", err)
 		return err
 	}
 	return nil
 }
 
 func (h *ConfigHandler) CreateLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {
-	return api.SendIntfConfig(config.IfIndex, config.Enable)
+	return api.SendIntfConfig(config.IntfRef, config.Enable)
 }
 
 func (h *ConfigHandler) DeleteLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {
@@ -91,10 +90,10 @@ func (h *ConfigHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
 	newconfig *lldpd.LLDPIntf, attrset []bool, op []*lldpd.PatchOpInfo) (r bool, err error) {
 	// On update we do not care for old config... just push the new config to api layer
 	// and let the api layer handle the information
-	return api.UpdateIntfConfig(newconfig.IfIndex, newconfig.Enable)
+	return api.UpdateIntfConfig(newconfig.IntfRef, newconfig.Enable)
 }
 
-func (h *ConfigHandler) GetLLDPIntf(ifIndex int32) (*lldpd.LLDPIntf, error) {
+func (h *ConfigHandler) GetLLDPIntf(intfRef string) (*lldpd.LLDPIntf, error) {
 	return nil, nil
 }
 
@@ -121,7 +120,8 @@ func (h *ConfigHandler) GetBulkLLDPIntf(fromIndex lldpd.Int, count lldpd.Int) (*
 }
 
 func (h *ConfigHandler) CreateLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err error) {
-	return api.SendGlobalConfig(config.Vrf, config.Enable)
+	debug.Logger.Debug("LLDP listener received create lldp global config", *config)
+	return api.SendGlobalConfig(config.Vrf, config.Enable, config.TranmitInterval)
 }
 
 func (h *ConfigHandler) DeleteLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err error) {
@@ -132,13 +132,15 @@ func (h *ConfigHandler) UpdateLLDPGlobal(origconfig *lldpd.LLDPGlobal,
 	newconfig *lldpd.LLDPGlobal, attrset []bool, op []*lldpd.PatchOpInfo) (r bool, err error) {
 	// On update we do not care for old config... just push the new config to api layer
 	// and let the api layer handle the information
-	return api.UpdateGlobalConfig(newconfig.Vrf, newconfig.Enable)
+	debug.Logger.Debug("LLDP listener received update lldp global orig", *origconfig, "new config", *newconfig)
+	return api.UpdateGlobalConfig(newconfig.Vrf, newconfig.Enable, newconfig.TranmitInterval)
 }
 
 func (h *ConfigHandler) convertLLDPIntfEntryToThriftEntry(state config.Intf) *lldpd.LLDPIntf {
 	entry := lldpd.NewLLDPIntf()
 	entry.Enable = state.Enable
-	entry.IfIndex = state.IfIndex
+	//entry.IfIndex = state.IfIndex
+	entry.IntfRef = state.IntfRef
 	return entry
 }
 
@@ -151,6 +153,10 @@ func (h *ConfigHandler) convertLLDPIntfStateEntryToThriftEntry(state config.Intf
 	entry.HoldTime = state.HoldTime
 	entry.Enable = state.Enable
 	entry.IfIndex = state.IfIndex
+	entry.IntfRef = state.IntfRef
+	entry.SendFrames = state.SendFrames
+	entry.ReceivedFrames = state.ReceivedFrames
+	entry.SystemDescription = state.SystemDescription
 	entry.SystemCapabilities = state.SystemCapabilities
 	entry.EnabledCapabilities = state.EnabledCapabilities
 	return entry
@@ -179,11 +185,39 @@ func (h *ConfigHandler) GetBulkLLDPIntfState(fromIndex lldpd.Int, count lldpd.In
 	return lldpEntryBulk, nil
 }
 
-func (h *ConfigHandler) GetLLDPIntfState(ifIndex int32) (*lldpd.LLDPIntfState, error) {
-	lldpIntf := api.GetIntfState(ifIndex)
+func (h *ConfigHandler) GetLLDPIntfState(intfRef string) (*lldpd.LLDPIntfState, error) {
+	lldpIntf := api.GetIntfState(intfRef)
 	if lldpIntf == nil {
-		return nil, errors.New(fmt.Sprintf("No Information found for", ifIndex))
+		return nil, errors.New(fmt.Sprintln("No Information found for", intfRef))
 	}
 
 	return h.convertLLDPIntfStateEntryToThriftEntry(*lldpIntf), nil
+}
+
+func (h *ConfigHandler) convertLLDPGlobalStateEntryToThriftEntry(gblState *config.GlobalState) *lldpd.LLDPGlobalState {
+	entry := lldpd.NewLLDPGlobalState()
+	entry.Vrf = gblState.Vrf
+	entry.Enable = gblState.Enable
+	entry.TranmitInterval = gblState.TranmitInterval
+	entry.TotalTxFrames = gblState.TotalTxFrames
+	entry.TotalRxFrames = gblState.TotalRxFrames
+	entry.Neighbors = gblState.Neighbors
+	return entry
+}
+
+func (h *ConfigHandler) GetBulkLLDPGlobalState(fromIndex lldpd.Int, count lldpd.Int) (*lldpd.LLDPGlobalStateGetInfo, error) {
+	lldpGlobalStateBulk := lldpd.NewLLDPGlobalStateGetInfo()
+	lldpGlobalStateBulk.EndIdx = lldpd.Int(0)
+	lldpGlobalStateBulk.Count = lldpd.Int(1)
+	lldpGlobalStateBulk.More = false
+	lldpGlobalStateBulk.LLDPGlobalStateList = make([]*lldpd.LLDPGlobalState, 1)
+	gblEntry, _ := api.GetLLDPGlobalState("default")
+	lldpGlobalStateBulk.LLDPGlobalStateList[0] = h.convertLLDPGlobalStateEntryToThriftEntry(gblEntry)
+
+	return lldpGlobalStateBulk, nil
+}
+
+func (h *ConfigHandler) GetLLDPGlobalState(vrf string) (*lldpd.LLDPGlobalState, error) {
+	gblEntry, _ := api.GetLLDPGlobalState(vrf)
+	return h.convertLLDPGlobalStateEntryToThriftEntry(gblEntry), nil
 }

@@ -27,7 +27,7 @@ import (
 	"errors"
 	"l2/lldp/config"
 	"l2/lldp/server"
-	"strconv"
+	"l2/lldp/utils"
 	"sync"
 )
 
@@ -55,47 +55,53 @@ func Init(svr *server.LLDPServer) {
 //@TODO: Create for LLDP Interface will only be called during auto-create if an entry is not present in the DB
 // If it is present then we will read it during restart
 // During update we need to check whether there is any entry in the runtime information or not
-func validateExistingIntfConfig(ifIndex int32) (bool, error) {
-	exists := lldpapi.server.EntryExist(ifIndex)
+func validateExistingIntfConfig(intfRef string) (int32, bool, error) {
+	ifIndex, exists := lldpapi.server.EntryExist(intfRef)
 	if !exists {
-		return exists, errors.New("Update cannot be performed for " +
-			strconv.Itoa(int(ifIndex)) + " as LLDP Server doesn't have any info for the ifIndex")
+		return ifIndex, exists, errors.New("Update cannot be performed for " + intfRef +
+			" as LLDP Server doesn't have any info for the ifIndex")
 	}
-	return exists, nil
+	return ifIndex, exists, nil
 }
 
-func SendIntfConfig(ifIndex int32, enable bool) (bool, error) {
+//func SendIntfConfig(ifIndex int32, enable bool) (bool, error) {
+func SendIntfConfig(intfRef string, enable bool) (bool, error) {
 	// Validate ifIndex before sending the config to server
-	proceed, err := validateExistingIntfConfig(ifIndex)
+	ifIndex, proceed, err := validateExistingIntfConfig(intfRef)
 	if !proceed {
 		return proceed, err
 	}
-	lldpapi.server.IntfCfgCh <- &config.Intf{ifIndex, enable}
+	lldpapi.server.IntfCfgCh <- &config.IntfConfig{ifIndex, enable}
 	return proceed, err
 }
 
-func UpdateIntfConfig(ifIndex int32, enable bool) (bool, error) {
-	proceed, err := validateExistingIntfConfig(ifIndex)
+//func UpdateIntfConfig(ifIndex int32, enable bool) (bool, error) {
+func UpdateIntfConfig(intfRef string, enable bool) (bool, error) {
+	ifIndex, proceed, err := validateExistingIntfConfig(intfRef)
 	if !proceed {
 		return proceed, err
 	}
-	lldpapi.server.IntfCfgCh <- &config.Intf{ifIndex, enable}
+	lldpapi.server.IntfCfgCh <- &config.IntfConfig{ifIndex, enable}
 	return proceed, err
 }
 
-func SendGlobalConfig(vrf string, enable bool) (bool, error) {
+func SendGlobalConfig(vrf string, enable bool, tranmitInterval int32) (bool, error) {
 	if lldpapi.server.Global != nil {
 		return false, errors.New("Create/Delete on Global Object is not allowed, please do Update")
 	}
-	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable}
+	debug.Logger.Debug("LLDP API received auto-create global config:", vrf, enable, tranmitInterval)
+	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable, tranmitInterval}
+	debug.Logger.Debug("LLDP API pushed the global config on channel and returning true to confgMgr for create")
 	return true, nil
 }
 
-func UpdateGlobalConfig(vrf string, enable bool) (bool, error) {
+func UpdateGlobalConfig(vrf string, enable bool, tranmitInterval int32) (bool, error) {
 	if lldpapi.server.Global == nil {
 		return false, errors.New("Update can only be performed if the global object for LLDP is created")
 	}
-	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable}
+	debug.Logger.Debug("LLDP API received global config:", vrf, enable, tranmitInterval)
+	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable, tranmitInterval}
+	debug.Logger.Debug("LLDP API pushed the global config on channel and returning true to confgMgr")
 	return true, nil
 }
 
@@ -113,10 +119,14 @@ func GetIntfStates(idx int, cnt int) (int, int, []config.IntfState) {
 	return n, c, result
 }
 
-func GetIntfState(ifIndex int32) *config.IntfState {
-	return lldpapi.server.GetIntfState(ifIndex)
+func GetIntfState(intfRef string) *config.IntfState {
+	return lldpapi.server.GetIntfState(intfRef)
 }
 
 func UpdateCache() {
 	lldpapi.server.UpdateCacheCh <- true
+}
+
+func GetLLDPGlobalState(vrf string) (*config.GlobalState, error) {
+	return lldpapi.server.GetGlobalState(vrf), nil
 }

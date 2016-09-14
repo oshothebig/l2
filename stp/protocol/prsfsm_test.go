@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var WAIT_FOR_EVENT_TIME time.Duration = time.Millisecond * 250
+
 func UsedForTestOnlyPrsInitPortConfigTest() {
 
 	if PortConfigMap == nil {
@@ -626,7 +628,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_1(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -637,7 +639,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_1(t *testing.T) {
 
 	event := <-p.PrtMachineFsm.PrtEvents
 	if event.e != PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected")
+		t.Error("Error did not get event as expected", event.e)
 	}
 
 	// teardown
@@ -731,7 +733,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_2(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -743,7 +745,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_2(t *testing.T) {
 	// lets capture the event
 	event := <-p.PrtMachineFsm.PrtEvents
 	if event.e != PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected")
+		t.Error("Error did not get event as expected", event.e)
 	}
 
 	// teardown
@@ -837,7 +839,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_3(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -848,7 +850,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_3(t *testing.T) {
 
 	event := <-p.PrtMachineFsm.PrtEvents
 	if event.e != PrtEventSyncAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected")
+		t.Error("Error did not get event as expected", event.e)
 	}
 
 	// teardown
@@ -942,7 +944,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_4(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -953,7 +955,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_4(t *testing.T) {
 
 	event := <-p.PrtMachineFsm.PrtEvents
 	if event.e != PrtEventReRootAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected")
+		t.Error("Error did not get event as expected", event.e)
 	}
 
 	// teardown
@@ -1047,7 +1049,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_5(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -1058,7 +1060,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_5(t *testing.T) {
 
 	event := <-p.PrtMachineFsm.PrtEvents
 	if event.e != PrtEventNotSyncedAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected")
+		t.Error("Error did not get event as expected", event.e)
 	}
 
 	// teardown
@@ -1154,7 +1156,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_1(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -1165,7 +1167,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_1(t *testing.T) {
 
 	event := <-p.PrtMachineFsm.PrtEvents
 	if event.e != PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected")
+		t.Error("Error did not get event as expected", event.e)
 	}
 
 	// teardown
@@ -1262,7 +1264,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_2(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -1273,7 +1275,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_2(t *testing.T) {
 
 	event := <-p.PrtMachineFsm.PrtEvents
 	if event.e != PrtEventReRootAndForwardAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected")
+		t.Error("Error did not get event as expected", event.e)
 	}
 
 	// teardown
@@ -1372,7 +1374,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_3(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -1481,7 +1483,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_4(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -1593,7 +1595,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_5(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -1706,7 +1708,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_6(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -1818,7 +1820,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_7(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -1926,7 +1928,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_8(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -2034,7 +2036,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_9(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event
@@ -2142,7 +2144,7 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_10(t *testing.T) {
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
 	go func() {
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(WAIT_FOR_EVENT_TIME)
 		if p.PrtMachineFsm != nil {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
 				e:   0, // invalid event

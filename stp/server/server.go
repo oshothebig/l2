@@ -31,6 +31,8 @@ const (
 	STPConfigMsgUpdatePortAdminPathCost
 	STPConfigMsgUpdatePortBpduGuard
 	STPConfigMsgUpdatePortBridgeAssurance
+	STPConfigMsgGlobalEnable
+	STPConfigMsgGlobalDisable
 )
 
 type STPConfig struct {
@@ -55,11 +57,36 @@ func NewSTPServer(logger *logging.Writer) *STPServer {
 func (server *STPServer) InitServer() {
 	//stp.ConnectToClients()
 	stp.ConstructPortConfigMap()
+	// TODO
+	//go server.ListenToClientStateChanges()
+	server.StartSTPSConfigNotificationListener()
 }
 
+/*
+TODO
+func (server *STPServer) ListenToClientStateChanges() {
+	clientStatusListener := keepalive.InitDaemonStatusListener()
+	if clientStatusListener != nil {
+		go clientStatusListener.StartDaemonStatusListner()
+		for {
+			select {
+			case clientStatus := <-clientStatusListener.DaemonStatusCh:
+				mgr.logger.Info(fmt.Sprintln("Received client status: ", clientStatus.Name, clientStatus.Status))
+				if mgr.IsReady() {
+					switch clientStatus.Status {
+					case sysdCommonDefs.STOPPED, sysdCommonDefs.RESTARTING:
+						go mgr.DisconnectFromClient(clientStatus.Name)
+					case sysdCommonDefs.UP:
+						go mgr.ConnectToClient(clientStatus.Name)
+					}
+				}
+			}
+		}
+	}
+}
+*/
 // StartSTPSConfigNotificationListener
 func (server *STPServer) StartSTPSConfigNotificationListener() {
-	server.InitServer()
 	//server.InitDone <- true
 	go func(s *STPServer) {
 		stp.StpLogger("INFO", "Starting Config Event Listener")
@@ -178,7 +205,14 @@ func (server *STPServer) processStpConfig(conf STPConfig) {
 		stp.StpLogger("INFO", "CONFIG: Port Bridge Assurance")
 		config := conf.Msgdata.(*stp.StpPortConfig)
 		stp.StpPortBridgeAssuranceSet(config.IfIndex, config.BrgIfIndex, config.BridgeAssurance)
-
+		/*
+			case STPConfigMsgGlobalEnable:
+				stp.StpLogger("INFO", "CONFIG: Enable STP Global")
+				stp.StpGlobalStateSet(true)
+			case STPConfigMsgGlobalDisable:
+				stp.StpLogger("INFO", "CONFIG: Disable STP Global")
+				StpGlobalStateSet(false)
+		*/
 	}
 }
 
