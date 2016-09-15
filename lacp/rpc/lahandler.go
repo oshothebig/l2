@@ -1487,7 +1487,7 @@ func (la *LACPDServiceHandler) GetLacpGlobalState(vrf string) (*lacpd.LacpGlobal
 		obj.LacpTotalRxPkts += int64(p.LacpCounter.AggPortStatsLACPDUsRx)
 		obj.LacpTotalTxPkts += int64(p.LacpCounter.AggPortStatsLACPDUsTx)
 	}
-	return obj, err
+	return obj, nil
 }
 
 func (la *LACPDServiceHandler) GetBulkLacpGlobalState(fromIndex lacpd.Int, count lacpd.Int) (obj *lacpd.LacpGlobalStateGetInfo, err error) {
