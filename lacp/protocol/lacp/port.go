@@ -480,11 +480,6 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 
 	sgi.PortList = append(sgi.PortList, p)
 
-	p.LaPortLog(fmt.Sprintf("Admin Status %s Link Status %s", p.IsPortAdminEnabled(), p.IsPortOperStatusUp()))
-	if p.IsPortEnabled() {
-		p.CreateRxTx()
-	}
-
 	return p
 }
 
