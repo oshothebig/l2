@@ -241,8 +241,8 @@ func (s *LAServer) processLinkDownEvent(linkId int) {
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(linkId), &p) {
 		p.DeleteRxTx()
-		p.LaAggPortDisable()
 		p.LinkOperStatus = false
+		lacp.DisableLaAggPort(uint16(linkId))
 	} else {
 		for _, ipp := range drcp.DRCPIppDBList {
 			if int(ipp.Id) == linkId {
@@ -257,8 +257,8 @@ func (s *LAServer) processLinkUpEvent(linkId int) {
 	var p *lacp.LaAggPort
 	if lacp.LaFindPortById(uint16(linkId), &p) {
 		p.CreateRxTx()
-		p.LaAggPortEnabled()
 		p.LinkOperStatus = true
+		lacp.EnableLaAggPort(uint16(linkId))
 
 	} else {
 		for _, ipp := range drcp.DRCPIppDBList {
