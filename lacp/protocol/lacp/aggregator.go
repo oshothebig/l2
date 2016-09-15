@@ -255,9 +255,12 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		sgi.AggMap[Key] = a
 		sgi.AggList = append(sgi.AggList, a)
 
-		for _, pId := range ac.LagMembers {
-			a.PortNumList = append(a.PortNumList, pId)
-		}
+		/*
+			Port will be added during attach phase
+			for _, pId := range ac.LagMembers {
+				a.PortNumList = append(a.PortNumList, pId)
+			}
+		*/
 
 	} else {
 		a.LacpAggLog(fmt.Sprintf("Error trying to create aggregator duplicate id or key or name\n", ac.Id, ac.Key, ac.Name))

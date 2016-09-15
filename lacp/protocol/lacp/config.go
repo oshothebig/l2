@@ -754,9 +754,6 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 
 		// well obviously this should pass
 		//p.checkConfigForSelection()
-	} else {
-		p.LaPortLog(fmt.Sprintf("Did not find agg by key %d, or port by id %d or not unselected", Key, pId))
-
 	}
 }
 
