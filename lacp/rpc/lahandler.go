@@ -1131,10 +1131,10 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelIntfRefListState(fromIndex la
 
 			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateSyncBit) {
 				// in sync
-				nextLagMemberState.Synchronization = 0
+				nextLagMemberState.Synchronization = 1
 			} else {
 				// out of sync
-				nextLagMemberState.Synchronization = 1
+				nextLagMemberState.Synchronization = 0
 			}
 			// short 1, long 0
 			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateTimeoutBit) {
@@ -1155,6 +1155,8 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelIntfRefListState(fromIndex la
 
 			nextLagMemberState.OperKey = int16(p.ActorOper.Key)
 			nextLagMemberState.IntfRef = p.IntfNum
+			nextLagMemberState.IfIndex = utils.GetIfIndexFromName(p.IntfNum)
+
 			if p.AggAttached != nil {
 				nextLagMemberState.LagIntfRef = p.AggAttached.AggName
 				//		nextLagMemberState.Mode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)

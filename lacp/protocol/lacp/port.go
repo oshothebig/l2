@@ -425,6 +425,7 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		logEna:       true,
 		portChan:     make(chan string),
 		AggPortDebug: AggPortDebugInformationObject{AggPortDebugInformationID: int(config.Id)},
+		DrniName:     "",
 	}
 
 	// default actor admin

@@ -243,6 +243,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		PortNumList:            make([]uint16, 0),
 		DistributedPortNumList: make([]string, 0),
 		LagHash:                ac.HashMode,
+		DrniName:               "",
 	}
 
 	// want to ensure that the application can use a string name id
