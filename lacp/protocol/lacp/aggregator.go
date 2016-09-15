@@ -213,6 +213,9 @@ type LaAggregator struct {
 	// 3 - ENCAP
 	// 4 - ENCAP2
 	LagHash uint32
+
+	// Similar to Port attrute L2/l3/Internal
+	ConfigMode string
 }
 
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {

@@ -350,7 +350,7 @@ func (rxm *LacpRxMachine) LacpRxMachineCurrent(m fsm.Machine, data interface{}) 
 	// Actor_Oper_Port_Sate.Expired = FALSE
 	LacpStateClear(&p.ActorOper.State, LacpStateExpiredBit)
 
-	if ntt == true && p.TxMachineFsm != nil {
+	if ntt && p.TxMachineFsm != nil {
 		// update ntt, which should trigger a packet transmit
 		p.TxMachineFsm.TxmEvents <- utils.MachineEvent{
 			E:   LacpTxmEventNtt,
@@ -539,11 +539,11 @@ func (p *LaAggPort) LacpRxMachineMain() {
 						if rv == nil {
 							m.LacpRxmLog(fmt.Sprintln("Port Enabled, LacpEnabled, State", p.PortEnabled, p.lacpEnabled, m.Machine.Curr.CurrentState()))
 							if m.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled {
-								if p.lacpEnabled == true &&
-									p.PortEnabled == true {
+								if p.lacpEnabled &&
+									p.IsPortEnabled() {
 									rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpEnabled, nil)
-								} else if p.lacpEnabled == false &&
-									p.PortEnabled == true {
+								} else if !p.lacpEnabled &&
+									p.IsPortEnabled() {
 									rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortEnabledAndLacpDisabled, nil)
 								} else if p.portMoved {
 									rv = m.Machine.ProcessEvent(RxMachineModuleStr, LacpRxmEventPortMoved, nil)
@@ -756,12 +756,14 @@ func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *layers.LACP) bool {
 			LacpStateToStr(lacpPduInfo.Partner.Info.State),
 			p.ActorOper,
 			LacpStateToStr(p.ActorOper.State)))
+		p.LacpCounter.AggPortStateMissMatchInfoRx++
 		return true
 	} else if (LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && !LacpStateIsSet(p.ActorOper.State, LacpStateTimeoutBit)) ||
 		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && LacpStateIsSet(p.ActorOper.State, LacpStateTimeoutBit)) ||
 		(LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit) && !LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit)) ||
 		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit) && LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit)) {
 		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper state Timeout/Activity different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.ActorOper))
+		p.LacpCounter.AggPortStateMissMatchInfoRx++
 		return true
 	}
 	return false

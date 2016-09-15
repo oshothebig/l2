@@ -28,6 +28,7 @@ import (
 	"fmt"
 	//"sync"
 	"errors"
+	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
 )
@@ -40,7 +41,7 @@ const (
 const DRCPConfigModuleStr = "DRCP Config"
 
 // 802.1.AX-2014 7.4.1.1 Distributed Relay Attributes GET-SET
-type DistrubtedRelayConfig struct {
+type DistributedRelayConfig struct {
 	// GET-SET
 	DrniName                               string
 	DrniPortalAddress                      string
@@ -88,15 +89,32 @@ type DRAggregatorPortListConfig struct {
 	PortList       []int32
 }
 
-func (d *DistrubtedRelayConfig) GetKey() string {
+func (d *DistributedRelayConfig) GetKey() string {
 	return d.DrniName
 }
 
-// DistrubtedRelayConfigParamCheck will validate the config from the user after it has
+// DistributedRelayConfigCreateCheck
+func DistributedRelayConfigCreateCheck(drniname string, aggregatorid uint32) error {
+	if _, ok := utils.ConfigDrMap[drniname]; ok {
+
+		for name, aggid := range utils.ConfigDrMap {
+			if drniname != name {
+				if aggregatorid == aggid {
+					return errors.New(fmt.Sprintf("ERROR Aggregator %d already associated with Distributed Relay %s", aggregatorid, name))
+				}
+			}
+		}
+
+		utils.ConfigDrMap[drniname] = aggregatorid
+	}
+	return nil
+}
+
+// DistributedRelayConfigParamCheck will validate the config from the user after it has
 // been translated to something the Lacp module expects.  Thus if translation
 // layer fails it should produce an invalid value.  The error returned
 // will be translated to model values
-func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
+func DistributedRelayConfigParamCheck(mlag *DistributedRelayConfig) error {
 
 	_, err := net.ParseMAC(mlag.DrniPortalAddress)
 	if err != nil {
@@ -180,12 +198,29 @@ func DistrubtedRelayConfigParamCheck(mlag *DistrubtedRelayConfig) error {
 		return errors.New(fmt.Sprintln("ERROR Invalid Port Protocol DA only support 01:80:C2:00:00:03 rcvd: ", mlag.DrniIntraPortalPortProtocolDA))
 	}
 
+	// only L2 Aggregator supported with MLAG
+	var a *lacp.LaAggregator
+	if lacp.LaFindAggById(int(mlag.DrniAggregator), &a) {
+		if a.ConfigMode == "L3" {
+			return errors.New(fmt.Sprintf("ERROR MLAG not supported with an L3 Lag interface %s", a.AggName))
+		}
+	}
+
+	return nil
+}
+
+//DistributedRelayConfigDeleteCheck
+func DistributedRelayConfigDeleteCheck(drniname string) error {
+	// nothing to check
+	if _, ok := utils.ConfigDrMap[drniname]; ok {
+		delete(utils.ConfigDrMap, drniname)
+	}
 	return nil
 }
 
 // CreateDistributedRelay will create the distributed relay then attach
 // the Aggregator to the Distributed Relay
-func CreateDistributedRelay(cfg *DistrubtedRelayConfig) {
+func CreateDistributedRelay(cfg *DistributedRelayConfig) {
 
 	dr := NewDistributedRelay(cfg)
 	if dr != nil {

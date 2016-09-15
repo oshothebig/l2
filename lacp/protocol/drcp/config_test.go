@@ -226,7 +226,7 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -246,7 +246,7 @@ func TestConfigDistributedRelayValidCreateAggWithPortsThenCreateDR(t *testing.T)
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -376,7 +376,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 
 	ConfigTestSetup()
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -396,7 +396,7 @@ func TestConfigDistributedRelayCreateDRThenCreateAgg(t *testing.T) {
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -548,7 +548,7 @@ func TestConfigDistributedRelayInValidCreateDRNoAgg(t *testing.T) {
 	ConfigTestSetup()
 	//a := OnlyForTestSetupCreateAggGroup(100)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -568,7 +568,7 @@ func TestConfigDistributedRelayInValidCreateDRNoAgg(t *testing.T) {
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -628,7 +628,7 @@ func TestConfigInvalidPortalAddressString(t *testing.T) {
 
 
 	 */
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE", // invalid!!!
 		DrniPortalPriority:                128,
@@ -645,7 +645,7 @@ func TestConfigInvalidPortalAddressString(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail for bad Portal Address")
 	}
@@ -658,7 +658,7 @@ func TestConfigInvalidThreePortalSystemSet(t *testing.T) {
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -675,7 +675,7 @@ func TestConfigInvalidThreePortalSystemSet(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail setting 3P system")
 	}
@@ -687,7 +687,7 @@ func TestConfigInvalidPortalSytemNumber(t *testing.T) {
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -704,13 +704,13 @@ func TestConfigInvalidPortalSytemNumber(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail portal system number 0")
 	}
 	// invalid in 2P system
 	cfg.DrniPortalSystemNumber = 3
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail portal system number 3")
 	}
@@ -722,7 +722,7 @@ func TestConfigInvalidIntraPortalLink(t *testing.T) {
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -739,13 +739,13 @@ func TestConfigInvalidIntraPortalLink(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail IPP link not supplied")
 	}
 	// invalid ipp link
 	cfg.DrniIntraPortalLinkList[0] = 300
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail invalid port")
 	}
@@ -758,7 +758,7 @@ func TestConfigInvalidGatewayAlgorithm(t *testing.T) {
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -775,25 +775,25 @@ func TestConfigInvalidGatewayAlgorithm(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Gateway Algorithm")
 	}
 
 	cfg.DrniGatewayAlgorithm = ""
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Gateway Algorithm empty string")
 	}
 
 	cfg.DrniGatewayAlgorithm = "00:80:C2"
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Gateway Algorithm wrong format to short missing actual type byte")
 	}
 
 	cfg.DrniGatewayAlgorithm = "00-80:C2-02"
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Gateway Algorithm separator")
 	}
@@ -806,7 +806,7 @@ func TestConfigInvalidNeighborGatewayAlgorithm(t *testing.T) {
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -823,25 +823,25 @@ func TestConfigInvalidNeighborGatewayAlgorithm(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm")
 	}
 
 	cfg.DrniNeighborAdminGatewayAlgorithm = ""
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm empty string")
 	}
 
 	cfg.DrniNeighborAdminGatewayAlgorithm = "00:80:C2"
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm wrong format to short missing actual type byte")
 	}
 
 	cfg.DrniNeighborAdminGatewayAlgorithm = "00-80:C2-02"
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Gateway Algorithm separator")
 	}
@@ -854,7 +854,7 @@ func TestConfigInvalidNeighborPortAlgorithm(t *testing.T) {
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -871,25 +871,25 @@ func TestConfigInvalidNeighborPortAlgorithm(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm")
 	}
 
 	cfg.DrniNeighborAdminPortAlgorithm = ""
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm empty string")
 	}
 
 	cfg.DrniNeighborAdminPortAlgorithm = "00:80:C2"
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm wrong format to short missing actual type byte")
 	}
 
 	cfg.DrniNeighborAdminPortAlgorithm = "00-80:C2-02"
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Neighbor Port Algorithm separator")
 	}
@@ -902,7 +902,7 @@ func TestConfigInvalidEncapMethod(t *testing.T) {
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -919,25 +919,25 @@ func TestConfigInvalidEncapMethod(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Encap Method")
 	}
 
 	cfg.DrniEncapMethod = ""
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Encap Method empty string")
 	}
 
 	cfg.DrniEncapMethod = "00:80:C2"
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Encap Method wrong format to short missing actual type byte")
 	}
 
 	cfg.DrniEncapMethod = "00-80:C2-02"
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Encap Method separator")
 	}
@@ -950,7 +950,7 @@ func TestConfigInvalidPortalPortProtocolDA(t *testing.T) {
 	ConfigTestSetup()
 	a := OnlyForTestSetupCreateAggGroup(100)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -967,19 +967,19 @@ func TestConfigInvalidPortalPortProtocolDA(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C0:00:00:03", // invalid
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail invalid Portal Port Potocol DA")
 	}
 
 	cfg.DrniIntraPortalPortProtocolDA = "01-80-C2-00-00-11"
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Portal Port Potocol DA different format")
 	}
 
 	cfg.DrniIntraPortalPortProtocolDA = "80-C2-00-00-11"
-	err = DistrubtedRelayConfigParamCheck(cfg)
+	err = DistributedRelayConfigParamCheck(cfg)
 	if err == nil {
 		t.Error("Parameter check did not fail Invalid Portal Port Potocol DA not enough bytes")
 	}
@@ -1024,8 +1024,8 @@ type ThreeNodeConfig struct {
 	neighborbridge SimulationNeighborBridge
 	bridge1        lacp.SimulationBridge
 	bridge2        lacp.SimulationBridge
-	cfg            DistrubtedRelayConfig
-	cfg2           DistrubtedRelayConfig
+	cfg            DistributedRelayConfig
+	cfg2           DistributedRelayConfig
 	a1conf         *lacp.LaAggConfig
 	a2conf         *lacp.LaAggConfig
 	a3conf         *lacp.LaAggConfig
@@ -1101,7 +1101,7 @@ func Setup3NodeMlag() *ThreeNodeConfig {
 	DrRxMain(uint16(DRNeighborIpp2), "00:00:DE:AD:BE:EF", threenodecfg.neighborbridge.RxIppPort2)
 
 	// Lets create the Distributed Relay
-	threenodecfg.cfg = DistrubtedRelayConfig{
+	threenodecfg.cfg = DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,

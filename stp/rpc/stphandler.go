@@ -201,36 +201,35 @@ func (s *STPDServiceHandler) UpdateStpGlobal(origconfig *stpd.StpGlobal, updatec
 // CreateDot1dStpBridgeConfig
 func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInstance) (rv bool, err error) {
 
-	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
-		stp.StpLogger("INFO", "CreateStpBridgeInstance (server): created ")
-		stp.StpLogger("INFO", fmt.Sprintf("addr:", config.Address))
-		stp.StpLogger("INFO", fmt.Sprintf("prio:", config.Priority))
-		stp.StpLogger("INFO", fmt.Sprintf("vlan:", config.Vlan))
-		stp.StpLogger("INFO", fmt.Sprintf("age:", config.MaxAge))
-		stp.StpLogger("INFO", fmt.Sprintf("hello:", config.HelloTime))        // int32
-		stp.StpLogger("INFO", fmt.Sprintf("fwddelay:", config.ForwardDelay))  // int32
-		stp.StpLogger("INFO", fmt.Sprintf("version:", config.ForceVersion))   // int32
-		stp.StpLogger("INFO", fmt.Sprintf("txHoldCount", config.TxHoldCount)) //
+	brgconfig := &stp.StpBridgeConfig{}
+	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
 
-		brgconfig := &stp.StpBridgeConfig{}
-		ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
+	if brgconfig.Vlan == 0 {
+		brgconfig.Vlan = stp.DEFAULT_STP_BRIDGE_VLAN
+	}
 
-		if brgconfig.Vlan == 0 {
-			brgconfig.Vlan = stp.DEFAULT_STP_BRIDGE_VLAN
-		}
+	err = stp.StpBrgConfigParamCheck(brgconfig)
+	if err == nil {
+		if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
+			stp.StpLogger("INFO", "CreateStpBridgeInstance (server): created ")
+			stp.StpLogger("INFO", fmt.Sprintf("addr:", config.Address))
+			stp.StpLogger("INFO", fmt.Sprintf("prio:", config.Priority))
+			stp.StpLogger("INFO", fmt.Sprintf("vlan:", config.Vlan))
+			stp.StpLogger("INFO", fmt.Sprintf("age:", config.MaxAge))
+			stp.StpLogger("INFO", fmt.Sprintf("hello:", config.HelloTime))        // int32
+			stp.StpLogger("INFO", fmt.Sprintf("fwddelay:", config.ForwardDelay))  // int32
+			stp.StpLogger("INFO", fmt.Sprintf("version:", config.ForceVersion))   // int32
+			stp.StpLogger("INFO", fmt.Sprintf("txHoldCount", config.TxHoldCount)) //
 
-		err = stp.StpBrgConfigParamCheck(brgconfig)
-		if err == nil {
 			cfg := server.STPConfig{
 				Msgtype: server.STPConfigMsgCreateBridge,
 				Msgdata: brgconfig,
 			}
 			s.server.ConfigCh <- cfg
-			return true, err
 		}
-	} else {
-		rv = true
+		return true, err
 	}
+
 	return rv, err
 }
 
@@ -366,11 +365,19 @@ func (s *STPDServiceHandler) DeleteStpBridgeInstance(config *stpd.StpBridgeInsta
 
 func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op []*stpd.PatchOpInfo) (rv bool, err error) {
 	rv = true
-	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
-		var b *stp.Bridge
-		brgconfig := &stp.StpBridgeConfig{}
-		objTyp := reflect.TypeOf(*origconfig)
+	var b *stp.Bridge
+	brgconfig := &stp.StpBridgeConfig{}
+	objTyp := reflect.TypeOf(*origconfig)
+
+	// convert thrift struct to stp struct
+	ConvertThriftBrgConfigToStpBrgConfig(updateconfig, brgconfig)
+	// perform paramater checks to validate the config coming down
+	err = stp.StpBrgConfigParamCheck(brgconfig)
+	if err != nil {
+		return false, err
+	}
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
 		key := stp.BridgeKey{
 			Vlan: uint16(origconfig.Vlan),
@@ -378,14 +385,6 @@ func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeI
 		// see if the bridge instance exists
 		if !stp.StpFindBridgeById(key, &b) {
 			return false, errors.New("Unknown Bridge in update config")
-		}
-
-		// convert thrift struct to stp struct
-		ConvertThriftBrgConfigToStpBrgConfig(updateconfig, brgconfig)
-		// perform paramater checks to validate the config coming down
-		err = stp.StpBrgConfigParamCheck(brgconfig)
-		if err != nil {
-			return false, err
 		}
 
 		// config message data
@@ -426,23 +425,24 @@ func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeI
 
 func (s *STPDServiceHandler) CreateStpPort(config *stpd.StpPort) (rv bool, err error) {
 	rv = true
-	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
-		stp.StpLogger("INFO", fmt.Sprintf("CreateStpPort (server): created %#v", config))
-		portconfig := &stp.StpPortConfig{}
-		ConvertThriftPortConfigToStpPortConfig(config, portconfig)
-		err = stp.StpPortConfigParamCheck(portconfig, false)
-		// only create the instance if it up
-		if config.AdminState == "UP" {
-			if err == nil {
+	portconfig := &stp.StpPortConfig{}
+	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
+	err = stp.StpPortConfigParamCheck(portconfig, false)
+	// only create the instance if it up
+	if config.AdminState == "UP" {
+		if err == nil {
+			if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
+				stp.StpLogger("INFO", fmt.Sprintf("CreateStpPort (server): created %#v", config))
+
 				cfg := server.STPConfig{
 					Msgtype: server.STPConfigMsgCreatePort,
 					Msgdata: portconfig,
 				}
 				s.server.ConfigCh <- cfg
-				return rv, err
-			} else {
-				return false, err
 			}
+			return rv, err
+		} else {
+			return false, err
 		}
 	}
 	return rv, err
@@ -476,14 +476,19 @@ func (s *STPDServiceHandler) DeleteStpPort(config *stpd.StpPort) (rv bool, err e
 
 func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool, op []*stpd.PatchOpInfo) (rv bool, err error) {
 	rv = true
+
+	var p *stp.StpPort
+	portconfig := &stp.StpPortConfig{}
+	objTyp := reflect.TypeOf(*origconfig)
+	//objVal := reflect.ValueOf(origconfig)
+	//updateObjVal := reflect.ValueOf(*updateconfig)
+
+	ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
+	err = stp.StpPortConfigParamCheck(portconfig, true)
+	if err != nil {
+		return false, err
+	}
 	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
-
-		var p *stp.StpPort
-		portconfig := &stp.StpPortConfig{}
-		objTyp := reflect.TypeOf(*origconfig)
-		//objVal := reflect.ValueOf(origconfig)
-		//updateObjVal := reflect.ValueOf(*updateconfig)
-
 		ifIndex := stp.GetIfIndexFromIntfRef(origconfig.IntfRef)
 		brgIfIndex := int32(origconfig.Vlan)
 		if !stp.StpFindPortByIfIndex(ifIndex, brgIfIndex, &p) {
@@ -492,11 +497,6 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 			}
 		}
 
-		ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
-		err = stp.StpPortConfigParamCheck(portconfig, true)
-		if err != nil {
-			return false, err
-		}
 		err = stp.StpPortConfigSave(portconfig, true)
 		if err != nil {
 			return false, err
@@ -593,11 +593,7 @@ func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState
 	return sbs, nil
 }
 
-// GetBulkAggregationLacpState will return the status of all the lag groups
-// All lag groups are stored in a map, thus we will assume that the order
-// at which a for loop iterates over the map is preserved.  It is assumed
-// that at the time of this operation that no new aggragators are added,
-// otherwise can get inconsistent results
+// GetBulkStpBridgeState will return the status of all the stp bridges
 func (s *STPDServiceHandler) GetBulkStpBridgeState(fromIndex stpd.Int, count stpd.Int) (obj *stpd.StpBridgeStateGetInfo, err error) {
 	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
@@ -907,6 +903,7 @@ func (s *STPDServiceHandler) GetBulkStpBridgeInstance(fromIndex stpd.Int, count 
 		// perhaps we should consider opening the JSON genObjConfig.json file and filling
 		// in the values this way.  For now going to hard code.
 		nextStpBridgeInstance.Vlan = int16(stp.DEFAULT_STP_BRIDGE_VLAN)
+		nextStpBridgeInstance.Priority = 32768
 		nextStpBridgeInstance.Address = "00:00:00:00:00:00" // use switch mac
 		nextStpBridgeInstance.MaxAge = int32(20)
 		nextStpBridgeInstance.HelloTime = int32(2)

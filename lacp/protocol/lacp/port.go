@@ -191,6 +191,7 @@ type AggPortStatsObject struct {
 	AggPortStatsLACPDUsTx            uint64
 	AggPortStatsMarkerPDUsTx         uint64
 	AggPortStatsMarkerResponsePDUsTx uint64
+	AggPortStateMissMatchInfoRx      uint64
 }
 
 //GET
@@ -479,9 +480,8 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 
 	sgi.PortList = append(sgi.PortList, p)
 
-	linkStatus := p.IsPortOperStatusUp()
-	p.LaPortLog(fmt.Sprintf("Link Status %s", linkStatus))
-	if linkStatus {
+	p.LaPortLog(fmt.Sprintf("Admin Status %s Link Status %s", p.IsPortAdminEnabled(), p.IsPortOperStatusUp()))
+	if p.IsPortEnabled() {
 		p.CreateRxTx()
 	}
 
@@ -988,7 +988,7 @@ func (p *LaAggPort) LaAggPortLacpEnabled(mode int) {
 		LacpStateClear(&p.ActorAdmin.State, LacpStateActivityBit)
 	}
 
-	if p.PortEnabled &&
+	if p.IsPortEnabled() &&
 		p.aggSelected == LacpAggSelected {
 		// Rxm
 		if p.RxMachineFsm.Machine.Curr.CurrentState() == LacpRxmStatePortDisabled {
@@ -1041,8 +1041,8 @@ func (p *LaAggPort) LaAggPortActorAdminInfoSet(sysIdMac [6]uint8, sysPrio uint16
 	p.aggSelected = LacpAggUnSelected
 
 	if p.ModeGet() == LacpModeOn ||
-		p.lacpEnabled == false ||
-		p.PortEnabled == false {
+		!p.lacpEnabled ||
+		!p.IsPortEnabled() {
 		return
 	}
 
@@ -1065,8 +1065,8 @@ func (p *LaAggPort) LaAggPortActorOperInfoSet(sysIdMac [6]uint8, sysPrio uint16)
 	p.aggSelected = LacpAggUnSelected
 
 	if p.ModeGet() == LacpModeOn ||
-		p.lacpEnabled == false ||
-		p.PortEnabled == false {
+		!p.lacpEnabled ||
+		!p.IsPortEnabled() {
 		return
 	}
 

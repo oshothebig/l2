@@ -28,12 +28,13 @@ package lacp
 
 import (
 	"fmt"
-	"github.com/google/gopacket/layers"
 	"l2/lacp/protocol/utils"
 	"strconv"
 	"strings"
 	"time"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 const TxMachineModuleStr = "Tx Machine"
@@ -162,7 +163,7 @@ func (txm *LacpTxMachine) LacpTxMachineOn(m fsm.Machine, data interface{}) fsm.S
 	nextState = LacpTxmStateOn
 
 	// NTT must be set to tx
-	if txm.ntt == true {
+	if txm.ntt {
 		// if more than 3 packets are being transmitted within time interval
 		// delay transmission
 		if txm.txPkts < 3 {

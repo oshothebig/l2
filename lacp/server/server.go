@@ -33,6 +33,8 @@ const (
 	LAConfigMsgCreateConversationId
 	LAConfigMsgUpdateConversationId
 	LAConfigMsgDeleteConversationId
+	LAConfigMsgAddL3IntfType
+	LAConfigMsgAddL2IntfType
 )
 
 type LAConfig struct {
@@ -199,12 +201,12 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 
 	case LAConfigMsgCreateDistributedRelay:
 		s.logger.Info("CONFIG: Create Distributed Relay")
-		config := conf.Msgdata.(*drcp.DistrubtedRelayConfig)
+		config := conf.Msgdata.(*drcp.DistributedRelayConfig)
 		drcp.CreateDistributedRelay(config)
 
 	case LAConfigMsgDeleteDistributedRelay:
 		s.logger.Info("CONFIG: Delete Distributed Relay")
-		config := conf.Msgdata.(*drcp.DistrubtedRelayConfig)
+		config := conf.Msgdata.(*drcp.DistributedRelayConfig)
 		drcp.DeleteDistributedRelay(config.GetKey())
 
 	case LAConfigMsgCreateConversationId:
@@ -221,6 +223,16 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 		s.logger.Info("CONFIG: Update Conversation Id")
 		config := conf.Msgdata.(*drcp.DRConversationConfig)
 		drcp.UpdateConversationId(config)
+
+	case LAConfigMsgAddL2IntfType:
+		s.logger.Info("CONFIG: Update L2 Intf")
+		config := conf.Msgdata.(*commonDefs.L3IntfStateNotifyMsg)
+		lacp.UpdateIntfType(int(config.IfIndex), "L2")
+
+	case LAConfigMsgAddL3IntfType:
+		s.logger.Info("CONFIG: Update L3 Intf")
+		config := conf.Msgdata.(*commonDefs.L3IntfStateNotifyMsg)
+		lacp.UpdateIntfType(int(config.IfIndex), "L3")
 	}
 }
 
@@ -299,6 +311,35 @@ func (s *LAServer) processVlanEvent(vlanMsg commonDefs.VlanNotifyMsg) {
 	}
 }
 
+func (s *LAServer) processL3IntEvent(msg commonDefs.L3IntfStateNotifyMsg) {
+
+	ifindex := msg.IfIndex
+	iftype := commonDefs.GetIfTypeName(asicdCommonDefs.GetIntfTypeFromIfIndex(ifindex))
+	if iftype == "Lag" {
+		if msg.MsgType == commonDefs.NOTIFY_IPV4INTF_CREATE {
+			s.ConfigCh <- LAConfig{
+				Msgtype: LAConfigMsgAddL3IntfType,
+				Msgdata: msg,
+			}
+		} else if msg.MsgType == commonDefs.NOTIFY_IPV4INTF_DELETE {
+			s.ConfigCh <- LAConfig{
+				Msgtype: LAConfigMsgAddL2IntfType,
+				Msgdata: msg,
+			}
+		} else if msg.MsgType == commonDefs.NOTIFY_IPV6INTF_CREATE {
+			s.ConfigCh <- LAConfig{
+				Msgtype: LAConfigMsgAddL3IntfType,
+				Msgdata: msg,
+			}
+		} else if msg.MsgType == commonDefs.NOTIFY_IPV6INTF_DELETE {
+			s.ConfigCh <- LAConfig{
+				Msgtype: LAConfigMsgAddL2IntfType,
+				Msgdata: msg,
+			}
+		}
+	}
+}
+
 func (s *LAServer) processAsicdNotification(msg commonDefs.AsicdNotifyMsg) {
 	switch msg.(type) {
 	case commonDefs.L2IntfStateNotifyMsg:
@@ -313,5 +354,10 @@ func (s *LAServer) processAsicdNotification(msg commonDefs.AsicdNotifyMsg) {
 		vlanMsg := msg.(commonDefs.VlanNotifyMsg)
 		s.logger.Info(fmt.Sprintln("Msg vlan = ", vlanMsg))
 		s.processVlanEvent(vlanMsg)
+
+	case commonDefs.L3IntfStateNotifyMsg:
+		l3intfMsg := msg.(commonDefs.L3IntfStateNotifyMsg)
+		s.logger.Info(fmt.Sprintln("Msg l3intf = ", l3intfMsg))
+		s.processL3IntEvent(l3intfMsg)
 	}
 }
