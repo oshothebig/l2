@@ -426,11 +426,6 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 				LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
 			}
 
-			// lets start all the State machines
-			p.BEGIN(false)
-			linkStatus := p.IsPortOperStatusUp()
-			p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d is link up %t admin up %t", port.Id, linkStatus, port.Enable))
-
 			if p.Key != 0 {
 				var a *LaAggregator
 				if LaFindAggByKey(p.Key, &a) {
@@ -439,6 +434,11 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 					AddLaAggPortToAgg(a.ActorAdminKey, p.PortNum)
 				}
 			}
+
+			// lets start all the State machines
+			p.BEGIN(false)
+			linkStatus := p.IsPortOperStatusUp()
+			p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d is link up %t admin up %t", port.Id, linkStatus, port.Enable))
 
 			if linkStatus && port.Enable {
 				// if port is enabled and lacp is enabled
