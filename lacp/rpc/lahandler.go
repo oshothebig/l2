@@ -1455,8 +1455,8 @@ func (la *LACPDServiceHandler) GetBulkIppLinkState(fromIndex lacpd.Int, count la
 	return obj, err
 }
 
-func (la *LACPDServiceHandler) GetLacpGlobalState(vrf string) (obj *lacpd.LacpGlobalState, err error) {
-
+func (la *LACPDServiceHandler) GetLacpGlobalState(vrf string) (*lacpd.LacpGlobalState, error) {
+	obj := &lacpd.LacpGlobalState{}
 	obj.Vrf = "default"
 	obj.AdminState = "UP"
 	if utils.LacpGlobalStateGet() != utils.LACP_GLOBAL_ENABLE {
