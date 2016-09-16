@@ -314,7 +314,7 @@ func (s *STPDServiceHandler) ReadConfigFromDB(prevState int) error {
 	// only need to call on bootup
 	if prevState == stp.STP_GLOBAL_INIT {
 		if err := s.HandleDbReadStpGlobal(dbHdl); err != nil {
-			stp.StpLogger("ERROR", "Error getting All StpGlobal objects")
+			stp.StpLogger("ERROR", fmt.Sprintf("Error getting All StpGlobal objects %s", err))
 			return err
 		}
 	}
@@ -324,12 +324,12 @@ func (s *STPDServiceHandler) ReadConfigFromDB(prevState int) error {
 	if (prevState != currState && currState == stp.STP_GLOBAL_ENABLE) ||
 		currState == stp.STP_GLOBAL_ENABLE {
 		if err := s.HandleDbReadStpBridgeInstance(dbHdl, false); err != nil {
-			stp.StpLogger("ERROR", "Error getting All StpBridgeInstance objects")
+			stp.StpLogger("ERROR", fmt.Sprintf("Error getting All StpBridgeInstance objects %s", err))
 			return err
 		}
 
 		if err = s.HandleDbReadStpPort(dbHdl); err != nil {
-			stp.StpLogger("ERROR", "Error getting All StpPort objects")
+			stp.StpLogger("ERROR", fmt.Sprintf("Error getting All StpPort objects %s", err))
 			return err
 		}
 	} else if currState == stp.STP_GLOBAL_DISABLE_PENDING ||
@@ -337,7 +337,7 @@ func (s *STPDServiceHandler) ReadConfigFromDB(prevState int) error {
 		// only need to delete the bridge instance
 		// this will trigger a delete of the ports within the server
 		if err := s.HandleDbReadStpBridgeInstance(dbHdl, true); err != nil {
-			stp.StpLogger("ERROR", "Error getting All StpBridgeInstance objects")
+			stp.StpLogger("ERROR", fmt.Sprintf("Error getting All StpBridgeInstance objects", err))
 			return err
 		}
 	}

@@ -292,6 +292,7 @@ func (dr *DistributedRelay) setAdminConvGatewayAndNeighborGatewayListDigest() {
 			ghash.Write(buf.Bytes())
 
 			if dr.DrniConvAdminGateway[cid] != nil {
+				dr.LaDrLog(fmt.Sprintf("Clearing Gateway Conversation %d portallist[%+v]", cid, dr.DrniConvAdminGateway[cid]))
 				isNewConversation = true
 			}
 
@@ -651,24 +652,19 @@ func extractPortConversationID() {
 }
 
 // updatePortalState This function updates the Drni_Portal_System_State[] as follows
-func (dr *DistributedRelay) updatePortalState() {
+func (dr *DistributedRelay) updatePortalState(src string) {
 
 	// update the local portal info
 	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].mutex.Lock()
 	dr.DRFHomeState.mutex.Lock()
 
-	dr.LaDrLog(fmt.Sprintf("updatePortalState: DrniPortalSystemState[%d] from DRFHomeState OpState %t updating vector sequence %d portList %v",
+	dr.LaDrLog(fmt.Sprintf("updatePortalState (%s): DrniPortalSystemState[%d] from DRFHomeState OpState %t updating vector sequence %d portList %v",
+		src,
 		dr.DrniPortalSystemNumber,
 		dr.DRFHomeState.OpState,
 		dr.DRFHomeState.GatewayVector[0].Sequence,
 		dr.DRFHomeState.PortIdList))
-	/*
-		fmt.Printf("DrniPortalSystemState[%d] from DRFHomeState OpState %t updating vector sequence %d portList %v\n",
-			dr.DrniPortalSystemNumber,
-			dr.DRFHomeState.OpState,
-			dr.DRFHomeState.GatewayVector[0].Sequence,
-			dr.DRFHomeState.PortIdList)
-	*/
+
 	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].OpState = dr.DRFHomeState.OpState
 	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].updateGatewayVector(dr.DRFHomeState.GatewayVector[0].Sequence, dr.DRFHomeState.GatewayVector[0].Vector)
 	dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].PortIdList = dr.DRFHomeState.PortIdList
@@ -688,7 +684,8 @@ func (dr *DistributedRelay) updatePortalState() {
 			if ipp.DRFNeighborState.OpState {
 				dr.DrniPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = ipp.DRFNeighborState.OpState
 				seqvector := ipp.DRFNeighborState.GatewayVector[0]
-				dr.LaDrLog(fmt.Sprintf("updatePortalState: DrniPortalSystemState[%d] from DRFNeighborState OpState %t updating vector sequence %d portList %v",
+				dr.LaDrLog(fmt.Sprintf("updatePortalState (%s): DrniPortalSystemState[%d] from DRFNeighborState OpState %t updating vector sequence %d portList %v",
+					src,
 					ipp.DRFNeighborPortalSystemNumber,
 					ipp.DRFNeighborState.OpState,
 					seqvector.Sequence,
@@ -750,17 +747,23 @@ func (dr *DistributedRelay) updatePortalState() {
 		// Ipp portal state contains the neighbor state as first entry and if there
 		// are any other portals received on this IPP they will follow
 		for _, ipp := range dr.Ipplinks {
-			//ipp.IppPortalSystemState = make([]StateVectorInfo, 0)
 			ipp.DRFNeighborState.mutex.Lock()
 			if ipp.DRFNeighborState.OpState {
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Lock()
 				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].OpState = true
 				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].updateGatewayVector(ipp.DRFNeighborState.GatewayVector[0].Sequence, ipp.DRFNeighborState.GatewayVector[0].Vector)
 				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].PortIdList = ipp.DRFNeighborState.PortIdList
+				ipp.IppPortalSystemState[ipp.DRFNeighborPortalSystemNumber].mutex.Unlock()
 				// TODO add the any other portal state info from received DRCP here
 				// Not being done today because should only be one other system in 2P config
 			}
 			ipp.DRFNeighborState.mutex.Unlock()
 		}
+	}
+	for _, ipp := range dr.Ipplinks {
+		// clear the port sync as the neighbor should not know about this update
+		defer ipp.NotifyNTTDRCPUDChange(PsMachineModuleStr, ipp.NTTDRCPDU, true)
+		ipp.NTTDRCPDU = true
 	}
 }
 

@@ -312,18 +312,21 @@ func (igm *IGMachine) updateIPPGatewayConversationDirection() {
 	//   NTTDRCPDU to TRUE.
 	if !dr.DrniThreeSystemPortal {
 		for conid := 0; conid < MAX_CONVERSATION_IDS; conid++ {
-			if dr.DrniGatewayConversation[conid] != nil {
+
+			if (dr.DrniGatewayConversation[conid] != nil && !p.IppGatewayConversationPasses[conid]) ||
+				(dr.DrniGatewayConversation[conid] == nil && p.IppGatewayConversationPasses[conid]) {
 				// lets only check the first portal as this indicates
 				// which system according to the gateway conversation
 				// owns this conversation, however it should be noted
 				// that in the case of sharing by time both systems
 				// will own a conversation
-				if len(dr.DrniGatewayConversation[conid]) > 0 &&
-					(dr.DrniGatewayConversation[conid][0] != dr.DrniPortalSystemNumber ||
-						dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME) {
+				if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
+					igm.DrcpIGmLog(fmt.Sprintf("Made it here Conversation Id %d ipp port %d\n", conid, p.Id))
 
 					for _, statevector := range p.IppPortalSystemState {
+						statevector.mutex.Lock()
 						if statevector.OpState {
+
 							if statevector.GatewayVector != nil {
 								seqvector := statevector.GatewayVector[0]
 								if seqvector.Vector != nil {
@@ -357,6 +360,8 @@ func (igm *IGMachine) updateIPPGatewayConversationDirection() {
 								}
 							}
 						}
+						statevector.mutex.Unlock()
+
 					}
 				}
 			}

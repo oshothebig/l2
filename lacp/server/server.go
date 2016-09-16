@@ -217,7 +217,7 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 	case LAConfigMsgDeleteConversationId:
 		s.logger.Info("CONFIG: Delete Conversation Id")
 		config := conf.Msgdata.(*drcp.DRConversationConfig)
-		drcp.DeleteConversationId(config)
+		drcp.DeleteConversationId(config, false)
 
 	case LAConfigMsgUpdateConversationId:
 		s.logger.Info("CONFIG: Update Conversation Id")

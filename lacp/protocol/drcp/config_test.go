@@ -1300,7 +1300,7 @@ func Setup3NodeMlag() *ThreeNodeConfig {
 	return threenodecfg
 }
 
-func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, t *testing.T, step string) {
+func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, step string, convlist []uint16, t *testing.T) {
 	testWait := make(chan bool)
 
 	var p1 *lacp.LaAggPort
@@ -1489,8 +1489,10 @@ func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, t *testing.T, step string) {
 			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
 			t.Error(fmt.Sprintf("step: %s Error IPP NEIGHBOR did not sync up as expected current state %v", ipp.DRFNeighborOperDRCPState.String()))
 		}
-		if !ipp.IppGatewayConversationPasses[100] {
-			t.Error("Error IPP Neighbor did not set conversation passes for 100 ")
+		for _, cid := range convlist {
+			if !ipp.IppGatewayConversationPasses[cid] {
+				t.Error("Error IPP Neighbor did not set conversation passes for 100 ")
+			}
 		}
 		sort.Sort(sortPortList(testBlockMap[int32(ipp.Id)]))
 		tmpPortList := make([]uint32, 0)
@@ -1537,8 +1539,10 @@ func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, t *testing.T, step string) {
 			t.Error("step:", step, "Error IPP NEIGHBOR did not sync up as expected current state ", ipp.DRFNeighborOperDRCPState.String())
 		}
 
-		if !ipp.IppGatewayConversationPasses[100] {
-			t.Error("step:", step, "Error IPP Neighbor did not set conversation passes for 100 ")
+		for _, cid := range convlist {
+			if !ipp.IppGatewayConversationPasses[cid] {
+				t.Error("step:", step, "Error IPP Neighbor did not set conversation passes for 100 ")
+			}
 		}
 		sort.Sort(sortPortList(testBlockMap[int32(ipp.Id)]))
 		tmpPortList := make([]uint32, 0)
@@ -1571,14 +1575,14 @@ func TestConfigCreateBackToBackMLagAndPeer1(t *testing.T) {
 	//time.Sleep(time.Second * 20)
 
 	// basic verify
-	Verify3NodeMlag(mlagcfg, t, "basic")
+	Verify3NodeMlag(mlagcfg, "basic", []uint16{100}, t)
 	Teardown3NodeMlag(mlagcfg, t)
 
 	FullBackToBackConfigTestTeardown(t)
 }
 
 // Add a new conversation to both MLAG's
-func TestConfigCreateBackToBackMLagAndPeerValidAddNewVlan(t *testing.T) {
+func TestConfigCreateBackToBackMLagAndPeerValidAddDelVlan(t *testing.T) {
 
 	FullBackToBackConfigTestSetup()
 
@@ -1586,7 +1590,7 @@ func TestConfigCreateBackToBackMLagAndPeerValidAddNewVlan(t *testing.T) {
 	//time.Sleep(time.Second * 20)
 
 	// basic verify
-	Verify3NodeMlag(mlagcfg, t, "basic")
+	Verify3NodeMlag(mlagcfg, "basic", []uint16{100}, t)
 
 	var dr *DistributedRelay
 	if !DrFindByAggregator(int32(mlagcfg.cfg.DrniAggregator), &dr) {
@@ -1621,7 +1625,7 @@ func TestConfigCreateBackToBackMLagAndPeerValidAddNewVlan(t *testing.T) {
 
 	CreateConversationId(cfg)
 
-	Verify3NodeMlag(mlagcfg, t, "after vlan add")
+	Verify3NodeMlag(mlagcfg, "after vlan add", []uint16{100, 200}, t)
 
 	testWait := make(chan bool)
 
@@ -1697,6 +1701,127 @@ func TestConfigCreateBackToBackMLagAndPeerValidAddNewVlan(t *testing.T) {
 
 		if !ipp.IppGatewayConversationPasses[100] {
 			t.Error("Error IPP Neighbor did not set conversation passes for 100 ", ipp.Id)
+		}
+		if !ipp.IppGatewayConversationPasses[200] {
+			t.Error("Error IPP Neighbor did not set conversation passes for 200 ", ipp.Id)
+		}
+	}
+
+	if !dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
+		t.Error("Error IPP HOME did not sync up as expected current state ", dr.DRFHomeOperDRCPState.String())
+	}
+
+	if !dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+		!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) {
+		t.Error("Error IPP HOME did not sync up as expected current state ", dr2.DRFHomeOperDRCPState.String())
+	}
+
+	// Del a conversation vlan 100, with port list created with conversation
+	// Add a new conversation vlan 200, with port list created with conversation
+	cfg = &DRConversationConfig{
+		DrniName: mlagcfg.cfg.DrniName,
+		Idtype:   GATEWAY_ALGORITHM_CVID,
+		Cvlan:    100,
+	}
+
+	for _, aggport := range dr.a.PortNumList {
+		cfg.PortList = append(cfg.PortList, int32(aggport))
+	}
+
+	DeleteConversationId(cfg, true)
+
+	cfg = &DRConversationConfig{
+		DrniName: mlagcfg.cfg2.DrniName,
+		Idtype:   GATEWAY_ALGORITHM_CVID,
+		Cvlan:    100,
+	}
+	for _, aggport := range dr2.a.PortNumList {
+		cfg.PortList = append(cfg.PortList, int32(aggport))
+	}
+
+	DeleteConversationId(cfg, true)
+
+	Verify3NodeMlag(mlagcfg, "after vlan del", []uint16{200}, t)
+
+	testWait = make(chan bool)
+
+	go func(wc chan bool) {
+
+		for i := 0; i < 10 &&
+			(!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+				!dr.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
+				len(dr.DrniPortalSystemState[dr.DrniPortalSystemNumber].PortIdList) != 1 ||
+				len(dr.DrniPortalSystemState[dr.Ipplinks[0].DRFNeighborPortalSystemNumber].PortIdList) != 1); i++ {
+			//fmt.Println("waiting for dr2 state to converge", dr.DRFHomeOperDRCPState.String(), i)
+			time.Sleep(time.Second * 1)
+		}
+		wc <- true
+	}(testWait)
+
+	<-testWait
+	//fmt.Println("after wait for dr state to converge", dr.DRFHomeOperDRCPState.String())
+	close(testWait)
+	testWait = make(chan bool)
+
+	go func(wc chan bool) {
+
+		for i := 0; i < 10 &&
+			(!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+				!dr2.DRFHomeOperDRCPState.GetState(layers.DRCPStatePortSync) ||
+				len(dr2.DrniPortalSystemState[dr.DrniPortalSystemNumber].PortIdList) != 1 ||
+				len(dr2.DrniPortalSystemState[dr.Ipplinks[0].DRFNeighborPortalSystemNumber].PortIdList) != 1); i++ {
+			//fmt.Println("waiting for dr2 state to converge", dr2.DRFHomeOperDRCPState.String(), i)
+			time.Sleep(time.Second * 1)
+		}
+		wc <- true
+	}(testWait)
+
+	<-testWait
+	//fmt.Println("after wait for dr2 state to converge", dr2.DRFHomeOperDRCPState.String())
+	close(testWait)
+
+	allippList = make([]*DRCPIpp, 0)
+	for _, p := range dr.Ipplinks {
+		allippList = append(allippList, p)
+	}
+	for _, p := range dr2.Ipplinks {
+		allippList = append(allippList, p)
+	}
+
+	for _, ipp := range allippList {
+		testWait = make(chan bool)
+
+		go func(wc chan bool) {
+
+			for i := 0; i < 10 &&
+				(ipp.IppGatewayConversationPasses[100] ||
+					!ipp.IppGatewayConversationPasses[200]); i++ {
+				//fmt.Println("waiting for dr2 state to converge", dr2.DRFHomeOperDRCPState.String(), i)
+				time.Sleep(time.Second * 1)
+			}
+			wc <- true
+		}(testWait)
+
+		<-testWait
+
+		if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
+			!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
+			t.Error("Error IPP NEIGHBOR did not sync up as expected current state ", ipp.DRFNeighborOperDRCPState.String())
+		}
+
+		if ipp.IppGatewayConversationPasses[100] {
+			t.Error("Error IPP Neighbor did not clear conversation passes for 100 ", ipp.Id)
 		}
 		if !ipp.IppGatewayConversationPasses[200] {
 			t.Error("Error IPP Neighbor did not set conversation passes for 200 ", ipp.Id)

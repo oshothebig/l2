@@ -266,7 +266,7 @@ func (am *AMachine) initializeDRNIPortConversation() {
 func (am *AMachine) updatePortalState() {
 	dr := am.dr
 
-	dr.updatePortalState()
+	dr.updatePortalState(AMachineModuleStr)
 }
 
 // setIPPPortUpdate This function sets the IppPortUpdate on every IPP on this Portal System to TRUE.
