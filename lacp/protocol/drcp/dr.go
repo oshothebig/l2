@@ -337,7 +337,7 @@ func (dr *DistributedRelay) setAdminConvPortAndNeighborPortListDigest() {
 
 // NewDistributedRelay create a new instance of Distributed Relay and
 // the associated objects for the IPP ports
-func NewDistributedRelay(cfg *DistrubtedRelayConfig) *DistributedRelay {
+func NewDistributedRelay(cfg *DistributedRelayConfig) *DistributedRelay {
 
 	dr := &DistributedRelay{
 		DrniId:                      uint32(cfg.DrniPortalSystemNumber),

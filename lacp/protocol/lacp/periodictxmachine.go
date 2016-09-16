@@ -282,7 +282,7 @@ func (p *LaAggPort) LacpPtxMachineMain() {
 						utils.SendResponse(PtxMachineModuleStr, event.ResponseChan)
 					}
 
-					if tmpLogEna == true {
+					if tmpLogEna {
 						m.Machine.Curr.EnableLogging(false)
 						tmpLogEna = false
 					}
@@ -312,7 +312,7 @@ func (m *LacpPtxMachine) LacpPtxIsNoPeriodicExitCondition() bool {
 	*/
 	return m.Machine.Curr.CurrentState() == LacpPtxmStateNoPeriodic &&
 		p.lacpEnabled &&
-		p.PortEnabled &&
+		p.IsPortEnabled() &&
 		(LacpModeGet(p.ActorOper.State, p.lacpEnabled) == LacpModeActive ||
 			LacpModeGet(p.PartnerOper.State, p.lacpEnabled) == LacpModeActive)
 }

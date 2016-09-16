@@ -568,7 +568,7 @@ func (p *LaAggPort) LacpMuxMachineMain() {
 							// if port is attached then we know that provisioning found
 							// a valid agg thus port should be attached.
 							if p.AggAttached != nil &&
-								p.PortEnabled &&
+								p.IsPortEnabled() &&
 								p.lacpEnabled {
 								// change the selection to be Selected
 								p.aggSelected = LacpAggSelected

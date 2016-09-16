@@ -75,7 +75,7 @@ func ConstructPortConfigMap() {
 				PortConfigMap[ifindex] = ent
 				GlobalLogger.Info(fmt.Sprintf("Found Port IfIndex %d Name %s\n", ent.IfIndex, ent.Name))
 			}
-			if more == false {
+			if !more {
 				return
 			}
 		}

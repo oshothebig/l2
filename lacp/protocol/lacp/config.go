@@ -169,6 +169,80 @@ type LaAggPortConfig struct {
 	IntfId   string
 }
 
+// LaAggConfigAggCreateCheck will check that the aggregator ports are unique
+func LaAggConfigAggCreateCheck(ac *LaAggConfig) error {
+
+	if _, ok := utils.ConfigAggMap[ac.Name]; !ok {
+		// check that no port exist in any other lag group
+		for aggName, ports := range utils.ConfigAggMap {
+			for _, cp := range ac.LagMembers {
+				for _, p := range ports {
+					if cp == p {
+						intfref := utils.GetNameFromIfIndex(int32(p))
+						return errors.New(fmt.Sprintf("ERROR Aggregator Port %s already exists in another Aggregator %s", intfref, aggName))
+					}
+				}
+			}
+		}
+
+		utils.ConfigAggMap[ac.Name] = make([]uint16, len(ac.LagMembers))
+		for i, p := range ac.LagMembers {
+			utils.ConfigAggMap[ac.Name][i] = p
+		}
+	}
+	return nil
+}
+
+// LaAggConfigAggPortUpdateCheck validate that the new ports being added are unique, and update
+// the db
+func LaAggConfigAggPortUpdateCheck(name string, addPorts []uint16, delPorts []uint16) error {
+	if _, ok := utils.ConfigAggMap[name]; ok {
+		// check that no port exist in any other lag group
+		for aggName, ports := range utils.ConfigAggMap {
+			if aggName != name {
+				for _, cp := range addPorts {
+					for _, p := range ports {
+						if cp == p {
+							intfref := utils.GetNameFromIfIndex(int32(p))
+							return errors.New(fmt.Sprintf("ERROR Aggregator Port %s already exists in another Aggregator %s", intfref, aggName))
+						}
+					}
+				}
+			}
+		}
+
+		for _, p := range addPorts {
+			utils.ConfigAggMap[name] = append(utils.ConfigAggMap[name], p)
+		}
+		for _, p := range delPorts {
+			for i, ifindex := range utils.ConfigAggMap[name] {
+				if p == ifindex {
+					utils.ConfigAggMap[name] = append(utils.ConfigAggMap[name][:i], utils.ConfigAggMap[name][i+1:]...)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func LaAggConfigDeleteCheck(intfref string) error {
+	var a *LaAggregator
+	if LaFindAggByName(intfref, &a) {
+		if a.ConfigMode == "L3" {
+			// warning may be a timing issue as lag gets notified when l3 interface is deleted thus if
+			// user deletes the l3 interface and lag fast enough it can get this error.  Other solution
+			// that is messy is to do a get from asicd to check if l3 interface exists
+			return errors.New(fmt.Sprintf("ERROR can't delete Aggregator %s, L3 Intf must be deleted first", a.AggName))
+		}
+	}
+	if _, ok := utils.ConfigAggMap[intfref]; ok {
+		// delete the reference to the db
+		delete(utils.ConfigAggMap, intfref)
+	}
+
+	return nil
+}
+
 // LaAggConfigParamCheck will validate the config from the user after it has
 // been translated to something the Lacp module expects.  Thus if translation
 // layer fails it should produce an invalid value.  The error returned
@@ -197,6 +271,18 @@ func LaAggConfigParamCheck(ac *LaAggConfig) error {
 		ac.HashMode != 2 {
 		return errors.New("ERROR Invalid LACP Mode Configured Should be LAYER2(0) or LAYER3_4(2) or LAYER2_3(1)")
 	}
+
+	// lets make sure the port associated with the lag are not associated with another lag
+	for _, ifindex := range ac.LagMembers {
+		var p *LaAggPort
+		if LaFindPortById(ifindex, &p) {
+			if p.AggId != ac.Id {
+				IntfRef := utils.GetNameFromIfIndex(int32(ifindex))
+				return errors.New(fmt.Sprintf("ERROR Port %s already associated with another Aggregator %s", IntfRef, p.AggAttached.AggName))
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -340,11 +426,6 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 				LacpStateSet(&p.ActorOper.State, LacpStateTimeoutBit)
 			}
 
-			// lets start all the State machines
-			p.BEGIN(false)
-			linkStatus := p.IsPortOperStatusUp()
-			p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d is link up %t admin up %t", port.Id, linkStatus, port.Enable))
-
 			if p.Key != 0 {
 				var a *LaAggregator
 				if LaFindAggByKey(p.Key, &a) {
@@ -353,6 +434,11 @@ func CreateLaAggPort(port *LaAggPortConfig) {
 					AddLaAggPortToAgg(a.ActorAdminKey, p.PortNum)
 				}
 			}
+
+			// lets start all the State machines
+			p.BEGIN(false)
+			linkStatus := p.IsPortOperStatusUp()
+			p.LaPortLog(fmt.Sprintf("Creating LaAggPort %d is link up %t admin up %t", port.Id, linkStatus, port.Enable))
 
 			if linkStatus && port.Enable {
 				// if port is enabled and lacp is enabled
@@ -654,8 +740,10 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 			createcb(int32(p.PortNum))
 		}
 
+		p.LaPortLog(fmt.Sprintf("Admin Status %s Link Status %s", p.IsPortAdminEnabled(), p.IsPortOperStatusUp()))
+
 		// lets setup the RX/TX for this port in case it has not already been set
-		if p.IsPortOperStatusUp() {
+		if p.IsPortEnabled() {
 			p.CreateRxTx()
 		}
 		// attach the port to the aggregator
@@ -719,4 +807,11 @@ func GetLaAggPortPartnerOperState(pId uint16) uint8 {
 		return p.PartnerOper.State
 	}
 	return 0
+}
+
+func UpdateIntfType(aggId int, confmode string) {
+	var a *LaAggregator
+	if LaFindAggById(aggId, &a) {
+		a.ConfigMode = confmode
+	}
 }

@@ -213,6 +213,9 @@ type LaAggregator struct {
 	// 3 - ENCAP
 	// 4 - ENCAP2
 	LagHash uint32
+
+	// Similar to Port attrute L2/l3/Internal
+	ConfigMode string
 }
 
 func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
@@ -240,6 +243,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		PortNumList:            make([]uint16, 0),
 		DistributedPortNumList: make([]string, 0),
 		LagHash:                ac.HashMode,
+		DrniName:               "",
 	}
 
 	// want to ensure that the application can use a string name id
@@ -252,9 +256,12 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		sgi.AggMap[Key] = a
 		sgi.AggList = append(sgi.AggList, a)
 
-		for _, pId := range ac.LagMembers {
-			a.PortNumList = append(a.PortNumList, pId)
-		}
+		/*
+			Port will be added during attach phase
+			for _, pId := range ac.LagMembers {
+				a.PortNumList = append(a.PortNumList, pId)
+			}
+		*/
 
 	} else {
 		a.LacpAggLog(fmt.Sprintf("Error trying to create aggregator duplicate id or key or name\n", ac.Id, ac.Key, ac.Name))

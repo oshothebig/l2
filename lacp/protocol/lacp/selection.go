@@ -312,7 +312,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 		if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
 			p.ActorOper.Key == a.ActorOperKey &&
-			p.PortEnabled &&
+			p.IsPortEnabled() &&
 			(p.DrniName == "" ||
 				p.DrniName != "" && p.DrniSynced) {
 
