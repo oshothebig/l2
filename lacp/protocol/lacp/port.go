@@ -572,7 +572,7 @@ func (p *LaAggPort) IsPortOperStatusUp() bool {
 // IsPortEnabled will check if port is admin enabled
 // and link is operationally up
 func (p *LaAggPort) IsPortEnabled() bool {
-	return p.IsPortAdminEnabled() && p.IsPortOperStatusUp()
+	return p.IsPortAdminEnabled() && p.LinkOperStatus
 }
 
 func (p *LaAggPort) LaAggPortDelete() {
