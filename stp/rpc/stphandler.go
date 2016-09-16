@@ -908,6 +908,7 @@ func (s *STPDServiceHandler) GetBulkStpBridgeInstance(fromIndex stpd.Int, count 
 		nextStpBridgeInstance.MaxAge = int32(20)
 		nextStpBridgeInstance.HelloTime = int32(2)
 		nextStpBridgeInstance.ForwardDelay = int32(15)
+		nextStpBridgeInstance.ForceVersion = int32(2)
 		nextStpBridgeInstance.TxHoldCount = int32(6)
 		// lets create the object in the stack now
 		// we are going to create based on CONFD creating StpGlobal
