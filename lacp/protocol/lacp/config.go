@@ -494,7 +494,7 @@ func EnableLaAggPort(pId uint16) {
 
 		DrniEnabled := ((p.DrniName != "" && p.DrniSynced) || p.DrniName == "")
 		if DrniEnabled &&
-			p.IsPortOperStatusUp() &&
+			p.IsPortEnabled() &&
 			p.aggSelected == LacpAggUnSelected {
 			p.checkConfigForSelection()
 		}
@@ -620,7 +620,7 @@ func SetLaAggPortSystemInfo(pId uint16, sysIdMac string, sysPrio uint16) {
 			macArr := convertNetHwAddressToSysIdKey(mac)
 			p.LaAggPortActorAdminInfoSet(macArr, sysPrio)
 
-			if p.IsPortOperStatusUp() &&
+			if p.IsPortEnabled() &&
 				p.aggSelected == LacpAggUnSelected {
 				p.checkConfigForSelection()
 			}
@@ -676,10 +676,10 @@ func SetLaAggPortCheckSelectionDistributedRelayIsSynced(pId uint16, sync bool) {
 		// indicate that the peer has been synced
 		p.DrniSynced = sync
 		if p.DrniSynced &&
-			p.IsPortOperStatusUp() &&
+			p.IsPortEnabled() &&
 			p.aggSelected == LacpAggUnSelected {
 			p.checkConfigForSelection()
-		} else if p.IsPortOperStatusUp() &&
+		} else if p.IsPortEnabled() &&
 			p.aggSelected == LacpAggSelected {
 
 			p.aggSelected = LacpAggUnSelected
@@ -740,6 +740,7 @@ func AddLaAggPortToAgg(Key uint16, pId uint16) {
 			createcb(int32(p.PortNum))
 		}
 
+		// call to IsPortOperStatusUp will set LinkOperStatus which is used in IsPortEnabled
 		p.LaPortLog(fmt.Sprintf("Admin Status %s Link Status %s", p.IsPortAdminEnabled(), p.IsPortOperStatusUp()))
 
 		// lets setup the RX/TX for this port in case it has not already been set

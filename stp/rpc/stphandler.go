@@ -871,8 +871,8 @@ func (s *STPDServiceHandler) GetBulkStpBridgeInstance(fromIndex stpd.Int, count 
 	toIndex := fromIndex
 	obj = &returnStpBridgeInstanceGetInfo
 	stpDefaultBridgeListLen := stpd.Int(1)
-	stp.StpLogger("INFO", fmt.Sprintf("GetBulkStpPort (server):"))
-	stp.StpLogger("INFO", fmt.Sprintf("Total default ports %d fromIndex %d count %d", stpDefaultBridgeListLen, fromIndex, count))
+	stp.StpLogger("INFO", fmt.Sprintf("GetBulkStpBridgeInstance (server):"))
+	stp.StpLogger("INFO", fmt.Sprintf("Total default bridge instances %d fromIndex %d count %d", stpDefaultBridgeListLen, fromIndex, count))
 	for currIndex := fromIndex; validCount != count && currIndex < stpDefaultBridgeListLen; currIndex++ {
 
 		//stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
