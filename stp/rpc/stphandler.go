@@ -558,8 +558,8 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 	return rv, err
 }
 
-func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState, error) {
-	sbs := &stpd.StpBridgeState{}
+func (s *STPDServiceHandler) GetStpBridgeInstanceState(vlan int16) (*stpd.StpBridgeInstanceState, error) {
+	sbs := &stpd.StpBridgeInstanceState{}
 
 	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
@@ -576,8 +576,8 @@ func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState
 			sbs.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
 			sbs.Vlan = int16(b.BrgIfIndex)
 			sbs.ProtocolSpecification = 2
-			//nextStpBridgeState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
-			//nextStpBridgeState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
+			//nextStpBridgeInstanceState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
+			//nextStpBridgeInstanceState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
 			sbs.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
 			sbs.RootCost = int32(b.BridgePriority.RootPathCost)
 			sbs.RootPort = int32(b.BridgePriority.DesignatedPortId)
@@ -593,46 +593,46 @@ func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState
 	return sbs, nil
 }
 
-// GetBulkStpBridgeState will return the status of all the stp bridges
-func (s *STPDServiceHandler) GetBulkStpBridgeState(fromIndex stpd.Int, count stpd.Int) (obj *stpd.StpBridgeStateGetInfo, err error) {
+// GetBulkStpBridgeInstanceState will return the status of all the stp bridges
+func (s *STPDServiceHandler) GetBulkStpBridgeInstanceState(fromIndex stpd.Int, count stpd.Int) (obj *stpd.StpBridgeInstanceStateGetInfo, err error) {
 	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
-		var stpBridgeStateList []stpd.StpBridgeState = make([]stpd.StpBridgeState, count)
-		var nextStpBridgeState *stpd.StpBridgeState
-		var returnStpBridgeStates []*stpd.StpBridgeState
-		var returnStpBridgeStateGetInfo stpd.StpBridgeStateGetInfo
+		var StpBridgeInstanceStateList []stpd.StpBridgeInstanceState = make([]stpd.StpBridgeInstanceState, count)
+		var nextStpBridgeInstanceState *stpd.StpBridgeInstanceState
+		var returnStpBridgeInstanceStates []*stpd.StpBridgeInstanceState
+		var returnStpBridgeInstanceStateGetInfo stpd.StpBridgeInstanceStateGetInfo
 		var b *stp.Bridge
 		validCount := stpd.Int(0)
 		toIndex := fromIndex
-		obj = &returnStpBridgeStateGetInfo
+		obj = &returnStpBridgeInstanceStateGetInfo
 		brgListLen := stpd.Int(len(stp.BridgeListTable))
 		for currIndex := fromIndex; validCount != count && currIndex < brgListLen; currIndex++ {
 
 			b = stp.BridgeListTable[currIndex]
-			nextStpBridgeState = &stpBridgeStateList[validCount]
-			nextStpBridgeState.BridgeHelloTime = int32(b.BridgeTimes.HelloTime)
-			nextStpBridgeState.TxHoldCount = stp.TransmitHoldCountDefault
-			nextStpBridgeState.BridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
-			nextStpBridgeState.BridgeMaxAge = int32(b.BridgeTimes.MaxAge)
-			nextStpBridgeState.Address = ConvertAddrToString(stp.GetBridgeAddrFromBridgeId(b.BridgePriority.DesignatedBridgeId))
-			nextStpBridgeState.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
-			nextStpBridgeState.Vlan = int16(b.BrgIfIndex)
-			nextStpBridgeState.ProtocolSpecification = 2
-			//nextStpBridgeState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
-			//nextStpBridgeState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
-			nextStpBridgeState.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
-			nextStpBridgeState.RootCost = int32(b.BridgePriority.RootPathCost)
-			nextStpBridgeState.RootPort = int32(b.BridgePriority.DesignatedPortId)
-			nextStpBridgeState.MaxAge = int32(b.RootTimes.MaxAge)
-			nextStpBridgeState.HelloTime = int32(b.RootTimes.HelloTime)
-			nextStpBridgeState.HoldTime = int32(b.TxHoldCount)
-			nextStpBridgeState.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
-			nextStpBridgeState.Vlan = int16(b.Vlan)
+			nextStpBridgeInstanceState = &StpBridgeInstanceStateList[validCount]
+			nextStpBridgeInstanceState.BridgeHelloTime = int32(b.BridgeTimes.HelloTime)
+			nextStpBridgeInstanceState.TxHoldCount = stp.TransmitHoldCountDefault
+			nextStpBridgeInstanceState.BridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
+			nextStpBridgeInstanceState.BridgeMaxAge = int32(b.BridgeTimes.MaxAge)
+			nextStpBridgeInstanceState.Address = ConvertAddrToString(stp.GetBridgeAddrFromBridgeId(b.BridgePriority.DesignatedBridgeId))
+			nextStpBridgeInstanceState.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
+			nextStpBridgeInstanceState.Vlan = int16(b.BrgIfIndex)
+			nextStpBridgeInstanceState.ProtocolSpecification = 2
+			//nextStpBridgeInstanceState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
+			//nextStpBridgeInstanceState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
+			nextStpBridgeInstanceState.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
+			nextStpBridgeInstanceState.RootCost = int32(b.BridgePriority.RootPathCost)
+			nextStpBridgeInstanceState.RootPort = int32(b.BridgePriority.DesignatedPortId)
+			nextStpBridgeInstanceState.MaxAge = int32(b.RootTimes.MaxAge)
+			nextStpBridgeInstanceState.HelloTime = int32(b.RootTimes.HelloTime)
+			nextStpBridgeInstanceState.HoldTime = int32(b.TxHoldCount)
+			nextStpBridgeInstanceState.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
+			nextStpBridgeInstanceState.Vlan = int16(b.Vlan)
 
-			if len(returnStpBridgeStates) == 0 {
-				returnStpBridgeStates = make([]*stpd.StpBridgeState, 0)
+			if len(returnStpBridgeInstanceStates) == 0 {
+				returnStpBridgeInstanceStates = make([]*stpd.StpBridgeInstanceState, 0)
 			}
-			returnStpBridgeStates = append(returnStpBridgeStates, nextStpBridgeState)
+			returnStpBridgeInstanceStates = append(returnStpBridgeInstanceStates, nextStpBridgeInstanceState)
 			validCount++
 			toIndex++
 		}
@@ -643,7 +643,7 @@ func (s *STPDServiceHandler) GetBulkStpBridgeState(fromIndex stpd.Int, count stp
 		}
 
 		// lets try and get the next agg if one exists then there are more routes
-		obj.StpBridgeStateList = returnStpBridgeStates
+		obj.StpBridgeInstanceStateList = returnStpBridgeInstanceStates
 		obj.StartIdx = fromIndex
 		obj.EndIdx = toIndex + 1
 		obj.More = moreRoutes
