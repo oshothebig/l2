@@ -265,7 +265,7 @@ func (gm *GMachine) updatePortalState() {
 
 	dr := gm.dr
 
-	dr.updatePortalState()
+	dr.updatePortalState(GMachineModuleStr)
 }
 
 // setIPPGatewayUpdate This function sets the IppGatewayUpdate on every IPP on this

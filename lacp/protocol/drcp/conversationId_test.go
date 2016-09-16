@@ -502,7 +502,7 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 
 	// Del vlan
 	conversationCfg.PortList = []int32{aggport1, aggport2}
-	DeleteConversationId(conversationCfg)
+	DeleteConversationId(conversationCfg, false)
 
 	if ConversationIdMap[100].Valid {
 		t.Error("ERRRO Conversation Map was not updated as expected")

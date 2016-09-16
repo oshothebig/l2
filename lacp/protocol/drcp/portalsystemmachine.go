@@ -309,7 +309,7 @@ func (psm *PsMachine) updateKey() {
 
 			// oper key has been successfully been negotiated because the
 			// neighbor
-			if ipp.DRFNeighborAdminAggregatorKey != 0 {
+			if a.ActorOperKey != operKey {
 				psm.DrcpPsmLog(fmt.Sprintf("updateKey: Admin Aggregator Key is updated from %d to %d source(home[%d]neighbor[%d]other[%d] updateing ports %+v)",
 					dr.DRFHomeAdminAggregatorKey, operKey, dr.DRFHomeAdminAggregatorKey, ipp.DRFNeighborAdminAggregatorKey, ipp.DRFOtherNeighborAdminAggregatorKey, a.PortNumList))
 
@@ -387,6 +387,7 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		if dr.DrniEncapMethod == ENCAP_METHOD_SHARING_BY_TIME {
 			for cid, portalsystemnumbers := range dr.DrniConvAdminGateway {
 				if len(portalsystemnumbers) > 1 {
+					psm.DrcpPsmLog(fmt.Sprintf("DrniConvAdminGateway[%d] == true", cid))
 					vector[cid] = true
 				}
 			}
@@ -411,6 +412,11 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 				Src: PsMachineModuleStr,
 			}
 		}
+		// if this event occured it means that a conversation has been updated
+		// state has changeds.  Lets trigger and NTT update so that the partner
+		// has the correct view of the system
+		dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStateGatewaySync)
+		psm.DrcpPsmLog("Clearing Gateway Sync")
 	}
 	if changeDRFPorts {
 		dr.DRFHomeState.mutex.Lock()
@@ -434,11 +440,6 @@ func (psm *PsMachine) updateDRFHomeState(changePortal, changeDRFPorts bool) {
 		// has the correct view of the system
 		dr.DRFHomeOperDRCPState.ClearState(layers.DRCPStatePortSync)
 		psm.DrcpPsmLog("Clearing Port Sync")
-		for _, ipp := range dr.Ipplinks {
-			// clear the port sync as the neighbor should not know about this update
-			defer ipp.NotifyNTTDRCPUDChange(PsMachineModuleStr, ipp.NTTDRCPDU, true)
-			ipp.NTTDRCPDU = true
-		}
 	}
 
 	// Portal System is Isolated, which means IPP link is down
