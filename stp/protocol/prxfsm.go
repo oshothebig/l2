@@ -106,7 +106,7 @@ func NewStpPrxmMachine(p *StpPort) *PrxmMachine {
 }
 
 func (prxm *PrxmMachine) PrxmLogger(s string) {
-	StpMachineLogger("INFO", PrtMachineModuleStr, prxm.p.IfIndex, prxm.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", PrtMachineModuleStr, prxm.p.IfIndex, prxm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -229,7 +229,7 @@ func (p *StpPort) PrxmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PrxmMachine) {
-		StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
@@ -255,7 +255,7 @@ func (p *StpPort) PrxmMachineMain() {
 						SendResponse(PrxmMachineModuleStr, event.responseChan)
 					}
 				} else {
-					StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
 					return
 				}
 			case rx := <-m.PrxmRxBpduPkt:
@@ -398,7 +398,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			validPdu = true
 		}
 
-		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received RSTP packet flags rcvdRSTP[%t] sendRSTP[%t]", rstp.Flags, p.RcvdRSTP, p.SendRSTP))
+		//StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received RSTP packet flags rcvdRSTP[%t] sendRSTP[%t]", rstp.Flags, p.RcvdRSTP, p.SendRSTP))
 
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, false)
 		p.RcvdTc = StpGetBpduTopoChange(flags)
@@ -407,11 +407,11 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 
 		if p.RcvdTc {
 			p.SetRxPortCounters(BPDURxTypeTopo)
-			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC packet"))
+			StpMachineLogger("DEBUG", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC packet"))
 		}
 		if p.RcvdTcAck {
 			p.SetRxPortCounters(BPDURxTypeTopoAck)
-			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC Ack packet "))
+			StpMachineLogger("DEBUG", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC Ack packet "))
 		}
 
 	case *layers.PVST:
@@ -443,7 +443,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			validPdu = true
 		}
 
-		//StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received PVST packet flags", pvst.Flags))
+		//StpMachineLogger("DEBUG", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received PVST packet flags", pvst.Flags))
 
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, StpGetBpduTopoChangeAck(flags))
 		p.RcvdTc = StpGetBpduTopoChange(flags)
@@ -451,11 +451,11 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 		p.RcvdTcAck = StpGetBpduTopoChangeAck(flags)
 
 		if p.RcvdTc {
-			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC packet"))
+			StpMachineLogger("DEBUG", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC packet"))
 			p.SetRxPortCounters(BPDURxTypeTopo)
 		}
 		if p.RcvdTcAck {
-			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC Ack packet"))
+			StpMachineLogger("DEBUG", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC Ack packet"))
 			p.SetRxPortCounters(BPDURxTypeTopoAck)
 		}
 
@@ -487,7 +487,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 			validPdu = true
 		}
 
-		StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received STP packet %#v", stp))
+		StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received STP packet %#v", stp))
 		defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, StpGetBpduTopoChange(flags), false, StpGetBpduTopoChangeAck(flags))
 		p.RcvdTc = StpGetBpduTopoChange(flags)
 		p.RcvdTcn = false
@@ -495,11 +495,11 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 
 		if p.RcvdTc {
 			p.SetRxPortCounters(BPDURxTypeTopo)
-			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC packet"))
+			StpMachineLogger("DEBUG", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC packet"))
 		}
 		if p.RcvdTcAck {
 			p.SetRxPortCounters(BPDURxTypeTopoAck)
-			StpMachineLogger("INFO", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC Ack packet"))
+			StpMachineLogger("DEBUG", PrxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Received TC Ack packet"))
 		}
 
 	case *layers.BPDUTopology:
@@ -523,7 +523,7 @@ func (prxm *PrxmMachine) UpdtBPDUVersion(data interface{}) bool {
 				p.RcvdSTP = true
 			}
 			validPdu = true
-			StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Received TCN packet")
+			StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Received TCN packet")
 			defer p.NotifyRcvdTcRcvdTcnRcvdTcAck(p.RcvdTc, p.RcvdTcn, p.RcvdTcAck, false, true, false)
 			p.RcvdTc = false
 			p.RcvdTcn = true

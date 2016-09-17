@@ -33,7 +33,7 @@ import (
 func StpLogger(t string, msg string) {
 
 	switch t {
-	case "INFO":
+	case "DEBUG":
 		GetStpLogger().Info(msg)
 	case "ERROR":
 		GetStpLogger().Err(msg)

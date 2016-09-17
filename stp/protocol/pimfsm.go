@@ -128,7 +128,7 @@ func NewStpPimMachine(p *StpPort) *PimMachine {
 }
 
 func (pim *PimMachine) PimLogger(s string) {
-	StpMachineLogger("INFO", PimMachineModuleStr, pim.p.IfIndex, pim.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", PimMachineModuleStr, pim.p.IfIndex, pim.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -256,7 +256,7 @@ func (pim *PimMachine) PimMachineSuperiorDesignated(m fsm.Machine, data interfac
 	betterorsame := pim.recordPriority(pim.getRcvdMsgPriority(data))
 	pim.recordTimes(pim.getRcvdMsgTimes(data))
 	tmp := p.Agree && betterorsame
-	//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, fmt.Sprintf("SuperiorDesignated: p.Agree[%t] betterorsame[%t] &&[%t]",
+	//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, fmt.Sprintf("SuperiorDesignated: p.Agree[%t] betterorsame[%t] &&[%t]",
 	//	p.Agree, betterorsame, tmp))
 	defer pim.NotifyAgreeChanged(p.Agree, tmp)
 	p.Agree = tmp
@@ -420,7 +420,7 @@ func (p *StpPort) PimMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PimMachine) {
-		StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
@@ -432,7 +432,7 @@ func (p *StpPort) PimMachineMain() {
 						break
 					}
 
-					//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
+					//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Event Rx src[%s] event[%d] data[%#v]", event.src, event.e, event.data))
 					rv := m.Machine.ProcessEvent(event.src, event.e, event.data)
 					if rv != nil {
 						StpMachineLogger("ERROR", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PimStateStrMap[m.Machine.Curr.CurrentState()]))
@@ -444,7 +444,7 @@ func (p *StpPort) PimMachineMain() {
 						SendResponse(PimMachineModuleStr, event.responseChan)
 					}
 				} else {
-					StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
 					return
 				}
 
@@ -1124,7 +1124,7 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 	msgpriority := pim.getRcvdMsgPriority(data)
 	msgtimes := pim.getRcvdMsgTimes(data)
 	/*
-		StpMachineLogger("INFO",
+		StpMachineLogger("DEBUG",
 			PimMachineModuleStr,
 			p.IfIndex,
 			p.BrgIfIndex,
@@ -1146,39 +1146,39 @@ func (pim *PimMachine) rcvInfo(data interface{}) PortDesignatedRcvInfo {
 
 	if CompareBridgeAddr(GetBridgeAddrFromBridgeId(msgpriority.RootBridgeId), GetBridgeAddrFromBridgeId(p.b.BridgeIdentifier)) == 0 {
 		if GetBridgePriorityFromBridgeId(msgpriority.RootBridgeId) != GetBridgePriorityFromBridgeId(p.b.BridgeIdentifier) {
-			//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: Root bridge addr == bridge addr and root priority != bridge priority")
+			//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: Root bridge addr == bridge addr and root priority != bridge priority")
 			return OtherInfo
 		}
 	}
 
-	//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("rcvInfo: vector superior %t equal %t port times diff %t",
+	//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("rcvInfo: vector superior %t equal %t port times diff %t",
 	//	IsMsgPriorityVectorSuperiorThanPortPriorityVector(msgpriority, &p.PortPriority), *msgpriority == p.PortPriority, *msgtimes != p.PortTimes))
 	if msgRole == PortRoleDesignatedPort &&
 		(*msgpriority == p.PortPriority &&
 			*msgtimes != p.PortTimes) {
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg times != port times")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg times != port times")
 		return SuperiorDesignatedInfo
 	} else if msgRole == PortRoleDesignatedPort &&
 		*msgpriority == p.PortPriority &&
 		*msgtimes == p.PortTimes {
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg and port vector and times equal")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg and port vector and times equal")
 		return RepeatedDesignatedInfo
 	} else if msgRole == PortRoleDesignatedPort &&
 		IsMsgPriorityVectorWorseThanPortPriorityVector(msgpriority, &p.PortPriority) {
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg priority vector inferior")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg priority vector inferior")
 		return InferiorDesignatedInfo
 	} else if (msgRole == PortRoleRootPort ||
 		msgRole == PortRoleAlternatePort ||
 		msgRole == PortRoleBackupPort) &&
 		IsMsgPriorityVectorTheSameOrWorseThanPortPriorityVector(msgpriority, &p.PortPriority) {
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg role is root, alternate or backup and msg priority is same or inferior")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg role is root, alternate or backup and msg priority is same or inferior")
 		return InferiorRootAlternateInfo
 	} else if msgRole == PortRoleDesignatedPort &&
 		IsMsgPriorityVectorSuperiorThanPortPriorityVector(msgpriority, &p.PortPriority) {
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg priority vector superior")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: msg priority vector superior")
 		return SuperiorDesignatedInfo
 	} else {
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: default")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "rcvInfo: default")
 		return OtherInfo
 	}
 }
@@ -1192,15 +1192,15 @@ func (pim *PimMachine) getRcvdMsgFlags(bpduLayer interface{}) uint8 {
 	var flags uint8
 	switch bpduLayer.(type) {
 	case *layers.STP:
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, "Found STP frame getting flags")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, "Found STP frame getting flags")
 		stp := bpduLayer.(*layers.STP)
 		flags = uint8(stp.Flags)
 	case *layers.RSTP:
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, "Found RSTP frame getting flags")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, "Found RSTP frame getting flags")
 		rstp := bpduLayer.(*layers.RSTP)
 		flags = uint8(rstp.Flags)
 	case *layers.PVST:
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, "Found PVST frame getting flags")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, "Found PVST frame getting flags")
 		pvst := bpduLayer.(*layers.PVST)
 		flags = uint8(pvst.Flags)
 		//default:
@@ -1269,7 +1269,7 @@ func (pim *PimMachine) recordProposal(rcvdMsgFlags uint8) {
 	p := pim.p
 	if StpGetBpduRole(rcvdMsgFlags) == PortRoleDesignatedPort &&
 		StpGetBpduProposal(rcvdMsgFlags) {
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, "recording proposal set")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, "recording proposal set")
 		defer pim.NotifyProposedChanged(p.Proposed, true)
 		p.Proposed = true
 	}
@@ -1294,7 +1294,7 @@ func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 	p := pim.p
 
-	//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("betterorsameinfo: newInfoIs[%d] p.InfoIs[%d] msgPriority[%#v] portPriority[%#v]",
+	//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("betterorsameinfo: newInfoIs[%d] p.InfoIs[%d] msgPriority[%#v] portPriority[%#v]",
 	//	newInfoIs, p.InfoIs, p.MsgPriority, p.PortPriority))
 
 	// recordPriority should be called when this is called from superior designated
@@ -1302,12 +1302,12 @@ func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 	if newInfoIs == PortInfoStateReceived &&
 		p.InfoIs == PortInfoStateReceived &&
 		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.MsgPriority, &p.PortPriority) {
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, "betterorsameinfo: UPDATE InfoIs=Receive and msg vector superior or same as port")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, "betterorsameinfo: UPDATE InfoIs=Receive and msg vector superior or same as port")
 		return true
 	} else if newInfoIs == PortInfoStateMine &&
 		p.InfoIs == PortInfoStateMine &&
 		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.b.BridgePriority, &p.PortPriority) {
-		//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, "betterorsameinfo: InfoIs=Mine and designated vector superior or same as port")
+		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, "betterorsameinfo: InfoIs=Mine and designated vector superior or same as port")
 		return true
 	}
 	return false
@@ -1327,7 +1327,7 @@ func (pim *PimMachine) recordPriority(rcvdMsgPriority *PriorityVector) bool {
 	//p.PortPriority.RootPathCost = rcvdMsgPriority.RootPathCost
 	//}
 	p.PortPriority = *rcvdMsgPriority
-	//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, fmt.Sprintf("recordPriority: copying rcvmsg to port %#v", *rcvdMsgPriority))
+	//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, fmt.Sprintf("recordPriority: copying rcvmsg to port %#v", *rcvdMsgPriority))
 	return betterorsame
 }
 
@@ -1347,7 +1347,7 @@ func (pim *PimMachine) recordTimes(rcvdMsgTimes *Times) {
 // updtRcvdInfoWhile 17.21.23
 func (pim *PimMachine) updtRcvdInfoWhile() {
 	p := pim.p
-	//StpMachineLogger("INFO", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("PortTimes msgAge[%d] maxAge[%d]", p.PortTimes.MessageAge, p.PortTimes.MaxAge))
+	//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("PortTimes msgAge[%d] maxAge[%d]", p.PortTimes.MessageAge, p.PortTimes.MaxAge))
 	if p.PortTimes.MessageAge+1 <= p.PortTimes.MaxAge {
 		p.RcvdInfoWhiletimer.count = 3 * int32(p.PortTimes.HelloTime)
 	} else {

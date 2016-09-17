@@ -196,7 +196,7 @@ func NewStpPrtMachine(p *StpPort) *PrtMachine {
 }
 
 func (prtm *PrtMachine) PrtLogger(s string) {
-	StpMachineLogger("INFO", PrtMachineModuleStr, prtm.p.IfIndex, prtm.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", PrtMachineModuleStr, prtm.p.IfIndex, prtm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -796,7 +796,7 @@ func (p *StpPort) PrtMachineMain() {
 
 	// lets create a go routing which will wait for the specific events
 	go func(m *PrtMachine) {
-		StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
@@ -804,7 +804,7 @@ func (p *StpPort) PrtMachineMain() {
 			case event, ok := <-m.PrtEvents:
 
 				if ok {
-					//StpMachineLogger("INFO", PrtMachineModuleStr, m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
+					//StpMachineLogger("DEBUG", PrtMachineModuleStr, m.p.IfIndex, m.p.BrgIfIndex, fmt.Sprintf("Event Rx", event.src, event.e))
 					if m.Machine.Curr.CurrentState() == PrtStateNone && event.e != PrtEventBegin {
 						m.PrtEvents <- event
 						break
@@ -822,7 +822,7 @@ func (p *StpPort) PrtMachineMain() {
 						SendResponse(PrtMachineModuleStr, event.responseChan)
 					}
 				} else {
-					StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
 					return
 				}
 
@@ -996,7 +996,7 @@ func (prtm *PrtMachine) ProcessPostStateInitPort() {
 	p := prtm.p
 	if p.PrtMachineFsm != nil &&
 		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateInitPort {
-		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateInitPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		//StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateInitPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		rv := prtm.Machine.ProcessEvent(PrtMachineModuleStr, PrtEventUnconditionallFallThrough, nil)
 		if rv != nil {
@@ -1096,7 +1096,7 @@ func (prtm *PrtMachine) ProcessPostStateRootPort() {
 	b := p.b
 	if p.PrtMachineFsm != nil &&
 		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateRootPort {
-		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("PrtStateRootPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		//StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("PrtStateRootPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if p.Proposed &&
 			!p.Agree &&
@@ -1213,7 +1213,7 @@ func (prtm *PrtMachine) ProcessingPostStateDesignatedPort() {
 	p := prtm.p
 	if p.PrtMachineFsm != nil &&
 		p.PrtMachineFsm.Machine.Curr.CurrentState() == PrtStateDesignatedPort {
-		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateDesignatedPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Synced[%t] Sync[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		//StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateDesignatedPort (post) Forwarding[%t] Forward[%t] Learning[%t] Learn[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Synced[%t] Sync[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Forward, p.Learning, p.Learn, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if !p.Forwarding &&
 			!p.Agreed &&
@@ -1720,7 +1720,7 @@ func (prtm *PrtMachine) ProcessingPostStateDisable() {
 	p := prtm.p
 	if p.PrtMachineFsm != nil &&
 		prtm.Machine.Curr.CurrentState() == PrtStateDisablePort {
-		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateDisablePort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		//StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateDisablePort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 
 		if !p.Learning &&
@@ -1741,7 +1741,7 @@ func (prtm *PrtMachine) ProcessingPostStateDisabled() {
 	p := prtm.p
 	if p.PrtMachineFsm != nil &&
 		prtm.Machine.Curr.CurrentState() == PrtStateDisabledPort {
-		//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateDisabledPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
+		//StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("PrtStateDisabledPort (post) Forwarding[%t] Learning[%t] Agreed[%t] Agree[%t]\nProposing[%t] OperEdge[%t] Agreed[%t] Agree[%t]\nReRoot[%t] Selected[%t], UpdtInfo[%t] Fdwhile[%d] rrWhile[%d]\n",
 		//	p.Forwarding, p.Learning, p.Agreed, p.Agree, p.Proposing, p.OperEdge, p.Synced, p.Sync, p.ReRoot, p.Selected, p.UpdtInfo, p.FdWhileTimer.count, p.RrWhileTimer.count))
 		if p.FdWhileTimer.count != int32(p.PortTimes.MaxAge) &&
 			p.Selected &&
@@ -1889,7 +1889,7 @@ func (prtm *PrtMachine) NotifySyncChanged(oldsync bool, newsync bool) {
 	// all other ports
 	if oldsync != newsync &&
 		p.PrtMachineFsm != nil {
-		/*StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("notifySyncChanged: state[%s] synced[%t] operedge[%t] learn[%t] forward[%t] selected[%t] updtInfo[%t]",
+		/*StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, fmt.Sprintf("notifySyncChanged: state[%s] synced[%t] operedge[%t] learn[%t] forward[%t] selected[%t] updtInfo[%t]",
 		PrtStateStrMap[p.PrtMachineFsm.Machine.Curr.CurrentState()],
 		p.Synced,
 		p.OperEdge,
