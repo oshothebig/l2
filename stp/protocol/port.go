@@ -318,7 +318,7 @@ func (p *StpPort) PollLinuxLinkStatus() {
 	p.PollingRoutine = true
 
 	go func(p *StpPort) {
-		StpMachineLogger("INFO", "LINUX POLLING", p.IfIndex, p.BrgIfIndex, "Start")
+		StpMachineLogger("DEBUG", "LINUX POLLING", p.IfIndex, p.BrgIfIndex, "Start")
 		for {
 			if !p.PollingRoutine {
 				fmt.Println("Stopping Link Polling Routine")
@@ -328,16 +328,16 @@ func (p *StpPort) PollLinuxLinkStatus() {
 			case <-p.PollingTimer.C:
 				netif, _ := netlink.LinkByName(PortConfigMap[p.IfIndex].Name)
 				netifattr := netif.Attrs()
-				//StpLogger("INFO", fmt.Sprintf("Polling link flags%#v, running=0x%x up=0x%x check1 %t check2 %t", netifattr.Flags, syscall.IFF_RUNNING, syscall.IFF_UP, ((netifattr.Flags>>6)&0x1) == 1, (netifattr.Flags&1) == 1))
+				//StpLogger("DEBUG", fmt.Sprintf("Polling link flags%#v, running=0x%x up=0x%x check1 %t check2 %t", netifattr.Flags, syscall.IFF_RUNNING, syscall.IFF_UP, ((netifattr.Flags>>6)&0x1) == 1, (netifattr.Flags&1) == 1))
 				//if (((netifattr.Flags >> 6) & 0x1) == 1) && (netifattr.Flags&1) == 1 {
 				if (netifattr.Flags & 1) == 1 {
-					//StpLogger("INFO", "LINUX LINK UP")
+					//StpLogger("DEBUG", "LINUX LINK UP")
 					prevPortEnabled := p.PortEnabled
 					p.PortEnabled = true
 					p.NotifyPortEnabled("LINUX LINK STATUS", prevPortEnabled, true)
 
 				} else {
-					//StpLogger("INFO", "LINUX LINK DOWN")
+					//StpLogger("DEBUG", "LINUX LINK DOWN")
 					prevPortEnabled := p.PortEnabled
 					p.PortEnabled = false
 					p.NotifyPortEnabled("LINUX LINK STATUS", prevPortEnabled, false)
@@ -629,7 +629,7 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 			case mStr := <-p.portChan:
 				i++
 				//fmt.Println("distribute events response received", mStr)
-				StpLogger("INFO", strings.Join([]string{"STPPORT:", mStr, "response received"}, " "))
+				StpLogger("DEBUG", strings.Join([]string{"STPPORT:", mStr, "response received"}, " "))
 				//fmt.Println("LAPORT: Waiting for response Delayed", length, "curr", i, time.Now())
 				if i >= length {
 					// 10/24/15 fixed hack by sending response after Machine.ProcessEvent
@@ -941,7 +941,7 @@ func (p *StpPort) NotifyUpdtInfoChanged(src string, oldupdtinfo bool, newupdtinf
 	// 2) Port Role Transitions
 	// 3) Port Transmit
 	if oldupdtinfo != newupdtinfo {
-		//StpMachineLogger("INFO", src, p.IfIndex, fmt.Sprintf("updateinfo changed %d", newupdtinfo))
+		//StpMachineLogger("DEBUG", src, p.IfIndex, fmt.Sprintf("updateinfo changed %d", newupdtinfo))
 		// PI
 		if p.UpdtInfo {
 			if src != PimMachineModuleStr &&
@@ -2106,7 +2106,7 @@ func (p *StpPort) NotifySelectedRoleChanged(src string, oldselectedrole PortRole
 
 	if oldselectedrole != newselectedrole &&
 		p.PrtMachineFsm != nil {
-		StpMachineLogger("INFO", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
+		StpMachineLogger("DEBUG", src, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("NotifySelectedRoleChange: role[%d] selectedRole[%d]", p.Role, p.SelectedRole))
 		/*if p.Role != p.SelectedRole {*/
 		if newselectedrole == PortRoleDisabledPort {
 			p.PrtMachineFsm.PrtEvents <- MachineEvent{
@@ -2178,7 +2178,7 @@ func (p *StpPort) NotifyRcvdTcRcvdTcnRcvdTcAck(oldrcvdtc bool, oldrcvdtcn bool, 
 	//if oldrcvdtc != newrcvdtc ||
 	//	oldrcvdtcn != newrcvdtcn ||
 	//	oldrcvdtcack != newrcvdtcack {
-	//StpMachineLogger("INFO", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("TC state[%s] tcn[%t] tcack[%t] tcn[%t]",
+	//StpMachineLogger("DEBUG", PrtMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("TC state[%s] tcn[%t] tcack[%t] tcn[%t]",
 	//	TcStateStrMap[p.TcMachineFsm.Machine.Curr.CurrentState()], p.RcvdTc, p.RcvdTcAck, p.RcvdTcn))
 	if p.TcMachineFsm != nil {
 		if p.RcvdTc &&
@@ -2247,14 +2247,14 @@ func ConstructPortConfigMap() {
 	currMarker := int(asicdCommonDefs.MIN_SYS_PORTS)
 	count := 100
 	for _, client := range GetAsicDPluginList() {
-		StpLogger("INFO", "Calling asicd for port config")
+		StpLogger("DEBUG", "Calling asicd for port config")
 		for {
 			bulkInfo, err := client.GetBulkPortState(currMarker, count)
 			if err != nil {
 				StpLogger("ERROR", fmt.Sprintf("GetBulkPortState Error: %s", err))
 				return
 			}
-			StpLogger("INFO", fmt.Sprintf("Length of GetBulkPortState: %d", bulkInfo.Count))
+			StpLogger("DEBUG", fmt.Sprintf("Length of GetBulkPortState: %d", bulkInfo.Count))
 
 			bulkCfgInfo, err := client.GetBulkPort(currMarker, count)
 			if err != nil {
@@ -2262,7 +2262,7 @@ func ConstructPortConfigMap() {
 				return
 			}
 
-			StpLogger("INFO", fmt.Sprintf("Length of GetBulkPortConfig: %d", bulkCfgInfo.Count))
+			StpLogger("DEBUG", fmt.Sprintf("Length of GetBulkPortConfig: %d", bulkCfgInfo.Count))
 			objCount := int(bulkInfo.Count)
 			more := bool(bulkInfo.More)
 			currMarker = int(bulkInfo.EndIdx)

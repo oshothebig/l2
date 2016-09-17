@@ -103,7 +103,7 @@ func NewStpPstMachine(p *StpPort) *PstMachine {
 }
 
 func (pstm *PstMachine) PstmLogger(s string) {
-	StpMachineLogger("INFO", PstMachineModuleStr, pstm.p.IfIndex, pstm.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", PstMachineModuleStr, pstm.p.IfIndex, pstm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -210,7 +210,7 @@ func (p *StpPort) PstMachineMain() {
 
 	// lets create a go routing which will wait for the specific events
 	go func(m *PstMachine) {
-		StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
@@ -234,7 +234,7 @@ func (p *StpPort) PstMachineMain() {
 						SendResponse(PstMachineModuleStr, event.responseChan)
 					}
 				} else {
-					StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
 					return
 				}
 

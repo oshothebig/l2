@@ -102,7 +102,7 @@ func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 }
 
 func (ppm *PpmmMachine) PpmLogger(s string) {
-	StpMachineLogger("INFO", PpmmMachineModuleStr, ppm.p.IfIndex, ppm.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", PpmmMachineModuleStr, ppm.p.IfIndex, ppm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -280,7 +280,7 @@ func (p *StpPort) PpmmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PpmmMachine) {
-		StpMachineLogger("INFO", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
@@ -296,7 +296,7 @@ func (p *StpPort) PpmmMachineMain() {
 					//fmt.Println("Event Rx", event.src, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()])
 					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
 					if rv != nil {
-						StpMachineLogger("INFO", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()]))
+						StpMachineLogger("DEBUG", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()]))
 					} else {
 
 						// post processing
@@ -307,7 +307,7 @@ func (p *StpPort) PpmmMachineMain() {
 						SendResponse(PpmmMachineModuleStr, event.responseChan)
 					}
 				} else {
-					StpMachineLogger("INFO", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					StpMachineLogger("DEBUG", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
 					return
 				}
 			case ena := <-m.PpmmLogEnableEvent:

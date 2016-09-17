@@ -107,7 +107,7 @@ func NewStpPtmMachine(p *StpPort) *PtmMachine {
 }
 
 func (ptm *PtmMachine) PtmLogger(s string) {
-	//StpMachineLogger("INFO", PtmMachineModuleStr, ptm.p.IfIndex, s)
+	//StpMachineLogger("DEBUG", PtmMachineModuleStr, ptm.p.IfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -195,7 +195,7 @@ func (p *StpPort) PtmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PtmMachine) {
-		StpMachineLogger("INFO", PtmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PtmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
@@ -220,7 +220,7 @@ func (p *StpPort) PtmMachineMain() {
 						SendResponse(PtmMachineModuleStr, event.responseChan)
 					}
 				} else {
-					StpMachineLogger("INFO", PtmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					StpMachineLogger("DEBUG", PtmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
 					return
 				}
 			case ena := <-m.PtmLogEnableEvent:
