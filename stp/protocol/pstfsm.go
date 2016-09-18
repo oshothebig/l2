@@ -409,7 +409,7 @@ func (pstm *PstMachine) NotifyForwardingChanged(oldforwarding bool, newforwardin
 
 func (pstm *PstMachine) disableLearning() {
 	p := pstm.p
-	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do disable learning")
+	StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do disable learning")
 	for _, client := range GetAsicDPluginList() {
 		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_BLOCKING)
 	}
@@ -417,7 +417,7 @@ func (pstm *PstMachine) disableLearning() {
 
 func (pstm *PstMachine) disableForwarding() {
 	p := pstm.p
-	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do disable forwarding")
+	StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do disable forwarding")
 	for _, client := range GetAsicDPluginList() {
 		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_BLOCKING)
 	}
@@ -425,7 +425,7 @@ func (pstm *PstMachine) disableForwarding() {
 
 func (pstm *PstMachine) enableLearning() {
 	p := pstm.p
-	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable learning")
+	StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable learning")
 	for _, client := range GetAsicDPluginList() {
 		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_LEARNING)
 	}
@@ -433,7 +433,7 @@ func (pstm *PstMachine) enableLearning() {
 
 func (pstm *PstMachine) enableForwarding() {
 	p := pstm.p
-	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable forwarding")
+	StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable forwarding")
 	for _, client := range GetAsicDPluginList() {
 		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_FORWARDING)
 	}
