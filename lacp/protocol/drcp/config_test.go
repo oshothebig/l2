@@ -1437,6 +1437,12 @@ func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, step string, convlist []uint16, t
 					!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
 					time.Sleep(time.Second * 1)
 				}
+				for _, cid := range convlist {
+					if !ipp.IppGatewayConversationPasses[cid] {
+						time.Sleep(time.Second * 1)
+					}
+				}
+
 			}
 		}
 		wc <- true
@@ -1457,6 +1463,11 @@ func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, step string, convlist []uint16, t
 					!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
 					!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
 					time.Sleep(time.Second * 1)
+				}
+				for _, cid := range convlist {
+					if !ipp.IppGatewayConversationPasses[cid] {
+						time.Sleep(time.Second * 1)
+					}
 				}
 			}
 		}
