@@ -226,12 +226,12 @@ func (s *LAServer) processLaConfig(conf LAConfig) {
 
 	case LAConfigMsgAddL2IntfType:
 		s.logger.Info("CONFIG: Update L2 Intf")
-		config := conf.Msgdata.(*commonDefs.L3IntfStateNotifyMsg)
+		config := conf.Msgdata.(*commonDefs.IPv4L3IntfStateNotifyMsg)
 		lacp.UpdateIntfType(int(config.IfIndex), "L2")
 
 	case LAConfigMsgAddL3IntfType:
 		s.logger.Info("CONFIG: Update L3 Intf")
-		config := conf.Msgdata.(*commonDefs.L3IntfStateNotifyMsg)
+		config := conf.Msgdata.(*commonDefs.IPv4L3IntfStateNotifyMsg)
 		lacp.UpdateIntfType(int(config.IfIndex), "L3")
 	}
 }
@@ -311,7 +311,7 @@ func (s *LAServer) processVlanEvent(vlanMsg commonDefs.VlanNotifyMsg) {
 	}
 }
 
-func (s *LAServer) processL3IntEvent(msg commonDefs.L3IntfStateNotifyMsg) {
+func (s *LAServer) processL3IntEvent(msg commonDefs.IPv4L3IntfStateNotifyMsg) {
 
 	ifindex := msg.IfIndex
 	iftype := commonDefs.GetIfTypeName(asicdCommonDefs.GetIntfTypeFromIfIndex(ifindex))
@@ -355,8 +355,8 @@ func (s *LAServer) processAsicdNotification(msg commonDefs.AsicdNotifyMsg) {
 		s.logger.Info(fmt.Sprintln("Msg vlan = ", vlanMsg))
 		s.processVlanEvent(vlanMsg)
 
-	case commonDefs.L3IntfStateNotifyMsg:
-		l3intfMsg := msg.(commonDefs.L3IntfStateNotifyMsg)
+	case commonDefs.IPv4L3IntfStateNotifyMsg:
+		l3intfMsg := msg.(commonDefs.IPv4L3IntfStateNotifyMsg)
 		s.logger.Info(fmt.Sprintln("Msg l3intf = ", l3intfMsg))
 		s.processL3IntEvent(l3intfMsg)
 	}
