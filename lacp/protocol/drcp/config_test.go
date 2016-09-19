@@ -131,6 +131,12 @@ func OnlyForTestTeardown(t *testing.T) {
 	ConversationIdMap[100].Refcnt = 0
 	ConversationIdMap[100].Idtype = [4]uint8{}
 
+	ConversationIdMap[200].Valid = false
+	ConversationIdMap[200].PortList = nil
+	ConversationIdMap[200].Cvlan = 0
+	ConversationIdMap[200].Refcnt = 0
+	ConversationIdMap[200].Idtype = [4]uint8{}
+
 	// validate that the
 	if len(DistributedRelayDB) != 0 {
 		t.Error("Error DR objects not deleted")
@@ -1431,18 +1437,22 @@ func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, step string, convlist []uint16, t
 
 		for i := 0; i < 10; i++ {
 			for _, ipp := range dr.Ipplinks {
+				convnotfound := false
 				if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
 					!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
 					!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
 					!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
 					time.Sleep(time.Second * 1)
-				}
-				for _, cid := range convlist {
-					if !ipp.IppGatewayConversationPasses[cid] {
+				} else {
+					for _, cid := range convlist {
+						if !ipp.IppGatewayConversationPasses[cid] {
+							convnotfound = true
+						}
+					}
+					if convnotfound {
 						time.Sleep(time.Second * 1)
 					}
 				}
-
 			}
 		}
 		wc <- true
@@ -1458,14 +1468,19 @@ func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, step string, convlist []uint16, t
 
 		for i := 0; i < 10; i++ {
 			for _, ipp := range dr2.Ipplinks {
+				convnotfound := false
 				if !ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateIPPActivity) ||
 					!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateHomeGatewayBit) ||
 					!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStateGatewaySync) ||
 					!ipp.DRFNeighborOperDRCPState.GetState(layers.DRCPStatePortSync) {
 					time.Sleep(time.Second * 1)
-				}
-				for _, cid := range convlist {
-					if !ipp.IppGatewayConversationPasses[cid] {
+				} else {
+					for _, cid := range convlist {
+						if !ipp.IppGatewayConversationPasses[cid] {
+							convnotfound = true
+						}
+					}
+					if convnotfound {
 						time.Sleep(time.Second * 1)
 					}
 				}
@@ -1502,7 +1517,7 @@ func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, step string, convlist []uint16, t
 		}
 		for _, cid := range convlist {
 			if !ipp.IppGatewayConversationPasses[cid] {
-				t.Error("Error IPP Neighbor did not set conversation passes for 100 ")
+				t.Error("Error IPP Neighbor did not set conversation passes for 100 ", ipp.Id)
 			}
 		}
 		sort.Sort(sortPortList(testBlockMap[int32(ipp.Id)]))
