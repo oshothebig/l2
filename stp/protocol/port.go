@@ -295,7 +295,7 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 	PortListTable = append(PortListTable, p)
 
 	ifName, _ := PortConfigMap[p.IfIndex]
-	StpLogger("INFO", fmt.Sprintf("NEW PORT: ifname %s %#v\n", ifName.Name, p))
+	StpLogger("DEBUG", fmt.Sprintf("NEW PORT: ifname %s %#v\n", ifName.Name, p))
 
 	if p.PortEnabled {
 		p.CreateRxTx()

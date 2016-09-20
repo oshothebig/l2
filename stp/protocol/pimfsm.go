@@ -1367,12 +1367,14 @@ func (pim *PimMachine) recordDispute(rcvdMsgFlags uint8) {
 		p.Disputed = true
 		defer pim.NotifyAgreedChanged(p.Agreed, false)
 		p.Agreed = false
-
-		//defer pim.NotifyAgreedChanged(p.Agreed, true)
-		//p.Agreed = true
-		//defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
-		//p.Proposing = false
 	}
+	if StpGetBpduLearning(rcvdMsgFlags) {
+		defer pim.NotifyAgreedChanged(p.Agreed, true)
+		p.Agreed = true
+		defer p.NotifyProposingChanged(PimMachineModuleStr, p.Proposing, false)
+		p.Proposing = false
+	}
+
 }
 
 func (pim *PimMachine) recordAgreement(rcvdMsgFlags uint8) {
