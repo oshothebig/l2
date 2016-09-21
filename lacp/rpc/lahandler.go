@@ -856,13 +856,13 @@ func (la *LACPDServiceHandler) SetPortLacpLogEnable(Id lacpd.Uint16, modStr stri
 	return 1, errors.New(fmt.Sprintf("LACP: LOG set failed,  Unable to find Port", Id))
 }
 
-func (la *LACPDServiceHandler) GetPortChannelState(portChannel *lacpd.LaPortChannelState) (*lacpd.LaPortChannelState, error) {
+func (la *LACPDServiceHandler) GetLaPortChannelState(IntfRef string) (*lacpd.LaPortChannelState, error) {
 	pcs := &lacpd.LaPortChannelState{}
 
 	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_ENABLE {
 
 		var a *lacp.LaAggregator
-		id := GetKeyByAggName(portChannel.IntfRef)
+		id := GetKeyByAggName(IntfRef)
 		if lacp.LaFindAggById(int(id), &a) {
 			pcs.IntfRef = a.AggName
 			pcs.IfIndex = int32(a.AggId)
@@ -898,14 +898,10 @@ func (la *LACPDServiceHandler) GetPortChannelState(portChannel *lacpd.LaPortChan
 				}
 			}
 		} else {
-			return pcs, errors.New(fmt.Sprintf("LACP: Unable to find port channel from LagId %s", portChannel.IntfRef))
+			return pcs, errors.New(fmt.Sprintf("LACP: Unable to find port channel from LagId %s", IntfRef))
 		}
 	}
 	return pcs, nil
-}
-
-func (la *LACPDServiceHandler) GetLaPortChannelState(intfref string) (obj *lacpd.LaPortChannelState, err error) {
-	return nil, nil
 }
 
 // GetBulkLaAggrGroupState will return the status of all the lag groups
