@@ -692,28 +692,35 @@ func TestStpPortParamPriority(t *testing.T) {
 	StpPortCreate(p)
 	defer StpPortDelete(p)
 
-	brgifindex := p.BrgIfIndex
+	//brgifindex := p.BrgIfIndex
 	// lets pretend another bridge port is being created and Priority is different
 	brg := StpBridgeConfigSetup()
 	brg.Vlan = 100
 	// bridge must exist
 	StpBridgeCreate(brg)
 	defer StpBridgeDelete(brg)
-	p.BrgIfIndex = 100
-	p.Priority = 16
-	err = StpPortConfigParamCheck(p, false)
-	if err == nil {
-		t.Error("ERROR: an invalid port config change priority was set should have errored", p.Priority, err)
-	}
-	p.BrgIfIndex = brgifindex
+	/*
+		Invalid test as we are no longer bound to a port based provisioning
+		p.BrgIfIndex = 100
+		p.Priority = 16
+		err = StpPortConfigParamCheck(p, false)
+		if err == nil {
+			t.Error("ERROR: an invalid port config change priority was set should have errored", p.Priority, err)
+		}
+		p.BrgIfIndex = brgifindex
+	*/
 	// lets change the port priority on the fly
 	err = StpPortPrioritySet(p.IfIndex, p.BrgIfIndex, 32)
+	p.Priority = 32
+	err = StpPortConfigParamCheck(p, false)
 	if err != nil {
 		t.Error("ERROR: set a valid port priority 32 should not have failed ", err)
 	}
 
 	// set an invalid port priority
 	err = StpPortPrioritySet(p.IfIndex, p.BrgIfIndex, 50)
+	p.Priority = 50
+	err = StpPortConfigParamCheck(p, false)
 	if err == nil {
 		t.Error("ERROR: set an ivalid port priority 50 should have failed", err)
 	}
@@ -761,13 +768,15 @@ func TestStpPortParamAdminPathCost(t *testing.T) {
 	// bridge must exist
 	StpBridgeCreate(brg)
 	defer StpBridgeDelete(brg)
-
-	p.BrgIfIndex = 100
-	p.AdminPathCost = 200
-	err = StpPortConfigParamCheck(p, false)
-	if err == nil {
-		t.Error("ERROR: an invalid port config change admin path cost was set should have errored", p.AdminPathCost, err)
-	}
+	/*
+		Invalid test as we are no longer bound to port based provisioning
+		p.BrgIfIndex = 100
+		p.AdminPathCost = 200
+		err = StpPortConfigParamCheck(p, false)
+		if err == nil {
+			t.Error("ERROR: an invalid port config change admin path cost was set should have errored", p.AdminPathCost, err)
+		}
+	*/
 }
 
 func TestStpPortParamBridgeAssurance(t *testing.T) {
@@ -851,6 +860,8 @@ func TestStpPortParamBridgeAssurance(t *testing.T) {
 
 	// set admin edge to true while bridge assurance is enabled, should fail
 	err = StpPortAdminEdgeSet(p.IfIndex, p.BrgIfIndex, true)
+	p.BridgeAssurance = true
+	err = StpPortConfigParamCheck(p, false)
 	if err == nil {
 		t.Error("ERROR: failed to set port as an admin edge port because Bridge Assurance is enabled", err)
 	}
@@ -918,6 +929,7 @@ func TestStpPortParamBpduGuard(t *testing.T) {
 	// disable admin edge, which should fail
 	p.AdminEdgePort = false
 	err = StpPortAdminEdgeSet(p.IfIndex, p.BrgIfIndex, p.AdminEdgePort)
+	err = StpPortConfigParamCheck(p, false)
 	if err == nil {
 		t.Error("ERROR: invalid port config bpdu Guard is enabled set should have errored", p.AdminEdgePort, p.BpduGuard, err)
 	}
@@ -960,7 +972,7 @@ func TestStpPortParamBpduGuard(t *testing.T) {
 	}
 
 	// give test time to complete
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 30)
 
 }
 

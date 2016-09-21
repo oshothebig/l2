@@ -564,7 +564,7 @@ func (tcm *TcMachine) FlushFdb() {
 	// is complete lets clear FdbFlush and
 	// send event to TCM
 	for _, client := range GetAsicDPluginList() {
-		client.FlushStgFdb(p.b.StgId)
+		client.FlushStgFdb(p.b.StgId, p.IfIndex)
 	}
 	StpMachineLogger("DEBUG", TcMachineModuleStr, p.IfIndex, p.BrgIfIndex, "FDB Flush")
 	p.FdbFlush = false

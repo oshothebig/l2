@@ -904,7 +904,7 @@ func (s *STPDServiceHandler) GetBulkStpBridgeInstance(fromIndex stpd.Int, count 
 		// in the values this way.  For now going to hard code.
 		nextStpBridgeInstance.Vlan = int16(stp.DEFAULT_STP_BRIDGE_VLAN)
 		nextStpBridgeInstance.Priority = 32768
-		nextStpBridgeInstance.Address = "00:00:00:00:00:00" // use switch mac
+		nextStpBridgeInstance.Address = "00-00-00-00-00-00" // use switch mac
 		nextStpBridgeInstance.MaxAge = int32(20)
 		nextStpBridgeInstance.HelloTime = int32(2)
 		nextStpBridgeInstance.ForwardDelay = int32(15)

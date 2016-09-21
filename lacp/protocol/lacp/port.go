@@ -544,7 +544,8 @@ func (p *LaAggPort) DeleteRxTx() {
 	// close rx/tx processing
 	if p.handle != nil {
 		p.handle.Close()
-		fmt.Println("RX/TX handle closed for port", p.PortNum)
+		p.LaPortLog(fmt.Sprintf("RX/TX handle closed for port", p.PortNum))
+		p.handle = nil
 	}
 }
 

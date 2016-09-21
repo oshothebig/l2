@@ -124,6 +124,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	p.aggSelected = LacpAggSelected
 	p.portMoved = false
 	p.PortEnabled = true
+	p.LinkOperStatus = true
 	p.lacpEnabled = false
 	// send PORT ENABLED && LACP DISABLED event to Rx Machine
 	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
@@ -149,6 +150,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	}
 
 	p.lacpEnabled = true
+	p.LinkOperStatus = true
 	// send LACP ENABLED event to Rx Machine
 	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
 		E:            LacpRxmEventLacpEnabled,
@@ -187,6 +189,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	}
 
 	p.PortEnabled = false
+	p.LinkOperStatus = false
 	// send NOT ENABLED AND NOT MOVED event to Rx Machine from Expired State
 	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
 		E:            LacpRxmEventNotPortEnabledAndNotPortMoved,
@@ -215,6 +218,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	}
 
 	p.PortEnabled = true
+	p.LinkOperStatus = true
 	p.lacpEnabled = false
 	// send NOT ENABLED AND NOT MOVED event to Rx Machine from Expired State
 	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
@@ -229,6 +233,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	}
 
 	p.PortEnabled = false
+	p.LinkOperStatus = false
 	// send NOT ENABLED AND NOT MOVED event to Rx Machine from LACP DISABLED
 	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
 		E:            LacpRxmEventNotPortEnabledAndNotPortMoved,
@@ -253,6 +258,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	}
 
 	p.PortEnabled = true
+	p.LinkOperStatus = true
 	p.lacpEnabled = true
 	// send PORT ENABLE LACP ENABLED event to Rx Machine
 	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
@@ -294,6 +300,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	// LETS GET THE State BACK TO EXPIRED
 
 	p.PortEnabled = false
+	p.LinkOperStatus = false
 	// send NOT PORT ENABLE NOT PORT MOVED event to Rx Machine
 	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
 		E:            LacpRxmEventNotPortEnabledAndNotPortMoved,
@@ -307,6 +314,7 @@ func TestLaAggPortRxMachineStateTransitions(t *testing.T) {
 	}
 
 	p.PortEnabled = true
+	p.LinkOperStatus = true
 	// send PORT ENABLE LACP ENABLED event to Rx Machine
 	p.RxMachineFsm.RxmEvents <- utils.MachineEvent{
 		E:            LacpRxmEventPortEnabledAndLacpEnabled,
