@@ -105,8 +105,8 @@ func StpPortConfigSave(c *StpPortConfig, update bool) error {
 			c.BrgIfIndex = brgIfIndex
 			// TODO failing for now will need to add code to update all other bridges that use
 			// this physical port
-			return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
-				c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
+			//return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
+			//	c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
 		} else if update {
 			StpPortConfigMap[c.IfIndex] = *c
 		}
@@ -209,18 +209,20 @@ func StpPortConfigParamCheck(c *StpPortConfig, update bool) error {
 
 	// all bridge port configurations are applied against all bridge ports applied to a given
 	// port, updates are applied to all bridge ports
-	if !update {
-		brgifindex := c.BrgIfIndex
-		c.BrgIfIndex = 0
-		if _, ok := StpPortConfigMap[c.IfIndex]; ok {
-			if *c != StpPortConfigMap[c.IfIndex] {
-				return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
-					c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
+	// 9/20/16 relaxing this restriction as users will not know this
+	/*
+		if !update {
+			brgifindex := c.BrgIfIndex
+			c.BrgIfIndex = 0
+			if _, ok := StpPortConfigMap[c.IfIndex]; ok {
+				if *c != StpPortConfigMap[c.IfIndex] {
+					return errors.New(fmt.Sprintf("Error Port %d Provisioning does not agree with previously created bridge port prev[%#v] new[%#v]",
+						c.IfIndex, StpPortConfigMap[c.IfIndex], *c))
+				}
 			}
+			c.BrgIfIndex = brgifindex
 		}
-		c.BrgIfIndex = brgifindex
-	}
-
+	*/
 	return StpPortConfigSave(c, update)
 }
 
@@ -476,28 +478,41 @@ func StpPortPrioritySet(pId int32, bId int32, priority uint16) error {
 	var p *StpPort
 	if StpFindPortByIfIndex(pId, bId, &p) {
 		if p.Priority != priority {
-			c := StpPortConfigGet(pId)
-			c.Priority = priority
-			c.BrgIfIndex = bId
-			err := StpPortConfigParamCheck(c, true)
-			if err == nil {
-				StpPortConfigSave(c, true)
-				// apply to all bridge ports
-				for _, port := range p.GetPortListToApplyConfigTo() {
+			/*
+				c := StpPortConfigGet(pId)
+				c.Priority = priority
+				c.BrgIfIndex = bId
+				err := StpPortConfigParamCheck(c, true)
+				if err == nil {
+					StpPortConfigSave(c, true)
+					// apply to all bridge ports
+					for _, port := range p.GetPortListToApplyConfigTo() {
 
-					port.Priority = priority
-					port.Selected = false
-					port.Reselect = true
+						port.Priority = priority
+						port.Selected = false
+						port.Reselect = true
 
-					if port.b.PrsMachineFsm != nil {
-						port.b.PrsMachineFsm.PrsEvents <- MachineEvent{
-							e:   PrsEventReselect,
-							src: "CONFIG: PortPrioritySet",
+						if port.b.PrsMachineFsm != nil {
+							port.b.PrsMachineFsm.PrsEvents <- MachineEvent{
+								e:   PrsEventReselect,
+								src: "CONFIG: PortPrioritySet",
+							}
 						}
 					}
 				}
+			*/
+			p.Priority = priority
+			p.Selected = false
+			p.Reselect = true
+			if p.b.PrsMachineFsm != nil {
+				p.b.PrsMachineFsm.PrsEvents <- MachineEvent{
+					e:   PrsEventReselect,
+					src: "CONFIG: PortPrioritySet",
+				}
 			}
-			return err
+
+			//return err
+			return nil
 		} else {
 			return nil
 		}
@@ -517,48 +532,64 @@ func StpPortAdminEdgeSet(pId int32, bId int32, adminedge bool) error {
 	if StpFindPortByIfIndex(pId, bId, &p) {
 		p.AdminEdge = adminedge
 		if p.OperEdge != adminedge {
-			c := StpPortConfigGet(pId)
-			c.AdminEdgePort = adminedge
-			c.BrgIfIndex = bId
-			err := StpPortConfigParamCheck(c, true)
-			if err == nil {
-				StpPortConfigSave(c, true)
-				p.AdminEdge = adminedge
-				isOtherBrgPortOperEdge := p.IsAdminEdgePort()
-				// if we transition from Admin Edge to non-Admin edge
-				if !p.AdminEdge && !isOtherBrgPortOperEdge {
-					p.BdmMachineFsm.BdmEvents <- MachineEvent{
-						e:   BdmEventBeginNotAdminEdge,
-						src: "CONFIG: AdminEgeSet",
-					}
-					for _, ptmp := range PortListTable {
-						if p != ptmp &&
-							p.IfIndex == ptmp.IfIndex {
-							p.BdmMachineFsm.BdmEvents <- MachineEvent{
-								e:   BdmEventBeginNotAdminEdge,
-								src: "CONFIG: AdminEgeSet",
+			/*
+				c := StpPortConfigGet(pId)
+				c.AdminEdgePort = adminedge
+				c.BrgIfIndex = bId
+				err := StpPortConfigParamCheck(c, true)
+				if err == nil {
+					StpPortConfigSave(c, true)
+					p.AdminEdge = adminedge
+					isOtherBrgPortOperEdge := p.IsAdminEdgePort()
+					// if we transition from Admin Edge to non-Admin edge
+					if !p.AdminEdge && !isOtherBrgPortOperEdge {
+						p.BdmMachineFsm.BdmEvents <- MachineEvent{
+							e:   BdmEventBeginNotAdminEdge,
+							src: "CONFIG: AdminEgeSet",
+						}
+						for _, ptmp := range PortListTable {
+							if p != ptmp &&
+								p.IfIndex == ptmp.IfIndex {
+								p.BdmMachineFsm.BdmEvents <- MachineEvent{
+									e:   BdmEventBeginNotAdminEdge,
+									src: "CONFIG: AdminEgeSet",
+								}
 							}
 						}
-					}
 
-				} else if p.AdminEdge && !isOtherBrgPortOperEdge {
-					p.BdmMachineFsm.BdmEvents <- MachineEvent{
-						e:   BdmEventBeginAdminEdge,
-						src: "CONFIG: AdminEgeSet",
-					}
+					} else if p.AdminEdge && !isOtherBrgPortOperEdge {
+						p.BdmMachineFsm.BdmEvents <- MachineEvent{
+							e:   BdmEventBeginAdminEdge,
+							src: "CONFIG: AdminEgeSet",
+						}
 
-					for _, ptmp := range PortListTable {
-						if p != ptmp &&
-							p.IfIndex == ptmp.IfIndex {
-							p.BdmMachineFsm.BdmEvents <- MachineEvent{
-								e:   BdmEventBeginAdminEdge,
-								src: "CONFIG: AdminEgeSet",
+						for _, ptmp := range PortListTable {
+							if p != ptmp &&
+								p.IfIndex == ptmp.IfIndex {
+								p.BdmMachineFsm.BdmEvents <- MachineEvent{
+									e:   BdmEventBeginAdminEdge,
+									src: "CONFIG: AdminEgeSet",
+								}
 							}
 						}
 					}
 				}
+			*/
+			p.AdminEdge = adminedge
+			if !p.AdminEdge {
+				p.BdmMachineFsm.BdmEvents <- MachineEvent{
+					e:   BdmEventBeginNotAdminEdge,
+					src: "CONFIG: AdminEgeSet",
+				}
+			} else {
+				p.BdmMachineFsm.BdmEvents <- MachineEvent{
+					e:   BdmEventBeginAdminEdge,
+					src: "CONFIG: AdminEgeSet",
+				}
 			}
-			return err
+
+			//return err
+			return nil
 		} else {
 			return nil
 		}
@@ -660,29 +691,40 @@ func StpPortProtocolMigrationSet(pId int32, bId int32, protocolmigration bool) e
 	var p *StpPort
 	if StpFindPortByIfIndex(pId, bId, &p) {
 		if p.Mcheck != protocolmigration {
-			c := StpPortConfigGet(pId)
-			if protocolmigration {
-				c.ProtocolMigration = int32(1)
-			} else {
-				c.ProtocolMigration = int32(0)
-			}
-			c.BrgIfIndex = bId
-			err := StpPortConfigParamCheck(c, true)
-			if err == nil {
-				StpPortConfigSave(c, true)
+			/*
+				c := StpPortConfigGet(pId)
+				if protocolmigration {
+					c.ProtocolMigration = int32(1)
+				} else {
+					c.ProtocolMigration = int32(0)
+				}
 
-				// apply to all bridge ports
-				for _, port := range p.GetPortListToApplyConfigTo() {
+				c.BrgIfIndex = bId
+				err := StpPortConfigParamCheck(c, true)
+				if err == nil {
+					StpPortConfigSave(c, true)
 
-					if protocolmigration {
-						port.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventMcheck,
-							src: "CONFIG: ProtocolMigrationSet",
+					// apply to all bridge ports
+					for _, port := range p.GetPortListToApplyConfigTo() {
+
+						if protocolmigration {
+							port.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventMcheck,
+								src: "CONFIG: ProtocolMigrationSet",
+							}
 						}
+						port.Mcheck = protocolmigration
 					}
-					port.Mcheck = protocolmigration
+				}
+			*/
+			if protocolmigration {
+				p.PpmmMachineFsm.PpmmEvents <- MachineEvent{e: PpmmEventMcheck,
+					src: "CONFIG: ProtocolMigrationSet",
 				}
 			}
-			return err
+			p.Mcheck = protocolmigration
+
+			//return err
+			return nil
 		} else {
 			return nil
 		}
@@ -694,24 +736,34 @@ func StpPortBpduGuardSet(pId int32, bId int32, bpduguard bool) error {
 	var p *StpPort
 	if StpFindPortByIfIndex(pId, bId, &p) {
 		if p.BpduGuard != bpduguard {
-			c := StpPortConfigGet(pId)
-			c.BpduGuard = bpduguard
-			c.BrgIfIndex = bId
-			err := StpPortConfigParamCheck(c, true)
-			if err == nil {
-				StpPortConfigSave(c, true)
+			/*
+				c := StpPortConfigGet(pId)
+				c.BpduGuard = bpduguard
+				c.BrgIfIndex = bId
+				err := StpPortConfigParamCheck(c, true)
+				if err == nil {
+					StpPortConfigSave(c, true)
 
-				// apply to all bridge ports
-				for _, port := range p.GetPortListToApplyConfigTo() {
-					if bpduguard {
-						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Setting BPDU Guard")
-					} else {
-						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Clearing BPDU Guard")
+					// apply to all bridge ports
+					for _, port := range p.GetPortListToApplyConfigTo() {
+						if bpduguard {
+							StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Setting BPDU Guard")
+						} else {
+							StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Clearing BPDU Guard")
+						}
+						port.BpduGuard = bpduguard
 					}
-					port.BpduGuard = bpduguard
 				}
+			*/
+			if bpduguard {
+				StpMachineLogger("INFO", "CONFIG", p.IfIndex, p.BrgIfIndex, "Setting BPDU Guard")
+			} else {
+				StpMachineLogger("INFO", "CONFIG", p.IfIndex, p.BrgIfIndex, "Clearing BPDU Guard")
 			}
-			return err
+			p.BpduGuard = bpduguard
+
+			//return err
+			return nil
 		} else {
 			return nil
 		}
@@ -724,25 +776,32 @@ func StpPortBridgeAssuranceSet(pId int32, bId int32, bridgeassurance bool) error
 	if StpFindPortByIfIndex(pId, bId, &p) {
 		if p.BridgeAssurance != bridgeassurance &&
 			!p.OperEdge {
-			c := StpPortConfigGet(pId)
-			c.BridgeAssurance = bridgeassurance
-			c.BrgIfIndex = bId
-			err := StpPortConfigParamCheck(c, true)
-			if err == nil {
-				StpPortConfigSave(c, true)
-				// apply to all bridge ports
-				for _, port := range p.GetPortListToApplyConfigTo() {
-					if bridgeassurance {
-						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Setting Bridge Assurance")
-					} else {
-						StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Clearing Bridge Assurance")
+			/*
+				c := StpPortConfigGet(pId)
+				c.BridgeAssurance = bridgeassurance
+				c.BrgIfIndex = bId
+				err := StpPortConfigParamCheck(c, true)
+				if err == nil {
+					StpPortConfigSave(c, true)
+					// apply to all bridge ports
+					for _, port := range p.GetPortListToApplyConfigTo() {
+						if bridgeassurance {
+							StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Setting Bridge Assurance")
+						} else {
+							StpMachineLogger("INFO", "CONFIG", port.IfIndex, port.BrgIfIndex, "Clearing Bridge Assurance")
+						}
+						port.BridgeAssurance = bridgeassurance
+						port.BridgeAssuranceInconsistant = false
+						port.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
 					}
-					port.BridgeAssurance = bridgeassurance
-					port.BridgeAssuranceInconsistant = false
-					port.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
 				}
-			}
-			return err
+			*/
+			p.BridgeAssurance = bridgeassurance
+			p.BridgeAssuranceInconsistant = false
+			p.BAWhileTimer.count = int32(p.b.RootTimes.HelloTime * 3)
+
+			//return err
+			return nil
 		} else {
 			return nil
 		}

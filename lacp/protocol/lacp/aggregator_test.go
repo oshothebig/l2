@@ -319,7 +319,8 @@ func TestCreateDeleteFindByKey(t *testing.T) {
 	LacpSysGlobalInfoDestroy(sysId)
 }
 
-func TestCreateDeleteFindLacpPortMember(t *testing.T) {
+// Invalid test now that we moved adding lag members to only AddLaAggPortToAgg
+func xTestCreateDeleteFindLacpPortMember(t *testing.T) {
 	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	defer OnlyForTestTeardown()
@@ -466,9 +467,10 @@ func TestScaleAggCreate(t *testing.T) {
 		}
 
 		// good key, good port
-		if !LaAggPortNumListPortIdExist(50+uint16(id), uint16(id)) {
-			t.Error("Error did not find Port member")
-		}
+		// Invalid check as ports are only added during AddLaAggPortToAgg
+		//if !LaAggPortNumListPortIdExist(50+uint16(id), uint16(id)) {
+		//	t.Error("Error did not find Port member")
+		//}
 	}
 
 	var agg *LaAggregator

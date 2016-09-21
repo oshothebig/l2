@@ -13,7 +13,7 @@ type MockTcAsicdClientMgr struct {
 	asicdmock.MockAsicdClientMgr
 }
 
-func (asicdClientMgr *MockTcAsicdClientMgr) FlushStgFdb(stgid int32) error {
+func (asicdClientMgr *MockTcAsicdClientMgr) FlushStgFdb(stgid, port int32) error {
 	// lets pretend it took a second to flush
 	time.Sleep(time.Second * 1)
 	return nil

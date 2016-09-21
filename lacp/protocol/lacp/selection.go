@@ -309,51 +309,52 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 	// check to see if aggrigator exists
 	// and that the Keys match
 	if p.AggId != 0 && LaFindAggById(p.AggId, &a) {
-		if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
-			p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
-			p.ActorOper.Key == a.ActorOperKey &&
-			p.IsPortEnabled() &&
-			(p.DrniName == "" ||
-				p.DrniName != "" && p.DrniSynced) {
+		if p.MuxMachineFsm != nil {
+			if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
+				p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
+				p.ActorOper.Key == a.ActorOperKey &&
+				p.IsPortEnabled() &&
+				(p.DrniName == "" ||
+					p.DrniName != "" && p.DrniSynced) {
 
-			p.LaPortLog("checkConfigForSelection: selected")
+				p.LaPortLog("checkConfigForSelection: selected")
 
-			// set port as selected
-			p.aggSelected = LacpAggSelected
-			LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
+				// set port as selected
+				p.aggSelected = LacpAggSelected
+				LacpStateSet(&p.ActorOper.State, LacpStateAggregationBit)
 
-			mEvtChan := make([]chan utils.MachineEvent, 0)
-			evt := make([]utils.MachineEvent, 0)
+				mEvtChan := make([]chan utils.MachineEvent, 0)
+				evt := make([]utils.MachineEvent, 0)
 
-			mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-			evt = append(evt, utils.MachineEvent{
-				E:   LacpMuxmEventSelectedEqualSelected,
-				Src: PortConfigModuleStr})
-			// inform mux that port has been selected
-			// wait for response
-			p.DistributeMachineEvents(mEvtChan, evt, true)
-			//msg := <-p.portChan
-			return true
-		} else if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
-			p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCDetached {
+				mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
+				evt = append(evt, utils.MachineEvent{
+					E:   LacpMuxmEventSelectedEqualSelected,
+					Src: PortConfigModuleStr})
+				// inform mux that port has been selected
+				// wait for response
+				p.DistributeMachineEvents(mEvtChan, evt, true)
+				//msg := <-p.portChan
+				return true
+			} else if p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateDetached &&
+				p.MuxMachineFsm.Machine.Curr.CurrentState() != LacpMuxmStateCDetached {
 
-			p.LaPortLog("checkConfigForSelection: unselected")
-			// set port as selected
-			p.aggSelected = LacpAggUnSelected
-			// attach the agg to the port
-			//p.AggAttached = a
+				p.LaPortLog("checkConfigForSelection: unselected")
+				// set port as selected
+				p.aggSelected = LacpAggUnSelected
+				// attach the agg to the port
+				//p.AggAttached = a
 
-			mEvtChan := make([]chan utils.MachineEvent, 0)
-			evt := make([]utils.MachineEvent, 0)
+				mEvtChan := make([]chan utils.MachineEvent, 0)
+				evt := make([]utils.MachineEvent, 0)
 
-			mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
-			evt = append(evt, utils.MachineEvent{
-				E:   LacpMuxmEventSelectedEqualUnselected,
-				Src: PortConfigModuleStr})
-			// inform mux that port has been selected
-			// wait for response
-			p.DistributeMachineEvents(mEvtChan, evt, true)
-
+				mEvtChan = append(mEvtChan, p.MuxMachineFsm.MuxmEvents)
+				evt = append(evt, utils.MachineEvent{
+					E:   LacpMuxmEventSelectedEqualUnselected,
+					Src: PortConfigModuleStr})
+				// inform mux that port has been selected
+				// wait for response
+				p.DistributeMachineEvents(mEvtChan, evt, true)
+			}
 		}
 	}
 	return false
