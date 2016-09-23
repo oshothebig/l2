@@ -428,6 +428,7 @@ func (svr *LLDPServer) ProcessRcvdPkt(rcvdInfo InPktChannel) {
 			intf.Port.Name)
 		return
 	}
+	intf.pktRcvdTime = time.Now()
 	intf.counter.Rcvd++
 	svr.counter.Rcvd++
 	intf.RxLock.Unlock()
