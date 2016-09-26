@@ -54,7 +54,6 @@ type LLDPGlobalInfo struct {
 	TxInfo *packet.TX
 	// State info
 	enable bool
-
 	// Reading received info & updating received info lock
 	RxLock *sync.RWMutex
 	// Go Routine Killer Channels
@@ -62,6 +61,8 @@ type LLDPGlobalInfo struct {
 	TxDone chan bool
 	// counter for total frames rx/tx
 	counter Frame
+	// last received packet time
+	pktRcvdTime time.Time
 }
 
 type Frame struct {

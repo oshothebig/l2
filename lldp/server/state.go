@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"l2/lldp/config"
 	"l2/lldp/utils"
-	"strconv"
+	"time"
 )
 
 /*  helper function to convert TLV's (chassisID, portID, TTL) from byte
@@ -45,7 +45,10 @@ func (svr *LLDPServer) PopulateTLV(ifIndex int32, entry *config.IntfState) bool 
 	if intf.RxInfo.RxFrame != nil {
 		entry.PeerMac = intf.GetChassisIdInfo()
 		entry.PeerPort = intf.GetPortIdInfo()
-		entry.HoldTime = strconv.Itoa(int(intf.RxInfo.RxFrame.TTL))
+		rcvdValidity := time.Duration(intf.RxInfo.RxFrame.TTL) * time.Second
+		elapsedTime := time.Since(intf.pktRcvdTime)
+		holdTime := rcvdValidity - elapsedTime
+		entry.HoldTime = holdTime.String()
 	}
 
 	if intf.RxInfo.RxLinkInfo != nil {
