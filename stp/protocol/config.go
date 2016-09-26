@@ -132,6 +132,16 @@ func StpPortConfigDelete(Id int32) {
 
 // StpBrgConfigParamCheck will validate the bridge config paramaters
 func StpBrgConfigParamCheck(c *StpBridgeConfig) error {
+	var b *Bridge
+
+	// Bridges are unique
+	if StpFindBridgeByIfIndex(int32(c.Vlan), &b) || StpBrgConfigGet(int32(c.Vlan)) == nil {
+		if c.Vlan == DEFAULT_STP_BRIDGE_VLAN {
+			errors.New(fmt.Sprintf("Invalid Config, Default Bridge %d already exists", c.Vlan))
+		} else {
+			return errors.New(fmt.Sprintf("Invalid Config, Bridge %d already exists", c.Vlan))
+		}
+	}
 
 	// Table 17-2 says the values can be 0-61140 in increments of 4096
 	if math.Mod(float64(c.Priority), 4096) != 0 || c.Priority > 61440 {
