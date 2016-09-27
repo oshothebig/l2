@@ -131,15 +131,18 @@ func StpPortConfigDelete(Id int32) {
 }
 
 // StpBrgConfigParamCheck will validate the bridge config paramaters
-func StpBrgConfigParamCheck(c *StpBridgeConfig) error {
+func StpBrgConfigParamCheck(c *StpBridgeConfig, create bool) error {
 	var b *Bridge
 
-	// Bridges are unique
-	if StpFindBridgeByIfIndex(int32(c.Vlan), &b) || StpBrgConfigGet(int32(c.Vlan)) == nil {
-		if c.Vlan == DEFAULT_STP_BRIDGE_VLAN {
-			errors.New(fmt.Sprintf("Invalid Config, Default Bridge %d already exists", c.Vlan))
-		} else {
-			return errors.New(fmt.Sprintf("Invalid Config, Bridge %d already exists", c.Vlan))
+	if create {
+		// Bridges are unique
+		if StpFindBridgeByIfIndex(int32(c.Vlan), &b) {
+			fmt.Println(BridgeMapTable, StpFindBridgeByIfIndex(int32(c.Vlan), &b), StpBrgConfigGet(int32(c.Vlan)))
+			if c.Vlan == DEFAULT_STP_BRIDGE_VLAN {
+				errors.New(fmt.Sprintf("Invalid Config, Default Bridge %d already exists", c.Vlan))
+			} else {
+				return errors.New(fmt.Sprintf("Invalid Config, Bridge %d already exists", c.Vlan))
+			}
 		}
 	}
 
@@ -421,9 +424,8 @@ func StpBrgPrioritySet(bId int32, priority uint16) error {
 		if prio != priority {
 			c := StpBrgConfigGet(bId)
 			c.Priority = priority
-			err := StpBrgConfigParamCheck(c)
+			err := StpBrgConfigParamCheck(c, false)
 			if err == nil {
-				StpBrgConfigSave(c)
 				addr := GetBridgeAddrFromBridgeId(b.BridgeIdentifier)
 				vlan := GetBridgeVlanFromBridgeId(b.BridgeIdentifier)
 				b.BridgeIdentifier = CreateBridgeId(addr, priority, vlan)
@@ -460,9 +462,8 @@ func StpBrgForceVersion(bId int32, version int32) error {
 		if b.ForceVersion != version {
 			c := StpBrgConfigGet(bId)
 			c.ForceVersion = version
-			err := StpBrgConfigParamCheck(c)
+			err := StpBrgConfigParamCheck(c, false)
 			if err == nil {
-				StpBrgConfigSave(c)
 				b.ForceVersion = version
 				for _, pId := range b.StpPorts {
 					if StpFindPortByIfIndex(pId, b.BrgIfIndex, &p) {
@@ -613,9 +614,8 @@ func StpBrgForwardDelaySet(bId int32, fwddelay uint16) error {
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
 		c.ForwardDelay = fwddelay
-		err := StpBrgConfigParamCheck(c)
+		err := StpBrgConfigParamCheck(c, false)
 		if err == nil {
-			StpBrgConfigSave(c)
 			b.BridgeTimes.ForwardingDelay = fwddelay
 			// if we are root lets update the port times
 			if b.RootPortId == 0 {
@@ -638,9 +638,8 @@ func StpBrgHelloTimeSet(bId int32, hellotime uint16) error {
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
 		c.HelloTime = hellotime
-		err := StpBrgConfigParamCheck(c)
+		err := StpBrgConfigParamCheck(c, false)
 		if err == nil {
-			StpBrgConfigSave(c)
 			b.BridgeTimes.HelloTime = hellotime
 			// if we are root lets update the port times
 			if b.RootPortId == 0 {
@@ -663,9 +662,8 @@ func StpBrgMaxAgeSet(bId int32, maxage uint16) error {
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
 		c.MaxAge = maxage
-		err := StpBrgConfigParamCheck(c)
+		err := StpBrgConfigParamCheck(c, false)
 		if err == nil {
-			StpBrgConfigSave(c)
 			b.BridgeTimes.MaxAge = maxage
 			// if we are root lets update the port times
 			if b.RootPortId == 0 {
@@ -687,9 +685,8 @@ func StpBrgTxHoldCountSet(bId int32, txholdcount uint16) error {
 	if StpFindBridgeByIfIndex(bId, &b) {
 		c := StpBrgConfigGet(bId)
 		c.TxHoldCount = int32(txholdcount)
-		err := StpBrgConfigParamCheck(c)
+		err := StpBrgConfigParamCheck(c, false)
 		if err == nil {
-			StpBrgConfigSave(c)
 			b.TxHoldCount = uint64(txholdcount)
 		}
 		return err
