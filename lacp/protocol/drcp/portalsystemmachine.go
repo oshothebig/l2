@@ -324,7 +324,8 @@ func (psm *PsMachine) updateKey() {
 								inport := ippid & 0xffff
 								if inport > 0 {
 									dr.LaDrLog(fmt.Sprintf("updateKey: Blocking IPP %d to AggPort %d", inport, aggport))
-									err := client.IppIngressEgressDrop(int32(inport), int32(aggport))
+									/* TEMP - add actual port names */
+									err := client.IppIngressEgressDrop("fpPort1", "fpPort2")
 									if err != nil {
 										dr.LaDrLog(fmt.Sprintf("ERROR (updateKey) setting Block from %s tolag port %s", utils.GetNameFromIfIndex(int32(inport)), int32(aggport)))
 									}

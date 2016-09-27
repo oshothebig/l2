@@ -895,7 +895,8 @@ func (dr *DistributedRelay) AttachAggregatorToDistributedRelay(aggId int32) {
 									inport := ippid & 0xffff
 									if inport > 0 {
 										dr.LaDrLog(fmt.Sprintf("AttachAgg: Blocking IPP %d to AggPort %d", inport, aggport))
-										err := client.IppIngressEgressDrop(int32(inport), int32(aggport))
+										/* TMP - changes made to progress the compilation. Need to add actual fpPort */
+										err := client.IppIngressEgressDrop("fpPort1", "fpPort2")
 										if err != nil {
 											dr.LaDrLog(fmt.Sprintf("ERROR (AttachAgg) setting Block from %s tolag port %s", utils.GetNameFromIfIndex(int32(inport)), int32(aggport)))
 										}
@@ -989,7 +990,8 @@ func (dr *DistributedRelay) DetachAggregatorFromDistributedRelay(aggId int32) {
 							inport := ippid & 0xffff
 							if inport > 0 {
 								dr.LaDrLog(fmt.Sprintf("UnBlocking IPP %d to AggPort %d", inport, aggport))
-								client.IppIngressEgressPass(int32(inport), int32(aggport))
+								/* TEMP - add actual port names */
+								client.IppIngressEgressPass("fpPort1", "fpPort2")
 							}
 						}
 					}
