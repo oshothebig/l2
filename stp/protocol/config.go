@@ -136,7 +136,8 @@ func StpBrgConfigParamCheck(c *StpBridgeConfig, create bool) error {
 
 	if create {
 		// Bridges are unique
-		if StpFindBridgeByIfIndex(int32(c.Vlan), &b) {
+		_, ok := StpBridgeConfigMap[int32(c.Vlan)]
+		if StpFindBridgeByIfIndex(int32(c.Vlan), &b) || ok {
 			fmt.Println(BridgeMapTable, StpFindBridgeByIfIndex(int32(c.Vlan), &b), StpBrgConfigGet(int32(c.Vlan)))
 			if c.Vlan == DEFAULT_STP_BRIDGE_VLAN {
 				errors.New(fmt.Sprintf("Invalid Config, Default Bridge %d already exists", c.Vlan))
