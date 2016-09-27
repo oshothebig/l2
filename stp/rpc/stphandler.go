@@ -208,7 +208,7 @@ func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInsta
 		brgconfig.Vlan = stp.DEFAULT_STP_BRIDGE_VLAN
 	}
 
-	err = stp.StpBrgConfigParamCheck(brgconfig)
+	err = stp.StpBrgConfigParamCheck(brgconfig, true)
 	if err == nil {
 		if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 			stp.StpLogger("INFO", "CreateStpBridgeInstance (server): created ")
@@ -373,7 +373,7 @@ func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeI
 	// convert thrift struct to stp struct
 	ConvertThriftBrgConfigToStpBrgConfig(updateconfig, brgconfig)
 	// perform paramater checks to validate the config coming down
-	err = stp.StpBrgConfigParamCheck(brgconfig)
+	err = stp.StpBrgConfigParamCheck(brgconfig, false)
 	if err != nil {
 		return false, err
 	}
