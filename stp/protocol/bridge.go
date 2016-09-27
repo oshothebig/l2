@@ -107,11 +107,11 @@ func SaveSwitchMac(switchMac string) {
 func NewStpBridge(c *StpBridgeConfig) *Bridge {
 
 	vlan := c.Vlan
-	if vlan == 0 {
-		vlan = DEFAULT_STP_BRIDGE_VLAN
+	if vlan == DEFAULT_STP_BRIDGE_VLAN {
+		bridgeId := CreateBridgeId(StpBridgeMac, c.Priority, 0)
+	} else {
+		bridgeId := CreateBridgeId(StpBridgeMac, c.Priority, vlan)
 	}
-
-	bridgeId := CreateBridgeId(StpBridgeMac, c.Priority, vlan)
 
 	b := &Bridge{
 		Begin:            true,
