@@ -88,9 +88,9 @@ func TestPrsUpdtRolesTreePortIsRootBridge1(t *testing.T) {
 	//	StpPortAddToBridge(p.IfIndex, p.BrgIfIndex)
 	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
-	p.PortPriority.RootBridgeId = [8]uint8{0xf, 0xff, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	p.PortPriority.RootBridgeId = [8]uint8{0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 	p.PortPriority.RootPathCost = 20000
-	p.PortPriority.DesignatedBridgeId = [8]uint8{0xf, 0xff, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+	p.PortPriority.DesignatedBridgeId = [8]uint8{0x00, 0x00, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 	p.PortPriority.DesignatedPortId = 10
 	p.PortPriority.BridgePortId = 10
 
@@ -121,9 +121,9 @@ func TestPrsUpdtRolesTreePortIsRootBridge1(t *testing.T) {
 	// UpdtRolesTree
 	// (a)
 	// assume message received and recorded in PortPriority
-	p2.PortPriority.RootBridgeId = [8]uint8{0xf, 0xff, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
+	p2.PortPriority.RootBridgeId = [8]uint8{0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 	p2.PortPriority.RootPathCost = 200
-	p2.PortPriority.DesignatedBridgeId = [8]uint8{0xf, 0xff, 0x00, 0x00, 0x11, 0x22, 0x33, 0x44}
+	p2.PortPriority.DesignatedBridgeId = [8]uint8{0x00, 0x00, 0x00, 0x00, 0x11, 0x22, 0x33, 0x44}
 	p2.PortPriority.DesignatedPortId = 10
 	p2.PortPriority.BridgePortId = 10
 
@@ -220,9 +220,9 @@ func TestPrsUpdtRolesTreePortIsRootBridge2(t *testing.T) {
 	// UpdtRolesTree
 	// (a)
 	// assume message received and recorded in PortPriority
-	p.PortPriority.RootBridgeId = [8]uint8{0xf, 0xff, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}
+	p.PortPriority.RootBridgeId = [8]uint8{0x0, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}
 	p.PortPriority.RootPathCost = 2000
-	p.PortPriority.DesignatedBridgeId = [8]uint8{0xf, 0xff, 0x00, 0x22, 0x22, 0x22, 0x22, 0x22}
+	p.PortPriority.DesignatedBridgeId = [8]uint8{0x0, 0x00, 0x00, 0x22, 0x22, 0x22, 0x22, 0x22}
 	p.PortPriority.DesignatedPortId = 10
 	p.PortPriority.BridgePortId = 10
 
@@ -252,9 +252,9 @@ func TestPrsUpdtRolesTreePortIsRootBridge2(t *testing.T) {
 	// UpdtRolesTree
 	// (a)
 	// assume message received and recorded in PortPriority
-	p2.PortPriority.RootBridgeId = [8]uint8{0xf, 0xff, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}
+	p2.PortPriority.RootBridgeId = [8]uint8{0x00, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}
 	p2.PortPriority.RootPathCost = 200
-	p2.PortPriority.DesignatedBridgeId = [8]uint8{0xf, 0xff, 0x00, 0x22, 0x22, 0x22, 0x22, 0x22}
+	p2.PortPriority.DesignatedBridgeId = [8]uint8{0x0, 0x00, 0x00, 0x22, 0x22, 0x22, 0x22, 0x22}
 	p2.PortPriority.DesignatedPortId = 11
 	p2.PortPriority.BridgePortId = 11
 
@@ -359,9 +359,9 @@ func TestPrsUpdtRolesTreePortIsRootBridge3(t *testing.T) {
 	// UpdtRolesTree
 	// (a)
 	// assume message received and recorded in PortPriority
-	p.PortPriority.RootBridgeId = [8]uint8{0xf, 0xff, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}
+	p.PortPriority.RootBridgeId = [8]uint8{0x00, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}
 	p.PortPriority.RootPathCost = 2000
-	p.PortPriority.DesignatedBridgeId = [8]uint8{0xf, 0xff, 0x00, 0x22, 0x22, 0x22, 0x22, 0x22}
+	p.PortPriority.DesignatedBridgeId = [8]uint8{0x00, 0x00, 0x00, 0x22, 0x22, 0x22, 0x22, 0x22}
 	p.PortPriority.DesignatedPortId = 10
 	p.PortPriority.BridgePortId = 10
 
