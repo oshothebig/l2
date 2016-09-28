@@ -1067,7 +1067,8 @@ func (rxm *RxMachine) recordNeighborState(drcpPduInfo *layers.DRCP) {
 			a != nil {
 			for _, client := range utils.GetAsicDPluginList() {
 				for _, aggport := range a.PortNumList {
-					err := client.IppIngressEgressPass(int32(p.Id), int32(aggport))
+					/* TEMP - add actual port names */
+					err := client.IppIngressEgressPass("fpPort1", "fpPort2")
 					if err != nil {
 						dr.LaDrLog(fmt.Sprintf("ERROR (AttachAgg) setting Block from %s tolag port %s", utils.GetNameFromIfIndex(int32(p.Id)), int32(aggport)))
 					}
