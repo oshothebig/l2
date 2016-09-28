@@ -75,9 +75,9 @@ func ConvertInt32ToBool(val int32) bool {
 // converts  bool to yang true(1)/false(2)
 func ConvertBoolToInt32(val bool) int32 {
 	if val {
-		return 2
+		return 1
 	}
-	return 1
+	return 2
 }
 
 func ConvertThriftPortConfigToStpPortConfig(config *stpd.StpPort, portconfig *stp.StpPortConfig) {
