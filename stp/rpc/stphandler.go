@@ -586,6 +586,7 @@ func (s *STPDServiceHandler) GetStpBridgeInstanceState(vlan int16) (*stpd.StpBri
 			sbs.HoldTime = int32(b.TxHoldCount)
 			sbs.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
 			sbs.Vlan = int16(b.Vlan)
+			sbs.IfIndex = b.BrgIfIndex
 		} else {
 			return sbs, errors.New(fmt.Sprintf("STP: Error could not find bridge vlan %d", vlan))
 		}
@@ -628,6 +629,7 @@ func (s *STPDServiceHandler) GetBulkStpBridgeInstanceState(fromIndex stpd.Int, c
 			nextStpBridgeInstanceState.HoldTime = int32(b.TxHoldCount)
 			nextStpBridgeInstanceState.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
 			nextStpBridgeInstanceState.Vlan = int16(b.Vlan)
+			nextStpBridgeInstanceState.IfIndex = b.BrgIfIndex
 
 			if len(returnStpBridgeInstanceStates) == 0 {
 				returnStpBridgeInstanceStates = make([]*stpd.StpBridgeInstanceState, 0)
