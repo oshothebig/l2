@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var WAIT_FOR_EVENT_TIME time.Duration = time.Millisecond * 250
+var WAIT_FOR_EVENT_TIME time.Duration = time.Millisecond * 75
 
 func UsedForTestOnlyPrsInitPortConfigTest() {
 
@@ -617,7 +617,7 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_1(t *testing.T) {
 	// Don't want to trigger the BEGIN call so going to just add the port to bridge manually
 	//	StpPortAddToBridge(p.IfIndex, p.BrgIfIndex)
 	b.StpPorts = append(b.StpPorts, p.IfIndex)
-	p.PrtMachineMain()
+	//p.PrtMachineMain()
 	p.BEGIN(true)
 
 	// simulate message call with proper port attributes set
@@ -627,19 +627,24 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_1(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil && p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateDisabledPort {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventNotLearningAndNotForwardingAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
@@ -742,10 +747,24 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_2(t *testing.T) {
 		}
 	}()
 
-	// lets capture the event
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventFdWhileNotEqualMaxAgeAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil && p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateDisabledPort {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
+			}
+		}
+		tw <- false
+
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
@@ -838,19 +857,24 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_3(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil && p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateDisabledPort {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventSyncAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
@@ -943,19 +967,24 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_4(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil && p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateDisabledPort {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventReRootAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
@@ -1048,19 +1077,24 @@ func TestPrsSetSelectedTreeEventNotify_DisabledPortStates_5(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil && p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateDisabledPort {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventNotSyncedAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
@@ -1155,19 +1189,24 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_1(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil && p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateRootPort {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in root port state")
 	}
 
 	// teardown
@@ -1263,19 +1302,26 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_2(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateRootPort &&
+				p.PrtMachineFsm.Machine.Curr.PreviousState() != PrtStateReRooted {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventReRootAndForwardAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in root port state")
 	}
 
 	// teardown
@@ -1373,19 +1419,26 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_3(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateRootPort &&
+				p.PrtMachineFsm.Machine.Curr.PreviousState() != PrtStateRootLearn {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in root port state")
 	}
 
 	// teardown
@@ -1482,19 +1535,26 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_4(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateRootPort &&
+				p.PrtMachineFsm.Machine.Curr.PreviousState() != PrtStateRootLearn {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventFdWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
@@ -1594,19 +1654,26 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_5(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateRootPort &&
+				p.PrtMachineFsm.Machine.Curr.PreviousState() != PrtStateRootForward {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
@@ -1707,21 +1774,27 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_6(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateRootPort &&
+				p.PrtMachineFsm.Machine.Curr.PreviousState() != PrtStateRootForward {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventFdWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
-
 	// teardown
 	for idx, ifindex := range b.StpPorts {
 		if ifindex == p.IfIndex {
@@ -1819,19 +1892,26 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_7(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateRootPort &&
+				p.PrtMachineFsm.Machine.Curr.PreviousState() != PrtStateRootProposed {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventProposedAndNotAgreeAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
@@ -1927,19 +2007,26 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_8(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateRootPort &&
+				p.PrtMachineFsm.Machine.Curr.PreviousState() != PrtStateRootAgreed {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventProposedAndAgreeAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
@@ -2035,19 +2122,26 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_9(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateRootPort &&
+				p.PrtMachineFsm.Machine.Curr.PreviousState() != PrtStateRootAgreed {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventAllSyncedAndNotAgreeAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
@@ -2143,19 +2237,26 @@ func TestPrsSetSelectedTreeEventNotify_RootPortStates_10(t *testing.T) {
 	// call method
 	p.NotifySelectedChanged(PrsMachineModuleStr, false, true)
 
-	go func() {
-		time.Sleep(WAIT_FOR_EVENT_TIME)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
-				e:   0, // invalid event
-				src: "TEST",
+	testwait := make(chan bool)
+
+	go func(tw chan bool) {
+
+		for i := 0; i < 10; i++ {
+			if p.PrtMachineFsm != nil &&
+				p.PrtMachineFsm.Machine.Curr.CurrentState() != PrtStateRootPort &&
+				p.PrtMachineFsm.Machine.Curr.PreviousState() != PrtStateReRoot {
+				time.Sleep(WAIT_FOR_EVENT_TIME)
+			} else {
+				tw <- true
 			}
 		}
-	}()
+		tw <- false
 
-	event := <-p.PrtMachineFsm.PrtEvents
-	if event.e != PrtEventNotForwardAndNotReRootAndSelectedAndNotUpdtInfo {
-		t.Error("Error did not get event as expected", event.e)
+	}(testwait)
+
+	result := <-testwait
+	if !result {
+		t.Error("ERROR: PRT state transition did not occur port should in disabled port state")
 	}
 
 	// teardown
