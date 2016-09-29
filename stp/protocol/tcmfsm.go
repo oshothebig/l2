@@ -131,7 +131,7 @@ func (tcm *TcMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	tcm.Machine.Rules = r
 	tcm.Machine.Curr = &StpStateEvent{
 		strStateMap: TcStateStrMap,
-		logEna:      false,
+		logEna:      true,
 		logger:      tcm.TcmLogger,
 		owner:       TcMachineModuleStr,
 		ps:          TcStateNone,

@@ -118,7 +118,7 @@ func (prsm *PrsMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	prsm.Machine.Rules = r
 	prsm.Machine.Curr = &StpStateEvent{
 		strStateMap: PrsStateStrMap,
-		logEna:      prsm.debugLevel > 0,
+		logEna:      true,
 		logger:      prsm.PrsLogger,
 		owner:       PrsMachineModuleStr,
 		ps:          PrsStateNone,

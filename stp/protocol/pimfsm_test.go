@@ -26,9 +26,10 @@ package stp
 
 import (
 	"fmt"
-	"github.com/google/gopacket/layers"
 	"testing"
 	"utils/fsm"
+
+	"github.com/google/gopacket/layers"
 )
 
 var testBrgVlan uint16 = DEFAULT_STP_BRIDGE_VLAN
@@ -1183,7 +1184,7 @@ func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualSuperiorMsgBridgeSuper
 	// likely rcvdInfoWhile == 0 triggers this event
 	p.UpdtInfo = false
 	p.RcvdMsg = true
-	p.Agree = true
+	p.Agree = false
 	p.Proposed = false
 	p.Selected = true
 	p.UpdtInfo = false
@@ -1246,7 +1247,7 @@ func TestPimCurrentStateRcvdMsgAndNotUpdtInforcvdInfoEqualSuperiorMsgBridgeSuper
 	// likely rcvdInfoWhile == 0 triggers this event
 	p.UpdtInfo = false
 	p.RcvdMsg = true
-	p.Agree = true
+	p.Agree = false
 	p.Proposed = false
 	p.Selected = true
 	p.UpdtInfo = false

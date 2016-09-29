@@ -142,7 +142,7 @@ func (pim *PimMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	pim.Machine.Rules = r
 	pim.Machine.Curr = &StpStateEvent{
 		strStateMap: PimStateStrMap,
-		logEna:      false, // this will produce excessive logging as rx packets cause machine to change states constantly
+		logEna:      true, // this will produce excessive logging as rx packets cause machine to change states constantly
 		logger:      pim.PimLogger,
 		owner:       PimMachineModuleStr,
 		ps:          PimStateNone,
@@ -1294,20 +1294,20 @@ func (pim *PimMachine) setTcFlags(rcvdMsgFlags uint8, bpduLayer interface{}) {
 func (pim *PimMachine) betterorsameinfo(newInfoIs PortInfoState) bool {
 	p := pim.p
 
-	//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("betterorsameinfo: newInfoIs[%d] p.InfoIs[%d] msgPriority[%#v] portPriority[%#v]",
-	//	newInfoIs, p.InfoIs, p.MsgPriority, p.PortPriority))
+	StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("betterorsameinfo: newInfoIs[%d] p.InfoIs[%d] msgPriority[%#v] portPriority[%#v]",
+		newInfoIs, p.InfoIs, p.MsgPriority, p.PortPriority))
 
 	// recordPriority should be called when this is called from superior designated
 	// this way we don't need to pass the message around
 	if newInfoIs == PortInfoStateReceived &&
 		p.InfoIs == PortInfoStateReceived &&
 		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.MsgPriority, &p.PortPriority) {
-		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, "betterorsameinfo: UPDATE InfoIs=Receive and msg vector superior or same as port")
+		StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "betterorsameinfo: UPDATE InfoIs=Receive and msg vector superior or same as port")
 		return true
 	} else if newInfoIs == PortInfoStateMine &&
 		p.InfoIs == PortInfoStateMine &&
 		IsMsgPriorityVectorSuperiorOrSameThanPortPriorityVector(&p.b.BridgePriority, &p.PortPriority) {
-		//StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, "betterorsameinfo: InfoIs=Mine and designated vector superior or same as port")
+		StpMachineLogger("DEBUG", PimMachineModuleStr, p.IfIndex, p.BrgIfIndex, "betterorsameinfo: InfoIs=Mine and designated vector superior or same as port")
 		return true
 	}
 	return false

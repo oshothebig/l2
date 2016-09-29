@@ -32,7 +32,7 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
-const DEFAULT_STP_BRIDGE_VLAN = 4095
+const DEFAULT_STP_BRIDGE_VLAN = 0
 const PVST_VLAN_PRIORITY = 7
 
 type BPDURxType int8
