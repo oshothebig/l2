@@ -28,7 +28,7 @@ import (
 	"l2/lacp/protocol/lacp"
 	"l2/lacp/protocol/utils"
 	"net"
-	"sort"
+	//"sort"
 	"testing"
 	"time"
 	asicdmock "utils/asicdClient/mock"
@@ -87,21 +87,21 @@ func (m *MyTestMock) GetPortLinkStatus(port int32) bool {
 	return true
 }
 
-var testBlockMap map[int32][]uint32 = make(map[int32][]uint32, 0)
+var testBlockMap map[string][]string = make(map[string][]string, 0)
 
-func (m *MyTestMock) IppIngressEgressDrop(inport, aggport int32) error {
+func (m *MyTestMock) IppIngressEgressDrop(inport, aggport string) error {
 
 	if _, ok := testBlockMap[inport]; ok {
-		testBlockMap[inport] = append(testBlockMap[inport], uint32(aggport))
+		testBlockMap[inport] = append(testBlockMap[inport], aggport)
 	}
 	return nil
 }
 
-func (m *MyTestMock) IppIngressEgressPass(inport, aggport int32) error {
+func (m *MyTestMock) IppIngressEgressPass(inport, aggport string) error {
 
 	if _, ok := testBlockMap[inport]; ok {
 		for i, p := range testBlockMap[inport] {
-			if p == uint32(aggport) {
+			if p == aggport {
 				testBlockMap[inport] = append(testBlockMap[inport][:i], testBlockMap[inport][i+1:]...)
 				if len(testBlockMap[inport]) == 0 {
 					delete(testBlockMap, inport)
@@ -1079,8 +1079,8 @@ func Teardown3NodeMlag(mlagcfg *ThreeNodeConfig, t *testing.T) {
 	lacp.LacpSysGlobalInfoDestroy(LaSystem2NeighborActor)
 	lacp.LacpSysGlobalInfoDestroy(LaSystemPeer)
 
-	delete(testBlockMap, LaAggPort1NeighborActor)
-	delete(testBlockMap, LaAggPort2NeighborActor)
+	//delete(testBlockMap, LaAggPort1NeighborActor)
+	//delete(testBlockMap, LaAggPort2NeighborActor)
 }
 func Setup3NodeMlag() *ThreeNodeConfig {
 	threenodecfg := &ThreeNodeConfig{}
@@ -1520,22 +1520,22 @@ func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, step string, convlist []uint16, t
 				t.Error("Error IPP Neighbor did not set conversation passes for 100 ", ipp.Id)
 			}
 		}
-		sort.Sort(sortPortList(testBlockMap[int32(ipp.Id)]))
-		tmpPortList := make([]uint32, 0)
+		//sort.Sort(sortPortList(testBlockMap[ipp.Name]))
+		tmpPortList := make([]string, 0)
 
-		for _, p := range dr.a.PortNumList {
-			tmpPortList = append(tmpPortList, uint32(p))
+		for _, p := range dr.a.DistributedPortNumList {
+			tmpPortList = append(tmpPortList, p)
 		}
-		sort.Sort(sortPortList(tmpPortList))
+		//sort.Sort(sortPortList(tmpPortList))
 
 		//if len(testBlockMap[int32(ipp.Id)]) != len(tmpPortList) {
 		//	t.Error("Error Block Map not set correctly, expected ", dr.a.PortNumList, "found", tmpPortList, "len1", len(testBlockMap[int32(ipp.Id)]), "len2", len(tmpPortList))
 		//}
 
-		for _, p1 := range testBlockMap[int32(ipp.Id)] {
+		for _, p1 := range testBlockMap[ipp.Name] {
 			for _, p2 := range tmpPortList {
-				if p1 != uint32(p2) {
-					t.Error("step:", step, "Error (2) Block Map not set correctly, expected ", dr.a.PortNumList, "found", testBlockMap[int32(ipp.Id)])
+				if p1 != p2 {
+					t.Error("step:", step, "Error (2) Block Map not set correctly, expected ", dr.a.PortNumList, "found", testBlockMap[ipp.Name])
 				}
 			}
 		}
@@ -1570,22 +1570,22 @@ func Verify3NodeMlag(mlagcfg *ThreeNodeConfig, step string, convlist []uint16, t
 				t.Error("step:", step, "Error IPP Neighbor did not set conversation passes for 100 ")
 			}
 		}
-		sort.Sort(sortPortList(testBlockMap[int32(ipp.Id)]))
-		tmpPortList := make([]uint32, 0)
+		//sort.Sort(sortPortList(testBlockMap[ipp.Name]))
+		tmpPortList := make([]string, 0)
 
-		for _, p := range dr2.a.PortNumList {
-			tmpPortList = append(tmpPortList, uint32(p))
+		for _, p := range dr2.a.DistributedPortNumList {
+			tmpPortList = append(tmpPortList, p)
 		}
-		sort.Sort(sortPortList(tmpPortList))
+		//sort.Sort(sortPortList(tmpPortList))
 
 		//if len(testBlockMap[int32(ipp.Id)]) != len(tmpPortList) {
 		//	t.Error("Error Block Map not set correctly, expected ", dr2.a.PortNumList, "found", tmpPortList)
 		//}
 
-		for _, p1 := range testBlockMap[int32(ipp.Id)] {
+		for _, p1 := range testBlockMap[ipp.Name] {
 			for _, p2 := range tmpPortList {
-				if p1 != uint32(p2) {
-					t.Error("step:", step, "Error Block Map not set correctly, expected ", dr2.a.PortNumList, "found", testBlockMap[int32(ipp.Id)])
+				if p1 != p2 {
+					t.Error("step:", step, "Error Block Map not set correctly, expected ", dr2.a.PortNumList, "found", testBlockMap[ipp.Name])
 				}
 			}
 		}
