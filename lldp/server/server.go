@@ -397,9 +397,6 @@ func (svr *LLDPServer) SendFrame(ifIndex int32) {
 	intf, exists := svr.lldpGblInfo[ifIndex]
 	// extra check for pcap handle
 	if exists && intf.PcapHandle != nil {
-		//if intf.TxInfo.UseCache() == false {
-		//	svr.GetSystemInfo()
-		//}
 		rv := intf.WritePacket(intf.TxInfo.Frame(intf.Port, svr.SysInfo))
 		if rv == false {
 			intf.TxInfo.SetCache(rv)
