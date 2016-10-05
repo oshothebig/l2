@@ -53,21 +53,26 @@ func (intf *LLDPGlobalInfo) ReceiveFrames(lldpRxPktCh chan InPktChannel) {
 }
 
 /*  lldp server go routine to handle tx timer... once the timer fires we will
-*  send the ifindex on the channel to handle send info
+ *  send the ifindex on the channel to handle send info
+ *
+ *  For fast learning we will send out 5 frames in 5 seconds and then every 30 seconds an update frame will
+ *  be send out
  */
 func (intf *LLDPGlobalInfo) StartTxTimer(lldpTxPktCh chan SendPktChannel) {
 	if intf.TxInfo.TxTimer != nil {
-		intf.TxInfo.TxTimer.Reset(time.Duration(intf.TxInfo.MessageTxInterval) * time.Second)
+		if intf.counter.Send > LLDP_FAST_LEARN_MAX_FRAMES_SEND {
+			intf.TxInfo.TxTimer.Reset(time.Duration(intf.TxInfo.MessageTxInterval) * time.Second)
+		} else {
+			intf.TxInfo.TxTimer.Reset(time.Duration(LLDP_FAST_LEARN_TIMER) * time.Second)
+		}
 	} else {
 		var TxTimerHandler_func func()
 		TxTimerHandler_func = func() {
 			lldpTxPktCh <- SendPktChannel{intf.Port.IfIndex}
-			// Wait until the packet is send out on the wire... Once done then reset the timer and
-			// update global info again
-			//<-intf.TxDone
 		}
+
 		// Create an After Func and go routine for it, so that on timer stop TX is stopped automatically
-		intf.TxInfo.TxTimer = time.AfterFunc(time.Duration(intf.TxInfo.MessageTxInterval)*time.Second,
+		intf.TxInfo.TxTimer = time.AfterFunc(time.Duration(LLDP_FAST_LEARN_TIMER)*time.Second,
 			TxTimerHandler_func)
 	}
 }

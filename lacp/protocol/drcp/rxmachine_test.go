@@ -242,7 +242,7 @@ func TestRxMachineRxValidDRCPDUNeighborPkt(t *testing.T) {
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -262,7 +262,7 @@ func TestRxMachineRxValidDRCPDUNeighborPkt(t *testing.T) {
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -378,7 +378,7 @@ func TestRxMachineRxValidDRCPDUNeighborPktThenTimeout(t *testing.T) {
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -398,7 +398,7 @@ func TestRxMachineRxValidDRCPDUNeighborPktThenTimeout(t *testing.T) {
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -542,7 +542,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorPriority(t *testi
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -562,7 +562,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorPriority(t *testi
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -654,7 +654,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorAddr(t *testing.T
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -674,7 +674,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferAggregatorAddr(t *testing.T
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -766,7 +766,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferOperAggregatorKey(t *testin
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -786,7 +786,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferOperAggregatorKey(t *testin
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -932,7 +932,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferThreeSystemPortalDiff(t *te
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -952,7 +952,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferThreeSystemPortalDiff(t *te
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -1089,7 +1089,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferNeighborPortalSystemNumDiff
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -1109,7 +1109,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferNeighborPortalSystemNumDiff
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -1227,7 +1227,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayAlgorithmDiff(t *tes
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -1247,7 +1247,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayAlgorithmDiff(t *tes
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -1336,7 +1336,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortAlgorithmDiff(t *testin
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -1356,7 +1356,7 @@ func TestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortAlgorithmDiff(t *testin
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -1446,7 +1446,7 @@ func xTestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayDigestDiff(t *testi
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -1466,7 +1466,7 @@ func xTestRxMachineRxPktDRCPDUNeighborPortalInfoDifferGatewayDigestDiff(t *testi
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -1558,7 +1558,7 @@ func xTestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortDigestDiff(t *testing.
 	RxMachineTestSetup()
 	a := OnlyForRxMachineTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -1578,7 +1578,7 @@ func xTestRxMachineRxPktDRCPDUNeighborPortalInfoDifferPortDigestDiff(t *testing.
 	// in real system this should be filled in by vlan membership
 	cfg.DrniConvAdminGateway[100][0] = cfg.DrniPortalSystemNumber
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}

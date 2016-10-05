@@ -75,9 +75,9 @@ func ConvertInt32ToBool(val int32) bool {
 // converts  bool to yang true(1)/false(2)
 func ConvertBoolToInt32(val bool) int32 {
 	if val {
-		return 2
+		return 1
 	}
-	return 1
+	return 2
 }
 
 func ConvertThriftPortConfigToStpPortConfig(config *stpd.StpPort, portconfig *stp.StpPortConfig) {
@@ -201,36 +201,35 @@ func (s *STPDServiceHandler) UpdateStpGlobal(origconfig *stpd.StpGlobal, updatec
 // CreateDot1dStpBridgeConfig
 func (s *STPDServiceHandler) CreateStpBridgeInstance(config *stpd.StpBridgeInstance) (rv bool, err error) {
 
-	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
-		stp.StpLogger("INFO", "CreateStpBridgeInstance (server): created ")
-		stp.StpLogger("INFO", fmt.Sprintf("addr:", config.Address))
-		stp.StpLogger("INFO", fmt.Sprintf("prio:", config.Priority))
-		stp.StpLogger("INFO", fmt.Sprintf("vlan:", config.Vlan))
-		stp.StpLogger("INFO", fmt.Sprintf("age:", config.MaxAge))
-		stp.StpLogger("INFO", fmt.Sprintf("hello:", config.HelloTime))        // int32
-		stp.StpLogger("INFO", fmt.Sprintf("fwddelay:", config.ForwardDelay))  // int32
-		stp.StpLogger("INFO", fmt.Sprintf("version:", config.ForceVersion))   // int32
-		stp.StpLogger("INFO", fmt.Sprintf("txHoldCount", config.TxHoldCount)) //
+	brgconfig := &stp.StpBridgeConfig{}
+	ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
 
-		brgconfig := &stp.StpBridgeConfig{}
-		ConvertThriftBrgConfigToStpBrgConfig(config, brgconfig)
+	if brgconfig.Vlan == 0 {
+		brgconfig.Vlan = stp.DEFAULT_STP_BRIDGE_VLAN
+	}
 
-		if brgconfig.Vlan == 0 {
-			brgconfig.Vlan = stp.DEFAULT_STP_BRIDGE_VLAN
-		}
+	err = stp.StpBrgConfigParamCheck(brgconfig, true)
+	if err == nil {
+		if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
+			stp.StpLogger("INFO", "CreateStpBridgeInstance (server): created ")
+			stp.StpLogger("INFO", fmt.Sprintf("addr:", config.Address))
+			stp.StpLogger("INFO", fmt.Sprintf("prio:", config.Priority))
+			stp.StpLogger("INFO", fmt.Sprintf("vlan:", config.Vlan))
+			stp.StpLogger("INFO", fmt.Sprintf("age:", config.MaxAge))
+			stp.StpLogger("INFO", fmt.Sprintf("hello:", config.HelloTime))        // int32
+			stp.StpLogger("INFO", fmt.Sprintf("fwddelay:", config.ForwardDelay))  // int32
+			stp.StpLogger("INFO", fmt.Sprintf("version:", config.ForceVersion))   // int32
+			stp.StpLogger("INFO", fmt.Sprintf("txHoldCount", config.TxHoldCount)) //
 
-		err = stp.StpBrgConfigParamCheck(brgconfig)
-		if err == nil {
 			cfg := server.STPConfig{
 				Msgtype: server.STPConfigMsgCreateBridge,
 				Msgdata: brgconfig,
 			}
 			s.server.ConfigCh <- cfg
-			return true, err
 		}
-	} else {
-		rv = true
+		return true, err
 	}
+
 	return rv, err
 }
 
@@ -315,7 +314,7 @@ func (s *STPDServiceHandler) ReadConfigFromDB(prevState int) error {
 	// only need to call on bootup
 	if prevState == stp.STP_GLOBAL_INIT {
 		if err := s.HandleDbReadStpGlobal(dbHdl); err != nil {
-			stp.StpLogger("ERROR", "Error getting All StpGlobal objects")
+			stp.StpLogger("ERROR", fmt.Sprintf("Error getting All StpGlobal objects %s", err))
 			return err
 		}
 	}
@@ -325,12 +324,12 @@ func (s *STPDServiceHandler) ReadConfigFromDB(prevState int) error {
 	if (prevState != currState && currState == stp.STP_GLOBAL_ENABLE) ||
 		currState == stp.STP_GLOBAL_ENABLE {
 		if err := s.HandleDbReadStpBridgeInstance(dbHdl, false); err != nil {
-			stp.StpLogger("ERROR", "Error getting All StpBridgeInstance objects")
+			stp.StpLogger("ERROR", fmt.Sprintf("Error getting All StpBridgeInstance objects %s", err))
 			return err
 		}
 
 		if err = s.HandleDbReadStpPort(dbHdl); err != nil {
-			stp.StpLogger("ERROR", "Error getting All StpPort objects")
+			stp.StpLogger("ERROR", fmt.Sprintf("Error getting All StpPort objects %s", err))
 			return err
 		}
 	} else if currState == stp.STP_GLOBAL_DISABLE_PENDING ||
@@ -338,7 +337,7 @@ func (s *STPDServiceHandler) ReadConfigFromDB(prevState int) error {
 		// only need to delete the bridge instance
 		// this will trigger a delete of the ports within the server
 		if err := s.HandleDbReadStpBridgeInstance(dbHdl, true); err != nil {
-			stp.StpLogger("ERROR", "Error getting All StpBridgeInstance objects")
+			stp.StpLogger("ERROR", fmt.Sprintf("Error getting All StpBridgeInstance objects", err))
 			return err
 		}
 	}
@@ -366,11 +365,19 @@ func (s *STPDServiceHandler) DeleteStpBridgeInstance(config *stpd.StpBridgeInsta
 
 func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeInstance, updateconfig *stpd.StpBridgeInstance, attrset []bool, op []*stpd.PatchOpInfo) (rv bool, err error) {
 	rv = true
-	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
-		var b *stp.Bridge
-		brgconfig := &stp.StpBridgeConfig{}
-		objTyp := reflect.TypeOf(*origconfig)
+	var b *stp.Bridge
+	brgconfig := &stp.StpBridgeConfig{}
+	objTyp := reflect.TypeOf(*origconfig)
+
+	// convert thrift struct to stp struct
+	ConvertThriftBrgConfigToStpBrgConfig(updateconfig, brgconfig)
+	// perform paramater checks to validate the config coming down
+	err = stp.StpBrgConfigParamCheck(brgconfig, false)
+	if err != nil {
+		return false, err
+	}
+	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
 		key := stp.BridgeKey{
 			Vlan: uint16(origconfig.Vlan),
@@ -378,14 +385,6 @@ func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeI
 		// see if the bridge instance exists
 		if !stp.StpFindBridgeById(key, &b) {
 			return false, errors.New("Unknown Bridge in update config")
-		}
-
-		// convert thrift struct to stp struct
-		ConvertThriftBrgConfigToStpBrgConfig(updateconfig, brgconfig)
-		// perform paramater checks to validate the config coming down
-		err = stp.StpBrgConfigParamCheck(brgconfig)
-		if err != nil {
-			return false, err
 		}
 
 		// config message data
@@ -426,23 +425,24 @@ func (s *STPDServiceHandler) UpdateStpBridgeInstance(origconfig *stpd.StpBridgeI
 
 func (s *STPDServiceHandler) CreateStpPort(config *stpd.StpPort) (rv bool, err error) {
 	rv = true
-	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
-		stp.StpLogger("INFO", fmt.Sprintf("CreateStpPort (server): created %#v", config))
-		portconfig := &stp.StpPortConfig{}
-		ConvertThriftPortConfigToStpPortConfig(config, portconfig)
-		err = stp.StpPortConfigParamCheck(portconfig, false)
-		// only create the instance if it up
-		if config.AdminState == "UP" {
-			if err == nil {
+	portconfig := &stp.StpPortConfig{}
+	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
+	err = stp.StpPortConfigParamCheck(portconfig, false)
+	// only create the instance if it up
+	if config.AdminState == "UP" {
+		if err == nil {
+			if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
+				stp.StpLogger("INFO", fmt.Sprintf("CreateStpPort (server): created %#v", config))
+
 				cfg := server.STPConfig{
 					Msgtype: server.STPConfigMsgCreatePort,
 					Msgdata: portconfig,
 				}
 				s.server.ConfigCh <- cfg
-				return rv, err
-			} else {
-				return false, err
 			}
+			return rv, err
+		} else {
+			return false, err
 		}
 	}
 	return rv, err
@@ -476,14 +476,19 @@ func (s *STPDServiceHandler) DeleteStpPort(config *stpd.StpPort) (rv bool, err e
 
 func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfig *stpd.StpPort, attrset []bool, op []*stpd.PatchOpInfo) (rv bool, err error) {
 	rv = true
+
+	var p *stp.StpPort
+	portconfig := &stp.StpPortConfig{}
+	objTyp := reflect.TypeOf(*origconfig)
+	//objVal := reflect.ValueOf(origconfig)
+	//updateObjVal := reflect.ValueOf(*updateconfig)
+
+	ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
+	err = stp.StpPortConfigParamCheck(portconfig, true)
+	if err != nil {
+		return false, err
+	}
 	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
-
-		var p *stp.StpPort
-		portconfig := &stp.StpPortConfig{}
-		objTyp := reflect.TypeOf(*origconfig)
-		//objVal := reflect.ValueOf(origconfig)
-		//updateObjVal := reflect.ValueOf(*updateconfig)
-
 		ifIndex := stp.GetIfIndexFromIntfRef(origconfig.IntfRef)
 		brgIfIndex := int32(origconfig.Vlan)
 		if !stp.StpFindPortByIfIndex(ifIndex, brgIfIndex, &p) {
@@ -492,11 +497,6 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 			}
 		}
 
-		ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
-		err = stp.StpPortConfigParamCheck(portconfig, true)
-		if err != nil {
-			return false, err
-		}
 		err = stp.StpPortConfigSave(portconfig, true)
 		if err != nil {
 			return false, err
@@ -558,8 +558,8 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 	return rv, err
 }
 
-func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState, error) {
-	sbs := &stpd.StpBridgeState{}
+func (s *STPDServiceHandler) GetStpBridgeInstanceState(vlan int16) (*stpd.StpBridgeInstanceState, error) {
+	sbs := &stpd.StpBridgeInstanceState{}
 
 	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
@@ -576,8 +576,8 @@ func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState
 			sbs.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
 			sbs.Vlan = int16(b.BrgIfIndex)
 			sbs.ProtocolSpecification = 2
-			//nextStpBridgeState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
-			//nextStpBridgeState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
+			//nextStpBridgeInstanceState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
+			//nextStpBridgeInstanceState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
 			sbs.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
 			sbs.RootCost = int32(b.BridgePriority.RootPathCost)
 			sbs.RootPort = int32(b.BridgePriority.DesignatedPortId)
@@ -586,6 +586,7 @@ func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState
 			sbs.HoldTime = int32(b.TxHoldCount)
 			sbs.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
 			sbs.Vlan = int16(b.Vlan)
+			sbs.IfIndex = b.BrgIfIndex
 		} else {
 			return sbs, errors.New(fmt.Sprintf("STP: Error could not find bridge vlan %d", vlan))
 		}
@@ -593,50 +594,47 @@ func (s *STPDServiceHandler) GetStpBridgeState(vlan int16) (*stpd.StpBridgeState
 	return sbs, nil
 }
 
-// GetBulkAggregationLacpState will return the status of all the lag groups
-// All lag groups are stored in a map, thus we will assume that the order
-// at which a for loop iterates over the map is preserved.  It is assumed
-// that at the time of this operation that no new aggragators are added,
-// otherwise can get inconsistent results
-func (s *STPDServiceHandler) GetBulkStpBridgeState(fromIndex stpd.Int, count stpd.Int) (obj *stpd.StpBridgeStateGetInfo, err error) {
+// GetBulkStpBridgeInstanceState will return the status of all the stp bridges
+func (s *STPDServiceHandler) GetBulkStpBridgeInstanceState(fromIndex stpd.Int, count stpd.Int) (obj *stpd.StpBridgeInstanceStateGetInfo, err error) {
 	if stp.StpGlobalStateGet() == stp.STP_GLOBAL_ENABLE {
 
-		var stpBridgeStateList []stpd.StpBridgeState = make([]stpd.StpBridgeState, count)
-		var nextStpBridgeState *stpd.StpBridgeState
-		var returnStpBridgeStates []*stpd.StpBridgeState
-		var returnStpBridgeStateGetInfo stpd.StpBridgeStateGetInfo
+		var StpBridgeInstanceStateList []stpd.StpBridgeInstanceState = make([]stpd.StpBridgeInstanceState, count)
+		var nextStpBridgeInstanceState *stpd.StpBridgeInstanceState
+		var returnStpBridgeInstanceStates []*stpd.StpBridgeInstanceState
+		var returnStpBridgeInstanceStateGetInfo stpd.StpBridgeInstanceStateGetInfo
 		var b *stp.Bridge
 		validCount := stpd.Int(0)
 		toIndex := fromIndex
-		obj = &returnStpBridgeStateGetInfo
+		obj = &returnStpBridgeInstanceStateGetInfo
 		brgListLen := stpd.Int(len(stp.BridgeListTable))
 		for currIndex := fromIndex; validCount != count && currIndex < brgListLen; currIndex++ {
 
 			b = stp.BridgeListTable[currIndex]
-			nextStpBridgeState = &stpBridgeStateList[validCount]
-			nextStpBridgeState.BridgeHelloTime = int32(b.BridgeTimes.HelloTime)
-			nextStpBridgeState.TxHoldCount = stp.TransmitHoldCountDefault
-			nextStpBridgeState.BridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
-			nextStpBridgeState.BridgeMaxAge = int32(b.BridgeTimes.MaxAge)
-			nextStpBridgeState.Address = ConvertAddrToString(stp.GetBridgeAddrFromBridgeId(b.BridgePriority.DesignatedBridgeId))
-			nextStpBridgeState.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
-			nextStpBridgeState.Vlan = int16(b.BrgIfIndex)
-			nextStpBridgeState.ProtocolSpecification = 2
-			//nextStpBridgeState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
-			//nextStpBridgeState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
-			nextStpBridgeState.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
-			nextStpBridgeState.RootCost = int32(b.BridgePriority.RootPathCost)
-			nextStpBridgeState.RootPort = int32(b.BridgePriority.DesignatedPortId)
-			nextStpBridgeState.MaxAge = int32(b.RootTimes.MaxAge)
-			nextStpBridgeState.HelloTime = int32(b.RootTimes.HelloTime)
-			nextStpBridgeState.HoldTime = int32(b.TxHoldCount)
-			nextStpBridgeState.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
-			nextStpBridgeState.Vlan = int16(b.Vlan)
+			nextStpBridgeInstanceState = &StpBridgeInstanceStateList[validCount]
+			nextStpBridgeInstanceState.BridgeHelloTime = int32(b.BridgeTimes.HelloTime)
+			nextStpBridgeInstanceState.TxHoldCount = stp.TransmitHoldCountDefault
+			nextStpBridgeInstanceState.BridgeForwardDelay = int32(b.BridgeTimes.ForwardingDelay)
+			nextStpBridgeInstanceState.BridgeMaxAge = int32(b.BridgeTimes.MaxAge)
+			nextStpBridgeInstanceState.Address = ConvertAddrToString(stp.GetBridgeAddrFromBridgeId(b.BridgePriority.DesignatedBridgeId))
+			nextStpBridgeInstanceState.Priority = int32(stp.GetBridgePriorityFromBridgeId(b.BridgePriority.DesignatedBridgeId))
+			nextStpBridgeInstanceState.Vlan = int16(b.BrgIfIndex)
+			nextStpBridgeInstanceState.ProtocolSpecification = 2
+			//nextStpBridgeInstanceState.TimeSinceTopologyChange uint32 //The time (in hundredths of a second) since the last time a topology change was detected by the bridge entity. For RSTP, this reports the time since the tcWhile timer for any port on this Bridge was nonzero.
+			//nextStpBridgeInstanceState.TopChanges              uint32 //The total number of topology changes detected by this bridge since the management entity was last reset or initialized.
+			nextStpBridgeInstanceState.DesignatedRoot = ConvertBridgeIdToString(b.BridgePriority.RootBridgeId)
+			nextStpBridgeInstanceState.RootCost = int32(b.BridgePriority.RootPathCost)
+			nextStpBridgeInstanceState.RootPort = int32(b.BridgePriority.DesignatedPortId)
+			nextStpBridgeInstanceState.MaxAge = int32(b.RootTimes.MaxAge)
+			nextStpBridgeInstanceState.HelloTime = int32(b.RootTimes.HelloTime)
+			nextStpBridgeInstanceState.HoldTime = int32(b.TxHoldCount)
+			nextStpBridgeInstanceState.ForwardDelay = int32(b.RootTimes.ForwardingDelay)
+			nextStpBridgeInstanceState.Vlan = int16(b.Vlan)
+			nextStpBridgeInstanceState.IfIndex = b.BrgIfIndex
 
-			if len(returnStpBridgeStates) == 0 {
-				returnStpBridgeStates = make([]*stpd.StpBridgeState, 0)
+			if len(returnStpBridgeInstanceStates) == 0 {
+				returnStpBridgeInstanceStates = make([]*stpd.StpBridgeInstanceState, 0)
 			}
-			returnStpBridgeStates = append(returnStpBridgeStates, nextStpBridgeState)
+			returnStpBridgeInstanceStates = append(returnStpBridgeInstanceStates, nextStpBridgeInstanceState)
 			validCount++
 			toIndex++
 		}
@@ -647,7 +645,7 @@ func (s *STPDServiceHandler) GetBulkStpBridgeState(fromIndex stpd.Int, count stp
 		}
 
 		// lets try and get the next agg if one exists then there are more routes
-		obj.StpBridgeStateList = returnStpBridgeStates
+		obj.StpBridgeInstanceStateList = returnStpBridgeInstanceStates
 		obj.StartIdx = fromIndex
 		obj.EndIdx = toIndex + 1
 		obj.More = moreRoutes
@@ -875,8 +873,8 @@ func (s *STPDServiceHandler) GetBulkStpBridgeInstance(fromIndex stpd.Int, count 
 	toIndex := fromIndex
 	obj = &returnStpBridgeInstanceGetInfo
 	stpDefaultBridgeListLen := stpd.Int(1)
-	stp.StpLogger("INFO", fmt.Sprintf("GetBulkStpPort (server):"))
-	stp.StpLogger("INFO", fmt.Sprintf("Total default ports %d fromIndex %d count %d", stpDefaultBridgeListLen, fromIndex, count))
+	stp.StpLogger("INFO", fmt.Sprintf("GetBulkStpBridgeInstance (server):"))
+	stp.StpLogger("INFO", fmt.Sprintf("Total default bridge instances %d fromIndex %d count %d", stpDefaultBridgeListLen, fromIndex, count))
 	for currIndex := fromIndex; validCount != count && currIndex < stpDefaultBridgeListLen; currIndex++ {
 
 		//stp.StpLogger("INFO", fmt.Sprintf("CurrIndex %d stpPortListLen %d", currIndex, stpPortListLen))
@@ -907,10 +905,12 @@ func (s *STPDServiceHandler) GetBulkStpBridgeInstance(fromIndex stpd.Int, count 
 		// perhaps we should consider opening the JSON genObjConfig.json file and filling
 		// in the values this way.  For now going to hard code.
 		nextStpBridgeInstance.Vlan = int16(stp.DEFAULT_STP_BRIDGE_VLAN)
-		nextStpBridgeInstance.Address = "00:00:00:00:00:00" // use switch mac
+		nextStpBridgeInstance.Priority = 32768
+		nextStpBridgeInstance.Address = "00-00-00-00-00-00" // use switch mac
 		nextStpBridgeInstance.MaxAge = int32(20)
 		nextStpBridgeInstance.HelloTime = int32(2)
 		nextStpBridgeInstance.ForwardDelay = int32(15)
+		nextStpBridgeInstance.ForceVersion = int32(2)
 		nextStpBridgeInstance.TxHoldCount = int32(6)
 		// lets create the object in the stack now
 		// we are going to create based on CONFD creating StpGlobal

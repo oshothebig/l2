@@ -141,7 +141,7 @@ func (server *STPServer) processStpConfig(conf STPConfig) {
 
 	case STPConfigMsgUpdateBridgePriority:
 		stp.StpLogger("INFO", "CONFIG: Bridge Set Bridge Priority")
-		config := conf.Msgdata.(stp.StpBridgeConfig)
+		config := conf.Msgdata.(*stp.StpBridgeConfig)
 		stp.StpBrgPrioritySet(config.IfIndex, config.Priority)
 
 	case STPConfigMsgUpdateBridgeForceVersion:

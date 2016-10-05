@@ -224,6 +224,10 @@ func NewDRCPIpp(id uint32, dr *DistributedRelay) *DRCPIpp {
 	for i, _ := range ipp.DRCPIntraPortal.DrniNeighborState {
 		ipp.DRCPIntraPortal.DrniNeighborState[i].mutex = &sync.Mutex{}
 	}
+	for i, _ := range ipp.IppPortalSystemState {
+		ipp.IppPortalSystemState[i].mutex = &sync.Mutex{}
+	}
+
 	key := IppDbKey{
 		Name:   ipp.Name,
 		DrName: ipp.dr.DrniName,

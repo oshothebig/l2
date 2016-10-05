@@ -25,7 +25,7 @@
 package drcp
 
 import (
-	//"fmt"
+	"fmt"
 	"l2/lacp/protocol/utils"
 )
 
@@ -127,6 +127,7 @@ func CreateConversationId(cfg *DRConversationConfig) {
 			// update the local digests and converstaion lists
 			for _, dr := range DistributedRelayDBList {
 				if dr.DrniName == cfg.DrniName {
+					dr.LaDrLog(fmt.Sprintf("Creating Converstaion %d", cfg.Cvlan))
 					dr.SetTimeSharingPortAndGatwewayDigest()
 				}
 			}
@@ -135,11 +136,11 @@ func CreateConversationId(cfg *DRConversationConfig) {
 }
 
 // CreateConversationId is a config api to handle conversationId updates
-func DeleteConversationId(cfg *DRConversationConfig) {
+func DeleteConversationId(cfg *DRConversationConfig, force bool) {
 
 	// only supported converstation at this time
 	if cfg.Idtype == GATEWAY_ALGORITHM_CVID {
-		if cfg.Cvlan < MAX_CONVERSATION_IDS && ConversationIdMap[cfg.Cvlan].Valid {
+		if cfg.Cvlan < MAX_CONVERSATION_IDS && (ConversationIdMap[cfg.Cvlan].Valid || force) {
 			ent := ConversationIdMap[cfg.Cvlan]
 			if ent.Refcnt > 1 {
 				// TODO FUTURE when you can map multiple conversations types
@@ -156,6 +157,7 @@ func DeleteConversationId(cfg *DRConversationConfig) {
 				// update the local digests and converstaion lists
 				for _, dr := range DistributedRelayDBList {
 					if dr.DrniName == cfg.DrniName {
+						dr.LaDrLog(fmt.Sprintf("Deleting Converstaion %d", cfg.Cvlan))
 						dr.SetTimeSharingPortAndGatwewayDigest()
 					}
 				}

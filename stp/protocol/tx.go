@@ -172,15 +172,15 @@ func (p *StpPort) TxPVST() {
 
 		p.SetTxPortCounters(BPDURxTypePVST)
 		if p.TcWhileTimer.count != 0 {
-			StpMachineLogger("INFO", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC packet on interface %s\n", pIntf.Name))
+			StpMachineLogger("DEBUG", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC packet on interface %s\n", pIntf.Name))
 			p.SetTxPortCounters(BPDURxTypeTopo)
 		}
 		if p.TcAck {
-			StpMachineLogger("INFO", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC Ack packet on interface %s\n", pIntf.Name))
+			StpMachineLogger("DEBUG", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC Ack packet on interface %s\n", pIntf.Name))
 			p.SetTxPortCounters(BPDURxTypeTopoAck)
 		}
 
-		//StpLogger("INFO", fmt.Sprintf("Sent PVST packet on interface %s %#v\n", pIntf.Name, pvst))
+		//StpLogger("DEBUG", fmt.Sprintf("Sent PVST packet on interface %s %#v\n", pIntf.Name, pvst))
 	}
 }
 
@@ -237,14 +237,14 @@ func (p *StpPort) TxRSTP() {
 		pIntf, _ := PortConfigMap[p.IfIndex]
 		p.SetTxPortCounters(BPDURxTypeRSTP)
 		if p.TcWhileTimer.count != 0 {
-			StpMachineLogger("INFO", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC packet on interface %s\n", pIntf.Name))
+			StpMachineLogger("DEBUG", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC packet on interface %s\n", pIntf.Name))
 			p.SetTxPortCounters(BPDURxTypeTopo)
 		}
 		if p.TcAck {
-			StpMachineLogger("INFO", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC Ack packet on interface %s\n", pIntf.Name))
+			StpMachineLogger("DEBUG", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TC Ack packet on interface %s\n", pIntf.Name))
 			p.SetTxPortCounters(BPDURxTypeTopoAck)
 		}
-		//StpLogger("INFO", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
+		//StpLogger("DEBUG", fmt.Sprintf("Sent RSTP packet on interface %s %#v\n", pIntf.Name, rstp))
 	}
 }
 
@@ -279,7 +279,7 @@ func (p *StpPort) TxTCN() {
 		p.SetTxPortCounters(BPDURxTypeSTP)
 		p.SetTxPortCounters(BPDURxTypeTopo)
 		pIntf, _ := PortConfigMap[p.IfIndex]
-		StpMachineLogger("INFO", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
+		StpMachineLogger("DEBUG", "TX", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("Sent TCN packet on interface %s\n", pIntf.Name))
 	}
 }
 
@@ -341,5 +341,5 @@ func (p *StpPort) TxConfig() {
 		}
 	}
 	//pIntf, _ := PortConfigMap[p.IfIndex]
-	//StpLogger("INFO", fmt.Sprintf("Sent Config packet on interface %s %#v\n", pIntf.Name, stp))
+	//StpLogger("DEBUG", fmt.Sprintf("Sent Config packet on interface %s %#v\n", pIntf.Name, stp))
 }

@@ -29,7 +29,6 @@ import (
 	"l2/lldp/config"
 	"l2/lldp/packet"
 	"l2/lldp/plugin"
-	"models/objects"
 	"sync"
 	"time"
 	"utils/dbutils"
@@ -55,7 +54,6 @@ type LLDPGlobalInfo struct {
 	TxInfo *packet.TX
 	// State info
 	enable bool
-
 	// Reading received info & updating received info lock
 	RxLock *sync.RWMutex
 	// Go Routine Killer Channels
@@ -63,6 +61,8 @@ type LLDPGlobalInfo struct {
 	TxDone chan bool
 	// counter for total frames rx/tx
 	counter Frame
+	// last received packet time
+	pktRcvdTime time.Time
 }
 
 type Frame struct {
@@ -80,7 +80,7 @@ type LLDPServer struct {
 	SysPlugin  plugin.SystemIntf
 
 	//System Information
-	SysInfo *objects.SystemParam
+	SysInfo *config.SystemInfo
 
 	// Global LLDP Information
 	Global *config.Global
@@ -107,7 +107,7 @@ type LLDPServer struct {
 	// lldp asic notification channel
 	IfStateCh chan *config.PortState
 	// Update Cache notification channel
-	UpdateCacheCh chan bool
+	UpdateCacheCh chan *config.SystemInfo
 	// Event Publish channel for server
 	EventCh chan config.EventInfo
 
@@ -135,4 +135,6 @@ const (
 	LLDP_DEFAULT_TX_INTERVAL        = 30
 	LLDP_DEFAULT_TX_HOLD_MULTIPLIER = 4
 	LLDP_MIN_FRAME_LENGTH           = 12 // this is 12 bytes
+	LLDP_FAST_LEARN_TIMER           = 1  // in seconds
+	LLDP_FAST_LEARN_MAX_FRAMES_SEND = 5
 )

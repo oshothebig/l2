@@ -91,3 +91,12 @@ const (
 	Removed
 	NoOp
 )
+
+type SystemInfo struct {
+	Vrf         string
+	MgmtIp      string
+	Hostname    string
+	SwitchMac   string
+	SwVersion   string
+	Description string
+}

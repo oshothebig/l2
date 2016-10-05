@@ -117,7 +117,7 @@ func NewStpTcMachine(p *StpPort) *TcMachine {
 }
 
 func (tcm *TcMachine) TcmLogger(s string) {
-	StpMachineLogger("INFO", PtxmMachineModuleStr, tcm.p.IfIndex, tcm.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", PtxmMachineModuleStr, tcm.p.IfIndex, tcm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -131,7 +131,7 @@ func (tcm *TcMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	tcm.Machine.Rules = r
 	tcm.Machine.Curr = &StpStateEvent{
 		strStateMap: TcStateStrMap,
-		logEna:      false,
+		logEna:      true,
 		logger:      tcm.TcmLogger,
 		owner:       TcMachineModuleStr,
 		ps:          TcStateNone,
@@ -324,7 +324,7 @@ func (p *StpPort) TcMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *TcMachine) {
-		StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
@@ -349,7 +349,7 @@ func (p *StpPort) TcMachineMain() {
 						SendResponse(TcMachineModuleStr, event.responseChan)
 					}
 				} else {
-					StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					StpMachineLogger("DEBUG", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
 					return
 				}
 			case ena := <-m.TcLogEnableEvent:
@@ -564,9 +564,9 @@ func (tcm *TcMachine) FlushFdb() {
 	// is complete lets clear FdbFlush and
 	// send event to TCM
 	for _, client := range GetAsicDPluginList() {
-		client.FlushStgFdb(p.b.StgId)
+		client.FlushStgFdb(p.b.StgId, p.IfIndex)
 	}
-	StpMachineLogger("INFO", TcMachineModuleStr, p.IfIndex, p.BrgIfIndex, "FDB Flush")
+	StpMachineLogger("DEBUG", TcMachineModuleStr, p.IfIndex, p.BrgIfIndex, "FDB Flush")
 	p.FdbFlush = false
 	if p.Learn &&
 		p.TcMachineFsm != nil &&

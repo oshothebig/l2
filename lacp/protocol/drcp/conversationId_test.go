@@ -176,7 +176,7 @@ func TestConversationIdVlanMembershipCreateNoPorts(t *testing.T) {
 	ConversationIdTestSetup()
 	a := OnlyForConversationIdTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -193,7 +193,7 @@ func TestConversationIdVlanMembershipCreateNoPorts(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -257,7 +257,7 @@ func TestConversationIdVlanMembershipCreateNoPortsThenAddDelPort(t *testing.T) {
 	ConversationIdTestSetup()
 	a := OnlyForConversationIdTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -274,7 +274,7 @@ func TestConversationIdVlanMembershipCreateNoPortsThenAddDelPort(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -398,7 +398,7 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 	ConversationIdTestSetup()
 	a := OnlyForConversationIdTestSetupCreateAggGroup(200)
 
-	cfg := &DistrubtedRelayConfig{
+	cfg := &DistributedRelayConfig{
 		DrniName:                          "DR-1",
 		DrniPortalAddress:                 "00:00:DE:AD:BE:EF",
 		DrniPortalPriority:                128,
@@ -415,7 +415,7 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 		DrniIntraPortalPortProtocolDA:     "01:80:C2:00:00:03", // only supported value that we are going to support
 	}
 
-	err := DistrubtedRelayConfigParamCheck(cfg)
+	err := DistributedRelayConfigParamCheck(cfg)
 	if err != nil {
 		t.Error("Parameter check failed for what was expected to be a valid config", err)
 	}
@@ -502,7 +502,7 @@ func TestConversationIdVlanMembershipCreateWithPortsThenDelPorts(t *testing.T) {
 
 	// Del vlan
 	conversationCfg.PortList = []int32{aggport1, aggport2}
-	DeleteConversationId(conversationCfg)
+	DeleteConversationId(conversationCfg, false)
 
 	if ConversationIdMap[100].Valid {
 		t.Error("ERRRO Conversation Map was not updated as expected")

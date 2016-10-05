@@ -123,8 +123,8 @@ func GetIntfState(intfRef string) *config.IntfState {
 	return lldpapi.server.GetIntfState(intfRef)
 }
 
-func UpdateCache() {
-	lldpapi.server.UpdateCacheCh <- true
+func UpdateCache(sysInfo *config.SystemInfo) {
+	lldpapi.server.UpdateCacheCh <- sysInfo
 }
 
 func GetLLDPGlobalState(vrf string) (*config.GlobalState, error) {

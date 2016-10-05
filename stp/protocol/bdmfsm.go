@@ -97,7 +97,7 @@ func NewStpBdmMachine(p *StpPort) *BdmMachine {
 }
 
 func (bdm *BdmMachine) BdmLogger(s string) {
-	StpMachineLogger("INFO", "BDM", bdm.p.IfIndex, bdm.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", "BDM", bdm.p.IfIndex, bdm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -197,7 +197,7 @@ func (p *StpPort) BdmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *BdmMachine) {
-		StpMachineLogger("INFO", "BDM", p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", "BDM", p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
@@ -222,7 +222,7 @@ func (p *StpPort) BdmMachineMain() {
 						SendResponse(BdmMachineModuleStr, event.responseChan)
 					}
 				} else {
-					StpMachineLogger("INFO", "BDM", p.IfIndex, p.BrgIfIndex, "Machine End")
+					StpMachineLogger("DEBUG", "BDM", p.IfIndex, p.BrgIfIndex, "Machine End")
 					return
 				}
 

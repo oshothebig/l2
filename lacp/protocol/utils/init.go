@@ -31,4 +31,6 @@ import (
 func init() {
 	fmt.Println("Creating PortConfigMap")
 	PortConfigMap = make(map[int32]PortConfig)
+	ConfigAggMap = make(map[string][]uint16)
+	ConfigDrMap = make(map[string]uint32)
 }

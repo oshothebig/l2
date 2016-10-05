@@ -103,7 +103,7 @@ func TestStpBridgeCreationDeletion(t *testing.T) {
 	// this is specific to test but config object should be filled in
 	brgcfg := StpBridgeConfigSetup()
 	// verify the paramaters are correct
-	err := StpBrgConfigParamCheck(brgcfg)
+	err := StpBrgConfigParamCheck(brgcfg, true)
 	if err != nil {
 		t.Error("ERROR valid config failed", err)
 	}
@@ -127,7 +127,7 @@ func TestStpPortCreationDeletion(t *testing.T) {
 	// this is specific to test but config object should be filled in
 	brgcfg := StpBridgeConfigSetup()
 	// verify the paramaters are correct
-	err := StpBrgConfigParamCheck(brgcfg)
+	err := StpBrgConfigParamCheck(brgcfg, true)
 	if err != nil {
 		t.Error("ERROR valid brg config failed", err)
 	}
@@ -200,7 +200,7 @@ func TestStpPortAdminEdgeCreationDeletion(t *testing.T) {
 	// this is specific to test but config object should be filled in
 	brgcfg := StpBridgeConfigSetup()
 	// verify the paramaters are correct
-	err := StpBrgConfigParamCheck(brgcfg)
+	err := StpBrgConfigParamCheck(brgcfg, true)
 	if err != nil {
 		t.Error("ERROR valid brg config failed", err)
 	}
@@ -274,7 +274,7 @@ func TestStpBridgeParamCheckPriority(t *testing.T) {
 
 	// set bad value
 	brgcfg.Priority = 11111
-	err := StpBrgConfigParamCheck(brgcfg)
+	err := StpBrgConfigParamCheck(brgcfg, true)
 	if err == nil {
 		t.Error("ERROR an invalid priority was set should have errored", brgcfg.Priority)
 	}
@@ -283,9 +283,9 @@ func TestStpBridgeParamCheckPriority(t *testing.T) {
 	// 0 - 61440 in increments of 4096
 	for i := uint16(0); i <= 61440/4096; i++ {
 		brgcfg.Priority = 4096 * i
-		err = StpBrgConfigParamCheck(brgcfg)
+		err = StpBrgConfigParamCheck(brgcfg, false)
 		if err != nil {
-			t.Error("ERROR valid priority was set should not have errored", brgcfg.Priority)
+			t.Error("ERROR valid priority was set should not have errored", brgcfg.Priority, err)
 		}
 	}
 
@@ -293,7 +293,6 @@ func TestStpBridgeParamCheckPriority(t *testing.T) {
 	StpBridgeCreate(brgcfg)
 
 	var b *Bridge
-
 	key := BridgeKey{
 		Vlan: brgcfg.Vlan,
 	}
@@ -327,13 +326,13 @@ func TestStpBridgeParamCheckMaxAge(t *testing.T) {
 
 	// set bad value
 	brgcfg.MaxAge = 200
-	err := StpBrgConfigParamCheck(brgcfg)
+	err := StpBrgConfigParamCheck(brgcfg, true)
 	if err == nil {
 		t.Error("ERROR an invalid max age was set should have errored", brgcfg.MaxAge)
 	}
 	// set bad value
 	brgcfg.MaxAge = 5
-	err = StpBrgConfigParamCheck(brgcfg)
+	err = StpBrgConfigParamCheck(brgcfg, true)
 	if err == nil {
 		t.Error("ERROR an invalid max age was set should have errored", brgcfg.MaxAge)
 	}
@@ -341,7 +340,7 @@ func TestStpBridgeParamCheckMaxAge(t *testing.T) {
 	// now lets send all possible values according to table 802.1D 17-1
 	for i := uint16(6); i <= 40; i++ {
 		brgcfg.MaxAge = i
-		err = StpBrgConfigParamCheck(brgcfg)
+		err = StpBrgConfigParamCheck(brgcfg, false)
 		if err != nil {
 			t.Error("ERROR valid max age was set should not have errored", brgcfg.MaxAge)
 		}
@@ -379,13 +378,13 @@ func TestStpBridgeParamCheckHelloTime(t *testing.T) {
 
 	// set bad value
 	brgcfg.HelloTime = 0
-	err := StpBrgConfigParamCheck(brgcfg)
+	err := StpBrgConfigParamCheck(brgcfg, true)
 	if err == nil {
 		t.Error("ERROR an invalid hello time was set should have errored", brgcfg.HelloTime)
 	}
 	// set bad value
 	brgcfg.HelloTime = 5
-	err = StpBrgConfigParamCheck(brgcfg)
+	err = StpBrgConfigParamCheck(brgcfg, false)
 	if err == nil {
 		t.Error("ERROR an invalid hello time was set should have errored", brgcfg.HelloTime)
 	}
@@ -393,7 +392,7 @@ func TestStpBridgeParamCheckHelloTime(t *testing.T) {
 	// now lets send all possible values according to table 802.1D 17-1
 	for i := uint16(1); i <= 2; i++ {
 		brgcfg.HelloTime = i
-		err = StpBrgConfigParamCheck(brgcfg)
+		err = StpBrgConfigParamCheck(brgcfg, false)
 		if err != nil {
 			t.Error("ERROR valid hello time was set should not have errored", brgcfg.HelloTime)
 		}
@@ -431,13 +430,13 @@ func TestStpBridgeParamCheckFowardingDelay(t *testing.T) {
 
 	// set bad value
 	brgcfg.ForwardDelay = 0
-	err := StpBrgConfigParamCheck(brgcfg)
+	err := StpBrgConfigParamCheck(brgcfg, true)
 	if err == nil {
 		t.Error("ERROR an invalid forwarding delay was set should have errored", brgcfg.ForwardDelay)
 	}
 	// set bad value
 	brgcfg.ForwardDelay = 50
-	err = StpBrgConfigParamCheck(brgcfg)
+	err = StpBrgConfigParamCheck(brgcfg, false)
 	if err == nil {
 		t.Error("ERROR an invalid forwardng delay was set should have errored", brgcfg.ForwardDelay)
 	}
@@ -445,7 +444,7 @@ func TestStpBridgeParamCheckFowardingDelay(t *testing.T) {
 	// now lets send all possible values according to table 802.1D 17-1
 	for i := uint16(4); i <= 30; i++ {
 		brgcfg.ForwardDelay = i
-		err = StpBrgConfigParamCheck(brgcfg)
+		err = StpBrgConfigParamCheck(brgcfg, false)
 		if err != nil {
 			t.Error("ERROR valid forwarding delay was set should not have errored", brgcfg.ForwardDelay)
 		}
@@ -483,13 +482,13 @@ func TestStpBridgeParamCheckTxHoldCount(t *testing.T) {
 
 	// set bad value
 	brgcfg.TxHoldCount = 0
-	err := StpBrgConfigParamCheck(brgcfg)
+	err := StpBrgConfigParamCheck(brgcfg, true)
 	if err == nil {
 		t.Error("ERROR an invalid tx hold count was set should have errored", brgcfg.TxHoldCount)
 	}
 	// set bad value
 	brgcfg.TxHoldCount = 50
-	err = StpBrgConfigParamCheck(brgcfg)
+	err = StpBrgConfigParamCheck(brgcfg, false)
 	if err == nil {
 		t.Error("ERROR an invalid tx hold count was set should have errored", brgcfg.TxHoldCount)
 	}
@@ -497,7 +496,7 @@ func TestStpBridgeParamCheckTxHoldCount(t *testing.T) {
 	// now lets send all possible values according to table 802.1D 17-1
 	for i := int32(1); i <= 10; i++ {
 		brgcfg.TxHoldCount = i
-		err = StpBrgConfigParamCheck(brgcfg)
+		err = StpBrgConfigParamCheck(brgcfg, false)
 		if err != nil {
 			t.Error("ERROR valid tx hold count was set should not have errored", brgcfg.TxHoldCount)
 		}
@@ -537,7 +536,7 @@ func TestStpBridgeParamCheckVlan(t *testing.T) {
 
 	// set bad value
 	brgcfg.Vlan = 4096
-	err := StpBrgConfigParamCheck(brgcfg)
+	err := StpBrgConfigParamCheck(brgcfg, true)
 	if err == nil {
 		t.Error("ERROR an invalid vlan was set should have errored", brgcfg.Vlan)
 	}
@@ -545,7 +544,7 @@ func TestStpBridgeParamCheckVlan(t *testing.T) {
 	// now lets send all possible values according to table 802.1Q
 	for i := uint16(1); i <= 4094; i++ {
 		brgcfg.Vlan = i
-		err = StpBrgConfigParamCheck(brgcfg)
+		err = StpBrgConfigParamCheck(brgcfg, false)
 		if err != nil {
 			t.Error("ERROR valid vlan was set should not have errored", brgcfg.Vlan)
 		}
@@ -561,13 +560,13 @@ func TestStpBridgeParamCheckForceVersion(t *testing.T) {
 
 	// set bad value
 	brgcfg.ForceVersion = 0
-	err := StpBrgConfigParamCheck(brgcfg)
+	err := StpBrgConfigParamCheck(brgcfg, true)
 	if err == nil {
 		t.Error("ERROR an invalid force version was set should have errored", brgcfg.ForceVersion)
 	}
 
 	brgcfg.ForceVersion = 3
-	err = StpBrgConfigParamCheck(brgcfg)
+	err = StpBrgConfigParamCheck(brgcfg, false)
 	if err == nil {
 		t.Error("ERROR an invalid force version was set should have errored", brgcfg.ForceVersion)
 	}
@@ -575,7 +574,7 @@ func TestStpBridgeParamCheckForceVersion(t *testing.T) {
 	// now lets send all possible values according to 802.1D
 	for i := int32(1); i <= 2; i++ {
 		brgcfg.ForceVersion = i
-		err = StpBrgConfigParamCheck(brgcfg)
+		err = StpBrgConfigParamCheck(brgcfg, false)
 		if err != nil {
 			t.Error("ERROR valid force version was set should not have errored", brgcfg.ForceVersion)
 		}
@@ -692,28 +691,35 @@ func TestStpPortParamPriority(t *testing.T) {
 	StpPortCreate(p)
 	defer StpPortDelete(p)
 
-	brgifindex := p.BrgIfIndex
+	//brgifindex := p.BrgIfIndex
 	// lets pretend another bridge port is being created and Priority is different
 	brg := StpBridgeConfigSetup()
 	brg.Vlan = 100
 	// bridge must exist
 	StpBridgeCreate(brg)
 	defer StpBridgeDelete(brg)
-	p.BrgIfIndex = 100
-	p.Priority = 16
-	err = StpPortConfigParamCheck(p, false)
-	if err == nil {
-		t.Error("ERROR: an invalid port config change priority was set should have errored", p.Priority, err)
-	}
-	p.BrgIfIndex = brgifindex
+	/*
+		Invalid test as we are no longer bound to a port based provisioning
+		p.BrgIfIndex = 100
+		p.Priority = 16
+		err = StpPortConfigParamCheck(p, false)
+		if err == nil {
+			t.Error("ERROR: an invalid port config change priority was set should have errored", p.Priority, err)
+		}
+		p.BrgIfIndex = brgifindex
+	*/
 	// lets change the port priority on the fly
 	err = StpPortPrioritySet(p.IfIndex, p.BrgIfIndex, 32)
+	p.Priority = 32
+	err = StpPortConfigParamCheck(p, false)
 	if err != nil {
 		t.Error("ERROR: set a valid port priority 32 should not have failed ", err)
 	}
 
 	// set an invalid port priority
 	err = StpPortPrioritySet(p.IfIndex, p.BrgIfIndex, 50)
+	p.Priority = 50
+	err = StpPortConfigParamCheck(p, false)
 	if err == nil {
 		t.Error("ERROR: set an ivalid port priority 50 should have failed", err)
 	}
@@ -761,13 +767,15 @@ func TestStpPortParamAdminPathCost(t *testing.T) {
 	// bridge must exist
 	StpBridgeCreate(brg)
 	defer StpBridgeDelete(brg)
-
-	p.BrgIfIndex = 100
-	p.AdminPathCost = 200
-	err = StpPortConfigParamCheck(p, false)
-	if err == nil {
-		t.Error("ERROR: an invalid port config change admin path cost was set should have errored", p.AdminPathCost, err)
-	}
+	/*
+		Invalid test as we are no longer bound to port based provisioning
+		p.BrgIfIndex = 100
+		p.AdminPathCost = 200
+		err = StpPortConfigParamCheck(p, false)
+		if err == nil {
+			t.Error("ERROR: an invalid port config change admin path cost was set should have errored", p.AdminPathCost, err)
+		}
+	*/
 }
 
 func TestStpPortParamBridgeAssurance(t *testing.T) {
@@ -851,6 +859,8 @@ func TestStpPortParamBridgeAssurance(t *testing.T) {
 
 	// set admin edge to true while bridge assurance is enabled, should fail
 	err = StpPortAdminEdgeSet(p.IfIndex, p.BrgIfIndex, true)
+	p.BridgeAssurance = true
+	err = StpPortConfigParamCheck(p, false)
 	if err == nil {
 		t.Error("ERROR: failed to set port as an admin edge port because Bridge Assurance is enabled", err)
 	}
@@ -918,6 +928,7 @@ func TestStpPortParamBpduGuard(t *testing.T) {
 	// disable admin edge, which should fail
 	p.AdminEdgePort = false
 	err = StpPortAdminEdgeSet(p.IfIndex, p.BrgIfIndex, p.AdminEdgePort)
+	err = StpPortConfigParamCheck(p, false)
 	if err == nil {
 		t.Error("ERROR: invalid port config bpdu Guard is enabled set should have errored", p.AdminEdgePort, p.BpduGuard, err)
 	}
@@ -960,7 +971,7 @@ func TestStpPortParamBpduGuard(t *testing.T) {
 	}
 
 	// give test time to complete
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 30)
 
 }
 
