@@ -27,12 +27,11 @@ import (
 	"encoding/binary"
 	_ "encoding/json"
 	"errors"
-	"fmt"
+	_ "fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"l2/lldp/config"
 	"l2/lldp/utils"
-	"models/objects"
 	"net"
 )
 
@@ -62,8 +61,7 @@ func TxInit(interval, hold int) *TX {
 		txInfo.MessageTxHoldMultiplier)
 	txInfo.DstMAC, err = net.ParseMAC(LLDP_PROTO_DST_MAC)
 	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("parsing lldp protocol Mac failed",
-			err))
+		debug.Logger.Err("parsing lldp protocol Mac failed", err)
 	}
 
 	return txInfo
@@ -75,11 +73,11 @@ func TxInit(interval, hold int) *TX {
  *		1) if it is first time send
  *		2) if there is config object update
  */
-func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *objects.SystemParam) []byte {
+func (t *TX) Frame(port config.PortInfo, sysInfo *config.SystemInfo) []byte {
 	temp := make([]byte, 0)
 	// if cached then directly send the packet
-	if gblInfo.useCacheFrame {
-		return gblInfo.cacheFrame
+	if t.useCacheFrame {
+		return t.cacheFrame
 	} else {
 		srcmac, _ := net.ParseMAC(port.MacAddr)
 		// we need to construct new lldp frame based of the information that we
@@ -87,10 +85,10 @@ func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *objects.SystemParam)
 		// Chassis ID: Mac Address of Port
 		// Port ID: Port Name
 		// TTL: calculated during port init default is 30 * 4 = 120
-		payload := gblInfo.createPayload(srcmac, port, sysInfo)
+		payload := t.createPayload(srcmac, port, sysInfo)
 		if payload == nil {
-			debug.Logger.Err(fmt.Sprintln("Creating payload failed for port", port))
-			gblInfo.useCacheFrame = false
+			debug.Logger.Err("Creating payload failed for port", port)
+			t.useCacheFrame = false
 			return temp
 		}
 		// Additional TLV's... @TODO: get it done later on
@@ -100,7 +98,7 @@ func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *objects.SystemParam)
 		// Construct ethernet information
 		eth := &layers.Ethernet{
 			SrcMAC:       srcmac,
-			DstMAC:       gblInfo.DstMAC,
+			DstMAC:       t.DstMAC,
 			EthernetType: layers.EthernetTypeLinkLayerDiscovery,
 		}
 
@@ -112,24 +110,24 @@ func (gblInfo *TX) SendFrame(port config.PortInfo, sysInfo *objects.SystemParam)
 		}
 		gopacket.SerializeLayers(buffer, options, eth, gopacket.Payload(payload))
 		pkt := buffer.Bytes()
-		gblInfo.cacheFrame = make([]byte, len(pkt))
-		copied := copy(gblInfo.cacheFrame, pkt)
+		t.cacheFrame = make([]byte, len(pkt))
+		copied := copy(t.cacheFrame, pkt)
 		if copied < len(pkt) {
 			debug.Logger.Err("Cache cannot be created")
-			gblInfo.cacheFrame = nil
-			gblInfo.useCacheFrame = false
+			t.cacheFrame = nil
+			t.useCacheFrame = false
 			// return should never happen
 			return temp
 		}
-		debug.Logger.Info("Send Frame is cached")
-		gblInfo.useCacheFrame = true
+		debug.Logger.Info("Send Frame is cached for Port:", port.Name)
+		t.useCacheFrame = true
 		return pkt
 	}
 }
 
 /*  helper function to create payload from lldp frame struct
  */
-func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *objects.SystemParam) []byte {
+func (t *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *config.SystemInfo) []byte {
 	var payload []byte
 	var err error
 	tlvType := layers.LLDPTLVChassisID // start with chassis id always
@@ -137,7 +135,7 @@ func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *o
 		if tlvType > LLDP_TOTAL_TLV_SUPPORTED { // right now only minimal lldp tlv
 			break
 		} else if tlvType > layers.LLDPTLVTTL && sysInfo == nil {
-			debug.Logger.Info("Reading System Information from DB failed and hence sending out only " +
+			debug.Logger.Debug("Reading System Information from DB failed and hence sending out only " +
 				"Mandatory TLV's")
 			break
 		}
@@ -146,34 +144,34 @@ func (gblInfo *TX) createPayload(srcmac []byte, port config.PortInfo, sysInfo *o
 		case layers.LLDPTLVChassisID: // Chassis ID
 			tlv.Type = layers.LLDPTLVChassisID
 			tlv.Value = EncodeMandatoryTLV(byte(layers.LLDPChassisIDSubTypeMACAddr), srcmac)
-			debug.Logger.Info(fmt.Sprintln("Chassis id tlv", tlv))
+			debug.Logger.Debug("Chassis id tlv", *tlv)
 
 		case layers.LLDPTLVPortID: // Port ID
 			tlv.Type = layers.LLDPTLVPortID
 			tlv.Value = EncodeMandatoryTLV(byte(layers.LLDPPortIDSubtypeIfaceName), []byte(port.Name))
-			debug.Logger.Info(fmt.Sprintln("Port id tlv", tlv))
+			debug.Logger.Debug("Port id tlv", *tlv)
 
 		case layers.LLDPTLVTTL: // TTL
 			tlv.Type = layers.LLDPTLVTTL
 			tb := []byte{0, 0}
-			binary.BigEndian.PutUint16(tb, uint16(gblInfo.ttl))
+			binary.BigEndian.PutUint16(tb, uint16(t.ttl))
 			tlv.Value = append(tlv.Value, tb...)
-			debug.Logger.Info(fmt.Sprintln("TTL tlv", tlv))
+			debug.Logger.Debug("TTL tlv", *tlv)
 
 		case layers.LLDPTLVPortDescription:
 			tlv.Type = layers.LLDPTLVPortDescription
 			tlv.Value = []byte(port.Description)
-			debug.Logger.Info(fmt.Sprintln("Port Description", tlv))
+			debug.Logger.Debug("Port Description", *tlv)
 
 		case layers.LLDPTLVSysDescription:
 			tlv.Type = layers.LLDPTLVSysDescription
 			tlv.Value = []byte(sysInfo.Description)
-			debug.Logger.Info(fmt.Sprintln("System Description", tlv))
+			debug.Logger.Debug("System Description", *tlv)
 
 		case layers.LLDPTLVSysName:
 			tlv.Type = layers.LLDPTLVSysName
 			tlv.Value = []byte(sysInfo.Hostname)
-			debug.Logger.Info(fmt.Sprintln("System Name", tlv))
+			debug.Logger.Debug("System Name", *tlv)
 
 		case layers.LLDPTLVSysCapabilities:
 			err = errors.New("Tlv not supported")
@@ -261,7 +259,7 @@ func EncodeMgmtTLV(tlv *layers.LLDPMgmtAddress) []byte {
 	binary.BigEndian.PutUint32(temp[0:4], tlv.InterfaceNumber)
 	temp[4] = 0
 	b = append(b, temp...)
-	debug.Logger.Info(fmt.Sprintln("byte returned", b))
+	debug.Logger.Debug("byte returned", b)
 	return b
 }
 
@@ -275,15 +273,16 @@ func (t *TX) SetCache(use bool) {
 
 /*  We have deleted the pcap handler and hence we will invalid the cache buffer
  */
-func (gblInfo *TX) DeleteCacheFrame() {
-	gblInfo.useCacheFrame = false
-	gblInfo.cacheFrame = nil
+func (t *TX) DeleteCacheFrame() {
+	t.useCacheFrame = false
+	t.cacheFrame = nil
 }
 
 /*  Stop Send Tx timer... as we have already delete the pcap handle
  */
-func (gblInfo *TX) StopTxTimer() {
-	if gblInfo.TxTimer != nil {
-		gblInfo.TxTimer.Stop()
+func (t *TX) StopTxTimer() {
+	if t.TxTimer != nil {
+		t.TxTimer.Stop()
+		t.TxTimer = nil
 	}
 }

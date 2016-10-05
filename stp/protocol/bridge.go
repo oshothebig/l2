@@ -70,6 +70,9 @@ type Bridge struct {
 	// store the previous bridge id
 	OldRootBridgeIdentifier BridgeId
 
+	// IntfRef
+	IntfRef string
+
 	// bridge ifIndex
 	BrgIfIndex int32
 	// hw stgId
@@ -104,11 +107,10 @@ func SaveSwitchMac(switchMac string) {
 func NewStpBridge(c *StpBridgeConfig) *Bridge {
 
 	vlan := c.Vlan
-	if vlan == 0 {
-		vlan = DEFAULT_STP_BRIDGE_VLAN
-	}
-
 	bridgeId := CreateBridgeId(StpBridgeMac, c.Priority, vlan)
+	if vlan == DEFAULT_STP_BRIDGE_VLAN {
+		bridgeId = CreateBridgeId(StpBridgeMac, c.Priority, 0)
+	}
 
 	b := &Bridge{
 		Begin:            true,
@@ -160,7 +162,7 @@ func NewStpBridge(c *StpBridgeConfig) *Bridge {
 	for _, client := range GetAsicDPluginList() {
 		b.StgId = client.CreateStgBridge([]uint16{b.Vlan})
 	}
-	StpLogger("INFO", fmt.Sprintf("NEW BRIDGE: %#v\n", b))
+	StpLogger("DEBUG", fmt.Sprintf("NEW BRIDGE: %#v\n", b))
 	return b
 }
 
@@ -177,7 +179,7 @@ func DelStpBridge(b *Bridge, force bool) {
 		}
 	} else {
 		if len(b.StpPorts) > 0 {
-			StpLogger("INFO", "ERROR BRIDGE STILL HAS PORTS ASSOCIATED")
+			StpLogger("DEBUG", "ERROR BRIDGE STILL HAS PORTS ASSOCIATED")
 			return
 		}
 	}
@@ -292,7 +294,7 @@ func GetBridgeVlanFromBridgeId(b BridgeId) (vlan uint16) {
 }
 
 func GetBridgePriorityFromBridgeId(b BridgeId) uint16 {
-	return uint16(b[0]<<8) | uint16(b[1])
+	return uint16(b[0])<<8 | uint16(b[1])
 }
 
 // Compare BridgeId
@@ -301,7 +303,7 @@ func GetBridgePriorityFromBridgeId(b BridgeId) uint16 {
 // < 1 == less than
 func CompareBridgeId(b1 BridgeId, b2 BridgeId) int {
 	if b1 == b2 {
-		//StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 SAME, b1[%#v] b2[%#v]", b1, b2))
+		//StpLogger("DEBUG", fmt.Sprintf("CompareBridgeId returns B1 SAME, b1[%#v] b2[%#v]", b1, b2))
 		return 0
 	} else if (b1[0] < b2[0]) ||
 		((b1[0] == b2[0]) && (b1[1] < b2[1])) ||
@@ -311,10 +313,10 @@ func CompareBridgeId(b1 BridgeId, b2 BridgeId) int {
 		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] == b2[3]) && (b1[4] == b2[4]) && (b1[5] < b2[5])) ||
 		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] == b2[3]) && (b1[4] == b2[4]) && (b1[5] == b2[5]) && (b1[6] < b2[6])) ||
 		((b1[0] == b2[0]) && (b1[1] == b2[1]) && (b1[2] == b2[2]) && (b1[3] == b2[3]) && (b1[4] == b2[4]) && (b1[5] == b2[5]) && (b1[6] == b2[6]) && (b1[7] < b2[7])) {
-		//StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 SUPERIOR, b1[%#v] b2[%#v]", b1, b2))
+		//StpLogger("DEBUG", fmt.Sprintf("CompareBridgeId returns B1 SUPERIOR, b1[%#v] b2[%#v]", b1, b2))
 		return -1
 	} else {
-		//StpLogger("INFO", fmt.Sprintf("CompareBridgeId returns B1 INFERIOR, b1[%#v] b2[%#v]", b1, b2))
+		//StpLogger("DEBUG", fmt.Sprintf("CompareBridgeId returns B1 INFERIOR, b1[%#v] b2[%#v]", b1, b2))
 		return 1
 	}
 }
@@ -346,27 +348,27 @@ func IsMsgPriorityVectorSuperiorThanPortPriorityVector(msg *PriorityVector, port
 				(msg.DesignatedPortId == port.DesignatedPortId))
 	*/
 	if CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) < 0 {
-		//StpLogger("INFO", "b1 root bridge id superior to b2 root bridge id")
+		//StpLogger("DEBUG", "b1 root bridge id superior to b2 root bridge id")
 		return true
 	} else if (CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) &&
 		(msg.RootPathCost < port.RootPathCost) {
-		//StpLogger("INFO", "b1 root bridge id equal b1 root bridge id and b1 root path superior to b2 root path cost")
+		//StpLogger("DEBUG", "b1 root bridge id equal b1 root bridge id and b1 root path superior to b2 root path cost")
 		return true
 	} else if (CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) &&
 		(msg.RootPathCost == port.RootPathCost) &&
 		(CompareBridgeId(msg.DesignatedBridgeId, port.DesignatedBridgeId) < 0) {
-		//StpLogger("INFO", "b1 root bridge id equal b1 root bridge id and b1 root path equal to b2 root path cost, desgn bridge id superior to b1 desgn bridge id")
+		//StpLogger("DEBUG", "b1 root bridge id equal b1 root bridge id and b1 root path equal to b2 root path cost, desgn bridge id superior to b1 desgn bridge id")
 		return true
 	} else if (CompareBridgeId(msg.RootBridgeId, port.RootBridgeId) == 0) &&
 		(msg.RootPathCost == port.RootPathCost) &&
 		(CompareBridgeId(msg.DesignatedBridgeId, port.DesignatedBridgeId) == 0) &&
 		(msg.DesignatedPortId < port.DesignatedPortId) {
-		//StpLogger("INFO", "b1 root bridge id equal b1 root bridge id and b1 root path equal to b2 root path cost, desgn bridge id equal to b1 desgn bridge id, b1 desgn portid superior to b2 desgn portid")
+		//StpLogger("DEBUG", "b1 root bridge id equal b1 root bridge id and b1 root path equal to b2 root path cost, desgn bridge id equal to b1 desgn bridge id, b1 desgn portid superior to b2 desgn portid")
 		return true
 	} else if CompareBridgeAddr(GetBridgeAddrFromBridgeId(msg.DesignatedBridgeId),
 		GetBridgeAddrFromBridgeId(port.DesignatedBridgeId)) == 0 &&
 		(msg.DesignatedPortId == port.DesignatedPortId) {
-		//StpLogger("INFO", "b1 desgn brg addr equal b2 desgn brg addr and b1 desgn portid equal b2 desgn portid")
+		//StpLogger("DEBUG", "b1 desgn brg addr equal b2 desgn brg addr and b1 desgn portid equal b2 desgn portid")
 		return true
 	}
 

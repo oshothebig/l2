@@ -37,6 +37,8 @@ func StpLogger(t string, msg string) {
 		GetStpLogger().Info(msg)
 	case "ERROR":
 		GetStpLogger().Err(msg)
+	case "DEBUG":
+		GetStpLogger().Debug(msg)
 	}
 }
 

@@ -78,8 +78,6 @@ type PstMachine struct {
 
 	// machine specific events
 	PstEvents chan MachineEvent
-	// stop go routine
-	PstKillSignalEvent chan MachineEvent
 	// enable logging
 	PstLogEnableEvent chan bool
 }
@@ -95,10 +93,9 @@ func (m *PstMachine) GetPrevStateStr() string {
 // NewStpPrtMachine will create a new instance of the LacpRxMachine
 func NewStpPstMachine(p *StpPort) *PstMachine {
 	pstm := &PstMachine{
-		p:                  p,
-		PstEvents:          make(chan MachineEvent, 50),
-		PstKillSignalEvent: make(chan MachineEvent, 10),
-		PstLogEnableEvent:  make(chan bool)}
+		p:                 p,
+		PstEvents:         make(chan MachineEvent, 50),
+		PstLogEnableEvent: make(chan bool)}
 
 	p.PstMachineFsm = pstm
 
@@ -106,7 +103,7 @@ func NewStpPstMachine(p *StpPort) *PstMachine {
 }
 
 func (pstm *PstMachine) PstmLogger(s string) {
-	StpMachineLogger("INFO", PstMachineModuleStr, pstm.p.IfIndex, pstm.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", PstMachineModuleStr, pstm.p.IfIndex, pstm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -133,23 +130,8 @@ func (pstm *PstMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (pstm *PstMachine) Stop() {
 
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if pstm.Machine.Curr.CurrentState() != PstStateNone {
-		wait := make(chan string, 1)
-		// stop the go routine
-		pstm.PstKillSignalEvent <- MachineEvent{
-			e:            PstEventBegin,
-			responseChan: wait,
-		}
-
-		<-wait
-	}
 	close(pstm.PstEvents)
 	close(pstm.PstLogEnableEvent)
-	close(pstm.PstKillSignalEvent)
-
 }
 
 // PstMachineDiscarding
@@ -228,35 +210,32 @@ func (p *StpPort) PstMachineMain() {
 
 	// lets create a go routing which will wait for the specific events
 	go func(m *PstMachine) {
-		StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event := <-m.PstKillSignalEvent:
-				StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+			case event, ok := <-m.PstEvents:
 
-				if event.responseChan != nil {
-					SendResponse(PstMachineModuleStr, event.responseChan)
-				}
-				return
+				if ok {
+					if m.Machine.Curr.CurrentState() == PstStateNone && event.e != PstEventBegin {
+						m.PstEvents <- event
+						break
+					}
 
-			case event := <-m.PstEvents:
+					//fmt.Println("Event Rx", event.src, event.e)
+					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					if rv != nil {
+						StpMachineLogger("ERROR", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, PstStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+					} else {
+						m.ProcessPostStateProcessing()
+					}
 
-				if m.Machine.Curr.CurrentState() == PstStateNone && event.e != PstEventBegin {
-					m.PstEvents <- event
-					break
-				}
-
-				//fmt.Println("Event Rx", event.src, event.e)
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, PstStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+					if event.responseChan != nil {
+						SendResponse(PstMachineModuleStr, event.responseChan)
+					}
 				} else {
-					m.ProcessPostStateProcessing()
-				}
-
-				if event.responseChan != nil {
-					SendResponse(PstMachineModuleStr, event.responseChan)
+					StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					return
 				}
 
 			case ena := <-m.PstLogEnableEvent:
@@ -430,7 +409,7 @@ func (pstm *PstMachine) NotifyForwardingChanged(oldforwarding bool, newforwardin
 
 func (pstm *PstMachine) disableLearning() {
 	p := pstm.p
-	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do disable learning")
+	StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do disable learning")
 	for _, client := range GetAsicDPluginList() {
 		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_BLOCKING)
 	}
@@ -438,7 +417,7 @@ func (pstm *PstMachine) disableLearning() {
 
 func (pstm *PstMachine) disableForwarding() {
 	p := pstm.p
-	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do disable forwarding")
+	StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do disable forwarding")
 	for _, client := range GetAsicDPluginList() {
 		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_BLOCKING)
 	}
@@ -446,7 +425,7 @@ func (pstm *PstMachine) disableForwarding() {
 
 func (pstm *PstMachine) enableLearning() {
 	p := pstm.p
-	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable learning")
+	StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable learning")
 	for _, client := range GetAsicDPluginList() {
 		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_LEARNING)
 	}
@@ -454,7 +433,7 @@ func (pstm *PstMachine) enableLearning() {
 
 func (pstm *PstMachine) enableForwarding() {
 	p := pstm.p
-	StpMachineLogger("INFO", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable forwarding")
+	StpMachineLogger("DEBUG", PstMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Calling Asic to do enable forwarding")
 	for _, client := range GetAsicDPluginList() {
 		client.SetStgPortState(p.b.StgId, p.IfIndex, pluginCommon.STP_PORT_STATE_FORWARDING)
 	}

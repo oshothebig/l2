@@ -92,8 +92,6 @@ type TcMachine struct {
 
 	// machine specific events
 	TcEvents chan MachineEvent
-	// stop go routine
-	TcKillSignalEvent chan MachineEvent
 	// enable logging
 	TcLogEnableEvent chan bool
 }
@@ -109,10 +107,9 @@ func (m *TcMachine) GetPrevStateStr() string {
 // NewStpTcMachine will create a new instance of the LacpRxMachine
 func NewStpTcMachine(p *StpPort) *TcMachine {
 	tcm := &TcMachine{
-		p:                 p,
-		TcEvents:          make(chan MachineEvent, 10),
-		TcKillSignalEvent: make(chan MachineEvent, 1),
-		TcLogEnableEvent:  make(chan bool)}
+		p:                p,
+		TcEvents:         make(chan MachineEvent, 10),
+		TcLogEnableEvent: make(chan bool)}
 
 	p.TcMachineFsm = tcm
 
@@ -120,7 +117,7 @@ func NewStpTcMachine(p *StpPort) *TcMachine {
 }
 
 func (tcm *TcMachine) TcmLogger(s string) {
-	StpMachineLogger("INFO", PtxmMachineModuleStr, tcm.p.IfIndex, tcm.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", PtxmMachineModuleStr, tcm.p.IfIndex, tcm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -134,7 +131,7 @@ func (tcm *TcMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	tcm.Machine.Rules = r
 	tcm.Machine.Curr = &StpStateEvent{
 		strStateMap: TcStateStrMap,
-		logEna:      false,
+		logEna:      true,
 		logger:      tcm.TcmLogger,
 		owner:       TcMachineModuleStr,
 		ps:          TcStateNone,
@@ -147,22 +144,8 @@ func (tcm *TcMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (tcm *TcMachine) Stop() {
 
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if tcm.Machine.Curr.CurrentState() != TcStateNone {
-		wait := make(chan string, 1)
-		// stop the go routine
-		tcm.TcKillSignalEvent <- MachineEvent{
-			e:            TcEventBegin,
-			responseChan: wait,
-		}
-		<-wait
-	}
 	close(tcm.TcEvents)
 	close(tcm.TcLogEnableEvent)
-	close(tcm.TcKillSignalEvent)
-
 }
 
 // TcmMachineInactive
@@ -192,8 +175,8 @@ func (tcm *TcMachine) TcMachineDetected(m fsm.Machine, data interface{}) fsm.Sta
 	tcm.setTcPropTree()
 	if !newinfonotificationsent {
 		defer tcm.NotifyNewInfoChanged(p.NewInfo, true)
-		p.NewInfo = true
 	}
+	p.NewInfo = true
 	return TcStateDetected
 }
 
@@ -305,9 +288,9 @@ func TcMachineFSMBuild(p *StpPort) *TcMachine {
 	rules.AddRule(TcStateLearning, TcEventRoleEqualRootPortAndForwardAndNotOperEdge, tcm.TcMachineDetected)
 	rules.AddRule(TcStateLearning, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, tcm.TcMachineDetected)
 
-	// UNCONDITIONAL FALL THROUGH -> ACTIVE
+	// UNCONDITIONAL FALL THROUGH -> ACTIVE or NOTIFIED TC
 	rules.AddRule(TcStateDetected, TcEventUnconditionalFallThrough, tcm.TcMachineActive)
-	rules.AddRule(TcStateNotifiedTcn, TcEventUnconditionalFallThrough, tcm.TcMachineActive)
+	rules.AddRule(TcStateNotifiedTcn, TcEventUnconditionalFallThrough, tcm.TcMachineNotifiedTc)
 	rules.AddRule(TcStateNotifiedTc, TcEventUnconditionalFallThrough, tcm.TcMachineActive)
 	rules.AddRule(TcStatePropagating, TcEventUnconditionalFallThrough, tcm.TcMachineActive)
 	rules.AddRule(TcStateAcknowledged, TcEventUnconditionalFallThrough, tcm.TcMachineActive)
@@ -341,37 +324,34 @@ func (p *StpPort) TcMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *TcMachine) {
-		StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event := <-m.TcKillSignalEvent:
-				StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
-				if event.responseChan != nil {
-					SendResponse(TcMachineModuleStr, event.responseChan)
-				}
-				return
+			case event, ok := <-m.TcEvents:
 
-			case event := <-m.TcEvents:
+				if ok {
+					if m.Machine.Curr.CurrentState() == TcStateNone && event.e != TcEventBegin {
+						m.TcEvents <- event
+						break
+					}
 
-				if m.Machine.Curr.CurrentState() == TcStateNone && event.e != TcEventBegin {
-					m.TcEvents <- event
-					break
-				}
+					//fmt.Println("Event Rx", event.src, event.e)
+					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					if rv != nil {
+						StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, TcStateStrMap[m.Machine.Curr.CurrentState()]))
+					} else {
+						// for faster transitions lets check all state events
+						m.ProcessPostStateProcessing()
+					}
 
-				//fmt.Println("Event Rx", event.src, event.e)
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, TcStateStrMap[m.Machine.Curr.CurrentState()]))
+					if event.responseChan != nil {
+						SendResponse(TcMachineModuleStr, event.responseChan)
+					}
 				} else {
-					// for faster transitions lets check all state events
-					m.ProcessPostStateProcessing()
+					StpMachineLogger("DEBUG", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					return
 				}
-
-				if event.responseChan != nil {
-					SendResponse(TcMachineModuleStr, event.responseChan)
-				}
-
 			case ena := <-m.TcLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}
@@ -396,19 +376,49 @@ func (tcm *TcMachine) ProcessPostStateInactive() {
 
 func (tcm *TcMachine) ProcessPostStateLearning() {
 	p := tcm.p
-	if tcm.Machine.Curr.CurrentState() == TcStateLearning &&
-		(p.Role == PortRoleRootPort || p.Role == PortRoleDesignatedPort) &&
-		p.Forward &&
-		!p.OperEdge {
-		if p.Role == PortRoleRootPort {
-			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleEqualRootPortAndForwardAndNotOperEdge, nil)
+	if tcm.Machine.Curr.CurrentState() == TcStateLearning {
+
+		if (p.Role == PortRoleRootPort || p.Role == PortRoleDesignatedPort) &&
+			p.Forward &&
+			!p.OperEdge {
+			if p.Role == PortRoleRootPort {
+				rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleEqualRootPortAndForwardAndNotOperEdge, nil)
+				if rv != nil {
+					StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, TcEventRoleEqualRootPortAndForwardAndNotOperEdge, TcStateStrMap[tcm.Machine.Curr.CurrentState()]))
+				} else {
+					tcm.ProcessPostStateProcessing()
+				}
+			} else {
+				rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, nil)
+				if rv != nil {
+					StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, TcStateStrMap[tcm.Machine.Curr.CurrentState()]))
+				} else {
+					tcm.ProcessPostStateProcessing()
+				}
+			}
+		} else if p.RcvdTc {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTc, nil)
 			if rv != nil {
-				StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, TcEventRoleEqualRootPortAndForwardAndNotOperEdge, TcStateStrMap[tcm.Machine.Curr.CurrentState()]))
+				StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, TcStateStrMap[tcm.Machine.Curr.CurrentState()]))
 			} else {
 				tcm.ProcessPostStateProcessing()
 			}
-		} else {
-			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, nil)
+		} else if p.RcvdTcn {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTcn, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, TcStateStrMap[tcm.Machine.Curr.CurrentState()]))
+			} else {
+				tcm.ProcessPostStateProcessing()
+			}
+		} else if p.RcvdTcAck {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventRcvdTcAck, nil)
+			if rv != nil {
+				StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, TcStateStrMap[tcm.Machine.Curr.CurrentState()]))
+			} else {
+				tcm.ProcessPostStateProcessing()
+			}
+		} else if p.TcProp {
+			rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventTcProp, nil)
 			if rv != nil {
 				StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, TcEventRoleEqualDesignatedPortAndForwardAndNotOperEdge, TcStateStrMap[tcm.Machine.Curr.CurrentState()]))
 			} else {
@@ -521,7 +531,7 @@ func (tcm *TcMachine) ProcessPostStateAcknowledged() {
 	if tcm.Machine.Curr.CurrentState() == TcStateAcknowledged {
 		rv := tcm.Machine.ProcessEvent(TcMachineModuleStr, TcEventUnconditionalFallThrough, nil)
 		if rv != nil {
-			StpMachineLogger("ERROR", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, TcEventUnconditionalFallThrough, TcStateStrMap[tcm.Machine.Curr.CurrentState()]))
+			StpMachineLogger("ERROR", TcMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, TcEventUnconditionalFallThrough, TcStateStrMap[tcm.Machine.Curr.CurrentState()]))
 		} else {
 			tcm.ProcessPostStateProcessing()
 		}
@@ -553,15 +563,13 @@ func (tcm *TcMachine) FlushFdb() {
 	// or adjust timer to flush once flushing
 	// is complete lets clear FdbFlush and
 	// send event to TCM
-	// TODO work out mechanism with asicd
-	//var delay time.Duration = time.Second * 1
 	for _, client := range GetAsicDPluginList() {
-		client.FlushStgFdb(p.b.StgId)
+		client.FlushStgFdb(p.b.StgId, p.IfIndex)
 	}
-	//time.Sleep(delay)
-	StpMachineLogger("INFO", PtxmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "FDB Flush")
+	StpMachineLogger("DEBUG", TcMachineModuleStr, p.IfIndex, p.BrgIfIndex, "FDB Flush")
 	p.FdbFlush = false
 	if p.Learn &&
+		p.TcMachineFsm != nil &&
 		p.TcMachineFsm.Machine.Curr.CurrentState() == TcStateInactive {
 		p.TcMachineFsm.TcEvents <- MachineEvent{
 			e:   TcEventLearnAndNotFdbFlush,
@@ -658,9 +666,10 @@ func (tcm *TcMachine) newTcWhile() (newinfonotificationsent bool) {
 	newinfonotificationsent = false
 	if p.TcWhileTimer.count == 0 {
 		if p.SendRSTP {
-			p.TcWhileTimer.count = BridgeHelloTimeDefault + 2
+			p.TcWhileTimer.count = BridgeHelloTimeDefault + 1
 			defer tcm.NotifyNewInfoChanged(p.NewInfo, true)
 			newinfonotificationsent = true
+			p.NewInfo = true
 		} else {
 			p.TcWhileTimer.count = int32(p.PortTimes.MaxAge + p.PortTimes.ForwardingDelay)
 		}
@@ -678,7 +687,7 @@ func (tcm *TcMachine) setTcPropTree() {
 		if pId != p.IfIndex &&
 			StpFindPortByIfIndex(pId, b.BrgIfIndex, &port) {
 			port.TcMachineFsm.NotifyTcPropChanged(port.TcProp, true)
-			port.TcProp = true
+			port.TcProp = false
 		}
 	}
 }

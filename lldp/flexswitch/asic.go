@@ -103,11 +103,10 @@ func (p *AsicPlugin) getPortStates() []*config.PortInfo {
 	currMarker := int64(asicdCommonDefs.MIN_SYS_PORTS)
 	more := false
 	objCount := 0
-	count := 10
+	count := 500
 	portStates := make([]*config.PortInfo, 0)
 	for {
-		bulkInfo, err := p.asicdClient.GetBulkPortState(
-			asicdServices.Int(currMarker), asicdServices.Int(count))
+		bulkInfo, err := p.asicdClient.GetBulkPortState(asicdServices.Int(currMarker), asicdServices.Int(count))
 		if err != nil {
 			debug.Logger.Err(fmt.Sprintln(": getting bulk port config"+
 				" from asicd failed with reason", err))
@@ -122,9 +121,9 @@ func (p *AsicPlugin) getPortStates() []*config.PortInfo {
 			port := &config.PortInfo{
 				IfIndex:   obj.IfIndex,
 				OperState: obj.OperState,
-				Name:      obj.Name,
+				Name:      obj.IntfRef, //obj.Name,
 			}
-			pObj, err := p.asicdClient.GetPort(obj.Name)
+			pObj, err := p.asicdClient.GetPort(obj.IntfRef) //obj.Name)
 			if err != nil {
 				debug.Logger.Err(fmt.Sprintln("Getting mac address for",
 					obj.Name, "failed, error:", err))
@@ -132,6 +131,8 @@ func (p *AsicPlugin) getPortStates() []*config.PortInfo {
 				port.MacAddr = pObj.MacAddr
 				port.Description = pObj.Description
 			}
+			debug.Logger.Debug("Adding port Name, OperState, IfIndex:", port.Name, port.OperState, port.IfIndex,
+				"to portStates")
 			portStates = append(portStates, port)
 		}
 		if more == false {
@@ -181,7 +182,6 @@ func (p *AsicPlugin) connectSubSocket() error {
 
 func (p *AsicPlugin) listenAsicdUpdates() {
 	for {
-		debug.Logger.Debug(" Read on Asic Subscriber socket....")
 		rxBuf, err := p.asicdSubSocket.Recv(0)
 		if err != nil {
 			debug.Logger.Err(fmt.Sprintln(
@@ -199,10 +199,11 @@ func (p *AsicPlugin) listenAsicdUpdates() {
 			var l2IntfStateNotifyMsg asicdCommonDefs.L2IntfStateNotifyMsg
 			err = json.Unmarshal(msg.Msg, &l2IntfStateNotifyMsg)
 			if err != nil {
-				debug.Logger.Err(fmt.Sprintln("Unable to Unmarshal l2 intf",
-					"state change:", msg.Msg))
+				debug.Logger.Err("Unable to Unmarshal l2 intf state change:", msg.Msg)
 				continue
 			}
+			debug.Logger.Debug("Got Notification from Asicd Subscriber socket for ifIndex:", l2IntfStateNotifyMsg.IfIndex,
+				"State:", l2IntfStateNotifyMsg.IfState)
 			if l2IntfStateNotifyMsg.IfState == asicdCommonDefs.INTF_STATE_UP {
 				api.SendPortStateChange(l2IntfStateNotifyMsg.IfIndex, "UP")
 			} else {

@@ -97,6 +97,7 @@ func UsedForTestOnlyPtxTestSetup(stpconfig *StpPortConfig, t *testing.T) (p *Stp
 
 	// create a port
 	p = NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// lets only start the Port Receive State Machine
 	p.PtxmMachineMain()
@@ -169,8 +170,13 @@ func UsedForTestOnlyPtxTestTeardown(p *StpPort, t *testing.T) {
 	p.PpmmMachineFsm = nil
 	p.b.PrsMachineFsm = nil
 	b := p.b
-	DelStpPort(p)
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
 
+	DelStpPort(p)
 	DelStpBridge(b, true)
 }
 
@@ -181,7 +187,7 @@ func TestTxHelloWhenEqualZeroTransmitRSTP(t *testing.T) {
 	testWait := make(chan bool)
 	testChan := make(chan string)
 	ifname, _ := PortConfigMap[PTX_TEST_RX_PORT_CONFIG_IFINDEX]
-	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	handle, err := pcap.OpenLive(ifname.Name, 65536, true, 50*time.Millisecond)
 	if err != nil {
 		t.Error("Error opening pcap TX interface", PTX_TEST_RX_PORT_CONFIG_IFINDEX, ifname.Name, err)
 		return
@@ -270,7 +276,7 @@ func TestTxHelloWhenEqualZeroTransmitSTP(t *testing.T) {
 	testWait := make(chan bool)
 	testChan := make(chan string)
 	ifname, _ := PortConfigMap[PTX_TEST_RX_PORT_CONFIG_IFINDEX]
-	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	handle, err := pcap.OpenLive(ifname.Name, 65536, true, 50*time.Millisecond)
 	if err != nil {
 		t.Error("Error opening pcap TX interface", PTX_TEST_RX_PORT_CONFIG_IFINDEX, ifname.Name, err)
 		return
@@ -359,7 +365,7 @@ func TestTxHelloWhenEqualZeroTransmitTCN(t *testing.T) {
 	testWait := make(chan bool)
 	testChan := make(chan string)
 	ifname, _ := PortConfigMap[PTX_TEST_RX_PORT_CONFIG_IFINDEX]
-	handle, err := pcap.OpenLive(ifname.Name, 65536, false, 50*time.Millisecond)
+	handle, err := pcap.OpenLive(ifname.Name, 65536, true, 50*time.Millisecond)
 	if err != nil {
 		t.Error("Error opening pcap TX interface", PTX_TEST_RX_PORT_CONFIG_IFINDEX, ifname.Name, err)
 		return

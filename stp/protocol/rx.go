@@ -28,9 +28,10 @@ package stp
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"reflect"
 )
 
 const RxModuleStr = "Rx Module STP"
@@ -42,7 +43,7 @@ func BpduRxMain(pId int32, bId int32, rxPktChan chan gopacket.Packet) {
 		rxMainPort := portId
 		rxMainBrg := bId
 		rxMainChan := rx
-		StpLogger("INFO", "RxMain START")
+		StpLogger("DEBUG", "RxMain START")
 		for {
 			select {
 			case packet, ok := <-rxMainChan:
@@ -62,13 +63,13 @@ func BpduRxMain(pId int32, bId int32, rxPktChan chan gopacket.Packet) {
 						}
 					}
 				} else {
-					StpLogger("INFO", "RXMAIN: Channel closed")
+					StpLogger("DEBUG", "RXMAIN: Channel closed")
 					return
 				}
 			}
 		}
 
-		StpLogger("INFO", "RXMAIN go routine end")
+		StpLogger("DEBUG", "RXMAIN go routine end")
 	}(pId, bId, rxPktChan)
 }
 

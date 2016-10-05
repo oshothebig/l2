@@ -72,8 +72,6 @@ type PtmMachine struct {
 
 	// machine specific events
 	PtmEvents chan MachineEvent
-	// stop go routine
-	PtmKillSignalEvent chan MachineEvent
 	// enable logging
 	PtmLogEnableEvent chan bool
 }
@@ -94,11 +92,10 @@ func (ptm *PtmMachine) PrevStateSet(s fsm.State) { ptm.PreviousState = s }
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewStpPtmMachine(p *StpPort) *PtmMachine {
 	ptm := &PtmMachine{
-		p:                  p,
-		PreviousState:      PtmStateNone,
-		PtmEvents:          make(chan MachineEvent, 50),
-		PtmKillSignalEvent: make(chan MachineEvent, 1),
-		PtmLogEnableEvent:  make(chan bool)}
+		p:                 p,
+		PreviousState:     PtmStateNone,
+		PtmEvents:         make(chan MachineEvent, 50),
+		PtmLogEnableEvent: make(chan bool)}
 
 	// start then stop
 	ptm.TickTimerStart()
@@ -110,7 +107,7 @@ func NewStpPtmMachine(p *StpPort) *PtmMachine {
 }
 
 func (ptm *PtmMachine) PtmLogger(s string) {
-	//StpMachineLogger("INFO", PtmMachineModuleStr, ptm.p.IfIndex, s)
+	//StpMachineLogger("DEBUG", PtmMachineModuleStr, ptm.p.IfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -136,25 +133,8 @@ func (ptm *PtmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 
 // Stop should clean up all resources
 func (ptm *PtmMachine) Stop() {
-
 	ptm.TickTimerDestroy()
-
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if ptm.Machine.Curr.CurrentState() != PtmStateNone {
-		wait := make(chan string, 1)
-		// stop the go routine
-		ptm.PtmKillSignalEvent <- MachineEvent{
-			e:            PtmEventBegin,
-			responseChan: wait,
-		}
-		<-wait
-	}
-
 	close(ptm.PtmEvents)
-	close(ptm.PtmLogEnableEvent)
-	close(ptm.PtmKillSignalEvent)
 
 }
 
@@ -215,17 +195,10 @@ func (p *StpPort) PtmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PtmMachine) {
-		StpMachineLogger("INFO", PtmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PtmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event := <-m.PtmKillSignalEvent:
-				StpMachineLogger("INFO", PtmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
-				if event.responseChan != nil {
-					SendResponse(PtmMachineModuleStr, event.responseChan)
-				}
-				return
-
 			case <-m.TickTimer.C:
 				m.Tick = true
 				m.Machine.ProcessEvent(PtmMachineModuleStr, PtmEventTickEqualsTrue, nil)
@@ -238,14 +211,18 @@ func (p *StpPort) PtmMachineMain() {
 				// restart the timer
 				m.TickTimerStart()
 
-			case event := <-m.PtmEvents:
+			case event, ok := <-m.PtmEvents:
 
-				m.Machine.ProcessEvent(event.src, event.e, nil)
+				if ok {
+					m.Machine.ProcessEvent(event.src, event.e, nil)
 
-				if event.responseChan != nil {
-					SendResponse(PtmMachineModuleStr, event.responseChan)
+					if event.responseChan != nil {
+						SendResponse(PtmMachineModuleStr, event.responseChan)
+					}
+				} else {
+					StpMachineLogger("DEBUG", PtmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					return
 				}
-
 			case ena := <-m.PtmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}

@@ -13,22 +13,24 @@
 //	 See the License for the specific language governing permissions and
 //	 limitations under the License.
 //
-// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __  
-// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  | 
-// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  | 
-// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   | 
-// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  | 
-// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__| 
-//                                                                                                           
+// _______  __       __________   ___      _______.____    __    ____  __  .___________.  ______  __    __
+// |   ____||  |     |   ____\  \ /  /     /       |\   \  /  \  /   / |  | |           | /      ||  |  |  |
+// |  |__   |  |     |  |__   \  V  /     |   (----` \   \/    \/   /  |  | `---|  |----`|  ,----'|  |__|  |
+// |   __|  |  |     |   __|   >   <       \   \      \            /   |  |     |  |     |  |     |   __   |
+// |  |     |  `----.|  |____ /  .  \  .----)   |      \    /\    /    |  |     |  |     |  `----.|  |  |  |
+// |__|     |_______||_______/__/ \__\ |_______/        \__/  \__/     |__|     |__|      \______||__|  |__|
+//
 
 package packet
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	_ "github.com/google/gopacket/pcap"
+	"l2/lldp/config"
 	"l2/lldp/utils"
 	"net"
 	"time"
@@ -65,66 +67,82 @@ func (p *RX) VerifyFrame(lldpInfo *layers.LinkLayerDiscovery) error {
 	return nil
 }
 
-func (p *RX) Process(gblInfo *RX, pkt gopacket.Packet) error {
+func (p *RX) Process(rxInfo *RX, pkt gopacket.Packet) (int, error) {
+	event := config.NoOp
 	ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
 	if ethernetLayer == nil {
-		return errors.New("Invalid eth layer")
+		return event, errors.New("Invalid eth layer")
 	}
 	eth := ethernetLayer.(*layers.Ethernet)
 	// copy src mac and dst mac
-	gblInfo.SrcMAC = eth.SrcMAC
-	if gblInfo.DstMAC.String() != eth.DstMAC.String() {
-		return errors.New("Invalid DST MAC in rx frame")
+	rxInfo.SrcMAC = eth.SrcMAC
+	if rxInfo.DstMAC.String() != eth.DstMAC.String() {
+		return event, errors.New("Invalid DST MAC in rx frame")
 	}
 	// Get lldp manadatory layer and optional info
 	lldpLayer := pkt.Layer(layers.LayerTypeLinkLayerDiscovery)
 	lldpLayerInfo := pkt.Layer(layers.LayerTypeLinkLayerDiscoveryInfo)
 	// Verify that the information is not nil
 	if lldpLayer == nil || lldpLayerInfo == nil {
-		return errors.New("Invalid Frame")
+		return event, errors.New("Invalid Frame")
 	}
 
 	// Verify that the mandatory layer info is indeed correct
 	err := p.VerifyFrame(lldpLayer.(*layers.LinkLayerDiscovery))
 	if err != nil {
-		return err
+		return event, err
 	}
-	if gblInfo.RxFrame == nil {
-		gblInfo.RxFrame = new(layers.LinkLayerDiscovery)
+	// Update last packet byte for cacheing...
+	if len(rxInfo.LastPkt) == 0 || rxInfo.LastPkt == nil {
+		//this is new cache set event state to be learned
+		rxInfo.LastPkt = pkt.Data()
+		event = config.Learned
+	} else {
+		// if incoming packet has difference then it means that we need to publish event
+		if bytes.Compare(rxInfo.LastPkt, pkt.Data()) != 0 {
+			event = config.Updated
+		}
+	}
+
+	if rxInfo.RxFrame == nil {
+		rxInfo.RxFrame = new(layers.LinkLayerDiscovery)
 	}
 	// Store lldp frame information received from direct connection
-	*gblInfo.RxFrame = *lldpLayer.(*layers.LinkLayerDiscovery)
+	*rxInfo.RxFrame = *lldpLayer.(*layers.LinkLayerDiscovery)
 
-	if gblInfo.RxLinkInfo == nil {
-		gblInfo.RxLinkInfo = new(layers.LinkLayerDiscoveryInfo)
+	if rxInfo.RxLinkInfo == nil {
+		rxInfo.RxLinkInfo = new(layers.LinkLayerDiscoveryInfo)
 	}
 	// Store lldp link layer optional tlv information
-	*gblInfo.RxLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
-	return nil
+	*rxInfo.RxLinkInfo = *lldpLayerInfo.(*layers.LinkLayerDiscoveryInfo)
+
+	return event, nil
 }
 
 /*
  *  Handle TTL timer. Once the timer expires, we will delete the remote entry
  *  if timer is running then reset the value
  */
-func (gblInfo *RX) CheckPeerEntry(port string) {
-	if gblInfo.ClearCacheTimer != nil {
+func (rxInfo *RX) CheckPeerEntry(port string, eCh chan config.EventInfo, ifIndex int32) {
+	if rxInfo.ClearCacheTimer != nil {
 		// timer is running reset the time so that it doesn't expire
-		gblInfo.ClearCacheTimer.Reset(time.Duration(
-			gblInfo.RxFrame.TTL) * time.Second)
+		rxInfo.ClearCacheTimer.Reset(time.Duration(rxInfo.RxFrame.TTL) * time.Second)
 	} else {
 		var clearPeerInfo_func func()
 		// On timer expiration we will delete peer info and set it to nil
 		clearPeerInfo_func = func() {
-			debug.Logger.Info("Recipient info delete timer expired for " +
-				"peer connected to port " + port +
-				" and hence deleting peer information from runtime")
-			gblInfo.RxFrame = nil
-			gblInfo.RxLinkInfo = nil
+			debug.Logger.Info("Recipient info delete timer expired for " + "peer connected to port " +
+				port + " and hence deleting peer information from runtime")
+			rxInfo.RxFrame = nil
+			rxInfo.RxLinkInfo = nil
+			rxInfo.LastPkt = nil
+			eCh <- config.EventInfo{
+				EventType: config.Removed,
+				IfIndex:   ifIndex,
+			}
 		}
 		// First time start function
-		gblInfo.ClearCacheTimer = time.AfterFunc(
-			time.Duration(gblInfo.RxFrame.TTL)*time.Second,
+		rxInfo.ClearCacheTimer = time.AfterFunc(time.Duration(rxInfo.RxFrame.TTL)*time.Second,
 			clearPeerInfo_func)
 	}
 }

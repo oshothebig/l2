@@ -25,9 +25,8 @@ package server
 
 import (
 	"errors"
-	"fmt"
+	_ "fmt"
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/pcap"
 	"l2/lldp/utils"
 	"time"
 )
@@ -35,94 +34,47 @@ import (
 /* Go routine to recieve lldp frames. This go routine is created for all the
  * ports which are in up state.
  */
-func (svr *LLDPServer) ReceiveFrames(pHandle *pcap.Handle, ifIndex int32) {
-	pktSrc := gopacket.NewPacketSource(pHandle, pHandle.LinkType())
+func (intf *LLDPGlobalInfo) ReceiveFrames(lldpRxPktCh chan InPktChannel) {
+	pktSrc := gopacket.NewPacketSource(intf.PcapHandle, intf.PcapHandle.LinkType())
 	in := pktSrc.Packets()
 	// process packets
-	gblInfo, exists := svr.lldpGblInfo[ifIndex]
-	if !exists {
-		debug.Logger.Info(fmt.Sprintln("No Entry for", ifIndex, "terminate go routine"))
-		return
-	}
-	quit := gblInfo.RxKill
 	for {
-		// check if rx channel is still valid or not
-		if svr.lldpRxPktCh == nil {
-			return
-		}
 		select {
 		case pkt, ok := <-in:
-			//default:
-			if !ok {
-				debug.Logger.Info(fmt.Sprintln("Channel closed for ifIndex", ifIndex,
-					"exiting go routine"))
-				return
+			if ok {
+				lldpRxPktCh <- InPktChannel{pkt, intf.Port.IfIndex}
 			}
-
-			// process packets
-			gblInfo, exists := svr.lldpGblInfo[ifIndex]
-			if !exists {
-				debug.Logger.Info(fmt.Sprintln("No Entry for", ifIndex, "terminate go routine"))
-				return
-			}
-
-			// When StopRxTx is called for an interface, we will set the state to be disabled always or is
-			// LLDP is disabled globally (something like no feature lldp) then we will exit out of
-			// go routine and let StopRxTx worry about pcap handler
-			if gblInfo.isDisabled() || !svr.Global.Enable {
-				debug.Logger.Info("rx frame port " + gblInfo.Port.Name + "disabled exit go routine")
-				return
-			}
-			// pcap will be closed only in two places
-			// 1) during interface state down
-			// 2) during os exit
-			// Because this is read we do not need to worry about
-			// doing any locks...
-			if gblInfo.PcapHandle == nil {
-				debug.Logger.Info("Pcap closed terminate go routine for " + gblInfo.Port.Name)
-				return
-			}
-			svr.lldpRxPktCh <- InPktChannel{
-				pkt:     pkt,
-				ifIndex: ifIndex,
-			}
-		case <-quit:
-			debug.Logger.Info(fmt.Sprintln("quit for ifIndex", ifIndex, "rx exiting go routine"))
+		case <-intf.RxKill:
+			debug.Logger.Info("quit for ifIndex", intf.Port.Name, "rx exiting go routine")
+			intf.RxKill <- true
 			return
 		}
 	}
 }
 
 /*  lldp server go routine to handle tx timer... once the timer fires we will
-*  send the ifindex on the channel to handle send info
+ *  send the ifindex on the channel to handle send info
+ *
+ *  For fast learning we will send out 5 frames in 5 seconds and then every 30 seconds an update frame will
+ *  be send out
  */
-func (svr *LLDPServer) TransmitFrames(ifIndex int32) {
-	var TxTimerHandler_func func()
-	TxTimerHandler_func = func() {
-		svr.lldpTxPktCh <- SendPktChannel{
-			ifIndex: ifIndex,
+func (intf *LLDPGlobalInfo) StartTxTimer(lldpTxPktCh chan SendPktChannel) {
+	if intf.TxInfo.TxTimer != nil {
+		if intf.counter.Send > LLDP_FAST_LEARN_MAX_FRAMES_SEND {
+			intf.TxInfo.TxTimer.Reset(time.Duration(intf.TxInfo.MessageTxInterval) * time.Second)
+		} else {
+			intf.TxInfo.TxTimer.Reset(time.Duration(LLDP_FAST_LEARN_TIMER) * time.Second)
 		}
-		gblInfo, exists := svr.lldpGblInfo[ifIndex]
-		if !exists {
-			debug.Logger.Info(fmt.Sprintln("No Entry for", ifIndex, "terminate go routine"))
-			return
+	} else {
+		var TxTimerHandler_func func()
+		TxTimerHandler_func = func() {
+			lldpTxPktCh <- SendPktChannel{intf.Port.IfIndex}
 		}
-		// Wait until the packet is send out on the wire... Once done then reset the timer and
-		// update global info again
-		<-gblInfo.TxDone
-		gblInfo.TxInfo.TxTimer.Reset(time.Duration(gblInfo.TxInfo.MessageTxInterval) * time.Second)
-		svr.lldpGblInfo[ifIndex] = gblInfo
-	}
-	// Create an After Func and go routine for it, so that on timer stop TX is stopped automatically
-	gblInfo, exists := svr.lldpGblInfo[ifIndex]
-	if !exists {
-		debug.Logger.Info(fmt.Sprintln("No Entry for", ifIndex, "terminate go routine"))
-		return
-	}
 
-	gblInfo.TxInfo.TxTimer = time.AfterFunc(time.Duration(gblInfo.TxInfo.MessageTxInterval)*time.Second,
-		TxTimerHandler_func)
-	svr.lldpGblInfo[ifIndex] = gblInfo
+		// Create an After Func and go routine for it, so that on timer stop TX is stopped automatically
+		intf.TxInfo.TxTimer = time.AfterFunc(time.Duration(LLDP_FAST_LEARN_TIMER)*time.Second,
+			TxTimerHandler_func)
+	}
 }
 
 /*  Write packet is helper function to send packet on wire.
@@ -130,19 +82,18 @@ func (svr *LLDPServer) TransmitFrames(ifIndex int32) {
  *  and cache the pkt or else do not cache the packet as it is corrupted or there
  *  was some error
  */
-func (gblInfo *LLDPGlobalInfo) WritePacket(pkt []byte) bool {
+func (intf *LLDPGlobalInfo) WritePacket(pkt []byte) bool {
 	var err error
 	if len(pkt) == 0 {
 		return false
 	}
-	if gblInfo.PcapHandle != nil {
-		err = gblInfo.PcapHandle.WritePacketData(pkt)
+	if intf.PcapHandle != nil {
+		err = intf.PcapHandle.WritePacketData(pkt)
 	} else {
-		err = errors.New("Pcap Handle is invalid for " + gblInfo.Port.Name)
+		err = errors.New("Pcap Handle is invalid for " + intf.Port.Name)
 	}
 	if err != nil {
-		debug.Logger.Err(fmt.Sprintln("Sending packet failed Error:",
-			err, "for Port:", gblInfo.Port.Name))
+		debug.Logger.Err("Sending packet failed Error:", err, "for Port:", intf.Port.Name)
 		return false
 	}
 	return true

@@ -72,8 +72,6 @@ type BdmMachine struct {
 
 	// machine specific events
 	BdmEvents chan MachineEvent
-	// stop go routine
-	BdmKillSignalEvent chan MachineEvent
 	// enable logging
 	BdmLogEnableEvent chan bool
 }
@@ -89,10 +87,9 @@ func (m *BdmMachine) GetPrevStateStr() string {
 // NewStpPimMachine will create a new instance of the LacpRxMachine
 func NewStpBdmMachine(p *StpPort) *BdmMachine {
 	bdm := &BdmMachine{
-		p:                  p,
-		BdmEvents:          make(chan MachineEvent, 50),
-		BdmKillSignalEvent: make(chan MachineEvent, 1),
-		BdmLogEnableEvent:  make(chan bool)}
+		p:                 p,
+		BdmEvents:         make(chan MachineEvent, 50),
+		BdmLogEnableEvent: make(chan bool)}
 
 	p.BdmMachineFsm = bdm
 
@@ -100,7 +97,7 @@ func NewStpBdmMachine(p *StpPort) *BdmMachine {
 }
 
 func (bdm *BdmMachine) BdmLogger(s string) {
-	StpMachineLogger("INFO", "BDM", bdm.p.IfIndex, bdm.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", "BDM", bdm.p.IfIndex, bdm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -127,25 +124,8 @@ func (bdm *BdmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (bdm *BdmMachine) Stop() {
 
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if bdm.Machine.Curr.CurrentState() != BdmStateNone {
-		wait := make(chan string, 1)
-
-		// stop the go routine
-		bdm.BdmKillSignalEvent <- MachineEvent{
-			e:            BdmEventBeginAdminEdge,
-			responseChan: wait,
-		}
-
-		<-wait
-	}
-
 	close(bdm.BdmEvents)
 	close(bdm.BdmLogEnableEvent)
-	close(bdm.BdmKillSignalEvent)
-
 }
 
 // BdmMachineEdge
@@ -217,34 +197,33 @@ func (p *StpPort) BdmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *BdmMachine) {
-		StpMachineLogger("INFO", "BDM", p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", "BDM", p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event := <-m.BdmKillSignalEvent:
-				StpMachineLogger("INFO", "BDM", p.IfIndex, p.BrgIfIndex, "Machine End")
-				if event.responseChan != nil {
-					SendResponse(BdmMachineModuleStr, event.responseChan)
-				}
-				return
 
-			case event := <-m.BdmEvents:
+			case event, ok := <-m.BdmEvents:
 
-				if m.Machine.Curr.CurrentState() == BdmStateNone && (event.e != BdmEventBeginAdminEdge && event.e != BdmEventBeginNotAdminEdge) {
-					m.BdmEvents <- event
-					break
-				}
+				if ok {
+					if m.Machine.Curr.CurrentState() == BdmStateNone && (event.e != BdmEventBeginAdminEdge && event.e != BdmEventBeginNotAdminEdge) {
+						m.BdmEvents <- event
+						break
+					}
 
-				//fmt.Println("Event Rx", event.src, event.e)
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
-				if rv != nil {
-					StpMachineLogger("ERROR", "BDM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, BdmStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+					//fmt.Println("Event Rx", event.src, event.e)
+					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					if rv != nil {
+						StpMachineLogger("ERROR", "BDM", p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s src[%s]state[%s]event[%d]\n", rv, event.src, BdmStateStrMap[m.Machine.Curr.CurrentState()], event.e))
+					} else {
+						m.ProcessPostStateProcessing()
+					}
+
+					if event.responseChan != nil {
+						SendResponse(BdmMachineModuleStr, event.responseChan)
+					}
 				} else {
-					m.ProcessPostStateProcessing()
-				}
-
-				if event.responseChan != nil {
-					SendResponse(BdmMachineModuleStr, event.responseChan)
+					StpMachineLogger("DEBUG", "BDM", p.IfIndex, p.BrgIfIndex, "Machine End")
+					return
 				}
 
 			case ena := <-m.BdmLogEnableEvent:

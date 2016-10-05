@@ -77,8 +77,6 @@ type PpmmMachine struct {
 
 	// machine specific events
 	PpmmEvents chan MachineEvent
-	// stop go routine
-	PpmmKillSignalEvent chan MachineEvent
 	// enable logging
 	PpmmLogEnableEvent chan bool
 }
@@ -94,10 +92,9 @@ func (m *PpmmMachine) GetPrevStateStr() string {
 // NewLacpRxMachine will create a new instance of the LacpRxMachine
 func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 	ppmm := &PpmmMachine{
-		p:                   p,
-		PpmmEvents:          make(chan MachineEvent, 50),
-		PpmmKillSignalEvent: make(chan MachineEvent, 1),
-		PpmmLogEnableEvent:  make(chan bool)}
+		p:                  p,
+		PpmmEvents:         make(chan MachineEvent, 50),
+		PpmmLogEnableEvent: make(chan bool)}
 
 	p.PpmmMachineFsm = ppmm
 
@@ -105,7 +102,7 @@ func NewStpPpmmMachine(p *StpPort) *PpmmMachine {
 }
 
 func (ppm *PpmmMachine) PpmLogger(s string) {
-	StpMachineLogger("INFO", PpmmMachineModuleStr, ppm.p.IfIndex, ppm.p.BrgIfIndex, s)
+	StpMachineLogger("DEBUG", PpmmMachineModuleStr, ppm.p.IfIndex, ppm.p.BrgIfIndex, s)
 }
 
 // A helpful function that lets us apply arbitrary rulesets to this
@@ -119,7 +116,7 @@ func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 	ppmm.Machine.Rules = r
 	ppmm.Machine.Curr = &StpStateEvent{
 		strStateMap: PpmmStateStrMap,
-		logEna:      false,
+		logEna:      true,
 		logger:      ppmm.PpmLogger,
 		owner:       PpmmMachineModuleStr,
 		ps:          PpmmStateNone,
@@ -132,22 +129,8 @@ func (ppmm *PpmmMachine) Apply(r *fsm.Ruleset) *fsm.Machine {
 // Stop should clean up all resources
 func (ppmm *PpmmMachine) Stop() {
 
-	// special case found during unit testing that if
-	// we don't init the go routine then this event will hang
-	// will not happen under normal conditions
-	if ppmm.Machine.Curr.CurrentState() != PpmmStateNone {
-		wait := make(chan string, 1)
-		// stop the go routine
-		ppmm.PpmmKillSignalEvent <- MachineEvent{
-			e:            PpmmEventBegin,
-			responseChan: wait,
-		}
-		<-wait
-	}
-
 	close(ppmm.PpmmEvents)
 	close(ppmm.PpmmLogEnableEvent)
-	close(ppmm.PpmmKillSignalEvent)
 
 }
 
@@ -297,38 +280,36 @@ func (p *StpPort) PpmmMachineMain() {
 	// lets create a go routing which will wait for the specific events
 	// that the Port Timer State Machine should handle
 	go func(m *PpmmMachine) {
-		StpMachineLogger("INFO", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
+		StpMachineLogger("DEBUG", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine Start")
 		defer m.p.wg.Done()
 		for {
 			select {
-			case event := <-m.PpmmKillSignalEvent:
-				StpMachineLogger("INFO", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
-				if event.responseChan != nil {
-					SendResponse(PpmmMachineModuleStr, event.responseChan)
-				}
-				return
 
-			case event := <-m.PpmmEvents:
+			case event, ok := <-m.PpmmEvents:
 
-				if m.Machine.Curr.CurrentState() == PpmmStateNone && event.e != PpmmEventBegin {
-					m.PpmmEvents <- event
-					break
-				}
+				if ok {
+					if m.Machine.Curr.CurrentState() == PpmmStateNone && event.e != PpmmEventBegin {
+						m.PpmmEvents <- event
+						break
+					}
 
-				//fmt.Println("Event Rx", event.src, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()])
-				rv := m.Machine.ProcessEvent(event.src, event.e, nil)
-				if rv != nil {
-					StpMachineLogger("INFO", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()]))
+					//fmt.Println("Event Rx", event.src, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()])
+					rv := m.Machine.ProcessEvent(event.src, event.e, nil)
+					if rv != nil {
+						StpMachineLogger("DEBUG", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, fmt.Sprintf("%s event[%d] currState[%s]\n", rv, event.e, PpmmStateStrMap[m.Machine.Curr.CurrentState()]))
+					} else {
+
+						// post processing
+						m.ProcessPostStateProcessing()
+					}
+
+					if event.responseChan != nil {
+						SendResponse(PpmmMachineModuleStr, event.responseChan)
+					}
 				} else {
-
-					// post processing
-					m.ProcessPostStateProcessing()
+					StpMachineLogger("DEBUG", PpmmMachineModuleStr, p.IfIndex, p.BrgIfIndex, "Machine End")
+					return
 				}
-
-				if event.responseChan != nil {
-					SendResponse(PpmmMachineModuleStr, event.responseChan)
-				}
-
 			case ena := <-m.PpmmLogEnableEvent:
 				m.Machine.Curr.EnableLogging(ena)
 			}

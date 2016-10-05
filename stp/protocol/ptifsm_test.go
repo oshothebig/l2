@@ -75,6 +75,7 @@ func UsedForTestOnlyPtmTestSetup(t *testing.T) (p *StpPort) {
 
 	// create a port
 	p = NewStpPort(stpconfig)
+	b.StpPorts = append(b.StpPorts, p.IfIndex)
 
 	// start timer tick machine
 	p.PtmMachineMain()
@@ -82,7 +83,9 @@ func UsedForTestOnlyPtmTestSetup(t *testing.T) (p *StpPort) {
 	// lets not start the main routines for the other state machines
 	p.BEGIN(true)
 
-	p.PollingTimer.Stop()
+	if p.PollingTimer != nil {
+		p.PollingTimer.Stop()
+	}
 
 	// NOTE: must be called after BEGIN
 	// Lets Instatiate but not run the following Machines
@@ -138,6 +141,12 @@ func UsedForTestOnlyPtmTestTeardown(p *StpPort, t *testing.T) {
 
 	b := p.b
 	p.b.PrsMachineFsm = nil
+	for idx, ifindex := range b.StpPorts {
+		if ifindex == p.IfIndex {
+			b.StpPorts = append(b.StpPorts[:idx], b.StpPorts[idx+1:]...)
+		}
+	}
+
 	DelStpPort(p)
 	DelStpBridge(b, true)
 }
@@ -443,6 +452,85 @@ func TestPtmFdWhileTimerExpiredDesignatedPortRrwhileEqualZeroAndNotSyncAndLearnA
 	UsedForTestOnlyPtmTestTeardown(p, t)
 }
 
+func TestPtmFdWhileTimerExpiredDesignatedPortNotRerootAndNotSyncAndNotLearn(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.RstpVersion = true
+	p.FdWhileTimer.count = 1
+	p.ReRoot = false
+	p.Sync = false
+	p.Learn = false
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndNotLearnSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected")
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmFdWhileTimerExpiredDesignatedPortNotRerootAndNotSyncAndLearnAndNotForward(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.RstpVersion = true
+	p.FdWhileTimer.count = 1
+	p.ReRoot = false
+	p.Sync = false
+	p.Learn = true
+	p.Forward = false
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventFdWhileEqualZeroAndNotReRootAndNotSyncAndLearnAndNotForwardSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected")
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
 func TestPtmHelloWhenTimerExpired(t *testing.T) {
 
 	p := UsedForTestOnlyPtmTestSetup(t)
@@ -472,8 +560,8 @@ func TestPtmHelloWhenTimerExpired(t *testing.T) {
 	go func(p *StpPort) {
 		// lets sleep later than the tick timer 2 seconds should be enough
 		time.Sleep(time.Second * 2)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+		if p.PtxmMachineFsm != nil {
+			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 				e:   0, // invalid event
 				src: "TEST",
 			}
@@ -519,8 +607,8 @@ func TestPtmHelloWhenTimerNotEqualZeroSendRSTPNewInfoTxCountLessThanTxHoldCount(
 	go func(p *StpPort) {
 		// lets sleep later than the tick timer 2 seconds should be enough
 		time.Sleep(time.Second * 2)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+		if p.PtxmMachineFsm != nil {
+			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 				e:   0, // invalid event
 				src: "TEST",
 			}
@@ -566,8 +654,8 @@ func TestPtmHelloWhenTimerNotEqualZeroNotSendRSTPNewInfoRootPortTxCountLessThanT
 	go func(p *StpPort) {
 		// lets sleep later than the tick timer 2 seconds should be enough
 		time.Sleep(time.Second * 2)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+		if p.PtxmMachineFsm != nil {
+			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 				e:   0, // invalid event
 				src: "TEST",
 			}
@@ -588,7 +676,7 @@ func TestPtmHelloWhenTimerNotEqualZeroNotSendRSTPNewInfoDesignatedPortTxCountLes
 
 	// prequisite BDM Machine
 	p.PtxmMachineFsm.Machine.Curr.SetState(PtxmStateIdle)
-	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateRootPort)
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
 
 	// bdm event param requirements
 	p.Role = PortRoleDesignatedPort
@@ -613,8 +701,8 @@ func TestPtmHelloWhenTimerNotEqualZeroNotSendRSTPNewInfoDesignatedPortTxCountLes
 	go func(p *StpPort) {
 		// lets sleep later than the tick timer 2 seconds should be enough
 		time.Sleep(time.Second * 2)
-		if p.PrtMachineFsm != nil {
-			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+		if p.PtxmMachineFsm != nil {
+			p.PtxmMachineFsm.PtxmEvents <- MachineEvent{
 				e:   0, // invalid event
 				src: "TEST",
 			}
@@ -625,6 +713,736 @@ func TestPtmHelloWhenTimerNotEqualZeroNotSendRSTPNewInfoDesignatedPortTxCountLes
 	if event.e != PtxmEventNotSendRSTPAndNewInfoAndDesignatedPortAndTxCountLessThanTxHoldCountAndHellWhenNotEqualZeroAndSelectedAndNotUpdtInfo {
 		t.Error("ERROR: Error did not receive PTX Machine event as expected")
 	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmMdelayWhileTimerExpired_1(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PpmmMachineFsm.Machine.Curr.SetState(PpmmStateCheckingRSTP)
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.MdelayWhiletimer.count = 1
+	p.Mcheck = false
+	p.SendRSTP = true
+	p.NewInfo = true
+	p.Sync = true
+	p.Synced = true
+	p.Learn = true
+	p.Forward = true
+	p.Learning = true
+	p.Forwarding = true
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PpmmMachineFsm != nil {
+			p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PpmmMachineFsm.PpmmEvents
+	if event.e != PpmmEventMdelayWhileEqualZero {
+		t.Error("ERROR: Error did not receive PPM Machine event as expected")
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmMdelayWhileTimerExpired_2(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PpmmMachineFsm.Machine.Curr.SetState(PpmmStateSelectingSTP)
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.MdelayWhiletimer.count = 1
+	p.SendRSTP = false
+	p.NewInfo = true
+	p.Sync = true
+	p.Synced = true
+	p.Learn = true
+	p.Forward = true
+	p.Learning = true
+	p.Forwarding = true
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PpmmMachineFsm != nil {
+			p.PpmmMachineFsm.PpmmEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PpmmMachineFsm.PpmmEvents
+	if event.e != PpmmEventMdelayWhileEqualZero {
+		t.Error("ERROR: Error did not receive PPM Machine event as expected")
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRbWhileTimerExpired_1(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateRootPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleRootPort
+	p.SelectedRole = PortRoleRootPort
+	p.RbWhileTimer.count = 1
+	p.RrWhileTimer.count = int32(p.b.RootTimes.ForwardingDelay + 1)
+	p.ReRoot = true
+	p.SendRSTP = false
+	p.NewInfo = true
+	p.Sync = true
+	p.Synced = true
+	p.Learn = false
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndNotLearnAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRbWhileTimerExpired_2(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateRootPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleRootPort
+	p.SelectedRole = PortRoleRootPort
+	p.RbWhileTimer.count = 1
+	// set for purposes of rerooted
+	p.RrWhileTimer.count = int32(p.b.RootTimes.ForwardingDelay + 1)
+	p.ReRoot = true
+	p.SendRSTP = false
+	p.NewInfo = true
+	p.Sync = true
+	p.Synced = true
+	p.Learning = true
+	p.Learn = true
+	p.Forward = false
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventReRootedAndRbWhileEqualZeroAndRstpVersionAndLearnAndNotForwardAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRbWhileTimerNotEqualTwoTimesHelloTime(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateAlternatePort)
+
+	// bdm event param requirements
+	p.Role = PortRoleBackupPort
+	p.SelectedRole = PortRoleBackupPort
+	p.FdWhileTimer.count = int32(p.b.RootTimes.ForwardingDelay)
+	// set for purposes of rerooted
+	p.RrWhileTimer.count = 10
+	p.RbWhileTimer.count = 3
+	p.ReRoot = true
+	p.SendRSTP = false
+	p.NewInfo = true
+	p.Sync = true
+	p.Synced = true
+	p.Learning = false
+	p.Learn = false
+	p.Forward = false
+	p.Forwarding = false
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventRbWhileNotEqualTwoTimesHelloTimeAndRoleEqualsBackupPortAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRcvdInfoWhileTimerExpired(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PimMachineFsm.Machine.Curr.SetState(PimStateCurrent)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.InfoIs = PortInfoStateReceived
+	p.FdWhileTimer.count = int32(p.b.RootTimes.ForwardingDelay)
+	// set for purposes of rerooted
+	p.RcvdInfoWhiletimer.count = 1
+	p.RcvdMsg = false
+	p.SendRSTP = true
+	p.NewInfo = true
+	p.Sync = true
+	p.Synced = true
+	p.Learning = false
+	p.Learn = false
+	p.Forward = false
+	p.Forwarding = false
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PimMachineFsm != nil {
+			p.PimMachineFsm.PimEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PimMachineFsm.PimEvents
+	if event.e != PimEventInflsEqualReceivedAndRcvdInfoWhileEqualZeroAndNotUpdtInfoAndNotRcvdMsg {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRrWhileTimerExpiredAgreedNotSyncAndNotLearn(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.InfoIs = PortInfoStateReceived
+	p.RrWhileTimer.count = 1
+	p.Agreed = true
+	p.RcvdMsg = false
+	p.SendRSTP = true
+	p.NewInfo = true
+	p.Sync = false
+	p.Synced = false
+	p.Learning = false
+	p.Learn = false
+	p.Forward = false
+	p.Forwarding = false
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRrWhileTimerExpiredOperEdgeNotSyncAndNotLearn(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.InfoIs = PortInfoStateReceived
+	p.OperEdge = true
+	p.RrWhileTimer.count = 1
+	p.RcvdMsg = false
+	p.SendRSTP = true
+	p.NewInfo = true
+	p.Sync = false
+	p.Synced = false
+	p.Learning = false
+	p.Learn = false
+	p.Forward = false
+	p.Forwarding = false
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndNotLearnAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRrWhileTimerExpiredAgreedNotSyncAndLearnAndNotForward(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.InfoIs = PortInfoStateReceived
+	p.RrWhileTimer.count = 1
+	p.Agreed = true
+	p.RcvdMsg = false
+	p.SendRSTP = true
+	p.NewInfo = true
+	p.Sync = false
+	p.Synced = false
+	p.Learning = false
+	p.Learn = true
+	p.Forward = false
+	p.Forwarding = false
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventAgreedAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRrWhileTimerExpiredOperEdgeNotSyncAndLearnAndNotForward(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.InfoIs = PortInfoStateReceived
+	p.OperEdge = true
+	p.RrWhileTimer.count = 1
+	p.RcvdMsg = false
+	p.SendRSTP = true
+	p.NewInfo = true
+	p.Sync = false
+	p.Synced = false
+	p.Learning = false
+	p.Learn = true
+	p.Forward = false
+	p.Forwarding = false
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventOperEdgeAndRrWhileEqualZeroAndNotSyncAndLearnAndNotForwardAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRrWhileTimerNotEqualZeroAndRerootNotOperEdgeAndLearn(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.InfoIs = PortInfoStateReceived
+	p.OperEdge = false
+	p.ReRoot = true
+	p.RrWhileTimer.count = int32(p.b.RootTimes.ForwardingDelay)
+	p.RcvdMsg = false
+	p.SendRSTP = true
+	p.NewInfo = true
+	p.Sync = false
+	p.Synced = false
+	p.Learning = true
+	p.Learn = true
+	p.Forward = false
+	p.Forwarding = false
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndLearnAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRrWhileTimerNotEqualZeroAndRerootNotOperEdgeAndForward(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.InfoIs = PortInfoStateReceived
+	p.OperEdge = false
+	p.ReRoot = true
+	p.RrWhileTimer.count = int32(p.b.RootTimes.ForwardingDelay)
+	p.RcvdMsg = false
+	p.SendRSTP = true
+	p.NewInfo = true
+	p.Sync = false
+	p.Synced = false
+	p.Learning = true
+	p.Learn = false
+	p.Forward = true
+	p.Forwarding = false
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventReRootAndRrWhileNotEqualZeroAndNotOperEdgeAndForwardAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmRrWhileTimerNotEqualZeroForwardDelay(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateRootPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleRootPort
+	p.SelectedRole = PortRoleRootPort
+	p.InfoIs = PortInfoStateReceived
+	p.OperEdge = false
+	p.ReRoot = true
+	p.RrWhileTimer.count = int32(p.b.RootTimes.ForwardingDelay) - 1
+	p.RcvdMsg = false
+	p.SendRSTP = true
+	p.NewInfo = false
+	p.Sync = true
+	p.Synced = false
+	p.Learning = true
+	p.Learn = true
+	p.Forward = true
+	p.Forwarding = true
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventRrWhileNotEqualFwdDelayAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmBridgeAssuranceTimerExpired(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.InfoIs = PortInfoStateReceived
+	p.BridgeAssurance = true
+	p.BAWhileTimer.count = 1
+	p.OperEdge = false
+	p.RcvdMsg = true
+	p.SendRSTP = true
+	p.RcvdBPDU = true
+	p.NewInfo = false
+	p.Sync = true
+	p.Synced = false
+	p.Learning = true
+	p.Learn = true
+	p.Forward = true
+	p.Forwarding = true
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	// may need to delay a bit in order to allow for packet to be receive
+	// by pcap
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		if p.PrtMachineFsm != nil {
+			p.PrtMachineFsm.PrtEvents <- MachineEvent{
+				e:   0, // invalid event
+				src: "TEST",
+			}
+		}
+	}(p)
+
+	event := <-p.PrtMachineFsm.PrtEvents
+	if event.e != PrtEventSelectedRoleEqualDisabledPortAndRoleNotEqualSelectedRoleAndSelectedAndNotUpdtInfo {
+		t.Error("ERROR: Error did not receive PRT Machine event as expected", event.e)
+	}
+
+	if !p.BridgeAssuranceInconsistant {
+		t.Error("ERROR: Bridge Assurance should have been flagged as a problem")
+	}
+
+	if p.SelectedRole != PortRoleDisabledPort {
+		t.Error("ERROR: selected role should have been changed to disabled")
+	}
+
+	UsedForTestOnlyPtmTestTeardown(p, t)
+}
+
+func TestPtmBPDUGuardTimerExpired(t *testing.T) {
+
+	p := UsedForTestOnlyPtmTestSetup(t)
+
+	// prequisite BDM Machine
+	p.PrtMachineFsm.Machine.Curr.SetState(PrtStateDesignatedPort)
+
+	// bdm event param requirements
+	p.Role = PortRoleDesignatedPort
+	p.SelectedRole = PortRoleDesignatedPort
+	p.InfoIs = PortInfoStateReceived
+	p.BPDUGuardTimer.count = 1
+	p.BpduGuard = true
+	p.AdminEdge = true
+	p.OperEdge = true
+	p.Learn = true
+	p.Learning = true
+	p.Forward = true
+	p.Forwarding = true
+	p.RstpVersion = true
+	p.Selected = true
+	p.UpdtInfo = false
+	p.AdminPortEnabled = true
+	p.PortEnabled = true
+
+	wait := make(chan bool)
+	go func(p *StpPort) {
+		// lets sleep later than the tick timer 2 seconds should be enough
+		time.Sleep(time.Second * 2)
+		wait <- true
+	}(p)
+
+	<-wait
 
 	UsedForTestOnlyPtmTestTeardown(p, t)
 }

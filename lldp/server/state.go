@@ -27,27 +27,74 @@ import (
 	"fmt"
 	"l2/lldp/config"
 	"l2/lldp/utils"
-	"strconv"
+	"time"
 )
 
-/*  helper function to convert Mandatory TLV's (chassisID, portID, TTL) from byte
+/*  helper function to convert TLV's (chassisID, portID, TTL) from byte
  *  format to string
  */
-func (svr *LLDPServer) PopulateMandatoryTLV(ifIndex int32, entry *config.IntfState) bool {
-	gblInfo, exists := svr.lldpGblInfo[ifIndex]
+func (svr *LLDPServer) PopulateTLV(ifIndex int32, entry *config.IntfState) bool {
+	intf, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
 		debug.Logger.Err(fmt.Sprintln("Entry not found for", ifIndex))
 		return exists
 	}
-	entry.LocalPort = gblInfo.Port.Name
-	if gblInfo.RxInfo.RxFrame != nil {
-		entry.PeerMac = gblInfo.GetChassisIdInfo()
-		entry.Port = gblInfo.GetPortIdInfo()
-		entry.HoldTime = strconv.Itoa(int(gblInfo.RxInfo.RxFrame.TTL))
+	intf.RxLock.RLock()
+	defer intf.RxLock.RUnlock()
+	entry.LocalPort = intf.Port.Name
+	if intf.RxInfo.RxFrame != nil {
+		entry.PeerMac = intf.GetChassisIdInfo()
+		entry.PeerPort = intf.GetPortIdInfo()
+		rcvdValidity := time.Duration(intf.RxInfo.RxFrame.TTL) * time.Second
+		elapsedTime := time.Since(intf.pktRcvdTime)
+		holdTime := rcvdValidity - elapsedTime
+		entry.HoldTime = holdTime.String()
 	}
-	entry.IfIndex = gblInfo.Port.IfIndex
-	entry.Enable = gblInfo.enable
+
+	if intf.RxInfo.RxLinkInfo != nil {
+		entry.SystemCapabilities = intf.GetSystemCap()
+		entry.EnabledCapabilities = intf.GetEnabledCap()
+		entry.PeerHostName = intf.GetPeerHostName()
+		entry.SystemDescription = intf.GetSystemDescription()
+	}
+
+	entry.IfIndex = intf.Port.IfIndex
+	entry.Enable = intf.enable
+	entry.IntfRef = intf.Port.Name
+	entry.SendFrames = intf.counter.Send
+	entry.ReceivedFrames = intf.counter.Rcvd
 	return exists
+}
+
+/*  Server get bulk for lldp up intfs. This is used for Auto-Discovery
+ */
+func (svr *LLDPServer) GetIntfs(idx, cnt int) (int, int, []config.Intf) {
+	var nextIdx int
+	var count int
+
+	if svr.lldpIntfStateSlice == nil {
+		debug.Logger.Info("No neighbor learned")
+		return 0, 0, nil
+	}
+	length := len(svr.lldpIntfStateSlice)
+	result := make([]config.Intf, cnt)
+	var i, j int
+	for i, j = 0, idx; i < cnt && j < length; {
+		key := svr.lldpIntfStateSlice[j]
+		intf, exists := svr.lldpGblInfo[key]
+		if exists {
+			result[i].IntfRef = intf.Port.Name
+			result[i].Enable = intf.enable
+			i++
+			j++
+		}
+	}
+	if j == length {
+		nextIdx = 0
+	}
+	count = i
+
+	return nextIdx, count, result
 }
 
 /*  Server get bulk for lldp up intf state's
@@ -68,7 +115,7 @@ func (svr *LLDPServer) GetIntfStates(idx, cnt int) (int, int, []config.IntfState
 
 	for i, j = 0, idx; i < cnt && j < length; j++ {
 		key := svr.lldpUpIntfStateSlice[j]
-		succes := svr.PopulateMandatoryTLV(key, &result[i])
+		succes := svr.PopulateTLV(key, &result[i])
 		if !succes {
 			result = nil
 			return 0, 0, nil
@@ -81,4 +128,34 @@ func (svr *LLDPServer) GetIntfStates(idx, cnt int) (int, int, []config.IntfState
 	}
 	count = i
 	return nextIdx, count, result
+}
+
+/*  Server get lldp interface state per interface
+ */
+func (svr *LLDPServer) GetIntfState(intfRef string) *config.IntfState {
+	entry := config.IntfState{}
+	ifIndex, exists := svr.lldpIntfRef2IfIndexMap[intfRef]
+	if !exists {
+		return &entry
+	}
+
+	success := svr.PopulateTLV(ifIndex, &entry)
+	if success {
+		return &entry
+	}
+	return nil
+}
+
+/*   Server get lldp global state
+ */
+func (svr *LLDPServer) GetGlobalState(vrf string) *config.GlobalState {
+	gblState := config.GlobalState{}
+	gblState.Vrf = vrf
+	gblState.TotalRxFrames = svr.counter.Rcvd
+	gblState.TotalTxFrames = svr.counter.Send
+	gblState.Neighbors = int32(len(svr.lldpUpIntfStateSlice))
+	// @TODO: Fixme
+	gblState.Enable = svr.Global.Enable
+	gblState.TranmitInterval = svr.Global.TranmitInterval
+	return &gblState
 }
