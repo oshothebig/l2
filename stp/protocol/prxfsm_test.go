@@ -574,7 +574,7 @@ func TestRxValidStpPacket(t *testing.T) {
 	}
 
 	if p.RcvdSTP != true {
-		t.Error("Failed RcvdSTP not set")
+		t.Error("Failed RcvdSTP is set")
 		t.FailNow()
 	}
 	if p.RcvdRSTP == true {

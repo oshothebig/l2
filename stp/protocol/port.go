@@ -287,13 +287,13 @@ func NewStpPort(c *StpPortConfig) *StpPort {
 		IfIndex:    p.IfIndex,
 		BrgIfIndex: p.b.BrgIfIndex,
 	}
-
+	portDbMutex.Lock()
 	PortMapTable[key] = p
 	if len(PortListTable) == 0 {
 		PortListTable = make([]*StpPort, 0)
 	}
 	PortListTable = append(PortListTable, p)
-
+	portDbMutex.Unlock()
 	ifName, _ := PortConfigMap[p.IfIndex]
 	StpLogger("DEBUG", fmt.Sprintf("NEW PORT: ifname %s %#v\n", ifName.Name, p))
 
@@ -355,8 +355,12 @@ func DelStpPort(p *StpPort) {
 		IfIndex:    p.IfIndex,
 		BrgIfIndex: p.b.BrgIfIndex,
 	}
+	portDbMutex.Lock()
+	defer portDbMutex.Unlock()
+
 	// remove from global port table
 	delete(PortMapTable, key)
+
 	for i, delPort := range PortListTable {
 		if delPort.IfIndex == p.IfIndex &&
 			delPort.BrgIfIndex == p.BrgIfIndex {
@@ -375,6 +379,9 @@ func StpFindPortByIfIndex(pId int32, brgId int32, p **StpPort) bool {
 		IfIndex:    pId,
 		BrgIfIndex: brgId,
 	}
+	portDbMutex.Lock()
+	defer portDbMutex.Unlock()
+
 	//fmt.Println("looking for key in map", key, PortMapTable)
 	if *p, ok = PortMapTable[key]; ok {
 		return true
@@ -653,6 +660,8 @@ func (p *StpPort) DistributeMachineEvents(mec []chan MachineEvent, e []MachineEv
 // This function can be used to know whether or not to apply configuration parameters
 // to one port or all ports, as of 3/21/16 applying to all ports
 func (p *StpPort) GetPortListToApplyConfigTo() (newlist []*StpPort) {
+	portDbMutex.Lock()
+	defer portDbMutex.Unlock()
 	for _, port := range PortListTable {
 		if p.IfIndex == port.IfIndex {
 			newlist = append(newlist, port)
@@ -2231,6 +2240,8 @@ func (p *StpPort) EdgeDelay() uint16 {
 
 // check if any other bridge port is adminEdge
 func (p *StpPort) IsAdminEdgePort() bool {
+	portDbMutex.Lock()
+	defer portDbMutex.Unlock()
 
 	for _, ptmp := range PortListTable {
 		if p != ptmp &&

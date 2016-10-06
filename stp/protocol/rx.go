@@ -74,6 +74,9 @@ func BpduRxMain(pId int32, bId int32, rxPktChan chan gopacket.Packet) {
 }
 
 func IsValidStpPort(pId int32) bool {
+	portDbMutex.Lock()
+	defer portDbMutex.Unlock()
+
 	for _, p := range PortListTable {
 		if p.IfIndex == pId {
 			//fmt.Println("IsValidStpPort: Found valid ifindex", p.IfIndex)

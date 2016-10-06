@@ -25,12 +25,15 @@
 package stp
 
 import (
+	"sync"
 	"utils/logging"
 )
 
 var gLogger *logging.Writer
+var portDbMutex *sync.Mutex
 
 func init() {
+	portDbMutex = &sync.Mutex{}
 	PortConfigMap = make(map[int32]portConfig)
 	PortMapTable = make(map[PortMapKey]*StpPort, 0)
 	BridgeMapTable = make(map[BridgeKey]*Bridge, 0)
