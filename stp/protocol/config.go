@@ -193,12 +193,18 @@ func StpBrgConfigParamCheck(c *StpBridgeConfig, create bool) error {
 }
 
 // StpPortConfigParamCheck will validate the config paramater for a bridge port
-func StpPortConfigParamCheck(c *StpPortConfig, update bool) error {
+func StpPortConfigParamCheck(c *StpPortConfig, update bool, create bool) error {
 	var b *Bridge
 
 	// bridge must be valid for a bridge port to be created
 	if !StpFindBridgeByIfIndex(c.BrgIfIndex, &b) && StpBrgConfigGet(c.BrgIfIndex) == nil {
 		return errors.New(fmt.Sprintf("Invalid BrgIfIndex %d, port %d must be associated with valid bridge", c.BrgIfIndex, c.IfIndex))
+	}
+
+	var p *StpPort
+	if create &&
+		StpFindPortByIfIndex(c.IfIndex, c.BrgIfIndex, &p) {
+		return errors.New(fmt.Sprintf("ERROR Stp Port already created vlan %d port %d", c.BrgIfIndex, c.IfIndex))
 	}
 
 	// Table 17-2
@@ -334,6 +340,7 @@ func StpPortAddToBridge(pId int32, brgifindex int32) {
 					src: "CONFIG: AdminEgeSet",
 				}
 			} else if p.AdminEdge && !isOtherBrgPortOperEdge {
+				portDbMutex.Lock()
 				for _, ptmp := range PortListTable {
 					if p != ptmp {
 						p.BdmMachineFsm.BdmEvents <- MachineEvent{
@@ -342,6 +349,7 @@ func StpPortAddToBridge(pId int32, brgifindex int32) {
 						}
 					}
 				}
+				portDbMutex.Unlock()
 			}
 		}
 
@@ -395,6 +403,9 @@ func StpPortEnable(pId int32, bId int32, enable bool) error {
 }
 
 func StpPortLinkUp(pId int32) {
+	portDbMutex.Lock()
+	defer portDbMutex.Unlock()
+
 	for _, p := range PortListTable {
 		if p.IfIndex == pId {
 			p.CreateRxTx()
@@ -407,6 +418,9 @@ func StpPortLinkUp(pId int32) {
 }
 
 func StpPortLinkDown(pId int32) {
+	portDbMutex.Lock()
+	defer portDbMutex.Unlock()
+
 	for _, p := range PortListTable {
 		if p.IfIndex == pId {
 			p.DeleteRxTx()
