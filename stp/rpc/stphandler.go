@@ -427,7 +427,7 @@ func (s *STPDServiceHandler) CreateStpPort(config *stpd.StpPort) (rv bool, err e
 	rv = true
 	portconfig := &stp.StpPortConfig{}
 	ConvertThriftPortConfigToStpPortConfig(config, portconfig)
-	err = stp.StpPortConfigParamCheck(portconfig, false)
+	err = stp.StpPortConfigParamCheck(portconfig, false, true)
 	// only create the instance if it up
 	if config.AdminState == "UP" {
 		if err == nil {
@@ -484,7 +484,7 @@ func (s *STPDServiceHandler) UpdateStpPort(origconfig *stpd.StpPort, updateconfi
 	//updateObjVal := reflect.ValueOf(*updateconfig)
 
 	ConvertThriftPortConfigToStpPortConfig(updateconfig, portconfig)
-	err = stp.StpPortConfigParamCheck(portconfig, true)
+	err = stp.StpPortConfigParamCheck(portconfig, true, false)
 	if err != nil {
 		return false, err
 	}
