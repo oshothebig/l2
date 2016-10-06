@@ -1230,7 +1230,7 @@ func (la *LACPDServiceHandler) convertDbObjDataToDRCPData(objData *objects.Distr
 	cfgData.DrniPortalPriority = uint16(objData.PortalPriority)
 	cfgData.DrniThreePortalSystem = objData.ThreePortalSystem
 	cfgData.DrniPortalSystemNumber = objData.PortalSystemNumber
-	for i, val := range objData.Intfreflist {
+	for i, val := range objData.IntfReflist {
 		cfgData.DrniIntraPortalLinkList[i] = uint32(utils.GetIfIndexFromName(val))
 	}
 	cfgData.DrniAggregator = uint32(GetKeyByAggName(objData.IntfRef))
