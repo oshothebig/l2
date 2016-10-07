@@ -23,10 +23,21 @@
 
 package config
 
+const (
+	TX_RX_MODE_TxRx   = "TxRx"
+	TXRX              = 0
+	TX_RX_MODE_TxOnly = "TxOnly"
+	TX_ONLY           = 1
+	TX_RX_MODE_RxOnly = "RxOnly"
+	RX_ONLY           = 2
+)
+
 type Global struct {
 	Vrf             string
 	Enable          bool
 	TranmitInterval int32
+	TxRxMode        uint8
+	SnoopAndDrop    bool
 }
 
 // this is used for auto-discovery
@@ -37,8 +48,9 @@ type Intf struct {
 
 // this is used to update configuration request coming from client to server
 type IntfConfig struct {
-	IfIndex int32
-	Enable  bool
+	IfIndex  int32
+	Enable   bool
+	TxRxMode uint8
 }
 
 type PortInfo struct {

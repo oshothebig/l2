@@ -36,6 +36,7 @@ const (
 )
 
 type RX struct {
+	RxRunning bool
 	// ethernet frame Info (used for rx/tx)
 	SrcMAC net.HardwareAddr // NOTE: Please be informed this is Peer Mac Addr
 	DstMAC net.HardwareAddr
