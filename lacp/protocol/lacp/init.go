@@ -49,4 +49,7 @@ func init() {
 		AggCreateDbList:  make(map[string]LacpAggEvtCb),
 		AggDeleteDbList:  make(map[string]LacpAggEvtCb),
 	}
+
+	ConfigAggMap = make(map[string]*LaAggConfig)
+	ConfigAggList = make([]*LaAggConfig, 0)
 }

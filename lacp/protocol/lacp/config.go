@@ -169,14 +169,46 @@ type LaAggPortConfig struct {
 	IntfId   string
 }
 
+// The following dbs are used to keep track of
+// certain conditions that must exist from a config
+// check perspective.
+// 1) A Port can only be part of one agg group
+// 2) An Agg can only be part of one distributed relay group
+// holds the agg to port list
+var ConfigAggMap map[string]*LaAggConfig
+var ConfigAggList []*LaAggConfig
+
+func LaAggConfigGetByIndex(index int, ac **LaAggConfig) bool {
+
+	if index < len(ConfigAggList) {
+		*ac = ConfigAggList[index]
+		return true
+	}
+	*ac = nil
+	return false
+}
+
+func LaAggConfigDoesIntfRefListMemberExist(intfref string, ac **LaAggConfig) bool {
+
+	for idx, config := range ConfigAggList {
+		for _, intf := range ConfigAggList[idx].LagMembers {
+			if intf == uint16(utils.GetIfIndexFromName(intfref)) {
+				*ac = config
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // LaAggConfigAggCreateCheck will check that the aggregator ports are unique
 func LaAggConfigAggCreateCheck(ac *LaAggConfig) error {
 
-	if _, ok := utils.ConfigAggMap[ac.Name]; !ok {
+	if _, ok := ConfigAggMap[ac.Name]; !ok {
 		// check that no port exist in any other lag group
-		for aggName, ports := range utils.ConfigAggMap {
+		for aggName, agg := range ConfigAggMap {
 			for _, cp := range ac.LagMembers {
-				for _, p := range ports {
+				for _, p := range agg.LagMembers {
 					if cp == p {
 						intfref := utils.GetNameFromIfIndex(int32(p))
 						return errors.New(fmt.Sprintf("ERROR Aggregator Port %s already exists in another Aggregator %s", intfref, aggName))
@@ -185,10 +217,8 @@ func LaAggConfigAggCreateCheck(ac *LaAggConfig) error {
 			}
 		}
 
-		utils.ConfigAggMap[ac.Name] = make([]uint16, len(ac.LagMembers))
-		for i, p := range ac.LagMembers {
-			utils.ConfigAggMap[ac.Name][i] = p
-		}
+		ConfigAggMap[ac.Name] = ac
+		ConfigAggList = append(ConfigAggList, ac)
 	}
 	return nil
 }
@@ -196,12 +226,12 @@ func LaAggConfigAggCreateCheck(ac *LaAggConfig) error {
 // LaAggConfigAggPortUpdateCheck validate that the new ports being added are unique, and update
 // the db
 func LaAggConfigAggPortUpdateCheck(name string, addPorts []uint16, delPorts []uint16) error {
-	if _, ok := utils.ConfigAggMap[name]; ok {
+	if _, ok := ConfigAggMap[name]; ok {
 		// check that no port exist in any other lag group
-		for aggName, ports := range utils.ConfigAggMap {
+		for aggName, agg := range ConfigAggMap {
 			if aggName != name {
 				for _, cp := range addPorts {
-					for _, p := range ports {
+					for _, p := range agg.LagMembers {
 						if cp == p {
 							intfref := utils.GetNameFromIfIndex(int32(p))
 							return errors.New(fmt.Sprintf("ERROR Aggregator Port %s already exists in another Aggregator %s", intfref, aggName))
@@ -212,12 +242,12 @@ func LaAggConfigAggPortUpdateCheck(name string, addPorts []uint16, delPorts []ui
 		}
 
 		for _, p := range addPorts {
-			utils.ConfigAggMap[name] = append(utils.ConfigAggMap[name], p)
+			ConfigAggMap[name].LagMembers = append(ConfigAggMap[name].LagMembers, p)
 		}
 		for _, p := range delPorts {
-			for i, ifindex := range utils.ConfigAggMap[name] {
+			for i, ifindex := range ConfigAggMap[name].LagMembers {
 				if p == ifindex {
-					utils.ConfigAggMap[name] = append(utils.ConfigAggMap[name][:i], utils.ConfigAggMap[name][i+1:]...)
+					ConfigAggMap[name].LagMembers = append(ConfigAggMap[name].LagMembers[:i], ConfigAggMap[name].LagMembers[i+1:]...)
 				}
 			}
 		}
@@ -235,9 +265,14 @@ func LaAggConfigDeleteCheck(intfref string) error {
 			return errors.New(fmt.Sprintf("ERROR can't delete Aggregator %s, L3 Intf must be deleted first", a.AggName))
 		}
 	}
-	if _, ok := utils.ConfigAggMap[intfref]; ok {
+	if _, ok := ConfigAggMap[intfref]; ok {
 		// delete the reference to the db
-		delete(utils.ConfigAggMap, intfref)
+		delete(ConfigAggMap, intfref)
+		for i, ac := range ConfigAggList {
+			if ac.Name == intfref {
+				ConfigAggList = append(ConfigAggList[:i], ConfigAggList[i+1:]...)
+			}
+		}
 	}
 
 	return nil
