@@ -79,7 +79,7 @@ func (p *NBPlugin) Start() error {
 }
 
 func (h *ConfigHandler) CreateLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {
-	return api.SendIntfConfig(config.IntfRef, config.Enable)
+	return api.SendIntfConfig(config.IntfRef, config.TxRxMode, config.Enable)
 }
 
 func (h *ConfigHandler) DeleteLLDPIntf(config *lldpd.LLDPIntf) (r bool, err error) {
@@ -90,7 +90,7 @@ func (h *ConfigHandler) UpdateLLDPIntf(origconfig *lldpd.LLDPIntf,
 	newconfig *lldpd.LLDPIntf, attrset []bool, op []*lldpd.PatchOpInfo) (r bool, err error) {
 	// On update we do not care for old config... just push the new config to api layer
 	// and let the api layer handle the information
-	return api.UpdateIntfConfig(newconfig.IntfRef, newconfig.Enable)
+	return api.UpdateIntfConfig(newconfig.IntfRef, newconfig.TxRxMode, newconfig.Enable)
 }
 
 func (h *ConfigHandler) GetLLDPIntf(intfRef string) (*lldpd.LLDPIntf, error) {
@@ -121,7 +121,7 @@ func (h *ConfigHandler) GetBulkLLDPIntf(fromIndex lldpd.Int, count lldpd.Int) (*
 
 func (h *ConfigHandler) CreateLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err error) {
 	debug.Logger.Debug("LLDP listener received create lldp global config", *config)
-	return api.SendGlobalConfig(config.Vrf, config.Enable, config.TranmitInterval)
+	return api.SendGlobalConfig(config.Vrf, config.TxRxMode, config.Enable, config.SnoopAndDrop, config.TranmitInterval)
 }
 
 func (h *ConfigHandler) DeleteLLDPGlobal(config *lldpd.LLDPGlobal) (r bool, err error) {
@@ -133,7 +133,7 @@ func (h *ConfigHandler) UpdateLLDPGlobal(origconfig *lldpd.LLDPGlobal,
 	// On update we do not care for old config... just push the new config to api layer
 	// and let the api layer handle the information
 	debug.Logger.Debug("LLDP listener received update lldp global orig", *origconfig, "new config", *newconfig)
-	return api.UpdateGlobalConfig(newconfig.Vrf, newconfig.Enable, newconfig.TranmitInterval)
+	return api.UpdateGlobalConfig(newconfig.Vrf, newconfig.TxRxMode, newconfig.Enable, newconfig.SnoopAndDrop, newconfig.TranmitInterval)
 }
 
 func (h *ConfigHandler) convertLLDPIntfEntryToThriftEntry(state config.Intf) *lldpd.LLDPIntf {
