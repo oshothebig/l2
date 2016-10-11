@@ -786,7 +786,7 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 
 		if len(a.DistributedPortNumList) == 1 {
 			for name, upcb := range LacpCbDb.AggOperUpDbList {
-				a.LacpAggLog(fmt.Sprintf("Notify Agg OperState UP %s", name, a.AggName))
+				a.LacpAggLog(fmt.Sprintf("Notify %s Agg OperState UP %s", name, a.AggName))
 				upcb(int32(a.AggId))
 			}
 		}
@@ -828,7 +828,7 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 
 			if len(a.DistributedPortNumList) == 0 {
 				for name, upcb := range LacpCbDb.AggOperUpDbList {
-					a.LacpAggLog(fmt.Sprintf("Notify Agg OperState DOWN %s", name, a.AggName))
+					a.LacpAggLog(fmt.Sprintf("Notify %s Agg OperState DOWN %s\n", name, a.AggName))
 					upcb(int32(a.AggId))
 				}
 			}

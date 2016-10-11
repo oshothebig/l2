@@ -42,12 +42,14 @@ func init() {
 	LacpSysGlobalInfoInit(LaSystemIdDefault)
 
 	LacpCbDb = LacpCbDbEntry{
-		PortCreateDbList: make(map[string]LacpPortEvtCb),
-		PortDeleteDbList: make(map[string]LacpPortEvtCb),
-		PortUpDbList:     make(map[string]LacpPortEvtCb),
-		PortDownDbList:   make(map[string]LacpPortEvtCb),
-		AggCreateDbList:  make(map[string]LacpAggEvtCb),
-		AggDeleteDbList:  make(map[string]LacpAggEvtCb),
+		PortCreateDbList:  make(map[string]LacpPortEvtCb),
+		PortDeleteDbList:  make(map[string]LacpPortEvtCb),
+		PortUpDbList:      make(map[string]LacpPortEvtCb),
+		PortDownDbList:    make(map[string]LacpPortEvtCb),
+		AggCreateDbList:   make(map[string]LacpAggEvtCb),
+		AggDeleteDbList:   make(map[string]LacpAggEvtCb),
+		AggOperUpDbList:   make(map[string]LacpAggEvtCb),
+		AggOperDownDbList: make(map[string]LacpAggEvtCb),
 	}
 
 	ConfigAggMap = make(map[string]*LaAggConfig)
