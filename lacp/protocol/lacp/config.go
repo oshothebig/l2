@@ -284,8 +284,10 @@ func LaAggConfigDeleteCheck(intfref string) error {
 // will be translated to model values
 func LaAggConfigParamCheck(ac *LaAggConfig) error {
 
-	if _, ok := utils.PortConfigMap[int32(ac.Id)]; !ok {
-		return errors.New(fmt.Sprintln("ERROR Invalid Port Id supplied", ac.Id))
+	for _, pid := range ac.LagMembers {
+		if _, ok := utils.PortConfigMap[int32(pid)]; !ok {
+			return errors.New(fmt.Sprintln("ERROR Invalid Port Id supplied", pid))
+		}
 	}
 
 	if ac.Type != LaAggTypeLACP &&
