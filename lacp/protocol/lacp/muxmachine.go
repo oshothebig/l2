@@ -187,6 +187,8 @@ func (muxm *LacpMuxMachine) SendTxMachineNtt() {
 // LacpMuxmDetached
 func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fsm.State {
 	p := muxm.p
+	// send event to user port and partner info don't
+	defer utils.ProcessLacpPortPartnerInfoMismatch(int32(p.PortNum))
 
 	// DETACH MUX FROM AGGREGATOR
 	muxm.DetachMuxFromAggregator()
@@ -259,6 +261,12 @@ func (muxm *LacpMuxMachine) LacpMuxmWaiting(m fsm.Machine, data interface{}) fsm
 // LacpMuxmAttached
 func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fsm.State {
 	p := muxm.p
+
+	// NTT = TRUE
+	defer muxm.SendTxMachineNtt()
+	// send event to user port and partner info don't
+	defer utils.ProcessLacpPortPartnerInfoSync(int32(p.PortNum))
+
 	// Attach Mux to Aggregator
 	muxm.AttachMuxToAggregator()
 
@@ -289,9 +297,6 @@ func (muxm *LacpMuxMachine) LacpMuxmAttached(m fsm.Machine, data interface{}) fs
 
 	// Disable Collecting
 	muxm.DisableCollecting()
-
-	// NTT = TRUE
-	defer muxm.SendTxMachineNtt()
 
 	return LacpMuxmStateAttached
 }
@@ -349,6 +354,11 @@ func (muxm *LacpMuxMachine) LacpMuxmDistributing(m fsm.Machine, data interface{}
 func (muxm *LacpMuxMachine) LacpMuxmCDetached(m fsm.Machine, data interface{}) fsm.State {
 	p := muxm.p
 
+	// indicate that NTT = TRUE
+	defer muxm.SendTxMachineNtt()
+	// send event to user port and partner 	info don't
+	defer utils.ProcessLacpPortPartnerInfoMismatch(int32(p.PortNum))
+
 	// DETACH MUX FROM AGGREGATOR
 	muxm.DetachMuxFromAggregator()
 
@@ -369,9 +379,6 @@ func (muxm *LacpMuxMachine) LacpMuxmCDetached(m fsm.Machine, data interface{}) f
 	// Actor Oper State Distributing = FALSE
 	LacpStateClear(&p.ActorOper.State, LacpStateDistributingBit)
 
-	// indicate that NTT = TRUE
-	defer muxm.SendTxMachineNtt()
-
 	return LacpMuxmStateDetached
 }
 
@@ -387,6 +394,11 @@ func (muxm *LacpMuxMachine) LacpMuxmCWaiting(m fsm.Machine, data interface{}) fs
 // LacpMuxmAttached
 func (muxm *LacpMuxMachine) LacpMuxmCAttached(m fsm.Machine, data interface{}) fsm.State {
 	p := muxm.p
+
+	// NTT = TRUE
+	defer muxm.SendTxMachineNtt()
+	// send event to user port and partner info don't
+	defer utils.ProcessLacpPortPartnerInfoSync(int32(p.PortNum))
 
 	// Attach Mux to Aggregator
 	muxm.AttachMuxToAggregator()
@@ -410,9 +422,6 @@ func (muxm *LacpMuxMachine) LacpMuxmCAttached(m fsm.Machine, data interface{}) f
 
 	// Actor Oper State Distributing = FALSE
 	LacpStateClear(&p.ActorOper.State, LacpStateDistributingBit)
-
-	// indicate that NTT = TRUE
-	defer muxm.SendTxMachineNtt()
 
 	return LacpMuxmStateWaiting
 }
@@ -774,6 +783,13 @@ func (muxm *LacpMuxMachine) EnableDistributing() {
 			a.LacpAggLog(fmt.Sprintf("Checking %s if it cares about port up for port %s", name, p.IntfNum))
 			upcb(int32(p.PortNum))
 		}
+
+		if len(a.DistributedPortNumList) == 1 {
+			for name, upcb := range LacpCbDb.AggOperUpDbList {
+				a.LacpAggLog(fmt.Sprintf("Notify Agg OperState UP %s", name, a.AggName))
+				upcb(int32(a.AggId))
+			}
+		}
 	}
 }
 
@@ -807,6 +823,13 @@ func (muxm *LacpMuxMachine) DisableDistributing() {
 				if err != nil {
 					muxm.LacpMuxmLog(fmt.Sprintln("ERROR Updating Lag in HW", err))
 					return
+				}
+			}
+
+			if len(a.DistributedPortNumList) == 0 {
+				for name, upcb := range LacpCbDb.AggOperUpDbList {
+					a.LacpAggLog(fmt.Sprintf("Notify Agg OperState DOWN %s", name, a.AggName))
+					upcb(int32(a.AggId))
 				}
 			}
 

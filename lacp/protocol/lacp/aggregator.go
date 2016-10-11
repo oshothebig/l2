@@ -246,6 +246,11 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 		DrniName:               "",
 	}
 
+	// add port agg map and register port oper state events
+	utils.AddAggConfigMap(int32(a.AggId), a.AggName)
+	RegisterLaAggOperStateUpCb("event_"+a.AggName, utils.ProcessLacpGroupOperStateUp)
+	RegisterLaAggOperStateDownCb("event_"+a.AggName, utils.ProcessLacpGroupOperStateDown)
+
 	// want to ensure that the application can use a string name id
 	// to uniquely identify a lag
 	Key := AggIdKey{Id: ac.Id,
@@ -381,6 +386,8 @@ func (a *LaAggregator) DeleteLaAgg() {
 	}
 	a.HwAggId = 0
 	a.OperState = false
+
+	utils.DelAggConfigMap(int32(a.AggId), a.AggName)
 
 	// notify DR that aggregator has been created
 	if a.DrniName != "" {
