@@ -1,17 +1,6 @@
 // global.go
 package utils
 
-// The following dbs are used to keep track of
-// certain conditions that must exist from a config
-// check perspective.
-// 1) A Port can only be part of one agg group
-// 2) An Agg can only be part of one distributed relay group
-// holds the agg to port list
-var ConfigAggMap map[string][]uint16
-
-// holds the dr to agg list
-var ConfigDrMap map[string]uint32
-
 const (
 	// init
 	LACP_GLOBAL_INIT = iota + 1

@@ -379,19 +379,7 @@ func (la *LACPDServiceHandler) ReadConfigFromDB(prevState int) error {
 
 	logger.Info(fmt.Sprintf("Global State prev %d curr %d", prevState, currState))
 
-	if (prevState != currState && currState == utils.LACP_GLOBAL_ENABLE) ||
-		currState == utils.LACP_GLOBAL_ENABLE {
-
-		if err := la.HandleDbReadDistributedRelay(dbHdl, false); err != nil {
-			fmt.Println("Error getting All DistributedRelay objects")
-			return err
-		}
-
-		if err := la.HandleDbReadLaPortChannel(dbHdl, false); err != nil {
-			fmt.Println("Error getting All LaPortChannel objects")
-			return err
-		}
-	} else if currState == utils.LACP_GLOBAL_DISABLE_PENDING ||
+	if currState == utils.LACP_GLOBAL_DISABLE_PENDING ||
 		prevState == utils.LACP_GLOBAL_ENABLE {
 
 		// lets delete the Aggregator first
@@ -402,6 +390,17 @@ func (la *LACPDServiceHandler) ReadConfigFromDB(prevState int) error {
 
 		if err := la.HandleDbReadDistributedRelay(dbHdl, true); err != nil {
 			fmt.Println("Error getting All DistributedRelay objects")
+			return err
+		}
+	} else if prevState != currState {
+
+		if err := la.HandleDbReadDistributedRelay(dbHdl, false); err != nil {
+			fmt.Println("Error getting All DistributedRelay objects")
+			return err
+		}
+
+		if err := la.HandleDbReadLaPortChannel(dbHdl, false); err != nil {
+			fmt.Println("Error getting All LaPortChannel objects")
 			return err
 		}
 	}
@@ -656,7 +655,7 @@ func (la *LACPDServiceHandler) UpdateLaPortChannel(origconfig *lacpd.LaPortChann
 			ifindexList = append(ifindexList, ifindex)
 		}
 	}
-	addList, delList := GetAddDelMembers(utils.ConfigAggMap[updateconfig.IntfRef], ifindexList)
+	addList, delList := GetAddDelMembers(lacp.ConfigAggMap[updateconfig.IntfRef].LagMembers, ifindexList)
 	addPorts := make([]uint16, len(addList))
 	delPorts := make([]uint16, len(delList))
 	for _, p := range addList {
@@ -860,7 +859,6 @@ func (la *LACPDServiceHandler) GetLaPortChannelState(IntfRef string) (*lacpd.LaP
 	pcs := &lacpd.LaPortChannelState{}
 
 	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_ENABLE {
-
 		var a *lacp.LaAggregator
 		id := GetKeyByAggName(IntfRef)
 		if lacp.LaFindAggById(int(id), &a) {
@@ -900,6 +898,65 @@ func (la *LACPDServiceHandler) GetLaPortChannelState(IntfRef string) (*lacpd.LaP
 		} else {
 			return pcs, errors.New(fmt.Sprintf("LACP: Unable to find port channel from LagId %s", IntfRef))
 		}
+	} else {
+		id := GetKeyByAggName(IntfRef)
+		fmt.Println("Lacp Global Disabled, returning saved config map=%v intf=%s\n", lacp.ConfigAggMap, IntfRef)
+		if ac, ok := lacp.ConfigAggMap[IntfRef]; ok {
+			fmt.Println("Found", IntfRef)
+			/*
+						// Aggregator name
+				Name string
+				// Aggregator_MAC_address
+				Mac [6]uint8
+				// Aggregator_Identifier
+				Id int
+				// Actor_Admin_Aggregator_Key
+				Key uint16
+				// Aggregator Type, LACP or STATIC
+				Type uint32
+				// Minimum number of links
+				MinLinks uint16
+				// Enabled
+				Enabled bool
+				// LAG_ports
+				LagMembers []uint16
+
+				// System to attach this agg to
+				Lacp LacpConfigInfo
+
+				// mau properties of each link
+				Properties PortProperties
+
+				// hash config
+				HashMode uint32
+			*/
+			pcs.IntfRef = IntfRef
+			pcs.IfIndex = int32(id)
+			pcs.LagType = int32(ac.Type)
+
+			pcs.AdminState = "DOWN"
+			if ac.Enabled {
+				pcs.AdminState = "UP"
+			}
+			/*
+				Global state is down so all aggs should be down as they are not
+				provisioned
+			*/
+			pcs.OperState = "DOWN"
+			pcs.MinLinks = int16(ac.MinLinks)
+			pcs.Interval = ConvertLaAggIntervalToLacpPeriod(ac.Lacp.Interval)
+			pcs.LacpMode = ConvertLaAggModeToModelLacpMode(ac.Lacp.Mode)
+			pcs.SystemIdMac = ac.Lacp.SystemIdMac
+			pcs.SystemPriority = int16(ac.Lacp.SystemPriority)
+			pcs.LagHash = int32(ac.HashMode)
+			//pcs.Ifindex = int32(a.HwAggId)
+			for _, m := range ac.LagMembers {
+				name := utils.GetNameFromIfIndex(int32(m))
+				if name != "" {
+					pcs.IntfRefList = append(pcs.IntfRefList, name)
+				}
+			}
+		}
 	}
 	return pcs, nil
 }
@@ -916,75 +973,120 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 	var returnLagStates []*lacpd.LaPortChannelState
 	var returnLagStateGetInfo lacpd.LaPortChannelStateGetInfo
 	var a *lacp.LaAggregator
+	var ac *lacp.LaAggConfig
 	validCount := lacpd.Int(0)
 	toIndex := fromIndex
+	moreRoutes := false
 	obj = &returnLagStateGetInfo
 
-	for currIndex := lacpd.Int(0); validCount != count && lacp.LaGetAggNext(&a); currIndex++ {
+	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_DISABLE {
+		var currIndex lacpd.Int
+		for currIndex = 0; validCount != count && lacp.LaAggConfigGetByIndex(int(currIndex), &ac); currIndex++ {
 
-		if currIndex < fromIndex {
-			continue
-		} else {
+			if currIndex < fromIndex {
+				break
+			} else {
+				id := GetKeyByAggName(ac.Name)
 
-			nextLagState = &lagStateList[validCount]
-			nextLagState.IntfRef = a.AggName
-			nextLagState.IfIndex = int32(a.HwAggId)
-			nextLagState.LagType = ConvertLaAggTypeToModelLagType(a.AggType)
-			nextLagState.AdminState = "DOWN"
-			if a.AdminState {
-				nextLagState.AdminState = "UP"
-			}
-			nextLagState.OperState = "DOWN"
-			if a.OperState {
-				nextLagState.OperState = "UP"
-			}
-			nextLagState.MinLinks = int16(a.AggMinLinks)
-			nextLagState.Interval = ConvertLaAggIntervalToLacpPeriod(a.Config.Interval)
-			nextLagState.LacpMode = ConvertLaAggModeToModelLacpMode(a.Config.Mode)
-			nextLagState.SystemIdMac = fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", a.AggMacAddr[0],
-				a.AggMacAddr[1],
-				a.AggMacAddr[2],
-				a.AggMacAddr[3],
-				a.AggMacAddr[4],
-				a.AggMacAddr[5])
-			nextLagState.SystemPriority = int16(a.AggPriority)
-			nextLagState.LagHash = int32(a.LagHash)
-			if len(a.PortNumList) > 0 {
-				nextLagState.IntfRefList = make([]string, 0)
-			}
-			if len(a.DistributedPortNumList) > 0 {
-				nextLagState.IntfRefListUpInBundle = make([]string, 0)
-			}
-			for _, m := range a.PortNumList {
-				name := utils.GetNameFromIfIndex(int32(m))
-				if name != "" {
-					nextLagState.IntfRefList = append(nextLagState.IntfRefList, name)
+				nextLagState = &lagStateList[validCount]
+				nextLagState.IntfRef = ac.Name
+				nextLagState.IfIndex = int32(id)
+				nextLagState.LagType = int32(ac.Type)
+				nextLagState.AdminState = "DOWN"
+				if ac.Enabled {
+					nextLagState.AdminState = "UP"
 				}
-				var p *lacp.LaAggPort
-				if lacp.LaFindPortById(m, &p) {
-					if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit) {
-						distName := utils.GetNameFromIfIndex(int32(m))
-						if distName != "" {
-							nextLagState.IntfRefListUpInBundle = append(nextLagState.IntfRefListUpInBundle, distName)
+				nextLagState.OperState = "DOWN"
+				nextLagState.MinLinks = int16(ac.MinLinks)
+				nextLagState.Interval = ConvertLaAggIntervalToLacpPeriod(ac.Lacp.Interval)
+				nextLagState.LacpMode = ConvertLaAggModeToModelLacpMode(ac.Lacp.Mode)
+				nextLagState.SystemIdMac = ac.Lacp.SystemIdMac
+				nextLagState.SystemPriority = int16(ac.Lacp.SystemPriority)
+				nextLagState.LagHash = int32(ac.HashMode)
+				for _, m := range ac.LagMembers {
+					name := utils.GetNameFromIfIndex(int32(m))
+					if name != "" {
+						nextLagState.IntfRefList = append(nextLagState.IntfRefList, name)
+					}
+
+					if len(returnLagStates) == 0 {
+						returnLagStates = make([]*lacpd.LaPortChannelState, 0)
+					}
+					returnLagStates = append(returnLagStates, nextLagState)
+					validCount++
+					toIndex++
+				}
+			}
+		}
+		// lets try and get the next agg if one exists then there are more routes
+		if ac != nil {
+			moreRoutes = lacp.LaAggConfigGetByIndex(int(currIndex), &ac)
+		}
+	} else {
+		for currIndex := lacpd.Int(0); validCount != count && lacp.LaGetAggNext(&a); currIndex++ {
+
+			if currIndex < fromIndex {
+				continue
+			} else {
+
+				nextLagState = &lagStateList[validCount]
+				nextLagState.IntfRef = a.AggName
+				nextLagState.IfIndex = int32(a.HwAggId)
+				nextLagState.LagType = ConvertLaAggTypeToModelLagType(a.AggType)
+				nextLagState.AdminState = "DOWN"
+				if a.AdminState {
+					nextLagState.AdminState = "UP"
+				}
+				nextLagState.OperState = "DOWN"
+				if a.OperState {
+					nextLagState.OperState = "UP"
+				}
+				nextLagState.MinLinks = int16(a.AggMinLinks)
+				nextLagState.Interval = ConvertLaAggIntervalToLacpPeriod(a.Config.Interval)
+				nextLagState.LacpMode = ConvertLaAggModeToModelLacpMode(a.Config.Mode)
+				nextLagState.SystemIdMac = fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", a.AggMacAddr[0],
+					a.AggMacAddr[1],
+					a.AggMacAddr[2],
+					a.AggMacAddr[3],
+					a.AggMacAddr[4],
+					a.AggMacAddr[5])
+				nextLagState.SystemPriority = int16(a.AggPriority)
+				nextLagState.LagHash = int32(a.LagHash)
+				if len(a.PortNumList) > 0 {
+					nextLagState.IntfRefList = make([]string, 0)
+				}
+				if len(a.DistributedPortNumList) > 0 {
+					nextLagState.IntfRefListUpInBundle = make([]string, 0)
+				}
+				for _, m := range a.PortNumList {
+					name := utils.GetNameFromIfIndex(int32(m))
+					if name != "" {
+						nextLagState.IntfRefList = append(nextLagState.IntfRefList, name)
+					}
+					var p *lacp.LaAggPort
+					if lacp.LaFindPortById(m, &p) {
+						if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit) {
+							distName := utils.GetNameFromIfIndex(int32(m))
+							if distName != "" {
+								nextLagState.IntfRefListUpInBundle = append(nextLagState.IntfRefListUpInBundle, distName)
+							}
 						}
 					}
 				}
-			}
 
-			if len(returnLagStates) == 0 {
-				returnLagStates = make([]*lacpd.LaPortChannelState, 0)
+				if len(returnLagStates) == 0 {
+					returnLagStates = make([]*lacpd.LaPortChannelState, 0)
+				}
+				returnLagStates = append(returnLagStates, nextLagState)
+				validCount++
+				toIndex++
 			}
-			returnLagStates = append(returnLagStates, nextLagState)
-			validCount++
-			toIndex++
+		}
+		// lets try and get the next agg if one exists then there are more routes
+		if a != nil {
+			moreRoutes = lacp.LaGetAggNext(&a)
 		}
 	}
-	// lets try and get the next agg if one exists then there are more routes
-	moreRoutes := false
-	if a != nil {
-		moreRoutes = lacp.LaGetAggNext(&a)
-	}
-
 	obj.LaPortChannelStateList = returnLagStates
 	obj.StartIdx = fromIndex
 	obj.EndIdx = toIndex + 1
@@ -998,97 +1100,182 @@ func (la *LACPDServiceHandler) GetLaPortChannelIntfRefListState(intfref string) 
 	pcms := &lacpd.LaPortChannelIntfRefListState{}
 	var p *lacp.LaAggPort
 	id := utils.GetIfIndexFromName(intfref)
-	if lacp.LaFindPortById(uint16(id), &p) {
-		// actor info
-		pcms.Aggregatable = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateAggregationBit)
-		pcms.Collecting = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateCollectingBit)
-		pcms.Distributing = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit)
-		pcms.Defaulted = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDefaultedBit)
+	aggTimeoutToIntervalMap := map[time.Duration]int32{
+		//LacpPeriodTypeSLOW: "LONG",
+		//LacpPeriodTypeFAST: "SHORT",
+		//lacp.LacpSlowPeriodicTime: "LONG",
+		//lacp.LacpFastPeriodicTime: "SHORT",
+		lacp.LacpLongTimeoutTime:  0,
+		lacp.LacpShortTimeoutTime: 1,
+	}
 
-		if pcms.Distributing {
-			pcms.OperState = "UP"
-		} else {
+	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_DISABLE {
+		var ac *lacp.LaAggConfig
+		if lacp.LaAggConfigDoesIntfRefListMemberExist(intfref, &ac) {
+			pcms.Aggregatable = true
+			pcms.Collecting = false
+			pcms.Distributing = false
+			pcms.Defaulted = true
 			pcms.OperState = "DOWN"
-		}
 
-		if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateSyncBit) {
-			// in sync
-			pcms.Synchronization = 0
-		} else {
 			// out of sync
 			pcms.Synchronization = 1
-		}
-		// short 1, long 0
-		if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateTimeoutBit) {
-			// short
-			pcms.Timeout = 1
+			timeout, ok := aggTimeoutToIntervalMap[ac.Lacp.Interval]
+			if !ok {
+				timeout = 0
+			}
+
+			pcms.Timeout = timeout
+			pcms.Activity = ConvertLaAggModeToModelLacpMode(ac.Lacp.Mode)
+
+			pcms.OperKey = int16(0)
+			pcms.IntfRef = intfref
+			pcms.LagIntfRef = ac.Name
+
+			pcms.DrniName = ""
+			pcms.DrniSynced = false
+
+			/*
+				// partner info
+				pcms.PartnerId = p.PartnerOper.System.LacpSystemConvertSystemIdToString()
+				//ms.PartnerKey = int16(p.PartnerOper.Key)
+
+				// System
+				pcms.SystemIdMac = p.ActorOper.System.LacpSystemConvertSystemIdToString()[6:]
+				pcms.LagType = ConvertLaAggTypeToModelLagType(p.AggAttached.AggType)
+				pcms.SystemId = p.ActorOper.System.LacpSystemConvertSystemIdToString()
+				pcms.Interval = ConvertLaAggIntervalToLacpPeriod(p.AggAttached.Config.Interval)
+				pcms.Enabled = p.PortEnabled
+
+				// stats
+
+				pcms.LacpInPkts = int64(p.LacpCounter.AggPortStatsLACPDUsRx)
+				pcms.LacpOutPkts = int64(p.LacpCounter.AggPortStatsLACPDUsTx)
+				pcms.LacpRxErrors = int64(p.LacpCounter.AggPortStatsIllegalRx)
+				pcms.LacpTxErrors = 0
+				pcms.LacpUnknownErrors = int64(p.LacpCounter.AggPortStatsUnknownRx)
+				pcms.LacpErrors = int64(p.LacpCounter.AggPortStatsIllegalRx) + int64(p.LacpCounter.AggPortStatsUnknownRx)
+				pcms.LacpInMissMatchPkts = int64(p.LacpCounter.AggPortStateMissMatchInfoRx)
+				pcms.LampInPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsRx)
+				pcms.LampInResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsRx)
+				pcms.LampOutPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsTx)
+				pcms.LampOutResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsTx)
+
+				// debug
+				pcms.DebugId = int32(p.AggPortDebug.AggPortDebugInformationID)
+				pcms.RxMachine = ConvertRxMachineStateToYangState(p.AggPortDebug.AggPortDebugRxState)
+				pcms.RxTime = int32(p.AggPortDebug.AggPortDebugLastRxTime)
+				pcms.MuxMachine = ConvertMuxMachineStateToYangState(p.AggPortDebug.AggPortDebugMuxState)
+				pcms.MuxReason = string(p.AggPortDebug.AggPortDebugMuxReason)
+				pcms.ActorChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugActorChurnState)
+				pcms.PartnerChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugPartnerChurnState)
+				pcms.ActorChurnCount = int64(p.AggPortDebug.AggPortDebugActorChurnCount)
+				pcms.PartnerChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerChurnCount)
+				pcms.ActorSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugActorSyncTransitionCount)
+				pcms.PartnerSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugPartnerSyncTransitionCount)
+				pcms.ActorChangeCount = int64(p.AggPortDebug.AggPortDebugActorChangeCount)
+				pcms.PartnerChangeCount = int64(p.AggPortDebug.AggPortDebugPartnerChangeCount)
+				pcms.ActorCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugActorCDSChurnState)
+				pcms.PartnerCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugPartnerCDSChurnState)
+				pcms.ActorCdsChurnCount = int64(p.AggPortDebug.AggPortDebugActorCDSChurnCount)
+				pcms.PartnerCdsChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerCDSChurnCount)
+			*/
 		} else {
-			// long
-			pcms.Timeout = 0
+			return pcms, errors.New(fmt.Sprintf("LACP: Unabled to find config port by IntfRef %s", intfref))
 		}
-
-		if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateActivityBit) {
-			// active
-			pcms.Activity = 0
-		} else {
-			// passive
-			pcms.Activity = 1
-		}
-
-		pcms.OperKey = int16(p.ActorOper.Key)
-		pcms.IntfRef = p.IntfNum
-		if p.AggAttached != nil {
-			pcms.LagIntfRef = p.AggAttached.AggName
-			//		pcms.Mode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)
-		}
-
-		pcms.DrniName = p.DrniName
-		pcms.DrniSynced = p.DrniSynced
-
-		// partner info
-		pcms.PartnerId = p.PartnerOper.System.LacpSystemConvertSystemIdToString()
-		pcms.PartnerKey = int16(p.PartnerOper.Key)
-
-		// System
-		//pcms.SystemIdMac = p.ActorOper.System.LacpSystemConvertSystemIdToString()[6:]
-		//pcms.LagType = ConvertLaAggTypeToModelLagType(p.AggAttached.AggType)
-		pcms.SystemId = p.ActorOper.System.LacpSystemConvertSystemIdToString()
-		//pcms.Interval = ConvertLaAggIntervalToLacpPeriod(p.AggAttached.Config.Interval)
-		//pcms.Enabled = p.PortEnabled
-
-		// stats
-		pcms.LacpInPkts = int64(p.LacpCounter.AggPortStatsLACPDUsRx)
-		pcms.LacpOutPkts = int64(p.LacpCounter.AggPortStatsLACPDUsTx)
-		pcms.LacpRxErrors = int64(p.LacpCounter.AggPortStatsIllegalRx)
-		pcms.LacpTxErrors = 0
-		pcms.LacpUnknownErrors = int64(p.LacpCounter.AggPortStatsUnknownRx)
-		pcms.LacpErrors = int64(p.LacpCounter.AggPortStatsIllegalRx) + int64(p.LacpCounter.AggPortStatsUnknownRx)
-		pcms.LacpInMissMatchPkts = int64(p.LacpCounter.AggPortStateMissMatchInfoRx)
-		pcms.LampInPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsRx)
-		pcms.LampInResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsRx)
-		pcms.LampOutPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsTx)
-		pcms.LampOutResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsTx)
-
-		// debug
-		pcms.DebugId = int32(p.AggPortDebug.AggPortDebugInformationID)
-		pcms.RxMachine = ConvertRxMachineStateToYangState(p.AggPortDebug.AggPortDebugRxState)
-		pcms.RxTime = int32(p.AggPortDebug.AggPortDebugLastRxTime)
-		pcms.MuxMachine = ConvertMuxMachineStateToYangState(p.AggPortDebug.AggPortDebugMuxState)
-		pcms.MuxReason = string(p.AggPortDebug.AggPortDebugMuxReason)
-		pcms.ActorChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugActorChurnState)
-		pcms.PartnerChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugPartnerChurnState)
-		pcms.ActorChurnCount = int64(p.AggPortDebug.AggPortDebugActorChurnCount)
-		pcms.PartnerChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerChurnCount)
-		pcms.ActorSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugActorSyncTransitionCount)
-		pcms.PartnerSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugPartnerSyncTransitionCount)
-		pcms.ActorChangeCount = int64(p.AggPortDebug.AggPortDebugActorChangeCount)
-		pcms.PartnerChangeCount = int64(p.AggPortDebug.AggPortDebugPartnerChangeCount)
-		pcms.ActorCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugActorCDSChurnState)
-		pcms.PartnerCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugPartnerCDSChurnState)
-		pcms.ActorCdsChurnCount = int64(p.AggPortDebug.AggPortDebugActorCDSChurnCount)
-		pcms.PartnerCdsChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerCDSChurnCount)
 	} else {
-		return pcms, errors.New(fmt.Sprintf("LACP: Unabled to find port by IntfRef %s", intfref))
+		if lacp.LaFindPortById(uint16(id), &p) {
+			// actor info
+			pcms.Aggregatable = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateAggregationBit)
+			pcms.Collecting = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateCollectingBit)
+			pcms.Distributing = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit)
+			pcms.Defaulted = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDefaultedBit)
+
+			if pcms.Distributing {
+				pcms.OperState = "UP"
+			} else {
+				pcms.OperState = "DOWN"
+			}
+
+			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateSyncBit) {
+				// in sync
+				pcms.Synchronization = 0
+			} else {
+				// out of sync
+				pcms.Synchronization = 1
+			}
+			// short 1, long 0
+			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateTimeoutBit) {
+				// short
+				pcms.Timeout = 1
+			} else {
+				// long
+				pcms.Timeout = 0
+			}
+
+			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateActivityBit) {
+				// active
+				pcms.Activity = 0
+			} else {
+				// passive
+				pcms.Activity = 1
+			}
+
+			pcms.OperKey = int16(p.ActorOper.Key)
+			pcms.IntfRef = p.IntfNum
+			if p.AggAttached != nil {
+				pcms.LagIntfRef = p.AggAttached.AggName
+				//		pcms.Mode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)
+			}
+
+			pcms.DrniName = p.DrniName
+			pcms.DrniSynced = p.DrniSynced
+
+			// partner info
+			pcms.PartnerId = p.PartnerOper.System.LacpSystemConvertSystemIdToString()
+			pcms.PartnerKey = int16(p.PartnerOper.Key)
+
+			// System
+			//pcms.SystemIdMac = p.ActorOper.System.LacpSystemConvertSystemIdToString()[6:]
+			//pcms.LagType = ConvertLaAggTypeToModelLagType(p.AggAttached.AggType)
+			pcms.SystemId = p.ActorOper.System.LacpSystemConvertSystemIdToString()
+			//pcms.Interval = ConvertLaAggIntervalToLacpPeriod(p.AggAttached.Config.Interval)
+			//pcms.Enabled = p.PortEnabled
+
+			// stats
+			pcms.LacpInPkts = int64(p.LacpCounter.AggPortStatsLACPDUsRx)
+			pcms.LacpOutPkts = int64(p.LacpCounter.AggPortStatsLACPDUsTx)
+			pcms.LacpRxErrors = int64(p.LacpCounter.AggPortStatsIllegalRx)
+			pcms.LacpTxErrors = 0
+			pcms.LacpUnknownErrors = int64(p.LacpCounter.AggPortStatsUnknownRx)
+			pcms.LacpErrors = int64(p.LacpCounter.AggPortStatsIllegalRx) + int64(p.LacpCounter.AggPortStatsUnknownRx)
+			pcms.LacpInMissMatchPkts = int64(p.LacpCounter.AggPortStateMissMatchInfoRx)
+			pcms.LampInPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsRx)
+			pcms.LampInResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsRx)
+			pcms.LampOutPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsTx)
+			pcms.LampOutResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsTx)
+
+			// debug
+			pcms.DebugId = int32(p.AggPortDebug.AggPortDebugInformationID)
+			pcms.RxMachine = ConvertRxMachineStateToYangState(p.AggPortDebug.AggPortDebugRxState)
+			pcms.RxTime = int32(p.AggPortDebug.AggPortDebugLastRxTime)
+			pcms.MuxMachine = ConvertMuxMachineStateToYangState(p.AggPortDebug.AggPortDebugMuxState)
+			pcms.MuxReason = string(p.AggPortDebug.AggPortDebugMuxReason)
+			pcms.ActorChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugActorChurnState)
+			pcms.PartnerChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugPartnerChurnState)
+			pcms.ActorChurnCount = int64(p.AggPortDebug.AggPortDebugActorChurnCount)
+			pcms.PartnerChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerChurnCount)
+			pcms.ActorSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugActorSyncTransitionCount)
+			pcms.PartnerSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugPartnerSyncTransitionCount)
+			pcms.ActorChangeCount = int64(p.AggPortDebug.AggPortDebugActorChangeCount)
+			pcms.PartnerChangeCount = int64(p.AggPortDebug.AggPortDebugPartnerChangeCount)
+			pcms.ActorCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugActorCDSChurnState)
+			pcms.PartnerCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugPartnerCDSChurnState)
+			pcms.ActorCdsChurnCount = int64(p.AggPortDebug.AggPortDebugActorCDSChurnCount)
+			pcms.PartnerCdsChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerCDSChurnCount)
+		} else {
+			return pcms, errors.New(fmt.Sprintf("LACP: Unabled to find port by IntfRef %s", intfref))
+		}
 	}
 	return pcms, nil
 }
@@ -1102,116 +1289,227 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelIntfRefListState(fromIndex la
 	var returnLagMemberStates []*lacpd.LaPortChannelIntfRefListState
 	var returnLagMemberStateGetInfo lacpd.LaPortChannelIntfRefListStateGetInfo
 	var p *lacp.LaAggPort
+	var ac *lacp.LaAggConfig
 	validCount := lacpd.Int(0)
 	toIndex := fromIndex
-	obj = &returnLagMemberStateGetInfo
-	for currIndex := lacpd.Int(0); validCount != count && lacp.LaGetPortNext(&p); currIndex++ {
-
-		if currIndex < fromIndex {
-			continue
-		} else {
-
-			nextLagMemberState = &lagMemberStateList[validCount]
-
-			// actor info
-			nextLagMemberState.Aggregatable = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateAggregationBit)
-			nextLagMemberState.Collecting = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateCollectingBit)
-			nextLagMemberState.Distributing = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit)
-			nextLagMemberState.Defaulted = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDefaultedBit)
-
-			if nextLagMemberState.Distributing {
-				nextLagMemberState.OperState = "UP"
-			} else {
-				nextLagMemberState.OperState = "DOWN"
-			}
-
-			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateSyncBit) {
-				// in sync
-				nextLagMemberState.Synchronization = 1
-			} else {
-				// out of sync
-				nextLagMemberState.Synchronization = 0
-			}
-			// short 1, long 0
-			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateTimeoutBit) {
-				// short
-				nextLagMemberState.Timeout = 1
-			} else {
-				// long
-				nextLagMemberState.Timeout = 0
-			}
-
-			if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateActivityBit) {
-				// active
-				nextLagMemberState.Activity = 0
-			} else {
-				// passive
-				nextLagMemberState.Activity = 1
-			}
-
-			nextLagMemberState.OperKey = int16(p.ActorOper.Key)
-			nextLagMemberState.IntfRef = p.IntfNum
-			nextLagMemberState.IfIndex = utils.GetIfIndexFromName(p.IntfNum)
-
-			if p.AggAttached != nil {
-				nextLagMemberState.LagIntfRef = p.AggAttached.AggName
-				//		nextLagMemberState.Mode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)
-			}
-
-			// partner info
-			nextLagMemberState.PartnerId = p.PartnerOper.System.LacpSystemConvertSystemIdToString()
-			nextLagMemberState.PartnerKey = int16(p.PartnerOper.Key)
-
-			// System
-			//nextLagMemberState.SystemIdMac = p.ActorOper.System.LacpSystemConvertSystemIdToString()[6:]
-			//nextLagMemberState.LagType = ConvertLaAggTypeToModelLagType(p.AggAttached.AggType)
-			nextLagMemberState.SystemId = p.ActorOper.System.LacpSystemConvertSystemIdToString()
-			//nextLagMemberState.Interval = ConvertLaAggIntervalToLacpPeriod(p.AggAttached.Config.Interval)
-			//nextLagMemberState.Enabled = p.PortEnabled
-
-			// stats
-			nextLagMemberState.LacpInPkts = int64(p.LacpCounter.AggPortStatsLACPDUsRx)
-			nextLagMemberState.LacpOutPkts = int64(p.LacpCounter.AggPortStatsLACPDUsTx)
-			nextLagMemberState.LacpRxErrors = int64(p.LacpCounter.AggPortStatsIllegalRx)
-			nextLagMemberState.LacpTxErrors = 0
-			nextLagMemberState.LacpUnknownErrors = int64(p.LacpCounter.AggPortStatsUnknownRx)
-			nextLagMemberState.LacpErrors = int64(p.LacpCounter.AggPortStatsIllegalRx) + int64(p.LacpCounter.AggPortStatsUnknownRx)
-			nextLagMemberState.LampInPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsRx)
-			nextLagMemberState.LampInResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsRx)
-			nextLagMemberState.LampOutPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsTx)
-			nextLagMemberState.LampOutResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsTx)
-
-			// debug
-			nextLagMemberState.DebugId = int32(p.AggPortDebug.AggPortDebugInformationID)
-			nextLagMemberState.RxMachine = ConvertRxMachineStateToYangState(p.AggPortDebug.AggPortDebugRxState)
-			nextLagMemberState.RxTime = int32(p.AggPortDebug.AggPortDebugLastRxTime)
-			nextLagMemberState.MuxMachine = ConvertMuxMachineStateToYangState(p.AggPortDebug.AggPortDebugMuxState)
-			nextLagMemberState.MuxReason = string(p.AggPortDebug.AggPortDebugMuxReason)
-			nextLagMemberState.ActorChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugActorChurnState)
-			nextLagMemberState.PartnerChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugPartnerChurnState)
-			nextLagMemberState.ActorChurnCount = int64(p.AggPortDebug.AggPortDebugActorChurnCount)
-			nextLagMemberState.PartnerChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerChurnCount)
-			nextLagMemberState.ActorSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugActorSyncTransitionCount)
-			nextLagMemberState.PartnerSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugPartnerSyncTransitionCount)
-			nextLagMemberState.ActorChangeCount = int64(p.AggPortDebug.AggPortDebugActorChangeCount)
-			nextLagMemberState.PartnerChangeCount = int64(p.AggPortDebug.AggPortDebugPartnerChangeCount)
-			nextLagMemberState.ActorCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugActorCDSChurnState)
-			nextLagMemberState.PartnerCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugPartnerCDSChurnState)
-			nextLagMemberState.ActorCdsChurnCount = int64(p.AggPortDebug.AggPortDebugActorCDSChurnCount)
-			nextLagMemberState.PartnerCdsChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerCDSChurnCount)
-
-			if len(returnLagMemberStates) == 0 {
-				returnLagMemberStates = make([]*lacpd.LaPortChannelIntfRefListState, 0)
-			}
-			returnLagMemberStates = append(returnLagMemberStates, nextLagMemberState)
-			validCount++
-			toIndex++
-		}
-	}
-	// lets try and get the next agg if one exists then there are more routes
 	moreRoutes := false
-	if p != nil {
-		moreRoutes = lacp.LaGetPortNext(&p)
+
+	aggTimeoutToIntervalMap := map[time.Duration]int32{
+		//LacpPeriodTypeSLOW: "LONG",
+		//LacpPeriodTypeFAST: "SHORT",
+		//lacp.LacpSlowPeriodicTime: "LONG",
+		//lacp.LacpFastPeriodicTime: "SHORT",
+		lacp.LacpLongTimeoutTime:  0,
+		lacp.LacpShortTimeoutTime: 1,
+	}
+
+	obj = &returnLagMemberStateGetInfo
+
+	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_DISABLE {
+		lagIndex := lacpd.Int(0)
+		currIndex := lacpd.Int(0)
+		for lagIndex = 0; validCount != count && lacp.LaAggConfigGetByIndex(int(lagIndex), &ac); lagIndex++ {
+			for _, ifindex := range ac.LagMembers {
+				intfref := utils.GetNameFromIfIndex(int32(ifindex))
+				if lacp.LaAggConfigDoesIntfRefListMemberExist(intfref, &ac) {
+					if currIndex < fromIndex {
+						currIndex += 1
+						continue
+					} else {
+
+						nextLagMemberState = &lagMemberStateList[validCount]
+						nextLagMemberState.Aggregatable = true
+						nextLagMemberState.Collecting = false
+						nextLagMemberState.Distributing = false
+						nextLagMemberState.Defaulted = true
+						nextLagMemberState.OperState = "DOWN"
+
+						// out of sync
+						nextLagMemberState.Synchronization = 1
+						timeout, ok := aggTimeoutToIntervalMap[ac.Lacp.Interval]
+						if !ok {
+							timeout = 0
+						}
+
+						nextLagMemberState.Timeout = timeout
+
+						nextLagMemberState.Activity = ConvertLaAggModeToModelLacpMode(ac.Lacp.Mode)
+
+						nextLagMemberState.OperKey = int16(0)
+						nextLagMemberState.IntfRef = intfref
+						nextLagMemberState.LagIntfRef = ac.Name
+
+						nextLagMemberState.DrniName = ""
+						nextLagMemberState.DrniSynced = false
+
+						// partner info
+						//pcms.PartnerId = p.PartnerOper.System.LacpSystemConvertSystemIdToString()
+						//pcms.PartnerKey = int16(p.PartnerOper.Key)
+
+						// System
+						//pcms.SystemIdMac = p.ActorOper.System.LacpSystemConvertSystemIdToString()[6:]
+						//pcms.LagType = ConvertLaAggTypeToModelLagType(p.AggAttached.AggType)
+						//pcms.SystemId = p.ActorOper.System.LacpSystemConvertSystemIdToString()
+						//pcms.Interval = ConvertLaAggIntervalToLacpPeriod(p.AggAttached.Config.Interval)
+						//pcms.Enabled = p.PortEnabled
+
+						// stats
+						/*
+							pcms.LacpInPkts = int64(p.LacpCounter.AggPortStatsLACPDUsRx)
+							pcms.LacpOutPkts = int64(p.LacpCounter.AggPortStatsLACPDUsTx)
+							pcms.LacpRxErrors = int64(p.LacpCounter.AggPortStatsIllegalRx)
+							pcms.LacpTxErrors = 0
+							pcms.LacpUnknownErrors = int64(p.LacpCounter.AggPortStatsUnknownRx)
+							pcms.LacpErrors = int64(p.LacpCounter.AggPortStatsIllegalRx) + int64(p.LacpCounter.AggPortStatsUnknownRx)
+							pcms.LacpInMissMatchPkts = int64(p.LacpCounter.AggPortStateMissMatchInfoRx)
+							pcms.LampInPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsRx)
+							pcms.LampInResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsRx)
+							pcms.LampOutPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsTx)
+							pcms.LampOutResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsTx)
+
+							// debug
+							pcms.DebugId = int32(p.AggPortDebug.AggPortDebugInformationID)
+							pcms.RxMachine = ConvertRxMachineStateToYangState(p.AggPortDebug.AggPortDebugRxState)
+							pcms.RxTime = int32(p.AggPortDebug.AggPortDebugLastRxTime)
+							pcms.MuxMachine = ConvertMuxMachineStateToYangState(p.AggPortDebug.AggPortDebugMuxState)
+							pcms.MuxReason = string(p.AggPortDebug.AggPortDebugMuxReason)
+							pcms.ActorChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugActorChurnState)
+							pcms.PartnerChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugPartnerChurnState)
+							pcms.ActorChurnCount = int64(p.AggPortDebug.AggPortDebugActorChurnCount)
+							pcms.PartnerChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerChurnCount)
+							pcms.ActorSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugActorSyncTransitionCount)
+							pcms.PartnerSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugPartnerSyncTransitionCount)
+							pcms.ActorChangeCount = int64(p.AggPortDebug.AggPortDebugActorChangeCount)
+							pcms.PartnerChangeCount = int64(p.AggPortDebug.AggPortDebugPartnerChangeCount)
+							pcms.ActorCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugActorCDSChurnState)
+							pcms.PartnerCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugPartnerCDSChurnState)
+							pcms.ActorCdsChurnCount = int64(p.AggPortDebug.AggPortDebugActorCDSChurnCount)
+							pcms.PartnerCdsChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerCDSChurnCount)
+						*/
+					}
+					if len(returnLagMemberStates) == 0 {
+						returnLagMemberStates = make([]*lacpd.LaPortChannelIntfRefListState, 0)
+					}
+					returnLagMemberStates = append(returnLagMemberStates, nextLagMemberState)
+					validCount++
+					toIndex++
+					currIndex++
+				}
+			}
+		}
+		if ac != nil {
+			moreRoutes = lacp.LaAggConfigGetByIndex(int(currIndex), &ac)
+		}
+
+	} else {
+		for currIndex := lacpd.Int(0); validCount != count && lacp.LaGetPortNext(&p); currIndex++ {
+
+			if currIndex < fromIndex {
+				continue
+			} else {
+
+				nextLagMemberState = &lagMemberStateList[validCount]
+
+				// actor info
+				nextLagMemberState.Aggregatable = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateAggregationBit)
+				nextLagMemberState.Collecting = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateCollectingBit)
+				nextLagMemberState.Distributing = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDistributingBit)
+				nextLagMemberState.Defaulted = lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateDefaultedBit)
+
+				if nextLagMemberState.Distributing {
+					nextLagMemberState.OperState = "UP"
+				} else {
+					nextLagMemberState.OperState = "DOWN"
+				}
+
+				if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateSyncBit) {
+					// in sync
+					nextLagMemberState.Synchronization = 1
+				} else {
+					// out of sync
+					nextLagMemberState.Synchronization = 0
+				}
+				// short 1, long 0
+				if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateTimeoutBit) {
+					// short
+					nextLagMemberState.Timeout = 1
+				} else {
+					// long
+					nextLagMemberState.Timeout = 0
+				}
+
+				if lacp.LacpStateIsSet(p.ActorOper.State, lacp.LacpStateActivityBit) {
+					// active
+					nextLagMemberState.Activity = 0
+				} else {
+					// passive
+					nextLagMemberState.Activity = 1
+				}
+
+				nextLagMemberState.OperKey = int16(p.ActorOper.Key)
+				nextLagMemberState.IntfRef = p.IntfNum
+				nextLagMemberState.IfIndex = utils.GetIfIndexFromName(p.IntfNum)
+
+				if p.AggAttached != nil {
+					nextLagMemberState.LagIntfRef = p.AggAttached.AggName
+					//		nextLagMemberState.Mode = ConvertLaAggModeToModelLacpMode(p.AggAttached.Config.Mode)
+				}
+
+				// partner info
+				nextLagMemberState.PartnerId = p.PartnerOper.System.LacpSystemConvertSystemIdToString()
+				nextLagMemberState.PartnerKey = int16(p.PartnerOper.Key)
+
+				// System
+				//nextLagMemberState.SystemIdMac = p.ActorOper.System.LacpSystemConvertSystemIdToString()[6:]
+				//nextLagMemberState.LagType = ConvertLaAggTypeToModelLagType(p.AggAttached.AggType)
+				nextLagMemberState.SystemId = p.ActorOper.System.LacpSystemConvertSystemIdToString()
+				//nextLagMemberState.Interval = ConvertLaAggIntervalToLacpPeriod(p.AggAttached.Config.Interval)
+				//nextLagMemberState.Enabled = p.PortEnabled
+
+				// stats
+				nextLagMemberState.LacpInPkts = int64(p.LacpCounter.AggPortStatsLACPDUsRx)
+				nextLagMemberState.LacpOutPkts = int64(p.LacpCounter.AggPortStatsLACPDUsTx)
+				nextLagMemberState.LacpRxErrors = int64(p.LacpCounter.AggPortStatsIllegalRx)
+				nextLagMemberState.LacpTxErrors = 0
+				nextLagMemberState.LacpUnknownErrors = int64(p.LacpCounter.AggPortStatsUnknownRx)
+				nextLagMemberState.LacpErrors = int64(p.LacpCounter.AggPortStatsIllegalRx) + int64(p.LacpCounter.AggPortStatsUnknownRx)
+				nextLagMemberState.LampInPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsRx)
+				nextLagMemberState.LampInResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsRx)
+				nextLagMemberState.LampOutPdu = int64(p.LacpCounter.AggPortStatsMarkerPDUsTx)
+				nextLagMemberState.LampOutResponsePdu = int64(p.LacpCounter.AggPortStatsMarkerResponsePDUsTx)
+
+				// debug
+				nextLagMemberState.DebugId = int32(p.AggPortDebug.AggPortDebugInformationID)
+				nextLagMemberState.RxMachine = ConvertRxMachineStateToYangState(p.AggPortDebug.AggPortDebugRxState)
+				nextLagMemberState.RxTime = int32(p.AggPortDebug.AggPortDebugLastRxTime)
+				nextLagMemberState.MuxMachine = ConvertMuxMachineStateToYangState(p.AggPortDebug.AggPortDebugMuxState)
+				nextLagMemberState.MuxReason = string(p.AggPortDebug.AggPortDebugMuxReason)
+				nextLagMemberState.ActorChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugActorChurnState)
+				nextLagMemberState.PartnerChurnMachine = ConvertCdmMachineStateToYangState(p.AggPortDebug.AggPortDebugPartnerChurnState)
+				nextLagMemberState.ActorChurnCount = int64(p.AggPortDebug.AggPortDebugActorChurnCount)
+				nextLagMemberState.PartnerChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerChurnCount)
+				nextLagMemberState.ActorSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugActorSyncTransitionCount)
+				nextLagMemberState.PartnerSyncTransitionCount = int64(p.AggPortDebug.AggPortDebugPartnerSyncTransitionCount)
+				nextLagMemberState.ActorChangeCount = int64(p.AggPortDebug.AggPortDebugActorChangeCount)
+				nextLagMemberState.PartnerChangeCount = int64(p.AggPortDebug.AggPortDebugPartnerChangeCount)
+				nextLagMemberState.ActorCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugActorCDSChurnState)
+				nextLagMemberState.PartnerCdsChurnMachine = int32(p.AggPortDebug.AggPortDebugPartnerCDSChurnState)
+				nextLagMemberState.ActorCdsChurnCount = int64(p.AggPortDebug.AggPortDebugActorCDSChurnCount)
+				nextLagMemberState.PartnerCdsChurnCount = int64(p.AggPortDebug.AggPortDebugPartnerCDSChurnCount)
+
+				if len(returnLagMemberStates) == 0 {
+					returnLagMemberStates = make([]*lacpd.LaPortChannelIntfRefListState, 0)
+				}
+				returnLagMemberStates = append(returnLagMemberStates, nextLagMemberState)
+				validCount++
+				toIndex++
+			}
+		}
+
+		// lets try and get the next agg if one exists then there are more routes
+		if p != nil {
+			moreRoutes = lacp.LaGetPortNext(&p)
+		}
 	}
 
 	fmt.Printf("Returning %d list of lagMembers\n", validCount)

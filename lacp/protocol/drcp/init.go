@@ -24,9 +24,8 @@
 // init
 package drcp
 
-import ()
-
 func init() {
+	ConfigDrMap = make(map[string]uint32)
 	DRGlobalSystem.TxCallbacks = make(map[IppDbKey][]TxCallback)
 	DRCPIppDB = make(map[IppDbKey]*DRCPIpp)
 	DRCPIppDBList = make([]*DRCPIpp, 0)
