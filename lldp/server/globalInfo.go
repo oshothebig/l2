@@ -63,6 +63,7 @@ type LLDPGlobalInfo struct {
 	counter Frame
 	// last received packet time
 	pktRcvdTime time.Time
+	rxtxMode    uint8
 }
 
 type Frame struct {

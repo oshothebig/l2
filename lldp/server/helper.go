@@ -76,8 +76,10 @@ func (intf *LLDPGlobalInfo) DeInitRuntimeInfo() {
 func (intf *LLDPGlobalInfo) DeletePcapHandler() {
 	if intf.PcapHandle != nil {
 		// Send go routine kill signal right away before even we do anything else
-		intf.RxKill <- true
-		<-intf.RxKill
+		if intf.RxInfo.RxRunning {
+			intf.RxKill <- true
+			<-intf.RxKill
+		}
 		// @FIXME: some bug in close handling that causes 5 mins delay
 		intf.PcapHandle.Close()
 		intf.PcapHandle = nil

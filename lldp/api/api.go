@@ -64,43 +64,85 @@ func validateExistingIntfConfig(intfRef string) (int32, bool, error) {
 	return ifIndex, exists, nil
 }
 
-//func SendIntfConfig(ifIndex int32, enable bool) (bool, error) {
-func SendIntfConfig(intfRef string, enable bool) (bool, error) {
+func SendIntfConfig(intfRef, txrxMode string, enable bool) (bool, error) {
+	var txrxModeEnum uint8
 	// Validate ifIndex before sending the config to server
 	ifIndex, proceed, err := validateExistingIntfConfig(intfRef)
 	if !proceed {
 		return proceed, err
 	}
-	lldpapi.server.IntfCfgCh <- &config.IntfConfig{ifIndex, enable}
+	switch txrxMode {
+	case config.TX_RX_MODE_TxRx:
+		txrxModeEnum = config.TXRX
+	case config.TX_RX_MODE_TxOnly:
+		txrxModeEnum = config.TX_ONLY
+	case config.TX_RX_MODE_RxOnly:
+		txrxModeEnum = config.RX_ONLY
+	default:
+		return false, errors.New("Invalid TxRxMode string provided")
+	}
+	lldpapi.server.IntfCfgCh <- &config.IntfConfig{ifIndex, enable, txrxModeEnum}
 	return proceed, err
 }
 
-//func UpdateIntfConfig(ifIndex int32, enable bool) (bool, error) {
-func UpdateIntfConfig(intfRef string, enable bool) (bool, error) {
+func UpdateIntfConfig(intfRef, txrxMode string, enable bool) (bool, error) {
+	var txrxModeEnum uint8
 	ifIndex, proceed, err := validateExistingIntfConfig(intfRef)
 	if !proceed {
 		return proceed, err
 	}
-	lldpapi.server.IntfCfgCh <- &config.IntfConfig{ifIndex, enable}
+	switch txrxMode {
+	case config.TX_RX_MODE_TxRx:
+		txrxModeEnum = config.TXRX
+	case config.TX_RX_MODE_TxOnly:
+		txrxModeEnum = config.TX_ONLY
+	case config.TX_RX_MODE_RxOnly:
+		txrxModeEnum = config.RX_ONLY
+	default:
+		return false, errors.New("Invalid TxRxMode string provided")
+	}
+	lldpapi.server.IntfCfgCh <- &config.IntfConfig{ifIndex, enable, txrxModeEnum}
 	return proceed, err
 }
 
-func SendGlobalConfig(vrf string, enable bool, tranmitInterval int32) (bool, error) {
+func SendGlobalConfig(vrf, txrxMode string, enable, snoopAndDrop bool, tranmitInterval int32) (bool, error) {
+	var txrxModeEnum uint8
 	if lldpapi.server.Global != nil {
 		return false, errors.New("Create/Delete on Global Object is not allowed, please do Update")
 	}
-	debug.Logger.Debug("LLDP API received auto-create global config:", vrf, enable, tranmitInterval)
-	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable, tranmitInterval}
+	switch txrxMode {
+	case config.TX_RX_MODE_TxRx:
+		txrxModeEnum = config.TXRX
+	case config.TX_RX_MODE_TxOnly:
+		txrxModeEnum = config.TX_ONLY
+	case config.TX_RX_MODE_RxOnly:
+		txrxModeEnum = config.RX_ONLY
+	default:
+		return false, errors.New("Invalid TxRxMode string provided")
+	}
+	debug.Logger.Debug("LLDP API received auto-create global config:", vrf, enable, tranmitInterval, txrxMode, snoopAndDrop)
+	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable, tranmitInterval, txrxModeEnum, snoopAndDrop}
 	debug.Logger.Debug("LLDP API pushed the global config on channel and returning true to confgMgr for create")
 	return true, nil
 }
 
-func UpdateGlobalConfig(vrf string, enable bool, tranmitInterval int32) (bool, error) {
+func UpdateGlobalConfig(vrf, txrxMode string, enable, snoopAndDrop bool, tranmitInterval int32) (bool, error) {
+	var txrxModeEnum uint8
 	if lldpapi.server.Global == nil {
 		return false, errors.New("Update can only be performed if the global object for LLDP is created")
 	}
-	debug.Logger.Debug("LLDP API received global config:", vrf, enable, tranmitInterval)
-	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable, tranmitInterval}
+	switch txrxMode {
+	case config.TX_RX_MODE_TxRx:
+		txrxModeEnum = config.TXRX
+	case config.TX_RX_MODE_TxOnly:
+		txrxModeEnum = config.TX_ONLY
+	case config.TX_RX_MODE_RxOnly:
+		txrxModeEnum = config.RX_ONLY
+	default:
+		return false, errors.New("Invalid TxRxMode string provided")
+	}
+	debug.Logger.Debug("LLDP API received global config:", vrf, enable, tranmitInterval, txrxModeEnum, snoopAndDrop)
+	lldpapi.server.GblCfgCh <- &config.Global{vrf, enable, tranmitInterval, txrxModeEnum, snoopAndDrop}
 	debug.Logger.Debug("LLDP API pushed the global config on channel and returning true to confgMgr")
 	return true, nil
 }
