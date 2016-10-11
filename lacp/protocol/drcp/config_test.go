@@ -137,6 +137,9 @@ func OnlyForTestTeardown(t *testing.T) {
 	ConversationIdMap[200].Refcnt = 0
 	ConversationIdMap[200].Idtype = [4]uint8{}
 
+	lacp.ConfigAggMap = nil
+	lacp.ConfigAggList = nil
+
 	// validate that the
 	if len(DistributedRelayDB) != 0 {
 		t.Error("Error DR objects not deleted")
