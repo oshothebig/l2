@@ -224,7 +224,7 @@ func ProcessLacpPortPartnerInfoSync(ifindex int32) {
 		}
 
 		if isset, ok := EventMap[evt]; ok {
-			if !isset {
+			if isset {
 				EventMap[evt] = false
 				evtKey := events.LacpPortEntryKey{
 					IntfRef: intfref,

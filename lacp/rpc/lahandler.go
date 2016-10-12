@@ -1757,30 +1757,40 @@ func (la *LACPDServiceHandler) GetLacpGlobalState(vrf string) (*lacpd.LacpGlobal
 		obj.AdminState = "DOWN"
 	}
 	var a *lacp.LaAggregator
-	for lacp.LaGetAggNext(&a) {
-		obj.AggList = append(obj.AggList, a.AggName)
-		if a.OperState {
-			obj.AggOperStateUpList = append(obj.AggOperStateUpList, a.AggName)
+	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_ENABLE {
+		for lacp.LaGetAggNext(&a) {
+			obj.AggList = append(obj.AggList, a.AggName)
+			if a.OperState {
+				obj.AggOperStateUpList = append(obj.AggOperStateUpList, a.AggName)
+				if a.DrniName != "" {
+					obj.DistributedRelayUpList = append(obj.DistributedRelayUpList, a.DrniName)
+				}
+			}
 			if a.DrniName != "" {
-				obj.DistributedRelayUpList = append(obj.DistributedRelayUpList, a.DrniName)
+				obj.DistributedRelayAttachedList = append(obj.DistributedRelayAttachedList, fmt.Sprintf("%s-%s", a.DrniName, a.AggName))
 			}
 		}
-		if a.DrniName != "" {
-			obj.DistributedRelayAttachedList = append(obj.DistributedRelayAttachedList, fmt.Sprintf("%s-%s", a.DrniName, a.AggName))
+		var dr *drcp.DistributedRelay
+		for drcp.DrGetDrcpNext(&dr) {
+			obj.DistributedRelayList = append(obj.DistributedRelayList, dr.DrniName)
+		}
+
+		var p *lacp.LaAggPort
+		for lacp.LaGetPortNext(&p) {
+			obj.LacpErrorsInPkts += int64(p.LacpCounter.AggPortStatsIllegalRx) + int64(p.LacpCounter.AggPortStatsUnknownRx)
+			obj.LacpMissMatchPkts += int64(p.LacpCounter.AggPortStateMissMatchInfoRx)
+			obj.LacpTotalRxPkts += int64(p.LacpCounter.AggPortStatsLACPDUsRx)
+			obj.LacpTotalTxPkts += int64(p.LacpCounter.AggPortStatsLACPDUsTx)
+		}
+	} else {
+		var currIndex lacpd.Int
+		var ac *lacp.LaAggConfig
+		for currIndex = 0; lacp.LaAggConfigGetByIndex(int(currIndex), &ac); currIndex++ {
+			obj.AggList = append(obj.AggList, ac.Name)
+			// TODO need to add DRCP info
 		}
 	}
-	var dr *drcp.DistributedRelay
-	for drcp.DrGetDrcpNext(&dr) {
-		obj.DistributedRelayList = append(obj.DistributedRelayList, dr.DrniName)
-	}
 
-	var p *lacp.LaAggPort
-	for lacp.LaGetPortNext(&p) {
-		obj.LacpErrorsInPkts += int64(p.LacpCounter.AggPortStatsIllegalRx) + int64(p.LacpCounter.AggPortStatsUnknownRx)
-		obj.LacpMissMatchPkts += int64(p.LacpCounter.AggPortStateMissMatchInfoRx)
-		obj.LacpTotalRxPkts += int64(p.LacpCounter.AggPortStatsLACPDUsRx)
-		obj.LacpTotalTxPkts += int64(p.LacpCounter.AggPortStatsLACPDUsTx)
-	}
 	return obj, nil
 }
 
