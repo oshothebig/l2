@@ -756,6 +756,9 @@ func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *layers.LACP) bool {
 			LacpStateToStr(lacpPduInfo.Partner.Info.State),
 			p.ActorOper,
 			LacpStateToStr(p.ActorOper.State)))
+		// send event to user port and partner info don't
+		utils.ProcessLacpPortPartnerInfoMismatch(int32(p.PortNum))
+
 		p.LacpCounter.AggPortStateMissMatchInfoRx++
 		return true
 	} else if (LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateTimeoutBit) && !LacpStateIsSet(p.ActorOper.State, LacpStateTimeoutBit)) ||
@@ -764,6 +767,7 @@ func (rxm *LacpRxMachine) updateNTT(lacpPduInfo *layers.LACP) bool {
 		(!LacpStateIsSet(lacpPduInfo.Partner.Info.State, LacpStateActivityBit) && LacpStateIsSet(p.ActorOper.State, LacpStateActivityBit)) {
 		rxm.LacpRxmLog(fmt.Sprintf("PDU/Oper state Timeout/Activity different: \npdu: %#v\n oper: %#v", lacpPduInfo.Partner.Info, p.ActorOper))
 		p.LacpCounter.AggPortStateMissMatchInfoRx++
+		utils.ProcessLacpPortPartnerInfoMismatch(int32(p.PortNum))
 		return true
 	}
 	return false

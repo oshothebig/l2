@@ -32,4 +32,5 @@ func init() {
 	fmt.Println("Creating PortConfigMap")
 	PortConfigMap = make(map[int32]PortConfig)
 	AggConfigMap = make(map[int32]string)
+	EventMap = make(map[ifindex_event]bool)
 }
