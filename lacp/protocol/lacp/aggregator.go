@@ -249,6 +249,8 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 	// add port agg map and register port oper state events
 	utils.AddAggConfigMap(int32(a.AggId), a.AggName)
 	utils.CreateEventMap(int32(a.AggId))
+	// initial event state is down
+	utils.ProcessLacpGroupOperStateDown(int32(a.AggId))
 	RegisterLaAggOperStateUpCb("event_"+a.AggName, utils.ProcessLacpGroupOperStateUp)
 	RegisterLaAggOperStateDownCb("event_"+a.AggName, utils.ProcessLacpGroupOperStateDown)
 
