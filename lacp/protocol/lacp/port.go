@@ -428,6 +428,10 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 		DrniName:     "",
 	}
 
+	// register the events
+	RegisterLaPortUpCb("event_"+p.IntfNum, utils.ProcessLacpPortOperStateUp)
+	RegisterLaPortDownCb("event_"+p.IntfNum, utils.ProcessLacpPortOperStateDown)
+
 	// default actor admin
 	//fmt.Println(config.sysId, gLacpSysGlobalInfo[config.sysId])
 	p.ActorAdmin.State = sgi.ActorStateDefaultParams.State
