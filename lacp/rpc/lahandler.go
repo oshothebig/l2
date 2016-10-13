@@ -475,7 +475,9 @@ func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) 
 
 	nameKey := config.IntfRef
 	switchIdMac := config.SystemIdMac
-	if config.SystemIdMac == "00:00:00:00:00:00" {
+	if config.SystemIdMac == "00:00:00:00:00:00" ||
+		config.SystemIdMac == "00-00-00-00-00-00" ||
+		config.SystemIdMac == "" {
 		tmpmac := utils.GetSwitchMac()
 		switchIdMac = fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", tmpmac[0], tmpmac[1], tmpmac[2], tmpmac[3], tmpmac[4], tmpmac[5])
 	}
@@ -863,7 +865,7 @@ func (la *LACPDServiceHandler) GetLaPortChannelState(IntfRef string) (*lacpd.LaP
 		id := GetKeyByAggName(IntfRef)
 		if lacp.LaFindAggById(int(id), &a) {
 			pcs.IntfRef = a.AggName
-			pcs.IfIndex = int32(a.AggId)
+			pcs.IfIndex = int32(a.HwAggId)
 			pcs.LagType = ConvertLaAggTypeToModelLagType(a.AggType)
 			pcs.AdminState = "DOWN"
 			if a.AdminState {
@@ -931,7 +933,7 @@ func (la *LACPDServiceHandler) GetLaPortChannelState(IntfRef string) (*lacpd.LaP
 				HashMode uint32
 			*/
 			pcs.IntfRef = IntfRef
-			pcs.IfIndex = int32(id)
+			pcs.IfIndex = 0
 			pcs.LagType = int32(ac.Type)
 
 			pcs.AdminState = "DOWN"
@@ -990,7 +992,7 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 
 				nextLagState = &lagStateList[validCount]
 				nextLagState.IntfRef = ac.Name
-				nextLagState.IfIndex = int32(id)
+				nextLagState.IfIndex = 0
 				nextLagState.LagType = int32(ac.Type)
 				nextLagState.AdminState = "DOWN"
 				if ac.Enabled {

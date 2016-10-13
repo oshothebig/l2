@@ -282,7 +282,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 			if client != nil {
 				ifindex, err := client.CreateLag(a.AggName, asicDHashModeGet(a.LagHash), "")
 				if err != nil {
-					a.LacpAggLog(fmt.Sprintln("EnableDistributing: Error creating LAG Group in HW", err))
+					a.LacpAggLog(fmt.Sprintln("Error creating LAG Group in HW", err))
 				} else {
 					a.HwAggId = ifindex
 				}
