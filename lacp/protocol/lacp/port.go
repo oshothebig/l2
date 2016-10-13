@@ -429,6 +429,8 @@ func NewLaAggPort(config *LaAggPortConfig) *LaAggPort {
 	}
 
 	// register the events
+	utils.CreateEventMap(int32(p.PortNum))
+	utils.ProcessLacpPortOperStateDown(int32(p.PortNum))
 	RegisterLaPortUpCb("event_"+p.IntfNum, utils.ProcessLacpPortOperStateUp)
 	RegisterLaPortDownCb("event_"+p.IntfNum, utils.ProcessLacpPortOperStateDown)
 
@@ -588,7 +590,7 @@ func (p *LaAggPort) LaAggPortDelete() {
 			deletecb(int32(p.PortNum))
 		}
 	}
-
+	utils.DeleteEventMap(int32(p.PortNum))
 	p.Stop()
 	for _, sgi := range LacpSysGlobalInfoGet() {
 		for Key, port := range sgi.PortMap {

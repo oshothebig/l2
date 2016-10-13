@@ -28,29 +28,67 @@ import (
 	"utils/eventUtils"
 )
 
-// TODO need to add code in order to protect against event flapping
+type ifindex_event struct {
+	ifindex int32
+	event   events.EventId
+}
+
+// events will hold negitive events and will be cleared
+//
+var EventMap map[ifindex_event]bool
+
+func CreateEventMap(ifindex int32) {
+
+	evt := ifindex_event{
+		ifindex: ifindex,
+		event:   events.LacpdEventPortOperStateDown,
+	}
+
+	EventMap[evt] = false
+	evt.event = events.LacpdEventGroupOperStateDown
+	EventMap[evt] = false
+	evt.event = events.LacpdEventPortPartnerInfoMismatch
+	EventMap[evt] = false
+
+}
+
+func DeleteEventMap(ifindex int32) {
+	evt := ifindex_event{
+		ifindex: ifindex,
+		event:   events.LacpdEventPortOperStateDown,
+	}
+
+	delete(EventMap, evt)
+	evt.event = events.LacpdEventGroupOperStateDown
+	delete(EventMap, evt)
+	evt.event = events.LacpdEventPortPartnerInfoMismatch
+	delete(EventMap, evt)
+}
 
 func ProcessLacpGroupOperStateDown(ifindex int32) {
 	intfref := GetAggNameFromIfIndex(ifindex)
 
 	if intfref != "" {
-		evtKey := events.LacpEntryKey{
-			IntfRef: intfref,
+		evt := ifindex_event{
+			ifindex: ifindex,
+			event:   events.LacpdEventGroupOperStateDown,
 		}
-		//evtData := EventData{
-		//	IpAddr:  msg.IpAddr,
-		//	MacAddr: entry.MacAddr,
-		//	IfName:  entry.IfName,
-		//}
-		txEvent := eventUtils.TxEvent{
-			EventId: events.LacpdEventPortOperStateDown,
-			Key:     evtKey,
-			//	AdditionalInfo: "",
-			//	AdditionalData: evtData,
-		}
-		err := eventUtils.PublishEvents(&txEvent)
-		if err != nil {
-			GlobalLogger.Err("Error in publishing LacpdEventPortOperStateDown Event")
+
+		if isset, ok := EventMap[evt]; ok {
+			if !isset {
+				EventMap[evt] = true
+				evtKey := events.LacpEntryKey{
+					IntfRef: intfref,
+				}
+				txEvent := eventUtils.TxEvent{
+					EventId: events.LacpdEventGroupOperStateDown,
+					Key:     evtKey,
+				}
+				err := eventUtils.PublishEvents(&txEvent)
+				if err != nil {
+					GlobalLogger.Err("Error in publishing LacpdEventPortOperStateDown Event")
+				}
+			}
 		}
 	} else {
 		GlobalLogger.Err(fmt.Sprintf("Error in publishing LacpdEventPortOperStateDown Event, ifindex %d not found", ifindex))
@@ -61,24 +99,25 @@ func ProcessLacpGroupOperStateUp(ifindex int32) {
 	intfref := GetAggNameFromIfIndex(ifindex)
 
 	if intfref != "" {
-
-		evtKey := events.LacpEntryKey{
-			IntfRef: intfref,
+		evt := ifindex_event{
+			ifindex: ifindex,
+			event:   events.LacpdEventGroupOperStateDown,
 		}
-		//evtData := EventData{
-		//	IpAddr:  msg.IpAddr,
-		//	MacAddr: entry.MacAddr,
-		//	IfName:  entry.IfName,
-		//}
-		txEvent := eventUtils.TxEvent{
-			EventId: events.LacpdEventGroupOperStateUp,
-			Key:     evtKey,
-			//	AdditionalInfo: "",
-			//	AdditionalData: evtData,
-		}
-		err := eventUtils.PublishEvents(&txEvent)
-		if err != nil {
-			GlobalLogger.Err("Error in publishing LacpdEventGroupOperStateUp Event")
+		if isset, ok := EventMap[evt]; ok {
+			if isset {
+				EventMap[evt] = false
+				evtKey := events.LacpEntryKey{
+					IntfRef: intfref,
+				}
+				txEvent := eventUtils.TxEvent{
+					EventId: events.LacpdEventGroupOperStateUp,
+					Key:     evtKey,
+				}
+				err := eventUtils.PublishEvents(&txEvent)
+				if err != nil {
+					GlobalLogger.Err("Error in publishing LacpdEventGroupOperStateUp Event")
+				}
+			}
 		}
 	} else {
 		GlobalLogger.Err(fmt.Sprintf("Error in publishing LacpdEventGroupOperStateUp Event, ifindex %d not found", ifindex))
@@ -89,23 +128,27 @@ func ProcessLacpPortOperStateDown(ifindex int32) {
 	intfref := GetNameFromIfIndex(ifindex)
 
 	if intfref != "" {
-		evtKey := events.LacpPortEntryKey{
-			IntfRef: intfref,
+		evt := ifindex_event{
+			ifindex: ifindex,
+			event:   events.LacpdEventPortOperStateDown,
 		}
-		//evtData := EventData{
-		//	IpAddr:  msg.IpAddr,
-		//	MacAddr: entry.MacAddr,
-		//	IfName:  entry.IfName,
-		//}
-		txEvent := eventUtils.TxEvent{
-			EventId: events.LacpdEventPortOperStateDown,
-			Key:     evtKey,
-			//	AdditionalInfo: "",
-			//	AdditionalData: evtData,
-		}
-		err := eventUtils.PublishEvents(&txEvent)
-		if err != nil {
-			GlobalLogger.Err("Error in publishing LacpdEventPortOperStateDown Event")
+
+		if isset, ok := EventMap[evt]; ok {
+			if !isset {
+				EventMap[evt] = true
+
+				evtKey := events.LacpPortEntryKey{
+					IntfRef: intfref,
+				}
+				txEvent := eventUtils.TxEvent{
+					EventId: events.LacpdEventPortOperStateDown,
+					Key:     evtKey,
+				}
+				err := eventUtils.PublishEvents(&txEvent)
+				if err != nil {
+					GlobalLogger.Err("Error in publishing LacpdEventPortOperStateDown Event")
+				}
+			}
 		}
 	} else {
 		GlobalLogger.Err(fmt.Sprintf("Error in publishing LacpdEventPortOperStateDown Event, ifindex %d not found", ifindex))
@@ -116,23 +159,25 @@ func ProcessLacpPortOperStateUp(ifindex int32) {
 	intfref := GetNameFromIfIndex(ifindex)
 
 	if intfref != "" {
-		evtKey := events.LacpPortEntryKey{
-			IntfRef: intfref,
+		evt := ifindex_event{
+			ifindex: ifindex,
+			event:   events.LacpdEventPortOperStateDown,
 		}
-		//evtData := EventData{
-		//	IpAddr:  msg.IpAddr,
-		//	MacAddr: entry.MacAddr,
-		//	IfName:  entry.IfName,
-		//}
-		txEvent := eventUtils.TxEvent{
-			EventId: events.LacpdEventPortOperStateUp,
-			Key:     evtKey,
-			//	AdditionalInfo: "",
-			//	AdditionalData: evtData,
-		}
-		err := eventUtils.PublishEvents(&txEvent)
-		if err != nil {
-			GlobalLogger.Err("Error in publishing LacpdEventPortOperStateUp Event")
+		if isset, ok := EventMap[evt]; ok {
+			if isset {
+				EventMap[evt] = false
+				evtKey := events.LacpPortEntryKey{
+					IntfRef: intfref,
+				}
+				txEvent := eventUtils.TxEvent{
+					EventId: events.LacpdEventPortOperStateUp,
+					Key:     evtKey,
+				}
+				err := eventUtils.PublishEvents(&txEvent)
+				if err != nil {
+					GlobalLogger.Err("Error in publishing LacpdEventPortOperStateUp Event")
+				}
+			}
 		}
 	} else {
 		GlobalLogger.Err(fmt.Sprintf("Error in publishing LacpdEventPortOperStateUp Event, ifindex %d not found", ifindex))
@@ -143,23 +188,26 @@ func ProcessLacpPortPartnerInfoMismatch(ifindex int32) {
 	intfref := GetNameFromIfIndex(ifindex)
 
 	if intfref != "" {
-		evtKey := events.LacpPortEntryKey{
-			IntfRef: intfref,
+		evt := ifindex_event{
+			ifindex: ifindex,
+			event:   events.LacpdEventPortPartnerInfoMismatch,
 		}
-		//evtData := EventData{
-		//	IpAddr:  msg.IpAddr,
-		//	MacAddr: entry.MacAddr,
-		//	IfName:  entry.IfName,
-		//}
-		txEvent := eventUtils.TxEvent{
-			EventId: events.LacpdEventPortPartnerInfoMismatch,
-			Key:     evtKey,
-			//	AdditionalInfo: "",
-			//	AdditionalData: evtData,
-		}
-		err := eventUtils.PublishEvents(&txEvent)
-		if err != nil {
-			GlobalLogger.Err("Error in publishing LacpdEventPortPartnerInfoMismatch Event")
+
+		if isset, ok := EventMap[evt]; ok {
+			if !isset {
+				EventMap[evt] = true
+				evtKey := events.LacpPortEntryKey{
+					IntfRef: intfref,
+				}
+				txEvent := eventUtils.TxEvent{
+					EventId: events.LacpdEventPortPartnerInfoMismatch,
+					Key:     evtKey,
+				}
+				err := eventUtils.PublishEvents(&txEvent)
+				if err != nil {
+					GlobalLogger.Err("Error in publishing LacpdEventPortPartnerInfoMismatch Event")
+				}
+			}
 		}
 	} else {
 		GlobalLogger.Err(fmt.Sprintf("Error in publishing LacpdEventPortPartnerInfoMismatch Event, ifindex %d not found", ifindex))
@@ -170,23 +218,26 @@ func ProcessLacpPortPartnerInfoSync(ifindex int32) {
 	intfref := GetNameFromIfIndex(ifindex)
 
 	if intfref != "" {
-		evtKey := events.LacpPortEntryKey{
-			IntfRef: intfref,
+		evt := ifindex_event{
+			ifindex: ifindex,
+			event:   events.LacpdEventPortPartnerInfoMismatch,
 		}
-		//evtData := EventData{
-		//	IpAddr:  msg.IpAddr,
-		//	MacAddr: entry.MacAddr,
-		//	IfName:  entry.IfName,
-		//}
-		txEvent := eventUtils.TxEvent{
-			EventId: events.LacpdEventPortPartnerInfoSync,
-			Key:     evtKey,
-			//	AdditionalInfo: "",
-			//	AdditionalData: evtData,
-		}
-		err := eventUtils.PublishEvents(&txEvent)
-		if err != nil {
-			GlobalLogger.Err("Error in publishing LacpdEventPortPartnerInfoSync Event")
+
+		if isset, ok := EventMap[evt]; ok {
+			if isset {
+				EventMap[evt] = false
+				evtKey := events.LacpPortEntryKey{
+					IntfRef: intfref,
+				}
+				txEvent := eventUtils.TxEvent{
+					EventId: events.LacpdEventPortPartnerInfoSync,
+					Key:     evtKey,
+				}
+				err := eventUtils.PublishEvents(&txEvent)
+				if err != nil {
+					GlobalLogger.Err("Error in publishing LacpdEventPortPartnerInfoSync Event")
+				}
+			}
 		}
 	} else {
 		GlobalLogger.Err(fmt.Sprintf("Error in publishing LacpdEventPortPartnerInfoSync Event, ifindex %d not found", ifindex))

@@ -475,7 +475,9 @@ func (la *LACPDServiceHandler) CreateLaPortChannel(config *lacpd.LaPortChannel) 
 
 	nameKey := config.IntfRef
 	switchIdMac := config.SystemIdMac
-	if config.SystemIdMac == "00:00:00:00:00:00" {
+	if config.SystemIdMac == "00:00:00:00:00:00" ||
+		config.SystemIdMac == "00-00-00-00-00-00" ||
+		config.SystemIdMac == "" {
 		tmpmac := utils.GetSwitchMac()
 		switchIdMac = fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", tmpmac[0], tmpmac[1], tmpmac[2], tmpmac[3], tmpmac[4], tmpmac[5])
 	}
@@ -863,7 +865,7 @@ func (la *LACPDServiceHandler) GetLaPortChannelState(IntfRef string) (*lacpd.LaP
 		id := GetKeyByAggName(IntfRef)
 		if lacp.LaFindAggById(int(id), &a) {
 			pcs.IntfRef = a.AggName
-			pcs.IfIndex = int32(a.AggId)
+			pcs.IfIndex = int32(a.HwAggId)
 			pcs.LagType = ConvertLaAggTypeToModelLagType(a.AggType)
 			pcs.AdminState = "DOWN"
 			if a.AdminState {
@@ -899,8 +901,7 @@ func (la *LACPDServiceHandler) GetLaPortChannelState(IntfRef string) (*lacpd.LaP
 			return pcs, errors.New(fmt.Sprintf("LACP: Unable to find port channel from LagId %s", IntfRef))
 		}
 	} else {
-		id := GetKeyByAggName(IntfRef)
-		fmt.Println("Lacp Global Disabled, returning saved config map=%v intf=%s\n", lacp.ConfigAggMap, IntfRef)
+		//fmt.Println("Lacp Global Disabled, returning saved config map=%v intf=%s\n", lacp.ConfigAggMap, IntfRef)
 		if ac, ok := lacp.ConfigAggMap[IntfRef]; ok {
 			fmt.Println("Found", IntfRef)
 			/*
@@ -931,7 +932,7 @@ func (la *LACPDServiceHandler) GetLaPortChannelState(IntfRef string) (*lacpd.LaP
 				HashMode uint32
 			*/
 			pcs.IntfRef = IntfRef
-			pcs.IfIndex = int32(id)
+			pcs.IfIndex = 0
 			pcs.LagType = int32(ac.Type)
 
 			pcs.AdminState = "DOWN"
@@ -984,13 +985,12 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 		for currIndex = 0; validCount != count && lacp.LaAggConfigGetByIndex(int(currIndex), &ac); currIndex++ {
 
 			if currIndex < fromIndex {
-				break
+				continue
 			} else {
-				id := GetKeyByAggName(ac.Name)
 
 				nextLagState = &lagStateList[validCount]
 				nextLagState.IntfRef = ac.Name
-				nextLagState.IfIndex = int32(id)
+				nextLagState.IfIndex = 0
 				nextLagState.LagType = int32(ac.Type)
 				nextLagState.AdminState = "DOWN"
 				if ac.Enabled {
@@ -1009,13 +1009,13 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 						nextLagState.IntfRefList = append(nextLagState.IntfRefList, name)
 					}
 
-					if len(returnLagStates) == 0 {
-						returnLagStates = make([]*lacpd.LaPortChannelState, 0)
-					}
-					returnLagStates = append(returnLagStates, nextLagState)
-					validCount++
-					toIndex++
 				}
+				if len(returnLagStates) == 0 {
+					returnLagStates = make([]*lacpd.LaPortChannelState, 0)
+				}
+				returnLagStates = append(returnLagStates, nextLagState)
+				validCount++
+				toIndex++
 			}
 		}
 		// lets try and get the next agg if one exists then there are more routes
@@ -1313,7 +1313,7 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelIntfRefListState(fromIndex la
 				intfref := utils.GetNameFromIfIndex(int32(ifindex))
 				if lacp.LaAggConfigDoesIntfRefListMemberExist(intfref, &ac) {
 					if currIndex < fromIndex {
-						currIndex += 1
+						currIndex++
 						continue
 					} else {
 
@@ -1757,30 +1757,40 @@ func (la *LACPDServiceHandler) GetLacpGlobalState(vrf string) (*lacpd.LacpGlobal
 		obj.AdminState = "DOWN"
 	}
 	var a *lacp.LaAggregator
-	for lacp.LaGetAggNext(&a) {
-		obj.AggList = append(obj.AggList, a.AggName)
-		if a.OperState {
-			obj.AggOperStateUpList = append(obj.AggOperStateUpList, a.AggName)
+	if utils.LacpGlobalStateGet() == utils.LACP_GLOBAL_ENABLE {
+		for lacp.LaGetAggNext(&a) {
+			obj.AggList = append(obj.AggList, a.AggName)
+			if a.OperState {
+				obj.AggOperStateUpList = append(obj.AggOperStateUpList, a.AggName)
+				if a.DrniName != "" {
+					obj.DistributedRelayUpList = append(obj.DistributedRelayUpList, a.DrniName)
+				}
+			}
 			if a.DrniName != "" {
-				obj.DistributedRelayUpList = append(obj.DistributedRelayUpList, a.DrniName)
+				obj.DistributedRelayAttachedList = append(obj.DistributedRelayAttachedList, fmt.Sprintf("%s-%s", a.DrniName, a.AggName))
 			}
 		}
-		if a.DrniName != "" {
-			obj.DistributedRelayAttachedList = append(obj.DistributedRelayAttachedList, fmt.Sprintf("%s-%s", a.DrniName, a.AggName))
+		var dr *drcp.DistributedRelay
+		for drcp.DrGetDrcpNext(&dr) {
+			obj.DistributedRelayList = append(obj.DistributedRelayList, dr.DrniName)
+		}
+
+		var p *lacp.LaAggPort
+		for lacp.LaGetPortNext(&p) {
+			obj.LacpErrorsInPkts += int64(p.LacpCounter.AggPortStatsIllegalRx) + int64(p.LacpCounter.AggPortStatsUnknownRx)
+			obj.LacpMissMatchPkts += int64(p.LacpCounter.AggPortStateMissMatchInfoRx)
+			obj.LacpTotalRxPkts += int64(p.LacpCounter.AggPortStatsLACPDUsRx)
+			obj.LacpTotalTxPkts += int64(p.LacpCounter.AggPortStatsLACPDUsTx)
+		}
+	} else {
+		var currIndex lacpd.Int
+		var ac *lacp.LaAggConfig
+		for currIndex = 0; lacp.LaAggConfigGetByIndex(int(currIndex), &ac); currIndex++ {
+			obj.AggList = append(obj.AggList, ac.Name)
+			// TODO need to add DRCP info
 		}
 	}
-	var dr *drcp.DistributedRelay
-	for drcp.DrGetDrcpNext(&dr) {
-		obj.DistributedRelayList = append(obj.DistributedRelayList, dr.DrniName)
-	}
 
-	var p *lacp.LaAggPort
-	for lacp.LaGetPortNext(&p) {
-		obj.LacpErrorsInPkts += int64(p.LacpCounter.AggPortStatsIllegalRx) + int64(p.LacpCounter.AggPortStatsUnknownRx)
-		obj.LacpMissMatchPkts += int64(p.LacpCounter.AggPortStateMissMatchInfoRx)
-		obj.LacpTotalRxPkts += int64(p.LacpCounter.AggPortStatsLACPDUsRx)
-		obj.LacpTotalTxPkts += int64(p.LacpCounter.AggPortStatsLACPDUsTx)
-	}
 	return obj, nil
 }
 

@@ -248,6 +248,9 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 
 	// add port agg map and register port oper state events
 	utils.AddAggConfigMap(int32(a.AggId), a.AggName)
+	utils.CreateEventMap(int32(a.AggId))
+	// initial event state is down
+	utils.ProcessLacpGroupOperStateDown(int32(a.AggId))
 	RegisterLaAggOperStateUpCb("event_"+a.AggName, utils.ProcessLacpGroupOperStateUp)
 	RegisterLaAggOperStateDownCb("event_"+a.AggName, utils.ProcessLacpGroupOperStateDown)
 
@@ -279,7 +282,7 @@ func NewLaAggregator(ac *LaAggConfig) *LaAggregator {
 			if client != nil {
 				ifindex, err := client.CreateLag(a.AggName, asicDHashModeGet(a.LagHash), "")
 				if err != nil {
-					a.LacpAggLog(fmt.Sprintln("EnableDistributing: Error creating LAG Group in HW", err))
+					a.LacpAggLog(fmt.Sprintln("Error creating LAG Group in HW", err))
 				} else {
 					a.HwAggId = ifindex
 				}
@@ -387,6 +390,7 @@ func (a *LaAggregator) DeleteLaAgg() {
 	a.HwAggId = 0
 	a.OperState = false
 
+	utils.DeleteEventMap(int32(a.AggId))
 	utils.DelAggConfigMap(int32(a.AggId), a.AggName)
 
 	// notify DR that aggregator has been created

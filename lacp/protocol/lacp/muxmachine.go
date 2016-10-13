@@ -187,8 +187,6 @@ func (muxm *LacpMuxMachine) SendTxMachineNtt() {
 // LacpMuxmDetached
 func (muxm *LacpMuxMachine) LacpMuxmDetached(m fsm.Machine, data interface{}) fsm.State {
 	p := muxm.p
-	// send event to user port and partner info don't
-	defer utils.ProcessLacpPortPartnerInfoMismatch(int32(p.PortNum))
 
 	// DETACH MUX FROM AGGREGATOR
 	muxm.DetachMuxFromAggregator()
