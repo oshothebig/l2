@@ -901,8 +901,7 @@ func (la *LACPDServiceHandler) GetLaPortChannelState(IntfRef string) (*lacpd.LaP
 			return pcs, errors.New(fmt.Sprintf("LACP: Unable to find port channel from LagId %s", IntfRef))
 		}
 	} else {
-		id := GetKeyByAggName(IntfRef)
-		fmt.Println("Lacp Global Disabled, returning saved config map=%v intf=%s\n", lacp.ConfigAggMap, IntfRef)
+		//fmt.Println("Lacp Global Disabled, returning saved config map=%v intf=%s\n", lacp.ConfigAggMap, IntfRef)
 		if ac, ok := lacp.ConfigAggMap[IntfRef]; ok {
 			fmt.Println("Found", IntfRef)
 			/*
@@ -986,9 +985,8 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 		for currIndex = 0; validCount != count && lacp.LaAggConfigGetByIndex(int(currIndex), &ac); currIndex++ {
 
 			if currIndex < fromIndex {
-				break
+				continue
 			} else {
-				id := GetKeyByAggName(ac.Name)
 
 				nextLagState = &lagStateList[validCount]
 				nextLagState.IntfRef = ac.Name
@@ -1315,7 +1313,7 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelIntfRefListState(fromIndex la
 				intfref := utils.GetNameFromIfIndex(int32(ifindex))
 				if lacp.LaAggConfigDoesIntfRefListMemberExist(intfref, &ac) {
 					if currIndex < fromIndex {
-						currIndex += 1
+						currIndex++
 						continue
 					} else {
 
