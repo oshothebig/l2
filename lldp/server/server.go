@@ -162,7 +162,7 @@ func (svr *LLDPServer) LLDPStartServer(paramsDir string) {
 
 	// after everything is started then Do Rx/Tx Init
 	svr.RunGlobalConfig()
-	go svr.ChannelHanlder()
+	go svr.ChannelHandler()
 }
 
 /*  Create os signal handler channel and initiate go routine for that
@@ -201,7 +201,7 @@ func (svr *LLDPServer) SignalHandler(sigChannel <-chan os.Signal) {
  *  2) start go routine for Rx/Tx Frames Packet Handler
  *  3) Add the port to UP List
  */
-func (svr *LLDPServer) StartRxTx(ifIndex int32) {
+func (svr *LLDPServer) StartRxTx(ifIndex int32, rxtxMode uint8) {
 	intf, exists := svr.lldpGblInfo[ifIndex]
 	if !exists {
 		debug.Logger.Err("No entry for ifindex", ifIndex)
@@ -212,25 +212,44 @@ func (svr *LLDPServer) StartRxTx(ifIndex int32) {
 		debug.Logger.Info("Port is down and hence not starting pcap handler yet for", intf.Port.Name)
 		return
 	}
-	if intf.PcapHandle != nil {
-		debug.Logger.Info("Pcap already exist means the port changed it states")
-		// Move the port to up state if not exists and continue
-		svr.AddPortToUpState(intf.Port.IfIndex)
-		return // returning because the go routine is already up and running for the port
+	if intf.PcapHandle == nil {
+		err := intf.CreatePcapHandler(svr.lldpSnapshotLen, svr.lldpPromiscuous, svr.lldpTimeout)
+		if err != nil {
+			debug.Logger.Alert("Creating Pcap Handler for", intf.Port.Name,
+				"failed and hence we will not start LLDP on the port")
+			return
+		}
+		debug.Logger.Info("Start lldp frames rx/tx for port:", intf.Port.Name, "ifIndex:", intf.Port.IfIndex)
 	}
-	err := intf.CreatePcapHandler(svr.lldpSnapshotLen, svr.lldpPromiscuous, svr.lldpTimeout)
-	if err != nil {
-		debug.Logger.Alert("Creating Pcap Handler for", intf.Port.Name,
-			"failed and hence we will not start LLDP on the port")
-		return
-	}
-
-	// Everything set up, so now lets start with receiving frames and transmitting frames go routine...
-	go intf.ReceiveFrames(svr.lldpRxPktCh)
-	intf.StartTxTimer(svr.lldpTxPktCh)
-	svr.lldpGblInfo[ifIndex] = intf
 	svr.AddPortToUpState(intf.Port.IfIndex)
-	debug.Logger.Info("Start lldp frames rx/tx for port:", intf.Port.Name, "ifIndex:", intf.Port.IfIndex)
+	// Everything set up, so now lets start with receiving frames and transmitting frames go routine...
+	//If RX routine not running start it
+	if rxtxMode != config.TX_ONLY {
+		if !intf.RxInfo.RxRunning {
+			go intf.ReceiveFrames(svr.lldpRxPktCh)
+			intf.RxInfo.RxRunning = true
+		}
+	} else {
+		//RX go routine could have been spawned due to earlier txrx or rx only modes
+		if intf.RxInfo.RxRunning {
+			intf.RxKill <- true
+			intf.RxInfo.RxRunning = false
+			<-intf.RxKill
+			intf.counter.Rcvd = 0
+		}
+	}
+	//If TX routine not running start it
+	if rxtxMode != config.RX_ONLY {
+		if intf.TxInfo.TxTimer == nil {
+			intf.StartTxTimer(svr.lldpTxPktCh)
+		}
+	} else {
+		//TX go routine could have been spawned due to earlier txrx or tx only modes
+		intf.TxInfo.StopTxTimer()
+		intf.counter.Send = 0
+	}
+	svr.lldpGblInfo[ifIndex] = intf
+	return
 }
 
 /*  Send Signal for stopping rx/tx go routine and timers as the pcap handler for
@@ -307,7 +326,7 @@ func (svr *LLDPServer) UpdateL2IntfStateChange(ifIndex int32, state string) {
 		svr.lldpGblInfo[ifIndex] = intf
 		if intf.isEnabled() {
 			// Create Pcap Handler and start rx/tx packets
-			svr.StartRxTx(ifIndex)
+			svr.StartRxTx(ifIndex, intf.rxtxMode)
 		}
 	case "DOWN":
 		debug.Logger.Debug("State DOWN notification for " + intf.Port.Name + " ifIndex: " +
@@ -352,7 +371,7 @@ func (svr *LLDPServer) handleGlobalConfig() {
 		case true:
 			debug.Logger.Debug("Global Config Enabled, enabling port rx tx for port:", intf.Port.Name,
 				"ifIndex", ifIndex)
-			svr.StartRxTx(ifIndex)
+			svr.StartRxTx(ifIndex, svr.Global.TxRxMode)
 		case false:
 			debug.Logger.Debug("Global Config Disabled, disabling port rx tx for port:", intf.Port.Name,
 				"ifIndex", ifIndex)
@@ -369,18 +388,19 @@ func (svr *LLDPServer) handleGlobalConfig() {
 
 /*  handle configuration coming from user, which will enable/disable lldp per port
  */
-func (svr *LLDPServer) handleIntfConfig(ifIndex int32, enable bool) {
+func (svr *LLDPServer) handleIntfConfig(ifIndex int32, enable bool, rxtxMode uint8) {
 	intf, found := svr.lldpGblInfo[ifIndex]
 	if !found {
 		debug.Logger.Err("No entry for ifIndex", ifIndex, "in runtime information")
 		return
 	}
+	intf.rxtxMode = rxtxMode
 	switch enable {
 	case true:
 		debug.Logger.Debug("Config Enable for", intf.Port.Name, "ifIndex:", intf.Port.IfIndex)
 		intf.Enable()
 		svr.lldpGblInfo[ifIndex] = intf
-		svr.StartRxTx(ifIndex)
+		svr.StartRxTx(ifIndex, rxtxMode)
 	case false:
 		debug.Logger.Debug("Config Disable for", intf.Port.Name, "ifIndex:", intf.Port.IfIndex)
 		if intf.isEnabled() { // If Enabled then only do stop rx/tx
@@ -443,7 +463,7 @@ func (svr *LLDPServer) ProcessRcvdPkt(rcvdInfo InPktChannel) {
 /* To handle all the channels in lldp server... For detail look at the
  * LLDPInitGlobalDS api to see which all channels are getting initialized
  */
-func (svr *LLDPServer) ChannelHanlder() {
+func (svr *LLDPServer) ChannelHandler() {
 
 	for {
 		select {
@@ -470,6 +490,8 @@ func (svr *LLDPServer) ChannelHanlder() {
 			svr.Global.Enable = gbl.Enable
 			svr.Global.Vrf = gbl.Vrf
 			svr.Global.TranmitInterval = gbl.TranmitInterval
+			svr.Global.TxRxMode = gbl.TxRxMode
+			svr.Global.SnoopAndDrop = gbl.SnoopAndDrop
 			// start all interface rx/tx in go routine only
 			// @TODO: jgheewala fixme for update in transmit interval
 			svr.handleGlobalConfig()
@@ -478,7 +500,7 @@ func (svr *LLDPServer) ChannelHanlder() {
 				continue
 			}
 			debug.Logger.Info("Server received Intf Config", intf)
-			svr.handleIntfConfig(intf.IfIndex, intf.Enable)
+			svr.handleIntfConfig(intf.IfIndex, intf.Enable, intf.TxRxMode)
 		case ifState, ok := <-svr.IfStateCh: // Change in Port State..
 			if !ok {
 				continue

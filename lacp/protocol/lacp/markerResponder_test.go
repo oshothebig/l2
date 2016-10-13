@@ -113,9 +113,10 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 	LaRxMain(bridge.Port2, bridge.RxLacpPort2)
 
 	a1conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:  100,
-		Key: 100,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:   100,
+		Key:  100,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:64",
@@ -123,9 +124,10 @@ func TestTwoAggsBackToBackSinglePortInjectMarkerPdu(t *testing.T) {
 	}
 
 	a2conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
-		Id:  200,
-		Key: 200,
+		Name: "agg2",
+		Mac:  [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:   200,
+		Key:  200,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:C8",

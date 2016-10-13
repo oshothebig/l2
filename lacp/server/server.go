@@ -9,6 +9,8 @@ import (
 	"l2/lacp/protocol/utils"
 	"utils/commonDefs"
 	//"utils/keepalive"
+	"utils/dbutils"
+	"utils/eventUtils"
 	"utils/logging"
 )
 
@@ -46,6 +48,7 @@ type LAServer struct {
 	logger           *logging.Writer
 	ConfigCh         chan LAConfig
 	AsicdSubSocketCh chan commonDefs.AsicdNotifyMsg
+	eventDbHdl       *dbutils.DBUtil
 }
 
 func NewLAServer(logger *logging.Writer) *LAServer {
@@ -58,10 +61,27 @@ func NewLAServer(logger *logging.Writer) *LAServer {
 
 func (server *LAServer) InitServer() {
 	utils.ConstructPortConfigMap()
+
+	err := server.initializeEvents()
+	if err != nil {
+		utils.GetLaLogger().Err("Error initializing Event Db")
+	}
 	// TODO
 	//go server.ListenToClientStateChanges()
 	server.StartLaConfigNotificationListener()
 	drcp.GetAllCVIDConversations()
+}
+
+func (server *LAServer) initializeEvents() error {
+	logger := utils.GetLaLogger()
+	server.eventDbHdl = dbutils.NewDBUtil(logger)
+	err := server.eventDbHdl.Connect()
+	if err != nil {
+		utils.GetLaLogger().Err("Failed to create the DB handle")
+		return err
+	}
+
+	return eventUtils.InitEvents("LACPD", server.eventDbHdl, server.eventDbHdl, logger, 1000)
 }
 
 /*

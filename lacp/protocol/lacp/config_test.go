@@ -279,9 +279,10 @@ func TestLaAggPortCreateWithInvalidKeySetWithAgg(t *testing.T) {
 	LacpSysGlobalInfoInit(sysId)
 
 	aconf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:  2000,
-		Key: 50,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:   2000,
+		Key:  50,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:01:02:03:04:05",
@@ -423,9 +424,10 @@ func TestLaAggPortCreateThenCorrectAggCreate(t *testing.T) {
 	}
 
 	aconf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:  2000,
-		Key: 100,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:   2000,
+		Key:  100,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:01:02:03:04:05",
@@ -504,9 +506,10 @@ func TestLaAggPortCreateThenCorrectAggCreateThenDetach(t *testing.T) {
 	}
 
 	aconf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:  2000,
-		Key: 100,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:   2000,
+		Key:  100,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:01:02:03:04:05",
@@ -586,9 +589,10 @@ func TestLaAggPortEnable(t *testing.T) {
 	}
 
 	aconf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
-		Id:  2000,
-		Key: 100,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x02, 0x03, 0x04},
+		Id:   2000,
+		Key:  100,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:01:02:03:04:05",
@@ -705,9 +709,10 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	LaRxMain(bridge.Port2, bridge.RxLacpPort2)
 
 	a1conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:  100,
-		Key: 100,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:   100,
+		Key:  100,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:64",
@@ -715,9 +720,10 @@ func TestTwoAggsBackToBackSinglePort(t *testing.T) {
 	}
 
 	a2conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
-		Id:  200,
-		Key: 200,
+		Name: "agg2",
+		Mac:  [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:   200,
+		Key:  200,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:C8",
@@ -879,9 +885,10 @@ func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 	CreateLaAggPort(p2conf)
 
 	a1conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:  100,
-		Key: 100,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:   100,
+		Key:  100,
 		Lacp: LacpConfigInfo{Interval: LacpFastPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:64",
@@ -889,9 +896,10 @@ func TestTwoAggsBackToBackSinglePortTimeout(t *testing.T) {
 	}
 
 	a2conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
-		Id:  200,
-		Key: 200,
+		Name: "agg2",
+		Mac:  [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:   200,
+		Key:  200,
 		Lacp: LacpConfigInfo{Interval: LacpFastPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:C8",
@@ -1003,9 +1011,10 @@ func TestLaAggCallSaveLaAggConfig(t *testing.T) {
 	defer MemoryCheck(t)
 	OnlyForTestSetup()
 	aconf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
-		Id:  200,
-		Key: 200,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:   200,
+		Key:  200,
 		Lacp: LacpConfigInfo{Interval: LacpFastPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:C8",
@@ -1109,9 +1118,10 @@ func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
 	CreateLaAggPort(p2conf)
 
 	a1conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:  100,
-		Key: 100,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:   100,
+		Key:  100,
 		Lacp: LacpConfigInfo{Interval: LacpFastPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:64",
@@ -1119,9 +1129,10 @@ func TestTwoAggsBackToBackSingleDisableEnableLaAgg(t *testing.T) {
 	}
 
 	a2conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
-		Id:  200,
-		Key: 200,
+		Name: "agg2",
+		Mac:  [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:   200,
+		Key:  200,
 		Lacp: LacpConfigInfo{Interval: LacpFastPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:C8",
@@ -1340,9 +1351,10 @@ func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
 	LaRxMain(bridge.Port2, bridge.RxLacpPort2)
 
 	a1conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:  100,
-		Key: 100,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:   100,
+		Key:  100,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:64",
@@ -1350,9 +1362,10 @@ func TestTwoAggsBackToBackSinglePortValidLacpModeCombo(t *testing.T) {
 	}
 
 	a2conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
-		Id:  200,
-		Key: 200,
+		Name: "agg2",
+		Mac:  [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:   200,
+		Key:  200,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:C8",
@@ -1591,9 +1604,10 @@ func TestTwoAggsBackToBackSinglePortDisablePort(t *testing.T) {
 	LaRxMain(bridge.Port2, bridge.RxLacpPort2)
 
 	a1conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
-		Id:  100,
-		Key: 100,
+		Name: "agg1",
+		Mac:  [6]uint8{0x00, 0x00, 0x01, 0x01, 0x01, 0x01},
+		Id:   100,
+		Key:  100,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:64",
@@ -1601,9 +1615,10 @@ func TestTwoAggsBackToBackSinglePortDisablePort(t *testing.T) {
 	}
 
 	a2conf := &LaAggConfig{
-		Mac: [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
-		Id:  200,
-		Key: 200,
+		Name: "agg2",
+		Mac:  [6]uint8{0x00, 0x00, 0x02, 0x02, 0x02, 0x02},
+		Id:   200,
+		Key:  200,
 		Lacp: LacpConfigInfo{Interval: LacpSlowPeriodicTime,
 			Mode:           LacpModeActive,
 			SystemIdMac:    "00:00:00:00:00:C8",

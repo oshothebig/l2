@@ -89,15 +89,18 @@ type DRAggregatorPortListConfig struct {
 	PortList       []int32
 }
 
+// holds the dr to agg list
+var ConfigDrMap map[string]uint32
+
 func (d *DistributedRelayConfig) GetKey() string {
 	return d.DrniName
 }
 
 // DistributedRelayConfigCreateCheck
 func DistributedRelayConfigCreateCheck(drniname string, aggregatorid uint32) error {
-	if _, ok := utils.ConfigDrMap[drniname]; ok {
+	if _, ok := ConfigDrMap[drniname]; ok {
 
-		for name, aggid := range utils.ConfigDrMap {
+		for name, aggid := range ConfigDrMap {
 			if drniname != name {
 				if aggregatorid == aggid {
 					return errors.New(fmt.Sprintf("ERROR Aggregator %d already associated with Distributed Relay %s", aggregatorid, name))
@@ -105,7 +108,7 @@ func DistributedRelayConfigCreateCheck(drniname string, aggregatorid uint32) err
 			}
 		}
 
-		utils.ConfigDrMap[drniname] = aggregatorid
+		ConfigDrMap[drniname] = aggregatorid
 	}
 	return nil
 }
@@ -212,8 +215,8 @@ func DistributedRelayConfigParamCheck(mlag *DistributedRelayConfig) error {
 //DistributedRelayConfigDeleteCheck
 func DistributedRelayConfigDeleteCheck(drniname string) error {
 	// nothing to check
-	if _, ok := utils.ConfigDrMap[drniname]; ok {
-		delete(utils.ConfigDrMap, drniname)
+	if _, ok := ConfigDrMap[drniname]; ok {
+		delete(ConfigDrMap, drniname)
 	}
 	return nil
 }

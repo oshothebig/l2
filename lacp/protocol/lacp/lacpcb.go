@@ -30,12 +30,14 @@ type LacpPortEvtCb func(ifindex int32)
 type LacpAggEvtCb func(ifindex int32)
 
 type LacpCbDbEntry struct {
-	PortCreateDbList map[string]LacpPortEvtCb
-	PortDeleteDbList map[string]LacpPortEvtCb
-	PortUpDbList     map[string]LacpPortEvtCb
-	PortDownDbList   map[string]LacpPortEvtCb
-	AggCreateDbList  map[string]LacpAggEvtCb
-	AggDeleteDbList  map[string]LacpAggEvtCb
+	PortCreateDbList  map[string]LacpPortEvtCb
+	PortDeleteDbList  map[string]LacpPortEvtCb
+	PortUpDbList      map[string]LacpPortEvtCb
+	PortDownDbList    map[string]LacpPortEvtCb
+	AggCreateDbList   map[string]LacpAggEvtCb
+	AggDeleteDbList   map[string]LacpAggEvtCb
+	AggOperUpDbList   map[string]LacpAggEvtCb
+	AggOperDownDbList map[string]LacpAggEvtCb
 }
 
 var LacpCbDb LacpCbDbEntry
@@ -62,6 +64,14 @@ func RegisterLaAggCreateCb(owner string, cb LacpAggEvtCb) {
 
 func RegisterLaAggDeleteCb(owner string, cb LacpAggEvtCb) {
 	LacpCbDb.AggDeleteDbList[owner] = cb
+}
+
+func RegisterLaAggOperStateUpCb(owner string, cb LacpAggEvtCb) {
+	LacpCbDb.AggOperUpDbList[owner] = cb
+}
+
+func RegisterLaAggOperStateDownCb(owner string, cb LacpAggEvtCb) {
+	LacpCbDb.AggOperDownDbList[owner] = cb
 }
 
 func DeRegisterLaAggCbAll(owner string) {

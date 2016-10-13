@@ -33,6 +33,7 @@ import (
 )
 
 var PortConfigMap map[int32]PortConfig
+var AggConfigMap map[int32]string
 
 type PortConfig struct {
 	Name         string
@@ -106,6 +107,34 @@ func ConstructPortConfigMap() {
 		ent.Speed = dbObject.Speed
 		PortConfigMap[ifindex] = ent
 	}
+}
+
+func AddAggConfigMap(ifindex int32, intfref string) {
+	if _, ok := AggConfigMap[ifindex]; !ok {
+		AggConfigMap[ifindex] = intfref
+	}
+}
+
+func DelAggConfigMap(ifindex int32, intfref string) {
+	if _, ok := AggConfigMap[ifindex]; ok {
+		delete(AggConfigMap, ifindex)
+	}
+}
+
+func GetAggIfIndexFromName(name string) int32 {
+	for ifindex, intfref := range AggConfigMap {
+		if name == intfref {
+			return ifindex
+		}
+	}
+	return 0
+}
+
+func GetAggNameFromIfIndex(ifindex int32) string {
+	if intfref, ok := AggConfigMap[ifindex]; ok {
+		return intfref
+	}
+	return ""
 }
 
 func GetIfIndexFromName(name string) int32 {
