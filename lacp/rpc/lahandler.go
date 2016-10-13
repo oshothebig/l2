@@ -1009,13 +1009,13 @@ func (la *LACPDServiceHandler) GetBulkLaPortChannelState(fromIndex lacpd.Int, co
 						nextLagState.IntfRefList = append(nextLagState.IntfRefList, name)
 					}
 
-					if len(returnLagStates) == 0 {
-						returnLagStates = make([]*lacpd.LaPortChannelState, 0)
-					}
-					returnLagStates = append(returnLagStates, nextLagState)
-					validCount++
-					toIndex++
 				}
+				if len(returnLagStates) == 0 {
+					returnLagStates = make([]*lacpd.LaPortChannelState, 0)
+				}
+				returnLagStates = append(returnLagStates, nextLagState)
+				validCount++
+				toIndex++
 			}
 		}
 		// lets try and get the next agg if one exists then there are more routes
