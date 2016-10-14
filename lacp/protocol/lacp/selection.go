@@ -189,16 +189,17 @@ func (rxm *LacpRxMachine) updateSelected(lacpPduInfo *layers.LACP) {
 	//rxm.LacpRxmLog(fmt.Sprintf("Port partner oper info %#v", p.PartnerOper))
 
 	// lets check a few conditions from Selection logic 802.1ax Section 6.4.14.1
+	/*
+		if rxm.detectLoopbackCondition(lacpPduInfo) {
+			rxm.LacpRxmLog("ERROR Loopback condition detected")
+			unselectedCondition = true
+		}
 
-	if rxm.detectLoopbackCondition(lacpPduInfo) {
-		rxm.LacpRxmLog("ERROR Loopback condition detected")
-		unselectedCondition = true
-	}
-
-	if rxm.detectInvalidPeerSelection(lacpPduInfo) {
-		rxm.LacpRxmLog("ERROR Peer Selection Invalid")
-		unselectedCondition = true
-	}
+		if rxm.detectInvalidPeerSelection(lacpPduInfo) {
+			rxm.LacpRxmLog("ERROR Peer Selection Invalid")
+			unselectedCondition = true
+		}
+	*/
 
 	if !LacpLacpPktPortInfoIsEqual(&lacpPduInfo.Actor.Info, &p.PartnerOper, LacpStateAggregationBit) &&
 		p.aggSelected == LacpAggSelected {
@@ -313,7 +314,7 @@ func (p *LaAggPort) checkConfigForSelection() bool {
 			if (p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateDetached ||
 				p.MuxMachineFsm.Machine.Curr.CurrentState() == LacpMuxmStateCDetached) &&
 				p.ActorOper.Key == a.ActorOperKey &&
-				p.IsPortEnabled() &&
+				//p.PortEnabled &&
 				(p.DrniName == "" ||
 					p.DrniName != "" && p.DrniSynced) {
 
