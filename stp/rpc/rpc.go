@@ -26,11 +26,13 @@ package rpc
 import (
 	"encoding/json"
 	"fmt"
-	"git.apache.org/thrift.git/lib/go/thrift"
 	"io/ioutil"
+	"path/filepath"
 	"stpd"
 	"strconv"
 	"utils/logging"
+
+	"git.apache.org/thrift.git/lib/go/thrift"
 )
 
 type ClientJson struct {
@@ -59,11 +61,7 @@ func getClient(logger *logging.Writer, fileName string, process string) (*Client
 }
 
 func StartServer(logger *logging.Writer, handler *STPDServiceHandler, paramDir string) {
-	fileName := paramDir
-	if fileName[len(fileName)-1] != '/' {
-		fileName = fileName + "/"
-	}
-	fileName = fileName + "clients.json"
+	fileName := filepath.Join(paramDir, "clients.json")
 
 	clientJson, err := getClient(logger, fileName, "stpd")
 	if err != nil || clientJson == nil {
